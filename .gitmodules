@@ -10,3 +10,9 @@
 [submodule "extern/googletest"]
 	path = extern/googletest
 	url = https://github.com/google/googletest.git
+[submodule "extern/fmt"]
+	path = extern/fmt
+	url = https://github.com/fmtlib/fmt.git
+[submodule "extern/sqlite"]
+	path = extern/sqlite
+	url = git@github.com:Kuree/sqlite.git

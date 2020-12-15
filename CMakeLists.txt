@@ -3,6 +3,10 @@ project(hgdb)
 
 set(CMAKE_CXX_STANDARD 17)
 
+# dependencies
+add_subdirectory(extern/fmt)
+add_subdirectory(extern/sqlite)
+
 add_subdirectory(src)
 
 # tests
