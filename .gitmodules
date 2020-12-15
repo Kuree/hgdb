@@ -15,4 +15,4 @@
 	url = https://github.com/fmtlib/fmt.git
 [submodule "extern/sqlite"]
 	path = extern/sqlite
-	url = git@github.com:Kuree/sqlite.git
+	url = https://github.com/Kuree/sqlite.git
