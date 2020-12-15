@@ -6,4 +6,8 @@ set(CMAKE_CXX_STANDARD 17)
 add_subdirectory(src)
 
 # tests
+add_subdirectory(extern/googletest)
+include(GoogleTest)
+include (CTest)
+enable_testing()
 add_subdirectory(tests)

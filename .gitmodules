@@ -7,3 +7,6 @@
 [submodule "extern/websocketpp"]
 	path = extern/websocketpp
 	url = https://github.com/zaphoyd/websocketpp
+[submodule "extern/googletest"]
+	path = extern/googletest
+	url = https://github.com/google/googletest.git
