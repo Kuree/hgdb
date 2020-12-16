@@ -142,7 +142,7 @@ struct GeneratorVariable {
     std::unique_ptr<uint32_t> variable_id;
 };
 
-auto inline init_debug_db(const std::string &filename, bool sync_schema = true) {
+auto inline init_debug_db(const std::string &filename) {
     using namespace sqlite_orm;
     auto storage = make_storage(
         filename,
@@ -170,12 +170,12 @@ auto inline init_debug_db(const std::string &filename, bool sync_schema = true) 
                    make_column("variable_id", &GeneratorVariable::variable_id),
                    foreign_key(&GeneratorVariable::instance_id).references(&Instance::id),
                    foreign_key(&GeneratorVariable::variable_id).references(&Variable::id)));
-    if (sync_schema) storage.sync_schema();
+    storage.sync_schema();
     return storage;
 }
 
 // type aliasing
-using DebugDatabase = decltype(init_debug_db("", false));
+using DebugDatabase = decltype(init_debug_db(""));
 
 // helper functions
 inline void store_breakpoint(DebugDatabase &db, uint32_t id, uint32_t instance_id,
