@@ -16,4 +16,4 @@ RUN apt-get update && \
 RUN update-alternatives --install /usr/bin/python python /usr/bin/python3 10
 RUN update-alternatives --install /usr/bin/pip pip /usr/bin/pip3 10
 
-RUN pip install -U  --no-cache-dir pytest pytest-cpp
+RUN pip install -U  --no-cache-dir pytest pytest-cpp websockets
