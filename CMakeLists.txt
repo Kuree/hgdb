@@ -3,9 +3,13 @@ project(hgdb)
 
 set(CMAKE_CXX_STANDARD 17)
 
-# dependencies
+# extern dependencies
 add_subdirectory(extern/fmt)
 add_subdirectory(extern/sqlite)
+
+# system dependencies
+set(THREADS_PREFER_PTHREAD_FLAG ON)
+find_package(Threads REQUIRED)
 
 add_subdirectory(src)
 
