@@ -142,6 +142,40 @@ struct GeneratorVariable {
     uint32_t variable_id;
 };
 
+auto inline init_debug_db(const std::string &filename) {
+    using namespace sqlite_orm;
+    auto storage = make_storage(
+        filename,
+        make_table("breakpoint", make_column("id", &BreakPoint::id, primary_key()),
+                   make_column("filename", &BreakPoint::filename),
+                   make_column("line_num", &BreakPoint::line_num),
+                   make_column("column_num", &BreakPoint::column_num),
+                   make_column("condition", &BreakPoint::condition),
+                   make_column("instance_id", &BreakPoint::instance_id),
+                   foreign_key(&BreakPoint::instance_id).references(&Instance::id)),
+        make_table("instance", make_column("id", &Instance::id, primary_key()),
+                   make_column("name", &Instance::name)),
+        make_table("scope", make_column("scope", &Scope::id, primary_key()),
+                   make_column("breakpoints", &Scope::breakpoints)),
+        make_table("variable", make_column("id", &Variable::id, primary_key()),
+                   make_column("value", &Variable::value),
+                   make_column("is_rtl", &Variable::is_rtl)),
+        make_table("context_variable", make_column("name", &ContextVariable::name),
+                   make_column("breakpoint_id", &ContextVariable::breakpoint_id),
+                   make_column("variable_id", &ContextVariable::variable_id),
+                   foreign_key(&ContextVariable::breakpoint_id).references(&BreakPoint::id),
+                   foreign_key(&ContextVariable::variable_id).references(&Variable::id)),
+        make_table("generator_variable", make_column("name", &GeneratorVariable::name),
+                   make_column("instance_id", &GeneratorVariable::instance_id),
+                   make_column("variable_id", &GeneratorVariable::variable_id),
+                   foreign_key(&GeneratorVariable::instance_id).references(&Instance::id),
+                   foreign_key(&GeneratorVariable::variable_id).references(&Variable::id)));
+    return storage;
 }
+
+// type aliasing
+using DebugDataBase = decltype(init_debug_db);
+
+}  // namespace hgdb
 
 #endif  // HGDB_SCHEMA_HH
