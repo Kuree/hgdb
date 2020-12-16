@@ -1,6 +1,6 @@
 add_library(hgdb db.cc)
 
-target_include_directories(hgdb PRIVATE
+target_include_directories(hgdb PUBLIC
         ../include
         ../extern/fmt/include
         ../extern/sqlite/include
