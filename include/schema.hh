@@ -16,6 +16,10 @@ struct BreakPoint {
      */
     uint32_t id;
     /**
+     * Instances the breakpoint belongs to.
+     */
+    std::unique_ptr<uint32_t> instance_id;
+    /**
      * Path for the source file that generates the corresponding line in
      * absolute path.
      */
@@ -28,7 +32,7 @@ struct BreakPoint {
     /**
      * Column number. Starting from 1. Setting to 0 (default) implies "don't care"
      */
-    uint32_t column_num = 0;
+    uint32_t column_num;
     /**
      * Under which condition the breakpoint should be enabled.
      * Notice that unlike software debuggers where there is no default
@@ -47,10 +51,6 @@ struct BreakPoint {
      * And it is only valid if net a is true, we put "a" as condition
      */
     std::string condition;
-    /**
-     * Instances the breakpoint belongs to.
-     */
-    uint32_t instance_id;
 };
 
 /**
@@ -117,11 +117,11 @@ struct ContextVariable {
     /**
      * Breakpoint ID associated with the context variable
      */
-    uint32_t breakpoint_id;
+    std::unique_ptr<uint32_t> breakpoint_id;
     /**
      * Variable ID associated with the context variable
      */
-    uint32_t variable_id;
+    std::unique_ptr<uint32_t> variable_id;
 };
 
 /**
@@ -135,23 +135,23 @@ struct GeneratorVariable {
     /**
      * Instance ID associated with the generator variable
      */
-    uint32_t instance_id;
+    std::unique_ptr<uint32_t> instance_id;
     /**
      * Variable ID associated with the generator variable
      */
-    uint32_t variable_id;
+    std::unique_ptr<uint32_t> variable_id;
 };
 
-auto inline init_debug_db(const std::string &filename) {
+auto inline init_debug_db(const std::string &filename, bool sync_schema = true) {
     using namespace sqlite_orm;
     auto storage = make_storage(
         filename,
         make_table("breakpoint", make_column("id", &BreakPoint::id, primary_key()),
+                   make_column("instance_id", &BreakPoint::instance_id),
                    make_column("filename", &BreakPoint::filename),
                    make_column("line_num", &BreakPoint::line_num),
                    make_column("column_num", &BreakPoint::column_num),
                    make_column("condition", &BreakPoint::condition),
-                   make_column("instance_id", &BreakPoint::instance_id),
                    foreign_key(&BreakPoint::instance_id).references(&Instance::id)),
         make_table("instance", make_column("id", &Instance::id, primary_key()),
                    make_column("name", &Instance::name)),
@@ -170,11 +170,67 @@ auto inline init_debug_db(const std::string &filename) {
                    make_column("variable_id", &GeneratorVariable::variable_id),
                    foreign_key(&GeneratorVariable::instance_id).references(&Instance::id),
                    foreign_key(&GeneratorVariable::variable_id).references(&Variable::id)));
+    if (sync_schema) storage.sync_schema();
     return storage;
 }
 
 // type aliasing
-using DebugDataBase = decltype(init_debug_db);
+using DebugDatabase = decltype(init_debug_db("", false));
+
+// helper functions
+inline void store_breakpoint(DebugDatabase &db, uint32_t id, uint32_t instance_id,
+                             const std::string &filename, uint32_t line_num,
+                             uint32_t column_num = 0, const std::string &condition = "") {
+    db.replace(BreakPoint{.id = id,
+                          .instance_id = std::make_unique<uint32_t>(instance_id),
+                          .filename = filename,
+                          .line_num = line_num,
+                          .column_num = column_num,
+                          .condition = condition});
+}
+
+inline void store_instance(DebugDatabase &db, uint32_t id, const std::string &name) {
+    db.replace(Instance{.id = id, .name = name});
+}
+
+inline void store_scope(DebugDatabase &db, uint32_t id, const std::string &breakpoints) {
+    db.replace(Scope{.id = id, .breakpoints = breakpoints});
+}
+
+inline void store_scope(DebugDatabase &db, uint32_t id, const std::vector<uint32_t> &breakpoints) {
+    std::stringstream ss;
+    for (auto i = 0u; i < breakpoints.size(); i++) {
+        if (i == breakpoints.size() == 1)
+            ss << breakpoints[i];
+        else
+            ss << breakpoints[i] << " ";
+    }
+    store_scope(db, id, ss.str());
+}
+
+template <typename... Ts>
+inline void store_scope(DebugDatabase &db, uint32_t id, Ts... ids) {
+    store_scope(db, id, std::vector<uint32_t>{&ids...});
+}
+
+inline void store_variable(DebugDatabase &db, uint32_t id, const std::string &value,
+                           bool is_rtl = true) {
+    db.replace(Variable{.id = id, .value = value, .is_rtl = is_rtl});
+}
+
+inline void store_context_variable(DebugDatabase &db, const std::string &name,
+                                   uint32_t breakpoint_id, uint32_t variable_id) {
+    db.replace(ContextVariable{.name = name,
+                               .breakpoint_id = std::make_unique<uint32_t>(breakpoint_id),
+                               .variable_id = std::make_unique<uint32_t>(variable_id)});
+}
+
+inline void store_generator_variable(DebugDatabase &db, const std::string &name,
+                                     uint32_t instance_id, uint32_t variable_id) {
+    db.replace(GeneratorVariable{.name = name,
+                                 .instance_id = std::make_unique<uint32_t>(instance_id),
+                                 .variable_id = std::make_unique<uint32_t>(variable_id)});
+}
 
 }  // namespace hgdb
 
