@@ -200,7 +200,7 @@ inline void store_scope(DebugDatabase &db, uint32_t id, const std::string &break
 inline void store_scope(DebugDatabase &db, uint32_t id, const std::vector<uint32_t> &breakpoints) {
     std::stringstream ss;
     for (auto i = 0u; i < breakpoints.size(); i++) {
-        if (i == breakpoints.size() == 1)
+        if (i == breakpoints.size() - 1)
             ss << breakpoints[i];
         else
             ss << breakpoints[i] << " ";
@@ -210,7 +210,7 @@ inline void store_scope(DebugDatabase &db, uint32_t id, const std::vector<uint32
 
 template <typename... Ts>
 inline void store_scope(DebugDatabase &db, uint32_t id, Ts... ids) {
-    store_scope(db, id, std::vector<uint32_t>{&ids...});
+    store_scope(db, id, std::vector<uint32_t> {ids...});
 }
 
 inline void store_variable(DebugDatabase &db, uint32_t id, const std::string &value,

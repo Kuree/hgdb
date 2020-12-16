@@ -42,3 +42,12 @@ TEST_F(SchemaTest, store_breakpoint) {  // NOLINT
     EXPECT_EQ(result->id, breakpoint_id);
     EXPECT_EQ(result->filename, __FILE__);
 }
+
+TEST_F(SchemaTest, store_scope) {   // NOLINT
+    EXPECT_EQ(db->count<hgdb::Scope>(), 0);
+    constexpr uint32_t scope_id = 42;
+    hgdb::store_scope(*db, scope_id, 1u, 2u, 3u, 4u);
+    auto result = db->get_pointer<hgdb::Scope>(scope_id);
+    EXPECT_TRUE(result);
+    EXPECT_EQ(result->breakpoints, "1 2 3 4");
+}
