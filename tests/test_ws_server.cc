@@ -12,7 +12,8 @@ int main(int argc, char* argv[]) {
     if (argc != 2) return EXIT_FAILURE;
     uint16_t port = std::stoul(argv[1]);
     std::cout << "Using port " << port << std::endl;
-    hgdb::DebugServer server(port);
+    // enable logging for testing/debugging
+    hgdb::DebugServer server(port, true);
     // need to defer the shutdown using a thread
     std::thread t;
     // make it an echo server

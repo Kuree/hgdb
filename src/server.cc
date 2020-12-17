@@ -4,11 +4,15 @@ namespace hgdb {
 
 using raw_message = WSServer::message_ptr;
 
-DebugServer::DebugServer(uint16_t port) {
+DebugServer::DebugServer(uint16_t port) : DebugServer(port, false) {}
+
+DebugServer::DebugServer(uint16_t port, bool enable_logging) {
     using websocketpp::lib::bind;
     // set logging settings
-    server_.set_access_channels(websocketpp::log::alevel::all);
-    server_.clear_access_channels(websocketpp::log::alevel::frame_payload);
+    if (enable_logging) {
+        server_.set_access_channels(websocketpp::log::alevel::all);
+        server_.clear_access_channels(websocketpp::log::alevel::frame_payload);
+    }
 
     // on connection
     auto on_connect = [this](websocketpp::connection_hdl hdl) {
@@ -18,7 +22,7 @@ DebugServer::DebugServer(uint16_t port) {
     };
     // on disconnection
     auto on_disconnect = [this](websocketpp::connection_hdl hdl) {
-      std::lock_guard<std::mutex> guard{connections_lock_};
+        std::lock_guard<std::mutex> guard{connections_lock_};
         auto conn = server_.get_con_from_hdl(std::move(hdl));
         connections_.erase(conn);
     };

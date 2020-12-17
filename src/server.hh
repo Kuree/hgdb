@@ -16,6 +16,7 @@ using Connection = WSServer::connection_ptr;
 class DebugServer {
 public:
     explicit DebugServer(uint16_t port);
+    DebugServer(uint16_t port, bool enable_logging);
     void run();
     void stop();
     void send(const std::string &payload);
