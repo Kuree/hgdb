@@ -16,3 +16,6 @@
 [submodule "extern/sqlite"]
 	path = extern/sqlite
 	url = https://github.com/Kuree/sqlite.git
+[submodule "extern/asio"]
+	path = extern/asio
+	url = https://github.com/chriskohlhoff/asio
