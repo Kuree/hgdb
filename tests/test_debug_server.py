@@ -9,7 +9,6 @@ import subprocess
 import time
 from contextlib import closing
 
-import pytest
 import websockets
 
 
@@ -21,7 +20,10 @@ def start_server(port_num):
     # use the first one
     build_dir = dirs[0]
     server_path = os.path.join(build_dir, "tests", "test_debug_server")
-    return subprocess.Popen([server_path, str(port_num)])
+    p = subprocess.Popen([server_path, str(port_num)])
+    # sleep a little bit so that the server will setup properly
+    time.sleep(0.1)
+    return p
 
 
 def find_free_port():
@@ -46,9 +48,10 @@ def test_echo():
     asyncio.get_event_loop().run_until_complete(send_msg())
     # kill the server
     s.terminate()
+    while s.poll() is None:
+        time.sleep(0.1)
 
 
-@pytest.mark.skip(reason="stop not working yet")
 def test_shutdown():
     port = find_free_port()
     s = start_server(port)
@@ -58,11 +61,16 @@ def test_shutdown():
         payload = "stop"
         async with websockets.connect(uri) as ws:
             await ws.send(payload)
-            await ws.recv()
+
     asyncio.get_event_loop().run_until_complete(send_msg())
     # check if process exit
-    time.sleep(0.5)
-    assert s.poll() is None
+    t = time.time()
+    killed = False
+    while time.time() < t + 1:
+        if s.poll() is not None:
+            killed = True
+            break
+    assert killed
 
 
 if __name__ == "__main__":
