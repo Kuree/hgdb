@@ -16,3 +16,4 @@ target_link_libraries(test_ws_server PRIVATE hgdb)
 add_include(test_ws_server)
 
 add_test(test_schema)
+add_test(test_db)

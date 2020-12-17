@@ -1,22 +1,8 @@
-#include <filesystem>
 #include <random>
 
-#include "gtest/gtest.h"
-#include "schema.hh"
+#include "util.hh"
 
-namespace fs = std::filesystem;
-
-class SchemaTest : public ::testing::Test {
-protected:
-    void SetUp() override {
-        auto db_filename = ":memory:";
-        db = std::make_unique<hgdb::DebugDatabase>(hgdb::init_debug_db(db_filename));
-        db->sync_schema();
-    }
-
-    void TearDown() override { db.reset(); }
-    std::unique_ptr<hgdb::DebugDatabase> db;
-};
+class SchemaTest : public DBTestHelper {};
 
 TEST_F(SchemaTest, init_db) {  // NOLINT
     ASSERT_NE(db, nullptr);

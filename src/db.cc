@@ -45,8 +45,9 @@ void DebugDatabaseClient::build_execution_order_from_bp() {
     }
     for (auto const &iter : bp_ids) {
         execution_bp_orders_.reserve(execution_bp_orders_.size() + iter.second.size());
-        execution_bp_orders_.insert(execution_bp_orders_.end(), iter.second.begin(),
-                                    iter.second.end());
+        for (auto const &iter_ : iter.second) {
+            execution_bp_orders_.emplace_back(iter_.second);
+        }
     }
 }
 
