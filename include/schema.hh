@@ -77,11 +77,11 @@ struct Instance {
  */
 struct Scope {
     /**
-     * Unique ID for each scope.
+     * Unique ID for each scope. Scopes with smaller ID values will be evaluated first
      */
     uint32_t id;
     /**
-     * Space or comma separated list of breakpoint ids, e.g. 0, 1, 2, 3 or 0 1 2 3
+     * Space separated list of breakpoint ids, e.g. 0 1 2 3
      * This is due to the limitation of sqlite database, which doesn't support arrays
      */
     std::string breakpoints;
