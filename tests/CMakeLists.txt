@@ -11,8 +11,8 @@ function(add_test target)
     gtest_discover_tests(${target})
 endfunction()
 
-add_executable(test_debug_server test_debug_server.cc)
-target_link_libraries(test_debug_server PRIVATE hgdb)
-add_include(test_debug_server)
+add_executable(test_ws_server test_ws_server.cc)
+target_link_libraries(test_ws_server PRIVATE hgdb)
+add_include(test_ws_server)
 
 add_test(test_schema)

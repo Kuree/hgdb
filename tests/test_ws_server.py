@@ -19,7 +19,7 @@ def start_server(port_num):
     assert len(dirs) > 0, "Unable to detect build folder"
     # use the first one
     build_dir = dirs[0]
-    server_path = os.path.join(build_dir, "tests", "test_debug_server")
+    server_path = os.path.join(build_dir, "tests", "test_ws_server")
     p = subprocess.Popen([server_path, str(port_num)])
     # sleep a little bit so that the server will setup properly
     time.sleep(0.1)
