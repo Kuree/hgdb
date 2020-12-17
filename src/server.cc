@@ -12,17 +12,15 @@ DebugServer::DebugServer(uint16_t port) {
 
     // on connection
     auto on_connect = [this](websocketpp::connection_hdl hdl) {
-        connections_lock_.lock();
+        std::lock_guard<std::mutex> guard{connections_lock_};
         auto conn = server_.get_con_from_hdl(std::move(hdl));
         connections_.emplace(conn);
-        connections_lock_.unlock();
     };
     // on disconnection
     auto on_disconnect = [this](websocketpp::connection_hdl hdl) {
-        connections_lock_.lock();
+      std::lock_guard<std::mutex> guard{connections_lock_};
         auto conn = server_.get_con_from_hdl(std::move(hdl));
         connections_.erase(conn);
-        connections_lock_.unlock();
     };
 
     // bind some methods to keep track of connections
