@@ -24,9 +24,7 @@ private:
     bool is_closed_ = false;
 
     // we compute the execution order as we initialize the client, which is defined by the scope
-    // notice that map is ordered by design
-    std::map<uint32_t, std::vector<uint32_t>> execution_bp_orders_;
-    std::unordered_map<uint32_t, uint32_t> next_execution_bp_;
+    std::vector<uint32_t> execution_bp_orders_;
 
     void setup_execution_order();
     // scope table not provided - build from heuristics
