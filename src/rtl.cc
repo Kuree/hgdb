@@ -46,6 +46,8 @@ RTLSimulatorClient::RTLSimulatorClient(const std::vector<std::string> &instance_
         auto top = get_path(name).first;
         top_names.emplace(top);
     }
+    // compute the naming map
+    compute_hierarchy_name_prefix(top_names);
 }
 
 vpiHandle RTLSimulatorClient::get_handle(const std::string &name) {
@@ -120,6 +122,33 @@ std::pair<std::string, std::string> RTLSimulatorClient::get_path(const std::stri
     auto top = name.substr(0, pos - 1);
     auto n = name.substr(pos + 1);
     return {top, n};
+}
+
+void RTLSimulatorClient::compute_hierarchy_name_prefix(std::unordered_set<std::string> &top_names) {
+    // we do a BFS search from the top;
+    std::queue<vpiHandle> handle_queues;
+    handle_queues.emplace(nullptr);
+    while ((!handle_queues.empty()) && top_names.empty()) {
+        // scan through the design hierarchy
+        auto mod_handle = handle_queues.front();
+        handle_queues.pop();
+        auto handle_iter = vpi_->vpi_iterate(vpiModule, mod_handle);
+        if (!handle_iter) continue;
+        vpiHandle child_handle;
+        while ((child_handle = vpi_->vpi_scan(handle_iter)) != nullptr) {
+            std::string def_name = vpi_->vpi_get_str(vpiDefName, child_handle);
+            if (top_names.find(def_name) != top_names.end()) {
+                // we found a match
+                std::string hierarchy_name = vpi_get_str(vpiFullName, child_handle);
+                // adding . at the end
+                hierarchy_name = fmt::format("{0}.", hierarchy_name);
+                // add it to the mapping
+                hierarchy_name_prefix_map_.emplace(def_name, hierarchy_name);
+                top_names.erase(def_name);
+            }
+            handle_queues.emplace(child_handle);
+        }
+    }
 }
 
 }  // namespace hgdb
