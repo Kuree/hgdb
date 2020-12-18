@@ -24,6 +24,22 @@ void DebugDatabaseClient::close() {
     }
 }
 
+std::vector<BreakPoint> DebugDatabaseClient::get_breakpoints(const std::string &filename,
+                                                             uint32_t line_num, uint32_t col_num) {
+    using namespace sqlite_orm;
+    std::vector<BreakPoint> bps;
+    if (col_num != 0) {
+        bps = db_->get_all<BreakPoint>(where(c(&BreakPoint::filename) == filename &&
+                                             c(&BreakPoint::line_num) == line_num &&
+                                             c(&BreakPoint::column_num) == col_num));
+    } else {
+        bps = db_->get_all<BreakPoint>(
+            where(c(&BreakPoint::filename) == filename && c(&BreakPoint::line_num) == line_num));
+    }
+
+    return bps;
+}
+
 DebugDatabaseClient::~DebugDatabaseClient() { close(); }
 
 void DebugDatabaseClient::setup_execution_order() {
