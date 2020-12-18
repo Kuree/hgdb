@@ -19,3 +19,6 @@
 [submodule "extern/asio"]
 	path = extern/asio
 	url = https://github.com/chriskohlhoff/asio
+[submodule "extern/vlstd"]
+	path = extern/vlstd
+	url = https://github.com/Kuree/vlstd.git
