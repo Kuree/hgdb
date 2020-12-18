@@ -59,7 +59,6 @@ TEST_F(DBTest, test_get_breakpoints) {  // NOLINT
 }
 
 TEST_F(DBTest, test_get_breakpoint) {  // NOLINT
-    // no scope inserted, just breakpoints
     constexpr uint32_t instance_id = 42;
     constexpr uint32_t breakpoint_id = 1729;
     hgdb::store_instance(*db, instance_id, "top.mod");
@@ -73,4 +72,52 @@ TEST_F(DBTest, test_get_breakpoint) {  // NOLINT
     EXPECT_EQ(bp->id, breakpoint_id);
     bp = client.get_breakpoint(breakpoint_id + 1);
     EXPECT_FALSE(bp);
+}
+
+TEST_F(DBTest, test_get_context_variable) {  // NOLINT
+    constexpr uint32_t instance_id = 42;
+    constexpr uint32_t breakpoint_id = 1729;
+    constexpr uint32_t num_variables = 10;
+    hgdb::store_instance(*db, instance_id, "top.mod");
+    hgdb::store_breakpoint(*db, breakpoint_id, instance_id, __FILE__, __LINE__);
+    // insert a range of context variable to that breakpoint
+    for (uint32_t i = 0; i < num_variables; i++) {
+        hgdb::store_variable(*db, i, std::to_string(i), false);
+        hgdb::store_context_variable(*db, "name" + std::to_string(i), breakpoint_id, i);
+    }
+
+    // transfer the db ownership
+    hgdb::DebugDatabaseClient client(db);
+
+    auto values = client.get_context_variables(breakpoint_id);
+    EXPECT_EQ(values.size(), num_variables);
+    for (uint32_t i = 0; i < values.size(); i++) {
+        auto const &[context_v, v] = values[i];
+        EXPECT_EQ(context_v.name, "name" + std::to_string(i));
+        EXPECT_EQ(v.value, std::to_string(i));
+        EXPECT_EQ(v.id, i);
+    }
+}
+
+TEST_F(DBTest, test_get_generator_variable) {  // NOLINT
+    constexpr uint32_t instance_id = 42;
+    constexpr uint32_t num_variables = 10;
+    hgdb::store_instance(*db, instance_id, "top.mod");
+    // insert a range of context variable to that breakpoint
+    for (uint32_t i = 0; i < num_variables; i++) {
+        hgdb::store_variable(*db, i, std::to_string(i), false);
+        hgdb::store_generator_variable(*db, "name" + std::to_string(i), instance_id, i);
+    }
+
+    // transfer the db ownership
+    hgdb::DebugDatabaseClient client(db);
+
+    auto values = client.get_generator_variable(instance_id);
+    EXPECT_EQ(values.size(), num_variables);
+    for (uint32_t i = 0; i < values.size(); i++) {
+        auto const &[context_v, v] = values[i];
+        EXPECT_EQ(context_v.name, "name" + std::to_string(i));
+        EXPECT_EQ(v.value, std::to_string(i));
+        EXPECT_EQ(v.id, i);
+    }
 }

@@ -56,6 +56,46 @@ std::optional<BreakPoint> DebugDatabaseClient::get_breakpoint(uint32_t breakpoin
     }
 }
 
+std::vector<DebugDatabaseClient::ContextVariableInfo> DebugDatabaseClient::get_context_variables(
+    uint32_t breakpoint_id) const {
+    using namespace sqlite_orm;
+    std::vector<DebugDatabaseClient::ContextVariableInfo> result;
+    auto values = db_->select(columns(&ContextVariable::variable_id, &ContextVariable::name,
+                                      &Variable::value, &Variable::is_rtl),
+                              where(c(&ContextVariable::breakpoint_id) == breakpoint_id &&
+                                  c(&ContextVariable::variable_id) == &Variable::id));
+    result.reserve(values.size());
+    for (auto const &[variable_id, name, value, is_rtl] : values) {
+        auto id = *variable_id;
+        result.emplace_back(std::make_pair(
+            ContextVariable{.name = name,
+                            .breakpoint_id = std::make_unique<uint32_t>(breakpoint_id),
+                            .variable_id = std::make_unique<uint32_t>(id)},
+            Variable{.id = id, .value = value, .is_rtl = is_rtl}));
+    }
+    return result;
+}
+
+std::vector<DebugDatabaseClient::GeneratorVariableInfo> DebugDatabaseClient::get_generator_variable(
+    uint32_t instance_id) const {
+    using namespace sqlite_orm;
+    std::vector<DebugDatabaseClient::GeneratorVariableInfo> result;
+    auto values = db_->select(columns(&GeneratorVariable::variable_id, &GeneratorVariable::name,
+                                      &Variable::value, &Variable::is_rtl),
+                              where(c(&GeneratorVariable::instance_id) == instance_id &&
+                                  c(&GeneratorVariable::variable_id) == &Variable::id));
+    result.reserve(values.size());
+    for (auto const &[variable_id, name, value, is_rtl] : values) {
+        auto id = *variable_id;
+        result.emplace_back(
+            std::make_pair(GeneratorVariable{.name = name,
+                                             .instance_id = std::make_unique<uint32_t>(instance_id),
+                                             .variable_id = std::make_unique<uint32_t>(id)},
+                           Variable{.id = id, .value = value, .is_rtl = is_rtl}));
+    }
+    return result;
+}
+
 DebugDatabaseClient::~DebugDatabaseClient() { close(); }
 
 void DebugDatabaseClient::setup_execution_order() {

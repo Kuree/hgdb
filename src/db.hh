@@ -21,6 +21,11 @@ public:
     std::vector<BreakPoint> get_breakpoints(const std::string &filename, uint32_t line_num,
                                             uint32_t col_num = 0);
     std::optional<BreakPoint> get_breakpoint(uint32_t breakpoint_id);
+    using ContextVariableInfo = std::pair<ContextVariable, Variable>;
+    std::vector<ContextVariableInfo> get_context_variables(uint32_t breakpoint_id) const;
+    using GeneratorVariableInfo = std::pair<GeneratorVariable, Variable>;
+    std::vector<GeneratorVariableInfo> get_generator_variable(uint32_t instance_id) const;
+
     ~DebugDatabaseClient();
 
     // accessors
