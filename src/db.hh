@@ -13,12 +13,14 @@ namespace hgdb {
 class DebugDatabaseClient {
 public:
     explicit DebugDatabaseClient(const std::string &filename);
+    // take over the DB ownership. normally used for testing
     explicit DebugDatabaseClient(std::unique_ptr<DebugDatabase> &db);
     void close();
 
     // helper functions to query the database
     std::vector<BreakPoint> get_breakpoints(const std::string &filename, uint32_t line_num,
                                             uint32_t col_num = 0);
+    std::optional<BreakPoint> get_breakpoint(uint32_t breakpoint_id);
     ~DebugDatabaseClient();
 
     // accessors

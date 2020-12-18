@@ -40,6 +40,22 @@ std::vector<BreakPoint> DebugDatabaseClient::get_breakpoints(const std::string &
     return bps;
 }
 
+std::optional<BreakPoint> DebugDatabaseClient::get_breakpoint(uint32_t breakpoint_id) {
+    auto ptr = db_->get_pointer<BreakPoint>(breakpoint_id);
+    if (ptr) {
+        // notice that BreakPoint has a unique_ptr, so we can't just copy them over
+        return BreakPoint{.id = ptr->id,
+                          .instance_id = std::make_unique<uint32_t>(*ptr->instance_id),
+                          .filename = ptr->filename,
+                          .line_num = ptr->line_num,
+                          .column_num = ptr->column_num,
+                          .condition = ptr->condition};
+
+    } else {
+        return std::nullopt;
+    }
+}
+
 DebugDatabaseClient::~DebugDatabaseClient() { close(); }
 
 void DebugDatabaseClient::setup_execution_order() {

@@ -57,3 +57,20 @@ TEST_F(DBTest, test_get_breakpoints) {  // NOLINT
     bps = client.get_breakpoints(__FILE__, line_num, num_breakpoints + 1);
     EXPECT_TRUE(bps.empty());
 }
+
+TEST_F(DBTest, test_get_breakpoint) {  // NOLINT
+    // no scope inserted, just breakpoints
+    constexpr uint32_t instance_id = 42;
+    constexpr uint32_t breakpoint_id = 1729;
+    hgdb::store_instance(*db, instance_id, "top.mod");
+    hgdb::store_breakpoint(*db, breakpoint_id, instance_id, __FILE__, __LINE__);
+
+    // transfer the db ownership
+    hgdb::DebugDatabaseClient client(db);
+
+    auto bp = client.get_breakpoint(breakpoint_id);
+    EXPECT_TRUE(bp);
+    EXPECT_EQ(bp->id, breakpoint_id);
+    bp = client.get_breakpoint(breakpoint_id + 1);
+    EXPECT_FALSE(bp);
+}
