@@ -1,17 +1,33 @@
 #include "rtl.hh"
 
+#include <fmt/format.h>
+
+#include <queue>
+#include <unordered_set>
+
 namespace hgdb {
+
+RTLSimulatorClient::RTLSimulatorClient(const std::vector<std::string> &instance_names) {
+    std::unordered_set<std::string> top_names;
+    for (auto const &name: instance_names) {
+        auto top = get_path(name).first;
+        top_names.emplace(top);
+    }
+
+}
+
 vpiHandle RTLSimulatorClient::get_handle(const std::string &name) {
+    auto full_name = get_full_name(name);
     // if we already queried this handle before
-    if (handle_map_.find(name) != handle_map_.end()) {
-        return handle_map_.at(name);
+    if (handle_map_.find(full_name) != handle_map_.end()) {
+        return handle_map_.at(full_name);
     } else {
         // need to query via VPI
-        auto handle = const_cast<char *>(name.c_str());
+        auto handle = const_cast<char *>(full_name.c_str());
         auto ptr = vpi_handle_by_name(handle, nullptr);
         if (ptr) {
             // if we actually found the handle, need to store it
-            handle_map_.emplace(name, ptr);
+            handle_map_.emplace(full_name, ptr);
         }
         return ptr;
     }
@@ -53,6 +69,25 @@ std::unordered_map<std::string, vpiHandle> RTLSimulatorClient::get_module_signal
     }
 
     return result;
+}
+
+std::string RTLSimulatorClient::get_full_name(const std::string &name) const {
+    auto const [top, path] = get_path(name);
+    if (hierarchy_name_prefix_map_.find(top) == hierarchy_name_prefix_map_.end()) {
+        // we haven't seen this top. it has to be an error since we requires top name
+        // setup in the constructor. return the original name
+        return name;
+    } else {
+        auto prefix = hierarchy_name_prefix_map_.at(top);
+        return prefix + name;
+    }
+}
+
+std::pair<std::string, std::string> RTLSimulatorClient::get_path(const std::string &name) {
+    auto pos = name.find_first_of('.');
+    auto top = name.substr(0, pos - 1);
+    auto n = name.substr(pos + 1);
+    return {top, n};
 }
 
 }  // namespace hgdb

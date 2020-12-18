@@ -63,7 +63,9 @@ struct Instance {
     uint32_t id;
     /**
      * Full hierarchy name, e.g. cpu.alu.adder
-     * The debugger will prefix testbench related hierarchy name during tests
+     * the first entry in the hierarchy name shall be the module definition name
+     * The debugger will use that top module definition name to search design hierarchy,
+     * and then get the proper full path name
      */
     std::string name;
 };
