@@ -1,9 +1,10 @@
 #ifndef HGDB_DB_HH
 #define HGDB_DB_HH
 
-#include "schema.hh"
 #include <unordered_map>
 #include <vector>
+
+#include "schema.hh"
 
 namespace hgdb {
 /**
@@ -12,12 +13,16 @@ namespace hgdb {
 class DebugDatabaseClient {
 public:
     explicit DebugDatabaseClient(const std::string &filename);
+    explicit DebugDatabaseClient(std::unique_ptr<DebugDatabase> &db);
     void close();
 
     // helper functions to query the database
     std::vector<BreakPoint> get_breakpoints(const std::string &filename, uint32_t line_num,
                                             uint32_t col_num = 0);
     ~DebugDatabaseClient();
+
+    // accessors
+    const std::vector<uint32_t> &execution_bp_orders() const { return execution_bp_orders_; }
 
 private:
     std::unique_ptr<DebugDatabase> db_;
@@ -29,7 +34,6 @@ private:
     void setup_execution_order();
     // scope table not provided - build from heuristics
     void build_execution_order_from_bp();
-
 };
 }  // namespace hgdb
 
