@@ -54,7 +54,7 @@ public:
             if (signals_.find(object) != signals_.end()) name = signals_.at(object);
             if (!name.empty()) {
                 auto pos = name.find_last_of('.');
-                str_buffer_ = name.at(pos);
+                str_buffer_ = name.substr(pos + 1);
             }
         }
         return const_cast<char *>(str_buffer_.c_str());
@@ -78,7 +78,11 @@ public:
         if (scan_map_.find(iterator) != scan_map_.end()) {
             auto const &handles = scan_map_.at(iterator);
             auto idx = scan_iter_.at(iterator);
-            if (idx >= handles.size()) return nullptr;
+            if (idx >= handles.size()) {
+                scan_map_.erase(iterator);
+                scan_iter_.erase(iterator);
+                return nullptr;
+            }
             scan_iter_[iterator]++;
             auto result = handles[idx];
             return result;
@@ -105,13 +109,11 @@ public:
         }
         if (!handles.empty()) {
             auto iter = get_new_handle();
-            auto result = iter;
             for (auto const &signal : handles) {
                 scan_map_[iter].emplace_back(signal);
-                iter = signal;
             }
-            scan_iter_.emplace(result, 0);
-            return result;
+            scan_iter_.emplace(iter, 0);
+            return iter;
         }
         return nullptr;
     }

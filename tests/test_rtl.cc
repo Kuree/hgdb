@@ -54,6 +54,8 @@ TEST_F(RTLModuleTest, get_full_name) {  // NOLINT
     EXPECT_EQ(name, "top.dut.inst1");
     name = client->get_full_name("parent_mod.inst1.a");
     EXPECT_EQ(name, "top.dut.inst1.a");
+    name = client->get_full_name("parent_mod.inst2.b");
+    EXPECT_EQ(name, "top.dut.inst2.b");
 
     constexpr auto random_name = "42.43";
     name = client->get_full_name(random_name);
@@ -62,4 +64,11 @@ TEST_F(RTLModuleTest, get_full_name) {  // NOLINT
 }
 
 TEST_F(RTLModuleTest, get_module_signals) {  // NOLINT
+    auto mods = {"parent_mod", "parent_mod.inst1", "parent_mod.inst2"};
+    for (auto const &mod_name: mods) {
+        auto parent_signals = client->get_module_signals(mod_name);
+        EXPECT_EQ(parent_signals.size(), 2);
+        EXPECT_NE(parent_signals.find("a"), parent_signals.end());
+        EXPECT_NE(parent_signals.find("b"), parent_signals.end());
+    }
 }
