@@ -47,6 +47,7 @@ public:
     std::unordered_map<std::string, vpiHandle> get_module_signals(const std::string &name);
     [[nodiscard]] std::string get_full_name(const std::string &name) const;
     [[nodiscard]] std::vector<std::string> get_argv() const;
+    [[nodiscard]] std::string get_simulator_name() const;
 
 private:
     std::unordered_map<std::string, vpiHandle> handle_map_;
