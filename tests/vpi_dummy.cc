@@ -14,4 +14,5 @@ PLI_INT32 vpi_get_vlog_info(p_vpi_vlog_info) { return 0; }
 void vpi_get_time(vpiHandle, p_vpi_time) {}
 vpiHandle vpi_register_cb(p_cb_data) { return nullptr; }
 PLI_INT32 vpi_remove_cb(vpiHandle) { return 0; }
+PLI_INT32 vpi_release_handle(vpiHandle) { return 0; }
 }

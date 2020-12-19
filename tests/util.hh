@@ -146,6 +146,9 @@ public:
         return 0;
     }
 
+    // this is a noop since we don't actually allocate vpi Handle
+    PLI_INT32 vpi_release_handle(vpiHandle) override { return 0; }
+
     vpiHandle get_new_handle() {
         auto p = vpi_handle_counter_++;
         return reinterpret_cast<uint32_t *>(p);
@@ -176,13 +179,13 @@ public:
     void set_argv(const std::vector<std::string> &argv) {
         argv_str_ = argv;
         argv_.reserve(argv.size());
-        for (auto const &str: argv_str_) {
-            argv_.emplace_back(const_cast<char*>(str.c_str()));
+        for (auto const &str : argv_str_) {
+            argv_.emplace_back(const_cast<char *>(str.c_str()));
         }
     }
 
     void trigger_cb(uint32_t reason) {
-        for (auto const &iter: callbacks_) {
+        for (auto const &iter : callbacks_) {
             auto cb_data = iter.second;
             if (cb_data.reason == reason) {
                 auto func = cb_data.cb_rtn;

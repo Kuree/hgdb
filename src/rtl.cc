@@ -46,6 +46,10 @@ PLI_INT32 VPIProvider::vpi_remove_cb(vpiHandle cb_obj) {
     return ::vpi_remove_cb(cb_obj);
 }
 
+PLI_INT32 VPIProvider::vpi_release_handle(vpiHandle object) {
+    return ::vpi_release_handle(object);
+}
+
 RTLSimulatorClient::RTLSimulatorClient(const std::vector<std::string> &instance_names)
     : RTLSimulatorClient(instance_names, nullptr) {}
 
@@ -210,6 +214,7 @@ void RTLSimulatorClient::remove_call_back(vpiHandle cb_handle) {
         }
     }
     vpi_->vpi_remove_cb(cb_handle);
+    vpi_->vpi_release_handle(cb_handle);
 }
 
 std::pair<std::string, std::string> RTLSimulatorClient::get_path(const std::string &name) {

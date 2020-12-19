@@ -26,6 +26,7 @@ public:
     virtual void vpi_get_time(vpiHandle object, p_vpi_time time_p) = 0;
     virtual vpiHandle vpi_register_cb(p_cb_data cb_data_p) = 0;
     virtual PLI_INT32 vpi_remove_cb(vpiHandle cb_obj) = 0;
+    virtual PLI_INT32 vpi_release_handle  (vpiHandle object) = 0;
     virtual ~AVPIProvider() = default;
 };
 
@@ -40,6 +41,7 @@ class VPIProvider : public AVPIProvider {
     void vpi_get_time(vpiHandle object, p_vpi_time time_p) override;
     vpiHandle vpi_register_cb(p_cb_data cb_data_p) override;
     PLI_INT32 vpi_remove_cb(vpiHandle cb_obj) override;
+    PLI_INT32 vpi_release_handle(vpiHandle object) override;
 };
 
 class RTLSimulatorClient {
