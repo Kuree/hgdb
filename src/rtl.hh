@@ -61,6 +61,9 @@ public:
     void remove_call_back(const std::string &cb_name);
     void remove_call_back(vpiHandle cb_handle);
 
+    // expose raw vpi client if necessary
+    AVPIProvider &vpi() { return *vpi_; }
+
 private:
     std::unordered_map<std::string, vpiHandle> handle_map_;
     // it is a map just in case there are separated tops being generated
