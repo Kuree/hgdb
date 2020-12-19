@@ -132,6 +132,20 @@ public:
         }
     }
 
+    vpiHandle vpi_register_cb(p_cb_data cb_data_p) override {
+        auto handle = get_new_handle();
+        callbacks_.emplace(handle, *cb_data_p);
+        return handle;
+    }
+
+    PLI_INT32 vpi_remove_cb(vpiHandle cb_obj) override {
+        if (callbacks_.find(cb_obj) != callbacks_.end()) {
+            callbacks_.erase(cb_obj);
+            return 1;
+        }
+        return 0;
+    }
+
     vpiHandle get_new_handle() {
         auto p = vpi_handle_counter_++;
         return reinterpret_cast<uint32_t *>(p);
@@ -167,6 +181,16 @@ public:
         }
     }
 
+    void trigger_cb(uint32_t reason) {
+        for (auto const &iter: callbacks_) {
+            auto cb_data = iter.second;
+            if (cb_data.reason == reason) {
+                auto func = cb_data.cb_rtn;
+                func(&cb_data);
+            }
+        }
+    }
+
     void set_time(uint64_t time) { time_ = time; }
 
     void set_signal_value(vpiHandle handle, int64_t value) { signal_values_[handle] = value; }
@@ -184,6 +208,8 @@ private:
     std::unordered_map<vpiHandle, std::unordered_set<vpiHandle>> module_hierarchy_;
     std::unordered_map<vpiHandle, std::unordered_set<vpiHandle>> module_signals_;
     std::unordered_map<vpiHandle, int64_t> signal_values_;
+
+    std::unordered_map<vpiHandle, s_cb_data> callbacks_;
 
     std::vector<std::string> argv_str_;
     std::vector<char *> argv_;

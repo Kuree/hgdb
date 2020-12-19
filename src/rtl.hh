@@ -24,6 +24,8 @@ public:
     virtual vpiHandle vpi_handle_by_name(char *name, vpiHandle scope) = 0;
     virtual PLI_INT32 vpi_get_vlog_info(p_vpi_vlog_info vlog_info_p) = 0;
     virtual void vpi_get_time(vpiHandle object, p_vpi_time time_p) = 0;
+    virtual vpiHandle vpi_register_cb(p_cb_data cb_data_p) = 0;
+    virtual PLI_INT32 vpi_remove_cb(vpiHandle cb_obj) = 0;
     virtual ~AVPIProvider() = default;
 };
 
@@ -36,6 +38,8 @@ class VPIProvider : public AVPIProvider {
     vpiHandle vpi_handle_by_name(char *name, vpiHandle scope) override;
     PLI_INT32 vpi_get_vlog_info(p_vpi_vlog_info vlog_info_p) override;
     void vpi_get_time(vpiHandle object, p_vpi_time time_p) override;
+    vpiHandle vpi_register_cb(p_cb_data cb_data_p) override;
+    PLI_INT32 vpi_remove_cb(vpiHandle cb_obj) override;
 };
 
 class RTLSimulatorClient {
@@ -51,6 +55,11 @@ public:
     [[nodiscard]] std::vector<std::string> get_argv() const;
     [[nodiscard]] std::string get_simulator_name() const;
     [[nodiscard]] uint64_t get_simulation_time() const;
+    // can't use std::function due to C interface
+    vpiHandle add_call_back(const std::string &cb_name, int cb_type, int(cb_func)(p_cb_data),
+                            vpiHandle obj = nullptr, void *user_data = nullptr);
+    void remove_call_back(const std::string &cb_name);
+    void remove_call_back(vpiHandle cb_handle);
 
 private:
     std::unordered_map<std::string, vpiHandle> handle_map_;
@@ -60,6 +69,8 @@ private:
     // VPI provider
     std::unique_ptr<AVPIProvider> vpi_;
     uint32_t vpi_net_target_;
+    // callbacks
+    std::unordered_map<std::string, vpiHandle> cb_handles_;
 
     static std::pair<std::string, std::string> get_path(const std::string &name);
     void compute_hierarchy_name_prefix(std::unordered_set<std::string> &top_names);
