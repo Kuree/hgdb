@@ -52,6 +52,10 @@ RTLSimulatorClient::RTLSimulatorClient(const std::vector<std::string> &instance_
     }
     // compute the naming map
     compute_hierarchy_name_prefix(top_names);
+
+    // compute the vpiNet target. this is a special case for Verilator
+    auto simulator_name = get_simulator_name();
+    vpi_net_target_ = get_simulator_name() == "Verilator"? vpiReg: vpiNet;
 }
 
 vpiHandle RTLSimulatorClient::get_handle(const std::string &name) {
@@ -97,9 +101,7 @@ std::unordered_map<std::string, vpiHandle> RTLSimulatorClient::get_module_signal
 
     std::unordered_map<std::string, vpiHandle> result;
     // get all net from that particular module
-    // notice that Verilator only stores regs. need to be careful
-    auto vpi_type = get_simulator_name() == "Verilator"? vpiReg: vpiNet;
-    auto net_iter = vpi_->vpi_iterate(vpi_type, module_handle);
+    auto net_iter = vpi_->vpi_iterate(vpi_net_target_, module_handle);
     if (!net_iter) return {};
     vpiHandle net_handle;
     while ((net_handle = vpi_->vpi_scan(net_iter)) != nullptr) {

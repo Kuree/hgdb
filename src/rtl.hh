@@ -56,6 +56,7 @@ private:
     std::unordered_map<std::string, std::string> hierarchy_name_prefix_map_;
     // VPI provider
     std::unique_ptr<AVPIProvider> vpi_;
+    uint32_t vpi_net_target_;
 
     static std::pair<std::string, std::string> get_path(const std::string &name);
     void compute_hierarchy_name_prefix(std::unordered_set<std::string> &top_names);
