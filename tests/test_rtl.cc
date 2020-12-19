@@ -114,3 +114,31 @@ TEST_F(RTLModuleTest, get_time) {  // NOLINT
     auto time = client->get_simulation_time();
     EXPECT_EQ(time, RTLModuleTest::time);
 }
+
+int test_cb_func(p_cb_data cb_data) {
+    auto user_data = cb_data->user_data;
+    auto int_value = reinterpret_cast<int *>(user_data);
+    *int_value += 1;
+    return 0;
+}
+
+TEST_F(RTLModuleTest, test_cb) {  // NOLINT
+    int value = 0;
+    client->add_call_back("test_cb", cbStartOfSimulation, test_cb_func, nullptr, &value);
+    auto *vpi = &client->vpi();
+    auto mock_vpi = reinterpret_cast<MockVPIProvider *>(vpi);
+    // trigger the callback
+    // trigger a wrong one first
+    mock_vpi->trigger_cb(cbEndOfSimulation);
+    EXPECT_EQ(value, 0);
+    constexpr int final_value = 4;
+    for (int i = 1; i < final_value; i++) {
+        mock_vpi->trigger_cb(cbStartOfSimulation);
+        EXPECT_EQ(value, i);
+    }
+    // remove the callback
+    client->remove_call_back("test_cb");
+    // trigger again and it won't do anything
+    mock_vpi->trigger_cb(cbStartOfSimulation);
+    EXPECT_EQ(value, final_value);
+}
