@@ -22,14 +22,18 @@ public:
                                             uint32_t col_num = 0);
     std::optional<BreakPoint> get_breakpoint(uint32_t breakpoint_id);
     using ContextVariableInfo = std::pair<ContextVariable, Variable>;
-    std::vector<ContextVariableInfo> get_context_variables(uint32_t breakpoint_id) const;
+    [[nodiscard]] std::vector<ContextVariableInfo> get_context_variables(
+        uint32_t breakpoint_id) const;
     using GeneratorVariableInfo = std::pair<GeneratorVariable, Variable>;
-    std::vector<GeneratorVariableInfo> get_generator_variable(uint32_t instance_id) const;
+    [[nodiscard]] std::vector<GeneratorVariableInfo> get_generator_variable(
+        uint32_t instance_id) const;
 
     ~DebugDatabaseClient();
 
     // accessors
-    const std::vector<uint32_t> &execution_bp_orders() const { return execution_bp_orders_; }
+    [[nodiscard]] const std::vector<uint32_t> &execution_bp_orders() const {
+        return execution_bp_orders_;
+    }
 
 private:
     std::unique_ptr<DebugDatabase> db_;
