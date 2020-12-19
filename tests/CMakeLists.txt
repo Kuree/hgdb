@@ -17,3 +17,4 @@ add_include(test_ws_server)
 
 add_test(test_schema)
 add_test(test_db)
+add_test(test_rtl)
