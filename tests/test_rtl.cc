@@ -142,3 +142,14 @@ TEST_F(RTLModuleTest, test_cb) {  // NOLINT
     mock_vpi->trigger_cb(cbStartOfSimulation);
     EXPECT_EQ(value, final_value);
 }
+
+TEST_F(RTLModuleTest, test_control) {   // NOLINT
+    client->stop_sim(hgdb::RTLSimulatorClient::finish_value::time_location);
+    client->finish_sim(hgdb::RTLSimulatorClient::finish_value::all);
+    auto *vpi = &client->vpi();
+    auto mock_vpi = reinterpret_cast<MockVPIProvider *>(vpi);
+    auto const &ops = mock_vpi->vpi_ops();
+    EXPECT_EQ(ops.size(), 2);
+    EXPECT_EQ(ops[0], vpiStop);
+    EXPECT_EQ(ops[1], vpiFinish);
+}

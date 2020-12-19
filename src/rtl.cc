@@ -2,9 +2,10 @@
 
 #include <fmt/format.h>
 
+#include <cstdarg>
+#include <iostream>
 #include <queue>
 #include <unordered_set>
-#include <iostream>
 
 namespace hgdb {
 
@@ -38,16 +39,18 @@ void VPIProvider::vpi_get_time(vpiHandle object, p_vpi_time time_p) {
     return ::vpi_get_time(object, time_p);
 }
 
-vpiHandle VPIProvider::vpi_register_cb(p_cb_data cb_data_p) {
-    return ::vpi_register_cb(cb_data_p);
-}
+vpiHandle VPIProvider::vpi_register_cb(p_cb_data cb_data_p) { return ::vpi_register_cb(cb_data_p); }
 
-PLI_INT32 VPIProvider::vpi_remove_cb(vpiHandle cb_obj) {
-    return ::vpi_remove_cb(cb_obj);
-}
+PLI_INT32 VPIProvider::vpi_remove_cb(vpiHandle cb_obj) { return ::vpi_remove_cb(cb_obj); }
 
-PLI_INT32 VPIProvider::vpi_release_handle(vpiHandle object) {
-    return ::vpi_release_handle(object);
+PLI_INT32 VPIProvider::vpi_release_handle(vpiHandle object) { return ::vpi_release_handle(object); }
+
+PLI_INT32 VPIProvider::vpi_control(PLI_INT32 operation, ...) {
+    std::va_list args;
+    va_start(args, operation);
+    auto result = ::vpi_control(operation, args);
+    va_end(args);
+    return result;
 }
 
 RTLSimulatorClient::RTLSimulatorClient(const std::vector<std::string> &instance_names)
@@ -180,7 +183,7 @@ uint64_t RTLSimulatorClient::get_simulation_time() const {
 }
 
 vpiHandle RTLSimulatorClient::add_call_back(const std::string &cb_name, int cb_type,
-                                            int (*cb_func)(p_cb_data), vpiHandle obj, // NOLINT
+                                            int (*cb_func)(p_cb_data), vpiHandle obj,  // NOLINT
                                             void *user_data) {
     static s_vpi_time time{vpiSimTime};
     static s_vpi_value value{vpiIntVal};
@@ -207,7 +210,7 @@ void RTLSimulatorClient::remove_call_back(const std::string &cb_name) {
 
 void RTLSimulatorClient::remove_call_back(vpiHandle cb_handle) {
     // remove it from the cb_handles if any
-    for (auto const &iter: cb_handles_) {
+    for (auto const &iter : cb_handles_) {
         if (iter.second == cb_handle) {
             cb_handles_.erase(iter.first);
             break;
@@ -215,6 +218,14 @@ void RTLSimulatorClient::remove_call_back(vpiHandle cb_handle) {
     }
     vpi_->vpi_remove_cb(cb_handle);
     vpi_->vpi_release_handle(cb_handle);
+}
+
+void RTLSimulatorClient::stop_sim(finish_value value) {
+    vpi_->vpi_control(vpiStop, static_cast<int>(value));
+}
+
+void RTLSimulatorClient::finish_sim(finish_value value) {
+    vpi_->vpi_control(vpiFinish, static_cast<int>(value));
 }
 
 std::pair<std::string, std::string> RTLSimulatorClient::get_path(const std::string &name) {

@@ -149,6 +149,11 @@ public:
     // this is a noop since we don't actually allocate vpi Handle
     PLI_INT32 vpi_release_handle(vpiHandle) override { return 0; }
 
+    PLI_INT32 vpi_control(PLI_INT32 operation, ...) override {
+        vpi_ops_.emplace_back(operation);
+        return 1;
+    }
+
     vpiHandle get_new_handle() {
         auto p = vpi_handle_counter_++;
         return reinterpret_cast<uint32_t *>(p);
@@ -199,6 +204,8 @@ public:
     void set_signal_value(vpiHandle handle, int64_t value) { signal_values_[handle] = value; }
     void set_top(vpiHandle top) { top_ = top; }
 
+    [[nodiscard]] const std::vector<uint32_t> &vpi_ops() const { return vpi_ops_; }
+
 private:
     std::string str_buffer_;
     char *vpi_handle_counter_ = nullptr;
@@ -213,6 +220,8 @@ private:
     std::unordered_map<vpiHandle, int64_t> signal_values_;
 
     std::unordered_map<vpiHandle, s_cb_data> callbacks_;
+
+    std::vector<uint32_t> vpi_ops_;
 
     std::vector<std::string> argv_str_;
     std::vector<char *> argv_;

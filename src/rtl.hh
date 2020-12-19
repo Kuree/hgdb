@@ -27,6 +27,7 @@ public:
     virtual vpiHandle vpi_register_cb(p_cb_data cb_data_p) = 0;
     virtual PLI_INT32 vpi_remove_cb(vpiHandle cb_obj) = 0;
     virtual PLI_INT32 vpi_release_handle  (vpiHandle object) = 0;
+    virtual PLI_INT32 vpi_control(PLI_INT32 operation, ...) = 0;
     virtual ~AVPIProvider() = default;
 };
 
@@ -42,6 +43,7 @@ class VPIProvider : public AVPIProvider {
     vpiHandle vpi_register_cb(p_cb_data cb_data_p) override;
     PLI_INT32 vpi_remove_cb(vpiHandle cb_obj) override;
     PLI_INT32 vpi_release_handle(vpiHandle object) override;
+    PLI_INT32 vpi_control(PLI_INT32 operation, ...) override;
 };
 
 class RTLSimulatorClient {
@@ -62,6 +64,13 @@ public:
                             vpiHandle obj = nullptr, void *user_data = nullptr);
     void remove_call_back(const std::string &cb_name);
     void remove_call_back(vpiHandle cb_handle);
+    enum class finish_value {
+        nothing = 0,
+        time_location = 1,
+        all = 2
+    };
+    void finish_sim(finish_value value = finish_value::nothing);
+    void stop_sim(finish_value value = finish_value::nothing);
 
     // expose raw vpi client if necessary
     AVPIProvider &vpi() { return *vpi_; }
