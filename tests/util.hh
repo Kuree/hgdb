@@ -101,8 +101,7 @@ public:
         } else if (type == vpiModule) {
             if (refHandle == nullptr) {
                 handles.emplace(top_);
-            }
-            else {
+            } else {
                 if (module_hierarchy_.find(refHandle) == module_hierarchy_.end()) return nullptr;
                 handles = module_hierarchy_.at(refHandle);
             }
@@ -116,6 +115,14 @@ public:
             return iter;
         }
         return nullptr;
+    }
+
+    PLI_INT32 vpi_get_vlog_info(p_vpi_vlog_info vlog_info_p) override {
+        vlog_info_p->argc = static_cast<int>(argv_.size());
+        vlog_info_p->argv = argv_.data();
+        vlog_info_p->product = const_cast<char *>(product.c_str());
+        vlog_info_p->version = const_cast<char *>(version.c_str());
+        return 1;
     }
 
     vpiHandle get_new_handle() {
@@ -145,6 +152,14 @@ public:
         return handle;
     }
 
+    void set_argv(const std::vector<std::string> &argv) {
+        argv_str_ = argv;
+        argv_.reserve(argv.size());
+        for (auto const &str: argv_str_) {
+            argv_.emplace_back(const_cast<char*>(str.c_str()));
+        }
+    }
+
     void set_signal_value(vpiHandle handle, int64_t value) { signal_values_[handle] = value; }
     void set_top(vpiHandle top) { top_ = top; }
 
@@ -161,7 +176,14 @@ private:
     std::unordered_map<vpiHandle, std::unordered_set<vpiHandle>> module_signals_;
     std::unordered_map<vpiHandle, int64_t> signal_values_;
 
+    std::vector<std::string> argv_str_;
+    std::vector<char *> argv_;
+
     vpiHandle top_ = nullptr;
+
+public:
+    const std::string product = "RTLMock";
+    const std::string version = "0.1";
 };
 
 #endif  // HGDB_UTIL_HH

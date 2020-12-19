@@ -24,6 +24,9 @@
  * endmodule
  */
 class RTLModuleTest : public ::testing::Test {
+public:
+    const std::vector<std::string> argv = {"a", "bb", "ccc"};
+
 protected:
     static constexpr int64_t a_value = 42;
     static constexpr int64_t b_value = 43;
@@ -46,6 +49,9 @@ protected:
             vpi_->set_signal_value(a, a_value);
             vpi_->set_signal_value(b, b_value);
         }
+        // set argv
+        vpi_->set_argv(argv);
+
         std::unique_ptr<hgdb::AVPIProvider> vpi = std::move(vpi_);
         client = std::make_unique<hgdb::RTLSimulatorClient>(std::vector<std::string>{"parent_mod"},
                                                             std::move(vpi));
@@ -90,5 +96,13 @@ TEST_F(RTLModuleTest, get_value) {  // NOLINT
         auto b_value = client->get_value(b);
         EXPECT_EQ(a_value, RTLModuleTest::a_value);
         EXPECT_EQ(b_value, RTLModuleTest::b_value);
+    }
+}
+
+TEST_F(RTLModuleTest, get_argv) {  // NOLINT
+    auto argv = client->get_argv();
+    EXPECT_EQ(argv.size(), RTLModuleTest::argv.size());
+    for (auto i = 0u; i < argv.size(); i++) {
+        EXPECT_EQ(argv[i], RTLModuleTest::argv[i]);
     }
 }

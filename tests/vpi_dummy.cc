@@ -10,4 +10,5 @@ vpiHandle vpi_iterate(PLI_INT32, vpiHandle) { return nullptr; }
 vpiHandle vpi_scan(vpiHandle) { return nullptr; }
 char *vpi_get_str(PLI_INT32, vpiHandle) { return nullptr; }
 vpiHandle vpi_handle_by_name(char *, vpiHandle) { return nullptr; }
+PLI_INT32 vpi_get_vlog_info(p_vpi_vlog_info) { return 0; }
 }

@@ -29,6 +29,10 @@ vpiHandle VPIProvider::vpi_handle_by_name(char *name, vpiHandle scope) {
     return ::vpi_handle_by_name(name, scope);
 }
 
+PLI_INT32 VPIProvider::vpi_get_vlog_info(p_vpi_vlog_info vlog_info_p) {
+    return ::vpi_get_vlog_info(vlog_info_p);
+}
+
 RTLSimulatorClient::RTLSimulatorClient(const std::vector<std::string> &instance_names)
     : RTLSimulatorClient(instance_names, nullptr) {}
 
@@ -117,6 +121,19 @@ std::string RTLSimulatorClient::get_full_name(const std::string &name) const {
             return prefix.substr(0, prefix.size() - 1);
         else return prefix + path;
     }
+}
+
+std::vector<std::string> RTLSimulatorClient::get_argv() const {
+    t_vpi_vlog_info info{};
+    std::vector<std::string> result;
+    if (vpi_->vpi_get_vlog_info(&info)) {
+        result.reserve(info.argc);
+        for (int i = 0; i < info.argc; i++) {
+            std::string argv = info.argv[i];
+            result.emplace_back(argv);
+        }
+    }
+    return result;
 }
 
 std::pair<std::string, std::string> RTLSimulatorClient::get_path(const std::string &name) {

@@ -22,6 +22,7 @@ public:
     virtual vpiHandle vpi_scan(vpiHandle iterator) = 0;
     virtual char *vpi_get_str(PLI_INT32 property, vpiHandle object) = 0;
     virtual vpiHandle vpi_handle_by_name(char *name, vpiHandle scope) = 0;
+    virtual PLI_INT32 vpi_get_vlog_info(p_vpi_vlog_info vlog_info_p) = 0;
     virtual ~AVPIProvider() = default;
 };
 
@@ -32,6 +33,7 @@ class VPIProvider : public AVPIProvider {
     vpiHandle vpi_scan(vpiHandle iterator) override;
     char *vpi_get_str(PLI_INT32 property, vpiHandle object) override;
     vpiHandle vpi_handle_by_name(char *name, vpiHandle scope) override;
+    PLI_INT32 vpi_get_vlog_info(p_vpi_vlog_info vlog_info_p) override;
 };
 
 class RTLSimulatorClient {
@@ -43,7 +45,8 @@ public:
     std::optional<int64_t> get_value(const std::string &name);
     std::optional<int64_t> get_value(vpiHandle handle);
     std::unordered_map<std::string, vpiHandle> get_module_signals(const std::string &name);
-    std::string get_full_name(const std::string &name) const;
+    [[nodiscard]] std::string get_full_name(const std::string &name) const;
+    [[nodiscard]] std::vector<std::string> get_argv() const;
 
 private:
     std::unordered_map<std::string, vpiHandle> handle_map_;
@@ -54,7 +57,7 @@ private:
     std::unique_ptr<AVPIProvider> vpi_;
 
     static std::pair<std::string, std::string> get_path(const std::string &name);
-    void compute_hierarchy_name_prefix(std::unordered_set<std::string>& top_names);
+    void compute_hierarchy_name_prefix(std::unordered_set<std::string> &top_names);
 };
 }  // namespace hgdb
 
