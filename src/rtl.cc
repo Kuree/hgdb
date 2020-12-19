@@ -33,6 +33,10 @@ PLI_INT32 VPIProvider::vpi_get_vlog_info(p_vpi_vlog_info vlog_info_p) {
     return ::vpi_get_vlog_info(vlog_info_p);
 }
 
+void VPIProvider::vpi_get_time(vpiHandle object, p_vpi_time time_p) {
+    return ::vpi_get_time(object, time_p);
+}
+
 RTLSimulatorClient::RTLSimulatorClient(const std::vector<std::string> &instance_names)
     : RTLSimulatorClient(instance_names, nullptr) {}
 
@@ -147,6 +151,19 @@ std::string RTLSimulatorClient::get_simulator_name() const {
         return std::string(info.product);
     }
     return "";
+}
+
+uint64_t RTLSimulatorClient::get_simulation_time() const {
+    // we use sim time
+    s_vpi_time current_time{};
+    current_time.type = vpiSimTime;
+    current_time.real = 0;
+    current_time.high = 0;
+    current_time.low = 0;
+    vpi_->vpi_get_time(nullptr, &current_time);
+    uint64_t high = current_time.high;
+    uint64_t low = current_time.low;
+    return high << 32u | low;
 }
 
 std::pair<std::string, std::string> RTLSimulatorClient::get_path(const std::string &name) {

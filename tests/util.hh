@@ -125,6 +125,13 @@ public:
         return 1;
     }
 
+    void vpi_get_time(vpiHandle object, p_vpi_time time_p) override {
+        if (time_p->type == vpiSimTime) {
+            time_p->low = time_ & 0xFFFF'FFFF;
+            time_p->high = time_ >> 32u;
+        }
+    }
+
     vpiHandle get_new_handle() {
         auto p = vpi_handle_counter_++;
         return reinterpret_cast<uint32_t *>(p);
@@ -160,6 +167,8 @@ public:
         }
     }
 
+    void set_time(uint64_t time) { time_ = time; }
+
     void set_signal_value(vpiHandle handle, int64_t value) { signal_values_[handle] = value; }
     void set_top(vpiHandle top) { top_ = top; }
 
@@ -178,6 +187,7 @@ private:
 
     std::vector<std::string> argv_str_;
     std::vector<char *> argv_;
+    uint64_t time_ = 0;
 
     vpiHandle top_ = nullptr;
 

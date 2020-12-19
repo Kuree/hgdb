@@ -30,6 +30,7 @@ public:
 protected:
     static constexpr int64_t a_value = 42;
     static constexpr int64_t b_value = 43;
+    static constexpr uint64_t time = 0x12345678'9ABCDEF0;
 
     void SetUp() override {
         auto vpi_ = std::make_unique<MockVPIProvider>();
@@ -51,6 +52,8 @@ protected:
         }
         // set argv
         vpi_->set_argv(argv);
+        // set time
+        vpi_->set_time(time);
 
         std::unique_ptr<hgdb::AVPIProvider> vpi = std::move(vpi_);
         client = std::make_unique<hgdb::RTLSimulatorClient>(std::vector<std::string>{"parent_mod"},
@@ -105,4 +108,9 @@ TEST_F(RTLModuleTest, get_argv) {  // NOLINT
     for (auto i = 0u; i < argv.size(); i++) {
         EXPECT_EQ(argv[i], RTLModuleTest::argv[i]);
     }
+}
+
+TEST_F(RTLModuleTest, get_time) {  // NOLINT
+    auto time = client->get_simulation_time();
+    EXPECT_EQ(time, RTLModuleTest::time);
 }
