@@ -43,6 +43,7 @@ public:
     std::optional<int64_t> get_value(const std::string &name);
     std::optional<int64_t> get_value(vpiHandle handle);
     std::unordered_map<std::string, vpiHandle> get_module_signals(const std::string &name);
+    std::string get_full_name(const std::string &name) const;
 
 private:
     std::unordered_map<std::string, vpiHandle> handle_map_;
@@ -52,7 +53,6 @@ private:
     // VPI provider
     std::unique_ptr<AVPIProvider> vpi_;
 
-    std::string get_full_name(const std::string &name) const;
     static std::pair<std::string, std::string> get_path(const std::string &name);
     void compute_hierarchy_name_prefix(std::unordered_set<std::string>& top_names);
 };

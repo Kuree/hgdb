@@ -113,22 +113,28 @@ std::string RTLSimulatorClient::get_full_name(const std::string &name) const {
         return name;
     } else {
         auto prefix = hierarchy_name_prefix_map_.at(top);
-        return prefix + name;
+        if (path.empty())
+            return prefix.substr(0, prefix.size() - 1);
+        else return prefix + path;
     }
 }
 
 std::pair<std::string, std::string> RTLSimulatorClient::get_path(const std::string &name) {
     auto pos = name.find_first_of('.');
-    auto top = name.substr(0, pos - 1);
-    auto n = name.substr(pos + 1);
-    return {top, n};
+    if (pos == std::string::npos) {
+        return {name, ""};
+    } else {
+        auto top = name.substr(0, pos);
+        auto n = name.substr(pos + 1);
+        return {top, n};
+    }
 }
 
 void RTLSimulatorClient::compute_hierarchy_name_prefix(std::unordered_set<std::string> &top_names) {
     // we do a BFS search from the top;
     std::queue<vpiHandle> handle_queues;
     handle_queues.emplace(nullptr);
-    while ((!handle_queues.empty()) && top_names.empty()) {
+    while ((!handle_queues.empty()) && !top_names.empty()) {
         // scan through the design hierarchy
         auto mod_handle = handle_queues.front();
         handle_queues.pop();
@@ -139,7 +145,7 @@ void RTLSimulatorClient::compute_hierarchy_name_prefix(std::unordered_set<std::s
             std::string def_name = vpi_->vpi_get_str(vpiDefName, child_handle);
             if (top_names.find(def_name) != top_names.end()) {
                 // we found a match
-                std::string hierarchy_name = vpi_get_str(vpiFullName, child_handle);
+                std::string hierarchy_name = vpi_->vpi_get_str(vpiFullName, child_handle);
                 // adding . at the end
                 hierarchy_name = fmt::format("{0}.", hierarchy_name);
                 // add it to the mapping
