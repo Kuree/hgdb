@@ -1,3 +1,5 @@
+#include <fmt/format.h>
+
 #include "../src/rtl.hh"
 #include "gtest/gtest.h"
 #include "util.hh"
@@ -23,6 +25,9 @@
  */
 class RTLModuleTest : public ::testing::Test {
 protected:
+    static constexpr int64_t a_value = 42;
+    static constexpr int64_t b_value = 43;
+
     void SetUp() override {
         auto vpi_ = std::make_unique<MockVPIProvider>();
         auto top = vpi_->add_module("top", "top");
@@ -35,8 +40,11 @@ protected:
         for (auto handle : mods) {
             std::string name = vpi_->vpi_get_str(vpiFullName, handle);
             // adding signal in full name
-            vpi_->add_signal(handle, name + ".a");
-            vpi_->add_signal(handle, name + ".b");
+            auto a = vpi_->add_signal(handle, name + ".a");
+            auto b = vpi_->add_signal(handle, name + ".b");
+            // also set the values
+            vpi_->set_signal_value(a, a_value);
+            vpi_->set_signal_value(b, b_value);
         }
         std::unique_ptr<hgdb::AVPIProvider> vpi = std::move(vpi_);
         client = std::make_unique<hgdb::RTLSimulatorClient>(std::vector<std::string>{"parent_mod"},
@@ -65,10 +73,22 @@ TEST_F(RTLModuleTest, get_full_name) {  // NOLINT
 
 TEST_F(RTLModuleTest, get_module_signals) {  // NOLINT
     auto mods = {"parent_mod", "parent_mod.inst1", "parent_mod.inst2"};
-    for (auto const &mod_name: mods) {
+    for (auto const &mod_name : mods) {
         auto parent_signals = client->get_module_signals(mod_name);
         EXPECT_EQ(parent_signals.size(), 2);
         EXPECT_NE(parent_signals.find("a"), parent_signals.end());
         EXPECT_NE(parent_signals.find("b"), parent_signals.end());
+    }
+}
+
+TEST_F(RTLModuleTest, get_value) {  // NOLINT
+    auto mods = {"parent_mod", "parent_mod.inst1", "parent_mod.inst2"};
+    for (auto const &mod_name : mods) {
+        auto a = fmt::format("{0}.{1}", mod_name, "a");
+        auto b = fmt::format("{0}.{1}", mod_name, "b");
+        auto a_value = client->get_value(a);
+        auto b_value = client->get_value(b);
+        EXPECT_EQ(a_value, RTLModuleTest::a_value);
+        EXPECT_EQ(b_value, RTLModuleTest::b_value);
     }
 }
