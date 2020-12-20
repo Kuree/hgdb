@@ -22,3 +22,6 @@
 [submodule "extern/vlstd"]
 	path = extern/vlstd
 	url = https://github.com/Kuree/vlstd.git
+[submodule "extern/exprtk"]
+	path = extern/exprtk
+	url = https://github.com/Kuree/exprtk.git
