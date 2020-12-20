@@ -1,4 +1,4 @@
-add_library(hgdb db.cc debug.cc server.cc util.cc rtl.cc)
+add_library(hgdb db.cc debug.cc server.cc util.cc rtl.cc eval.cc)
 
 target_compile_definitions(hgdb PUBLIC ASIO_STANDALONE)
 
@@ -10,6 +10,7 @@ target_include_directories(hgdb PUBLIC
         ../extern/rapidjson/include
        ../extern/asio/asio/include/
         ../extern/websocketpp
-        ../extern/vlstd)
+        ../extern/vlstd
+        ../extern/exprtk)
 
 target_link_libraries(hgdb fmt sqlite3 Threads::Threads)
