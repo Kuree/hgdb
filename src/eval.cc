@@ -47,6 +47,7 @@ DebugExpression::DebugExpression(const std::string &expression) : expression_(ex
 }
 
 int64_t DebugExpression::eval(const std::unordered_map<std::string, int64_t> &values) {
+    if (!correct()) return 0;
     uint64_t hit = 0;
     for (auto const &[name, value] : values) {
         if (symbols_.find(name) != symbols_.end()) {

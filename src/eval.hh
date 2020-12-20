@@ -13,7 +13,8 @@ public:
     // exprtk requires to use floats
     using ExpressionType = double;
     static std::unique_ptr<exprtk::expression<ExpressionType>> get_expression(
-        const std::string &expression, exprtk::symbol_table<ExpressionHelper::ExpressionType>&table);
+        const std::string &expression,
+        exprtk::symbol_table<ExpressionHelper::ExpressionType> &table);
     static std::unordered_set<std::string> get_expr_symbols(const std::string &expression);
 };
 
@@ -22,6 +23,7 @@ public:
     explicit DebugExpression(const std::string &expression);
     [[nodiscard]] const std::unordered_set<std::string> &symbols() const { return symbols_; }
     int64_t eval(const std::unordered_map<std::string, int64_t> &values);
+    [[nodiscard]] bool correct() const { return expr_ != nullptr; }
 
 private:
     std::string expression_;
