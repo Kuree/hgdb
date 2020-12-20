@@ -8,8 +8,6 @@ namespace hgdb {
 // need to migrate this specification to AsyncAPI once it is able to describe multiple
 // message sharing the same channel
 
-
-
 /*
  * Request structure
  * request: true
@@ -37,8 +35,8 @@ BreakpointRequest::BreakpointRequest(const std::string &payload) : Request() {
     Document document;
     document.Parse(payload.c_str());
 
-    auto filename = check_type<Document, std::string>(document, "filename");
-    auto line_num = check_type<Document, uint64_t>(document, "line_num");
+    auto filename = get_member<Document, std::string>(document, "filename");
+    auto line_num = get_member<Document, uint64_t>(document, "line_num");
     if (!filename || !line_num) {
         status_code_ = status_code::error;
         return;
@@ -46,10 +44,16 @@ BreakpointRequest::BreakpointRequest(const std::string &payload) : Request() {
     bp_ = BreakPoint{};
     bp_->filename = *filename;
     bp_->line_num = *line_num;
-    auto column_num = check_type<Document, uint64_t>(document, "column_num", false);
-    auto condition = check_type<Document, std::string>(document, "condition", false);
-    if (column_num) bp_->column_num = *column_num;
-    if (condition) bp_->condition = *condition;
+    auto column_num = get_member<Document, uint64_t>(document, "column_num", false);
+    auto condition = get_member<Document, std::string>(document, "condition", false);
+    if (column_num)
+        bp_->column_num = *column_num;
+    else
+        bp_->column_num = 0;
+    if (condition)
+        bp_->condition = *condition;
+    else
+        bp_->condition = "";
 }
 
 }  // namespace hgdb

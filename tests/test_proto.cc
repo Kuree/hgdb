@@ -39,4 +39,5 @@ TEST(proto, breakpoint_request_malformed) {  // NOLINT
     EXPECT_EQ(r.status(), hgdb::status_code::error);
     r = hgdb::BreakpointRequest(req2);
     EXPECT_EQ(r.status(), hgdb::status_code::error);
+    EXPECT_FALSE(r.error_reason().empty());
 }

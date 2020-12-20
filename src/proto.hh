@@ -37,15 +37,20 @@ protected:
     }
 
     template <typename T, typename K>
-    std::optional<K> check_type(T &document, const char *member_name, bool set_error = true) {
+    std::optional<K> get_member(T &document, const char *member_name, bool set_error = true,
+                                bool check_type = true) {
         if (!check_member(document, member_name, set_error)) return std::nullopt;
         if constexpr (std::is_same<K, std::string>::value) {
             if (document[member_name].IsString()) {
                 return std::string(document[member_name].GetString());
+            } else if (check_type) {
+                error_reason_ = fmt::format("Invalid type for {0}", member_name);
             }
         } else if constexpr (std::is_integral<K>::value) {
             if (document[member_name].IsNumber()) {
                 return document[member_name].template Get<K>();
+            } else if (check_type) {
+                error_reason_ = fmt::format("Invalid type for {0}", member_name);
             }
         }
         return std::nullopt;
