@@ -26,7 +26,7 @@ public:
     virtual void vpi_get_time(vpiHandle object, p_vpi_time time_p) = 0;
     virtual vpiHandle vpi_register_cb(p_cb_data cb_data_p) = 0;
     virtual PLI_INT32 vpi_remove_cb(vpiHandle cb_obj) = 0;
-    virtual PLI_INT32 vpi_release_handle  (vpiHandle object) = 0;
+    virtual PLI_INT32 vpi_release_handle(vpiHandle object) = 0;
     virtual PLI_INT32 vpi_control(PLI_INT32 operation, ...) = 0;
     virtual ~AVPIProvider() = default;
 };
@@ -54,7 +54,8 @@ public:
     vpiHandle get_handle(const std::string &name);
     std::optional<int64_t> get_value(const std::string &name);
     std::optional<int64_t> get_value(vpiHandle handle);
-    std::unordered_map<std::string, vpiHandle> get_module_signals(const std::string &name);
+    using ModuleSignals = std::unordered_map<std::string, vpiHandle>;
+    ModuleSignals get_module_signals(const std::string &name);
     [[nodiscard]] std::string get_full_name(const std::string &name) const;
     [[nodiscard]] std::vector<std::string> get_argv() const;
     [[nodiscard]] std::string get_simulator_name() const;
@@ -64,11 +65,7 @@ public:
                             vpiHandle obj = nullptr, void *user_data = nullptr);
     void remove_call_back(const std::string &cb_name);
     void remove_call_back(vpiHandle cb_handle);
-    enum class finish_value {
-        nothing = 0,
-        time_location = 1,
-        all = 2
-    };
+    enum class finish_value { nothing = 0, time_location = 1, all = 2 };
     void finish_sim(finish_value value = finish_value::nothing);
     void stop_sim(finish_value value = finish_value::nothing);
 
@@ -85,6 +82,11 @@ private:
     uint32_t vpi_net_target_;
     // callbacks
     std::unordered_map<std::string, vpiHandle> cb_handles_;
+
+    // cached module signals
+    // this is to avoid to loop through instances repeatedly
+
+    std::unordered_map<std::string, ModuleSignals> module_signals_cache_;
 
     static std::pair<std::string, std::string> get_path(const std::string &name);
     void compute_hierarchy_name_prefix(std::unordered_set<std::string> &top_names);

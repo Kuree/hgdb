@@ -159,6 +159,10 @@ public:
         return reinterpret_cast<uint32_t *>(p);
     }
 
+    uint64_t get_handle_count() {
+        return reinterpret_cast<uint64_t>(vpi_handle_counter_);
+    }
+
     vpiHandle add_module(const std::string &def_name, const std::string &hierarchy_name) {
         auto handle = get_new_handle();
         modules_.emplace(handle, hierarchy_name);

@@ -60,6 +60,12 @@ protected:
                                                             std::move(vpi));
     }
 
+    MockVPIProvider &vpi() {
+        auto *vpi = &client->vpi();
+        auto mock_vpi = reinterpret_cast<MockVPIProvider *>(vpi);
+        return *mock_vpi;
+    }
+
 protected:
     std::unique_ptr<hgdb::RTLSimulatorClient> client;
 };
@@ -83,10 +89,15 @@ TEST_F(RTLModuleTest, get_full_name) {  // NOLINT
 TEST_F(RTLModuleTest, get_module_signals) {  // NOLINT
     auto mods = {"parent_mod", "parent_mod.inst1", "parent_mod.inst2"};
     for (auto const &mod_name : mods) {
-        auto parent_signals = client->get_module_signals(mod_name);
-        EXPECT_EQ(parent_signals.size(), 2);
-        EXPECT_NE(parent_signals.find("a"), parent_signals.end());
-        EXPECT_NE(parent_signals.find("b"), parent_signals.end());
+        auto mod_signals = client->get_module_signals(mod_name);
+        EXPECT_EQ(mod_signals.size(), 2);
+        EXPECT_NE(mod_signals.find("a"), mod_signals.end());
+        EXPECT_NE(mod_signals.find("b"), mod_signals.end());
+        // check the cache if it's working
+        // the handle count shall not increase if the result is cached
+        auto handle_count = vpi().get_handle_count();
+        EXPECT_EQ(client->get_module_signals(mod_name).size(), mod_signals.size());
+        EXPECT_EQ(vpi().get_handle_count(), handle_count);
     }
 }
 
@@ -125,30 +136,27 @@ int test_cb_func(p_cb_data cb_data) {
 TEST_F(RTLModuleTest, test_cb) {  // NOLINT
     int value = 0;
     client->add_call_back("test_cb", cbStartOfSimulation, test_cb_func, nullptr, &value);
-    auto *vpi = &client->vpi();
-    auto mock_vpi = reinterpret_cast<MockVPIProvider *>(vpi);
+    auto &mock_vpi = vpi();
     // trigger the callback
     // trigger a wrong one first
-    mock_vpi->trigger_cb(cbEndOfSimulation);
+    mock_vpi.trigger_cb(cbEndOfSimulation);
     EXPECT_EQ(value, 0);
     constexpr int final_value = 4;
     for (int i = 1; i < final_value; i++) {
-        mock_vpi->trigger_cb(cbStartOfSimulation);
+        mock_vpi.trigger_cb(cbStartOfSimulation);
         EXPECT_EQ(value, i);
     }
     // remove the callback
     client->remove_call_back("test_cb");
     // trigger again and it won't do anything
-    mock_vpi->trigger_cb(cbStartOfSimulation);
+    mock_vpi.trigger_cb(cbStartOfSimulation);
     EXPECT_EQ(value, final_value);
 }
 
-TEST_F(RTLModuleTest, test_control) {   // NOLINT
+TEST_F(RTLModuleTest, test_control) {  // NOLINT
     client->stop_sim(hgdb::RTLSimulatorClient::finish_value::time_location);
     client->finish_sim(hgdb::RTLSimulatorClient::finish_value::all);
-    auto *vpi = &client->vpi();
-    auto mock_vpi = reinterpret_cast<MockVPIProvider *>(vpi);
-    auto const &ops = mock_vpi->vpi_ops();
+    auto const &ops = vpi().vpi_ops();
     EXPECT_EQ(ops.size(), 2);
     EXPECT_EQ(ops[0], vpiStop);
     EXPECT_EQ(ops[1], vpiFinish);

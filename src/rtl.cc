@@ -113,6 +113,9 @@ std::optional<int64_t> RTLSimulatorClient::get_value(const std::string &name) {
 
 std::unordered_map<std::string, vpiHandle> RTLSimulatorClient::get_module_signals(
     const std::string &name) {
+    if (module_signals_cache_.find(name) != module_signals_cache_.end()) {
+        return module_signals_cache_.at(name);
+    }
     auto module_handle = get_handle(name);
     if (!module_handle) return {};
     // need to make sure it is module type
@@ -130,6 +133,8 @@ std::unordered_map<std::string, vpiHandle> RTLSimulatorClient::get_module_signal
         result.emplace(n, net_handle);
     }
 
+    // store the cache
+    module_signals_cache_.emplace(name, result);
     return result;
 }
 
