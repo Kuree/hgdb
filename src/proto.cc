@@ -1,11 +1,12 @@
 #include "proto.hh"
 
 #include <fmt/format.h>
+
+#include <utility>
+
 #include "rapidjson/document.h"
 #include "rapidjson/stringbuffer.h"
 #include "rapidjson/writer.h"
-
-#include <utility>
 
 namespace hgdb {
 
@@ -28,6 +29,7 @@ namespace hgdb {
  * payload:
  *     filename: [required] - string
  *     line_num: [required] - uint64_t
+ *     action: [required] - string: "add" or "remove"
  *     column_num: [optional] - uint64_t
  *     condition: [optional] - string
  *
@@ -79,13 +81,23 @@ void BreakpointRequest::parse_payload(const std::string &payload) {
 
     auto filename = get_member<Document, std::string>(document, "filename", error_reason_);
     auto line_num = get_member<Document, uint64_t>(document, "line_num", error_reason_);
-    if (!filename || !line_num) {
+    auto bp_act = get_member<Document, std::string>(document, "action", error_reason_);
+    if (!filename || !line_num || !bp_act) {
         status_code_ = status_code::error;
         return;
     }
     bp_ = BreakPoint{};
     bp_->filename = *filename;
     bp_->line_num = *line_num;
+    auto action_str = *bp_act;
+    if (action_str == "add") {
+        bp_action_ = action::add;
+    } else if (action_str == "remove") {
+        bp_action_ = action::remove;
+    } else {
+        status_code_ = status_code::error;
+        return;
+    }
     auto column_num = get_member<Document, uint64_t>(document, "column_num", error_reason_, false);
     auto condition = get_member<Document, std::string>(document, "condition", error_reason_, false);
     if (column_num)

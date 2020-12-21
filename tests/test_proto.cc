@@ -6,6 +6,7 @@ TEST(proto, breakpoint_request) { // NOLINT
 {
     "filename": "/tmp/abc",
     "line_num": 123,
+    "action": "add",
     "column_num": 42,
     "condition": "a"
 }
@@ -19,6 +20,7 @@ TEST(proto, breakpoint_request) { // NOLINT
     EXPECT_EQ(bp->line_num, 123);
     EXPECT_EQ(bp->column_num, 42);
     EXPECT_EQ(bp->condition, "a");
+    EXPECT_EQ(r.bp_action(), hgdb::BreakpointRequest::action::add);
 }
 
 TEST(proto, breakpoint_request_malformed) {  // NOLINT
@@ -26,6 +28,7 @@ TEST(proto, breakpoint_request_malformed) {  // NOLINT
 {
     "line_num": 123,
     "column_num": 42,
+    "action": "remove",
     "condition": "a"
 }
 )";
@@ -33,6 +36,7 @@ TEST(proto, breakpoint_request_malformed) {  // NOLINT
     auto req2 = R"(
 {
     "filename": "/tmp/abc",
+    "action": "remove",
     "line_num": "123"
 }
 )";
@@ -52,7 +56,8 @@ TEST(proto, request_parse_breakpoint) { // NOLINT
     "type": "breakpoint",
     "payload": {
         "filename": "/tmp/abc",
-        "line_num": 123
+        "line_num": 123,
+        "action": "add"
     }
 }
 )";

@@ -78,12 +78,18 @@ public:
 
 class BreakpointRequest : public Request {
 public:
+    enum class action {
+        add,
+        remove
+    };
     BreakpointRequest() = default;
     void parse_payload(const std::string &payload) override;
     [[nodiscard]] const std::optional<BreakPoint> &breakpoint() const { return bp_; }
+    [[nodiscard]] const std::optional<action> bp_action() const { return bp_action_; }
 
 private:
     std::optional<BreakPoint> bp_;
+    std::optional<action> bp_action_;
 };
 
 }  // namespace hgdb
