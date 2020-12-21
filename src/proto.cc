@@ -71,6 +71,42 @@ static std::optional<T> get_member(rapidjson::Document &document, const char *me
     return std::nullopt;
 }
 
+GenericResponse::GenericResponse(status_code status, std::string reason)
+    : Response(status), reason_(std::move(reason)) {}
+
+template <typename T>
+void set_member(rapidjson::Document &document, const char *name, const T &value) {
+    auto &allocator = document.GetAllocator();
+    rapidjson::Value key(name, allocator);
+    if constexpr (std::is_same<T, std::string>::value) {
+        rapidjson::Value v(value.c_str(), allocator);
+        document.AddMember(key, v, allocator);
+    } else {
+        document.AddMember(name, value, allocator);
+    }
+}
+
+void set_status(rapidjson::Document &document, status_code status) {
+    std::string status_str = status == status_code::success ? "success" : "error";
+    set_member(document, "status", status_str);
+}
+
+std::string GenericResponse::str() const {
+    using namespace rapidjson;
+    Document document(rapidjson::kObjectType);
+    auto &allocator = document.GetAllocator();
+    set_status(document, status_);
+    if (status_ == status_code::error) {
+        set_member(document, "reason", reason_);
+    }
+
+    StringBuffer buffer;
+    Writer w(buffer);
+    document.Accept(w);
+    auto s = buffer.GetString();
+    return s;
+}
+
 std::unique_ptr<Request> Request::parse_request(const std::string &str) {
     using namespace rapidjson;
     Document document;

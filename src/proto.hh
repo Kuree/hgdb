@@ -12,10 +12,21 @@ namespace hgdb {
 enum class status_code { success = 0, error = 1 };
 class Response {
 public:
+    Response() = default;
+    Response(status_code status) : status_(status) {}
     [[nodiscard]] virtual std::string str() const = 0;
 
-private:
+protected:
     status_code status_ = status_code::success;
+};
+
+class GenericResponse : public Response {
+public:
+    GenericResponse(status_code status, std::string reason = "");
+    std::string str() const override;
+
+private:
+    std::string reason_;
 };
 
 class Request {
@@ -42,10 +53,7 @@ public:
 
 class BreakpointRequest : public Request {
 public:
-    enum class action {
-        add,
-        remove
-    };
+    enum class action { add, remove };
     BreakpointRequest() = default;
     void parse_payload(const std::string &payload) override;
     [[nodiscard]] const std::optional<BreakPoint> &breakpoint() const { return bp_; }

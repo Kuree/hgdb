@@ -67,3 +67,12 @@ TEST(proto, request_parse_breakpoint) { // NOLINT
     EXPECT_NE(br, nullptr);
     EXPECT_EQ(br->breakpoint()->filename, "/tmp/abc");
 }
+
+TEST(proto, generic_response) { // NOLINT
+    auto res = hgdb::GenericResponse(hgdb::status_code::error, "TEST");
+    auto s = res.str();
+    EXPECT_EQ(s, R"({"status":"error","reason":"TEST"})");
+    res = hgdb::GenericResponse(hgdb::status_code::success);
+    s = res.str();
+    EXPECT_EQ(s, R"({"status":"error","reason":"TEST"})");
+}
