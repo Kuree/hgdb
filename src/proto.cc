@@ -35,6 +35,42 @@ namespace hgdb {
  *
  */
 
+static bool check_member(rapidjson::Document &document, const char *member_name, std::string &error,
+                         bool set_error = true) {
+    if (!document.HasMember(member_name)) {
+        if (set_error) error = fmt::format("Unable to find member {0}", member_name);
+        return false;
+    }
+    return true;
+}
+
+template <typename T>
+static std::optional<T> get_member(rapidjson::Document &document, const char *member_name,
+                                   std::string &error, bool set_error = true,
+                                   bool check_type = true) {
+    if (!check_member(document, member_name, error, set_error)) return std::nullopt;
+    if constexpr (std::is_same<T, std::string>::value) {
+        if (document[member_name].IsString()) {
+            return std::string(document[member_name].GetString());
+        } else if (check_type) {
+            error = fmt::format("Invalid type for {0}", member_name);
+        }
+    } else if constexpr (std::is_integral<T>::value && !std::is_same<T, bool>::value) {
+        if (document[member_name].IsNumber()) {
+            return document[member_name].template Get<T>();
+        } else if (check_type) {
+            error = fmt::format("Invalid type for {0}", member_name);
+        }
+    } else if constexpr (std::is_same<T, bool>::value) {
+        if (document[member_name].IsBool()) {
+            return document[member_name].GetBool();
+        } else if (check_type) {
+            error = fmt::format("Invalid type for {0}", member_name);
+        }
+    }
+    return std::nullopt;
+}
+
 std::unique_ptr<Request> Request::parse_request(const std::string &str) {
     using namespace rapidjson;
     Document document;
@@ -43,10 +79,10 @@ std::unique_ptr<Request> Request::parse_request(const std::string &str) {
     if (document.HasParseError()) return std::make_unique<ErrorRequest>("Invalid json object");
 
     std::string error;
-    auto request = get_member<Document, bool>(document, "request", error);
+    auto request = get_member<bool>(document, "request", error);
     if (!request || !(*request)) return std::make_unique<ErrorRequest>(error);
 
-    auto type = get_member<Document, std::string>(document, "type", error);
+    auto type = get_member<std::string>(document, "type", error);
     if (!type) return std::make_unique<ErrorRequest>(error);
     // get payload
     auto payload = check_member(document, "payload", error);
@@ -79,9 +115,9 @@ void BreakpointRequest::parse_payload(const std::string &payload) {
     Document document;
     document.Parse(payload.c_str());
 
-    auto filename = get_member<Document, std::string>(document, "filename", error_reason_);
-    auto line_num = get_member<Document, uint64_t>(document, "line_num", error_reason_);
-    auto bp_act = get_member<Document, std::string>(document, "action", error_reason_);
+    auto filename = get_member<std::string>(document, "filename", error_reason_);
+    auto line_num = get_member<uint64_t>(document, "line_num", error_reason_);
+    auto bp_act = get_member<std::string>(document, "action", error_reason_);
     if (!filename || !line_num || !bp_act) {
         status_code_ = status_code::error;
         return;
@@ -98,8 +134,8 @@ void BreakpointRequest::parse_payload(const std::string &payload) {
         status_code_ = status_code::error;
         return;
     }
-    auto column_num = get_member<Document, uint64_t>(document, "column_num", error_reason_, false);
-    auto condition = get_member<Document, std::string>(document, "condition", error_reason_, false);
+    auto column_num = get_member<uint64_t>(document, "column_num", error_reason_, false);
+    auto condition = get_member<std::string>(document, "condition", error_reason_, false);
     if (column_num)
         bp_->column_num = *column_num;
     else
