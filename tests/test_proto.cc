@@ -68,6 +68,30 @@ TEST(proto, request_parse_breakpoint) { // NOLINT
     EXPECT_EQ(br->breakpoint()->filename, "/tmp/abc");
 }
 
+TEST(proto, request_parse_connection) { // NOLINT
+    auto req = R"(
+{
+    "request": true,
+    "type": "connection",
+    "payload": {
+        "db_filename": "/tmp/abc.db",
+        "path_mapping": {
+            "a": "/tmp/a",
+            "b": "/tmp/b"
+        }
+    }
+}
+)";
+    auto r = hgdb::Request::parse_request(req);
+    EXPECT_EQ(r->status(), hgdb::status_code::success);
+    auto conn = dynamic_cast<hgdb::ConnectionRequest*>(r.get());
+    EXPECT_NE(conn, nullptr);
+    EXPECT_EQ(conn->db_filename(), "/tmp/abc.db");
+    EXPECT_EQ(conn->path_mapping().size(), 2);
+    EXPECT_EQ(conn->path_mapping().at("a"), "/tmp/a");
+    EXPECT_EQ(conn->path_mapping().at("b"), "/tmp/b");
+}
+
 TEST(proto, generic_response) { // NOLINT
     auto res = hgdb::GenericResponse(hgdb::status_code::error, "TEST");
     auto s = res.str();

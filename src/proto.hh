@@ -64,6 +64,21 @@ private:
     std::optional<action> bp_action_;
 };
 
+class ConnectionRequest : public Request {
+public:
+    ConnectionRequest() = default;
+    void parse_payload(const std::string &payload) override;
+
+    [[nodiscard]] const std::string &db_filename() const { return db_filename_; }
+    [[nodiscard]] const std::map<std::string, std::string> &path_mapping() const {
+        return path_mapping_;
+    };
+
+private:
+    std::string db_filename_;
+    std::map<std::string, std::string> path_mapping_;
+};
+
 }  // namespace hgdb
 
 #endif  // HGDB_PROTO_HH

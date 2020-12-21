@@ -33,6 +33,13 @@ namespace hgdb {
  *     column_num: [optional] - uint64_t
  *     condition: [optional] - string
  *
+ *
+ * Connection Request
+ * type: connection
+ * payload:
+ *     db_filename: [required] - string
+ *     path_mapping: [optional] - map<string, string>
+ *
  */
 
 static bool check_member(rapidjson::Document &document, const char *member_name, std::string &error,
@@ -65,6 +72,20 @@ static std::optional<T> get_member(rapidjson::Document &document, const char *me
         if (document[member_name].IsBool()) {
             return document[member_name].GetBool();
         } else if (check_type) {
+            error = fmt::format("Invalid type for {0}", member_name);
+        }
+    } else if constexpr (std::is_same<T, std::map<std::string, std::string>>::value) {
+        if (document[member_name].IsObject()) {
+            std::map<std::string, std::string> result;
+            for (auto const &[key, value] : document[member_name].GetObject()) {
+                if (!value.IsString()) {
+                    error = fmt::format("Invalid type for member {0}", member_name);
+                    return std::nullopt;
+                }
+                result.emplace(key.GetString(), value.GetString());
+            }
+            return result;
+        } else {
             error = fmt::format("Invalid type for {0}", member_name);
         }
     }
@@ -128,6 +149,8 @@ std::unique_ptr<Request> Request::parse_request(const std::string &str) {
     std::unique_ptr<Request> result;
     if (type_str == "breakpoint") {
         result = std::make_unique<BreakpointRequest>();
+    } else if (type_str == "connection") {
+        result = std::make_unique<ConnectionRequest>();
     } else {
         result = std::make_unique<ErrorRequest>("Unknown request");
     }
@@ -144,12 +167,22 @@ std::unique_ptr<Request> Request::parse_request(const std::string &str) {
     return result;
 }
 
+bool check_json(rapidjson::Document &document, status_code &status, std::string &error_reason) {
+    if (document.HasParseError()) {
+        status = status_code::error;
+        error_reason = "Invalid JSON file";
+        return false;
+    }
+    return true;
+}
+
 void BreakpointRequest::parse_payload(const std::string &payload) {
     // parse the breakpoint based on the API specification
     // we use linux style error handling logic
     using namespace rapidjson;
     Document document;
     document.Parse(payload.c_str());
+    if (!check_json(document, status_code_, error_reason_)) return;
 
     auto filename = get_member<std::string>(document, "filename", error_reason_);
     auto line_num = get_member<uint64_t>(document, "line_num", error_reason_);
@@ -185,6 +218,27 @@ void BreakpointRequest::parse_payload(const std::string &payload) {
 ErrorRequest::ErrorRequest(std::string reason) {
     status_code_ = status_code::error;
     error_reason_ = std::move(reason);
+}
+
+void ConnectionRequest::parse_payload(const std::string &payload) {
+    using namespace rapidjson;
+    Document document;
+    document.Parse(payload.c_str());
+    if (!check_json(document, status_code_, error_reason_)) return;
+
+    auto db = get_member<std::string>(document, "db_filename", error_reason_);
+    if (!db) {
+        status_code_ = status_code::error;
+        return;
+    }
+    db_filename_ = *db;
+
+    // get optional mapping
+    auto mapping =
+        get_member<std::map<std::string, std::string>>(document, "path_mapping", error_reason_);
+    if (mapping) {
+        path_mapping_ = *mapping;
+    }
 }
 
 }  // namespace hgdb
