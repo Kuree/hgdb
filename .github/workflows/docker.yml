@@ -1,4 +1,4 @@
-name: CI Test
+name: Build Docker test image
 
 on:
   push:
@@ -13,6 +13,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+    - uses: actions/checkout@v2
     - name: Build docker test image 📦
       shell: bash
       run: |
@@ -20,3 +21,6 @@ jobs:
         docker build . -t keyiz/hgdb:test
         docker login -u $DOCKER_USERNAME -p $DOCKER_PASSWORD
         docker push keyiz/hgdb:test
+      env:
+        DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
+        DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}

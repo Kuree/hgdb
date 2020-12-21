@@ -2,6 +2,7 @@ FROM ubuntu:latest
 
 LABEL description="A docker image for testing hgdb"
 LABEL maintainer="keyi@cs.stanford.edu"
+LABEL url="https://github.com/Kuree/hgdb"
 
 ENV DEBIAN_FRONTEND=noninteractive
 
