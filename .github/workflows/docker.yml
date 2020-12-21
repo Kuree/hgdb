@@ -1,0 +1,22 @@
+name: CI Test
+
+on:
+  push:
+    branches:
+      - master
+    paths:
+      - docker/test/Dockerfile
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Build docker test image 📦
+      shell: bash
+      run: |
+        cd docker/test
+        docker build . -t keyiz/hgdb:test
+        docker login -u $DOCKER_USERNAME -p $DOCKER_PASSWORD
+        docker push keyiz/hgdb:test
