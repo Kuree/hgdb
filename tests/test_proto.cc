@@ -10,7 +10,8 @@ TEST(proto, breakpoint_request) { // NOLINT
     "condition": "a"
 }
 )";
-    hgdb::BreakpointRequest r(req);
+    hgdb::BreakpointRequest r;
+    r.parse_payload(req);
     EXPECT_EQ(r.status(), hgdb::status_code::success);
     auto const &bp = r.breakpoint();
     EXPECT_TRUE(bp);
@@ -35,9 +36,29 @@ TEST(proto, breakpoint_request_malformed) {  // NOLINT
     "line_num": "123"
 }
 )";
-    hgdb::BreakpointRequest r(req1);
+    hgdb::BreakpointRequest r;
+    r.parse_payload(req1);
     EXPECT_EQ(r.status(), hgdb::status_code::error);
-    r = hgdb::BreakpointRequest(req2);
+    r = {};
+    r.parse_payload(req2);
     EXPECT_EQ(r.status(), hgdb::status_code::error);
     EXPECT_FALSE(r.error_reason().empty());
+}
+
+TEST(proto, request_parse_breakpoint) { // NOLINT
+    auto req = R"(
+{
+    "request": true,
+    "type": "breakpoint",
+    "payload": {
+        "filename": "/tmp/abc",
+        "line_num": 123
+    }
+}
+)";
+    auto r = hgdb::Request::parse_request(req);
+    EXPECT_EQ(r->status(), hgdb::status_code::success);
+    auto br = dynamic_cast<hgdb::BreakpointRequest*>(r.get());
+    EXPECT_NE(br, nullptr);
+    EXPECT_EQ(br->breakpoint()->filename, "/tmp/abc");
 }
