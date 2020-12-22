@@ -5,6 +5,7 @@
 #include <utility>
 
 #include "rapidjson/document.h"
+#include "rapidjson/prettywriter.h"
 #include "rapidjson/stringbuffer.h"
 #include "rapidjson/writer.h"
 
@@ -134,7 +135,7 @@ void set_member(K &json_value, A &allocator, const char *name, const T &value) {
         json_value.AddMember(key.Move(), v_copy.Move(), allocator);
     } else if constexpr (std::is_same<T, std::map<std::string, std::string>>::value) {
         rapidjson::Value v(rapidjson::kObjectType);
-        for (auto const &[name, value_]: value) {
+        for (auto const &[name, value_] : value) {
             set_member(v, allocator, name.c_str(), value_);
         }
         json_value.AddMember(key.Move(), v.Move(), allocator);
@@ -154,11 +155,16 @@ void set_status(rapidjson::Document &document, status_code status) {
     set_member(document, "status", status_str);
 }
 
-std::string to_string(rapidjson::Document &document) {
+std::string to_string(rapidjson::Document &document, bool pretty_print) {
     using namespace rapidjson;
     StringBuffer buffer;
-    Writer w(buffer);
-    document.Accept(w);
+    if (pretty_print) {
+        PrettyWriter w(buffer);
+        document.Accept(w);
+    } else {
+        Writer w(buffer);
+        document.Accept(w);
+    }
     auto s = buffer.GetString();
     return s;
 }
@@ -168,7 +174,7 @@ void set_response_header(rapidjson::Document &document, const Response *response
     set_member(document, "type", response->type());
 }
 
-std::string GenericResponse::str() const {
+std::string GenericResponse::str(bool pretty_print) const {
     using namespace rapidjson;
     Document document(rapidjson::kObjectType);
     auto &allocator = document.GetAllocator();
@@ -178,10 +184,10 @@ std::string GenericResponse::str() const {
         set_member(document, "reason", reason_);
     }
 
-    return to_string(document);
+    return to_string(document, pretty_print);
 }
 
-std::string BreakPointLocationResponse::str() const {
+std::string BreakPointLocationResponse::str(bool pretty_print) const {
     using namespace rapidjson;
     Document document(rapidjson::kObjectType);
     auto &allocator = document.GetAllocator();
@@ -201,7 +207,7 @@ std::string BreakPointLocationResponse::str() const {
     }
     set_member(document, "payload", values);
 
-    return to_string(document);
+    return to_string(document, pretty_print);
 }
 
 BreakPointResponse::BreakPointResponse(uint64_t time, std::string filename, uint64_t line_num,
@@ -212,7 +218,7 @@ BreakPointResponse::BreakPointResponse(uint64_t time, std::string filename, uint
       line_num_(line_num),
       column_num_(column_num) {}
 
-std::string BreakPointResponse::str() const {
+std::string BreakPointResponse::str(bool pretty_print) const {
     using namespace rapidjson;
     Document document(rapidjson::kObjectType);
     auto &allocator = document.GetAllocator();
@@ -233,7 +239,7 @@ std::string BreakPointResponse::str() const {
 
     set_member(document, "payload", payload);
 
-    return to_string(document);
+    return to_string(document, pretty_print);
 }
 
 void BreakPointResponse::add_local_value(const std::string &name, const std::string &value) {

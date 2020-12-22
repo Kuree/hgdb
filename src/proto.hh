@@ -14,7 +14,7 @@ class Response {
 public:
     Response() = default;
     Response(status_code status) : status_(status) {}
-    [[nodiscard]] virtual std::string str() const = 0;
+    [[nodiscard]] virtual std::string str(bool pretty_print=false) const = 0;
     [[nodiscard]] virtual std::string type() const = 0;
 
 protected:
@@ -24,7 +24,7 @@ protected:
 class GenericResponse : public Response {
 public:
     GenericResponse(status_code status, std::string reason = "");
-    std::string str() const override;
+    std::string str(bool pretty_print) const override;
     std::string type() const override { return "generic"; }
 
 private:
@@ -34,7 +34,7 @@ private:
 class BreakPointLocationResponse : public Response {
 public:
     BreakPointLocationResponse(const std::vector<BreakPoint *> &bps) : Response(), bps_(bps) {}
-    std::string str() const override;
+    std::string str(bool pretty_print) const override;
     std::string type() const override { return "bp-location"; }
 
 private:
@@ -45,7 +45,7 @@ class BreakPointResponse : public Response {
 public:
     BreakPointResponse(uint64_t time, std::string filename, uint64_t line_num,
                        uint64_t column_num = 0);
-    std::string str() const override;
+    std::string str(bool pretty_print) const override;
     std::string type() const override { return "breakpoint"; }
 
     void add_local_value(const std::string &name, const std::string &value);
