@@ -56,8 +56,8 @@ public:
     enum class action { add, remove };
     BreakpointRequest() = default;
     void parse_payload(const std::string &payload) override;
-    [[nodiscard]] const std::optional<BreakPoint> &breakpoint() const { return bp_; }
-    [[nodiscard]] const std::optional<action> bp_action() const { return bp_action_; }
+    [[nodiscard]] const auto &breakpoint() const { return bp_; }
+    [[nodiscard]] const auto bp_action() const { return bp_action_; }
 
 private:
     std::optional<BreakPoint> bp_;
@@ -69,8 +69,8 @@ public:
     ConnectionRequest() = default;
     void parse_payload(const std::string &payload) override;
 
-    [[nodiscard]] const std::string &db_filename() const { return db_filename_; }
-    [[nodiscard]] const std::map<std::string, std::string> &path_mapping() const {
+    [[nodiscard]] const auto &db_filename() const { return db_filename_; }
+    [[nodiscard]] const auto &path_mapping() const {
         return path_mapping_;
     };
 
