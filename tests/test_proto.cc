@@ -92,6 +92,26 @@ TEST(proto, request_parse_connection) { // NOLINT
     EXPECT_EQ(conn->path_mapping().at("b"), "/tmp/b");
 }
 
+TEST(proto, request_parse_bp_location) {    // NOLINT
+    auto req = R"(
+{
+    "request": true,
+    "type": "bp-location",
+    "payload": {
+        "filename": "/tmp/abc",
+        "line_num": 42
+    }
+}
+)";
+    auto r = hgdb::Request::parse_request(req);
+    EXPECT_EQ(r->status(), hgdb::status_code::success);
+    auto bp = dynamic_cast<hgdb::BreakPointLocationRequest*>(r.get());
+    EXPECT_NE(bp, nullptr);
+    EXPECT_EQ(bp->filename(), "/tmp/abc");
+    EXPECT_EQ(*bp->line_num(), 42);
+    EXPECT_FALSE(bp->column_num());
+}
+
 TEST(proto, generic_response) { // NOLINT
     auto res = hgdb::GenericResponse(hgdb::status_code::error, "TEST");
     auto s = res.str();

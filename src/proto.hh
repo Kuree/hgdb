@@ -79,6 +79,21 @@ private:
     std::map<std::string, std::string> path_mapping_;
 };
 
+class BreakPointLocationRequest: public Request {
+public:
+    BreakPointLocationRequest() = default;
+    void parse_payload(const std::string &payload) override;
+
+    [[nodiscard]] const auto &filename() const { return filename_; }
+    [[nodiscard]] const auto &line_num() const { return line_num_; }
+    [[nodiscard]] const auto &column_num() const { return column_num_; }
+
+private:
+    std::string filename_;
+    std::optional<uint64_t> line_num_;
+    std::optional<uint64_t> column_num_;
+};
+
 }  // namespace hgdb
 
 #endif  // HGDB_PROTO_HH

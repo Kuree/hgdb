@@ -40,6 +40,13 @@ namespace hgdb {
  *     db_filename: [required] - string
  *     path_mapping: [optional] - map<string, string>
  *
+ *
+ * Breakpoint Location Request
+ * type: bp-location
+ * payload:
+ *     filename: [required] - string
+ *     line_num: [optional] - uint64_t
+ *     column_num: [optional] - uint64_t
  */
 
 static bool check_member(rapidjson::Document &document, const char *member_name, std::string &error,
@@ -151,6 +158,8 @@ std::unique_ptr<Request> Request::parse_request(const std::string &str) {
         result = std::make_unique<BreakpointRequest>();
     } else if (type_str == "connection") {
         result = std::make_unique<ConnectionRequest>();
+    } else if (type_str == "bp-location") {
+        result = std::make_unique<BreakPointLocationRequest>();
     } else {
         result = std::make_unique<ErrorRequest>("Unknown request");
     }
@@ -239,6 +248,23 @@ void ConnectionRequest::parse_payload(const std::string &payload) {
     if (mapping) {
         path_mapping_ = *mapping;
     }
+}
+
+void BreakPointLocationRequest::parse_payload(const std::string &payload) {
+    using namespace rapidjson;
+    Document document;
+    document.Parse(payload.c_str());
+    if (!check_json(document, status_code_, error_reason_)) return;
+
+    auto filename = get_member<std::string>(document, "filename", error_reason_);
+    if (!filename) {
+        status_code_ = status_code::error;
+        return;
+    }
+    filename_ = *filename;
+
+    line_num_ = get_member<uint64_t>(document, "line_num", error_reason_);
+    column_num_ = get_member<uint64_t>(document, "column_num", error_reason_);
 }
 
 }  // namespace hgdb
