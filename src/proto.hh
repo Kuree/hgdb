@@ -31,14 +31,34 @@ private:
     std::string reason_;
 };
 
-class BreakPointLocationResponse: public Response {
+class BreakPointLocationResponse : public Response {
 public:
-    BreakPointLocationResponse(const std::vector<BreakPoint*> &bps): bps_(bps) {}
+    BreakPointLocationResponse(const std::vector<BreakPoint *> &bps) : Response(), bps_(bps) {}
     std::string str() const override;
     std::string type() const override { return "bp-location"; }
 
 private:
-    std::vector<BreakPoint*> bps_;
+    std::vector<BreakPoint *> bps_;
+};
+
+class BreakPointResponse : public Response {
+public:
+    BreakPointResponse(uint64_t time, std::string filename, uint64_t line_num,
+                       uint64_t column_num = 0);
+    std::string str() const override;
+    std::string type() const override { return "breakpoint"; }
+
+    void add_local_value(const std::string &name, const std::string &value);
+    void add_generator_value(const std::string &name, const std::string &value);
+
+private:
+    uint64_t time_;
+    std::string filename_;
+    uint64_t line_num_;
+    uint64_t column_num_;
+
+    std::map<std::string, std::string> local_values_;
+    std::map<std::string, std::string> generator_values_;
 };
 
 class Request {
@@ -82,16 +102,14 @@ public:
     void parse_payload(const std::string &payload) override;
 
     [[nodiscard]] const auto &db_filename() const { return db_filename_; }
-    [[nodiscard]] const auto &path_mapping() const {
-        return path_mapping_;
-    };
+    [[nodiscard]] const auto &path_mapping() const { return path_mapping_; };
 
 private:
     std::string db_filename_;
     std::map<std::string, std::string> path_mapping_;
 };
 
-class BreakPointLocationRequest: public Request {
+class BreakPointLocationRequest : public Request {
 public:
     BreakPointLocationRequest() = default;
     void parse_payload(const std::string &payload) override;

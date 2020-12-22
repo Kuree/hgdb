@@ -52,9 +52,20 @@ namespace hgdb {
  * type: bp-location
  * payload:
  *     Array:
- *         filename - string
- *         line_num - uint64_t
- *         column_num - uint64_t
+ *         filename: string
+ *         line_num: uint64_t
+ *         column_num: uint64_t
+ *
+ * Breakpoint Response
+ * type: breakpoint
+ * payload:
+ *     time: uint64_t
+ *     filename: string
+ *     line_num: uint64_t
+ *     column_num: uint64_t
+ *     values:
+ *         local: map<string, string> - name -> value
+ *         generator: Array: map<string, string> - name -> value
  */
 
 static bool check_member(rapidjson::Document &document, const char *member_name, std::string &error,
@@ -121,8 +132,13 @@ void set_member(K &json_value, A &allocator, const char *name, const T &value) {
     } else if constexpr (std::is_same<T, rapidjson::Value>::value) {
         rapidjson::Value v_copy(value, allocator);
         json_value.AddMember(key.Move(), v_copy.Move(), allocator);
-    }
-    else {
+    } else if constexpr (std::is_same<T, std::map<std::string, std::string>>::value) {
+        rapidjson::Value v(rapidjson::kObjectType);
+        for (auto const &[name, value_]: value) {
+            set_member(v, allocator, name.c_str(), value_);
+        }
+        json_value.AddMember(key.Move(), v.Move(), allocator);
+    } else {
         throw std::runtime_error(fmt::format("Unable type for {0}", name));
     }
 }
@@ -186,6 +202,46 @@ std::string BreakPointLocationResponse::str() const {
     set_member(document, "payload", values);
 
     return to_string(document);
+}
+
+BreakPointResponse::BreakPointResponse(uint64_t time, std::string filename, uint64_t line_num,
+                                       uint64_t column_num)
+    : Response(),
+      time_(time),
+      filename_(std::move(filename)),
+      line_num_(line_num),
+      column_num_(column_num) {}
+
+std::string BreakPointResponse::str() const {
+    using namespace rapidjson;
+    Document document(rapidjson::kObjectType);
+    auto &allocator = document.GetAllocator();
+    set_response_header(document, this);
+    set_status(document, status_);
+
+    Value payload(kObjectType);
+    set_member(payload, allocator, "time", time_);
+    set_member(payload, allocator, "filename", filename_);
+    set_member(payload, allocator, "line_num", line_num_);
+    set_member(payload, allocator, "column_num", column_num_);
+
+    Value values(kObjectType);
+    // set the local and generator values
+    set_member(values, allocator, "local", local_values_);
+    set_member(values, allocator, "generator", generator_values_);
+    set_member(payload, allocator, "values", values);
+
+    set_member(document, "payload", payload);
+
+    return to_string(document);
+}
+
+void BreakPointResponse::add_local_value(const std::string &name, const std::string &value) {
+    local_values_.emplace(name, value);
+}
+
+void BreakPointResponse::add_generator_value(const std::string &name, const std::string &value) {
+    generator_values_.emplace(name, value);
 }
 
 std::unique_ptr<Request> Request::parse_request(const std::string &str) {

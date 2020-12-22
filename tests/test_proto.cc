@@ -135,3 +135,11 @@ TEST(proto, bp_location_response) { // NOLINT
     auto s = res.str();
     EXPECT_EQ(s, R"({"request":false,"type":"bp-location","status":"success","payload":[{"filename":"/tmp/a","line_num":0,"column_num":0},{"filename":"/tmp/a","line_num":1,"column_num":0}]})");
 }
+
+TEST(proto, breakpoint_response) {  // NOLINT
+    auto res = hgdb::BreakPointResponse(1, "a", 2, 3);
+    res.add_generator_value("c", "4");
+    res.add_local_value("d", "5");
+    auto s = res.str();
+    EXPECT_EQ(s, R"({"request":false,"type":"breakpoint","status":"success","payload":{"time":1,"filename":"a","line_num":2,"column_num":3,"values":{"local":{"d":"5"},"generator":{"c":"4"}}}})");
+}
