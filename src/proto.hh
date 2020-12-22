@@ -15,6 +15,7 @@ public:
     Response() = default;
     Response(status_code status) : status_(status) {}
     [[nodiscard]] virtual std::string str() const = 0;
+    [[nodiscard]] virtual std::string type() const = 0;
 
 protected:
     status_code status_ = status_code::success;
@@ -24,9 +25,20 @@ class GenericResponse : public Response {
 public:
     GenericResponse(status_code status, std::string reason = "");
     std::string str() const override;
+    std::string type() const override { return "generic"; }
 
 private:
     std::string reason_;
+};
+
+class BreakPointLocationResponse: public Response {
+public:
+    BreakPointLocationResponse(const std::vector<BreakPoint*> &bps): bps_(bps) {}
+    std::string str() const override;
+    std::string type() const override { return "bp-location"; }
+
+private:
+    std::vector<BreakPoint*> bps_;
 };
 
 class Request {

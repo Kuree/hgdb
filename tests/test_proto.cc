@@ -115,8 +115,23 @@ TEST(proto, request_parse_bp_location) {    // NOLINT
 TEST(proto, generic_response) { // NOLINT
     auto res = hgdb::GenericResponse(hgdb::status_code::error, "TEST");
     auto s = res.str();
-    EXPECT_EQ(s, R"({"status":"error","reason":"TEST"})");
+    EXPECT_EQ(s, R"({"request":false,"type":"generic","status":"error","reason":"TEST"})");
     res = hgdb::GenericResponse(hgdb::status_code::success);
     s = res.str();
-    EXPECT_EQ(s, R"({"status":"error","reason":"TEST"})");
+    EXPECT_EQ(s, R"({"request":false,"type":"generic","status":"success"})");
+}
+
+TEST(proto, bp_location_response) { // NOLINT
+    std::vector<std::unique_ptr<hgdb::BreakPoint>> bps;
+    for (auto i = 0; i < 2; i++) {
+        auto bp = std::make_unique<hgdb::BreakPoint>();
+        bp->filename = "/tmp/a";
+        bp->line_num = i;
+        bp->column_num = 0;
+        bps.emplace_back(std::move(bp));
+    }
+    std::vector<hgdb::BreakPoint*> values = {bps[0].get(), bps[1].get()};
+    auto res = hgdb::BreakPointLocationResponse(values);
+    auto s = res.str();
+    EXPECT_EQ(s, R"({"request":false,"type":"bp-location","status":"success","payload":[{"filename":"/tmp/a","line_num":0,"column_num":0},{"filename":"/tmp/a","line_num":1,"column_num":0}]})");
 }

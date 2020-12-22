@@ -47,6 +47,14 @@ namespace hgdb {
  *     filename: [required] - string
  *     line_num: [optional] - uint64_t
  *     column_num: [optional] - uint64_t
+ *
+ * Breakpoint Location Response
+ * type: bp-location
+ * payload:
+ *     Array:
+ *         filename - string
+ *         line_num - uint64_t
+ *         column_num - uint64_t
  */
 
 static bool check_member(rapidjson::Document &document, const char *member_name, std::string &error,
@@ -102,16 +110,27 @@ static std::optional<T> get_member(rapidjson::Document &document, const char *me
 GenericResponse::GenericResponse(status_code status, std::string reason)
     : Response(status), reason_(std::move(reason)) {}
 
-template <typename T>
-void set_member(rapidjson::Document &document, const char *name, const T &value) {
-    auto &allocator = document.GetAllocator();
+template <typename T, typename K, typename A>
+void set_member(K &json_value, A &allocator, const char *name, const T &value) {
     rapidjson::Value key(name, allocator);
     if constexpr (std::is_same<T, std::string>::value) {
         rapidjson::Value v(value.c_str(), allocator);
-        document.AddMember(key, v, allocator);
-    } else {
-        document.AddMember(name, value, allocator);
+        json_value.AddMember(key, v, allocator);
+    } else if constexpr (std::is_integral<T>::value) {
+        json_value.AddMember(key.Move(), value, allocator);
+    } else if constexpr (std::is_same<T, rapidjson::Value>::value) {
+        rapidjson::Value v_copy(value, allocator);
+        json_value.AddMember(key.Move(), v_copy.Move(), allocator);
     }
+    else {
+        throw std::runtime_error(fmt::format("Unable type for {0}", name));
+    }
+}
+
+template <typename T>
+void set_member(rapidjson::Document &document, const char *name, const T &value) {
+    auto &allocator = document.GetAllocator();
+    set_member(document, allocator, name, value);
 }
 
 void set_status(rapidjson::Document &document, status_code status) {
@@ -119,20 +138,54 @@ void set_status(rapidjson::Document &document, status_code status) {
     set_member(document, "status", status_str);
 }
 
-std::string GenericResponse::str() const {
+std::string to_string(rapidjson::Document &document) {
     using namespace rapidjson;
-    Document document(rapidjson::kObjectType);
-    auto &allocator = document.GetAllocator();
-    set_status(document, status_);
-    if (status_ == status_code::error) {
-        set_member(document, "reason", reason_);
-    }
-
     StringBuffer buffer;
     Writer w(buffer);
     document.Accept(w);
     auto s = buffer.GetString();
     return s;
+}
+
+void set_response_header(rapidjson::Document &document, const Response *response) {
+    set_member(document, "request", false);
+    set_member(document, "type", response->type());
+}
+
+std::string GenericResponse::str() const {
+    using namespace rapidjson;
+    Document document(rapidjson::kObjectType);
+    auto &allocator = document.GetAllocator();
+    set_response_header(document, this);
+    set_status(document, status_);
+    if (status_ == status_code::error) {
+        set_member(document, "reason", reason_);
+    }
+
+    return to_string(document);
+}
+
+std::string BreakPointLocationResponse::str() const {
+    using namespace rapidjson;
+    Document document(rapidjson::kObjectType);
+    auto &allocator = document.GetAllocator();
+    set_response_header(document, this);
+    set_status(document, status_);
+
+    // set an array of elements
+    Value values(kArrayType);
+
+    for (auto const &bp_p : bps_) {
+        auto &bp = *bp_p;
+        Value value(kObjectType);
+        set_member(value, allocator, "filename", bp.filename);
+        set_member(value, allocator, "line_num", bp.line_num);
+        set_member(value, allocator, "column_num", bp.column_num);
+        values.PushBack(value.Move(), allocator);
+    }
+    set_member(document, "payload", values);
+
+    return to_string(document);
 }
 
 std::unique_ptr<Request> Request::parse_request(const std::string &str) {
