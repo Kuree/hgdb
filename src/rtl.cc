@@ -92,7 +92,7 @@ void RTLSimulatorClient::initialize_vpi(std::unique_ptr<AVPIProvider> vpi) {
     }
     // compute the vpiNet target. this is a special case for Verilator
     auto simulator_name = get_simulator_name();
-    vpi_net_target_ = get_simulator_name() == "Verilator" ? vpiReg : vpiNet;
+    vpi_net_target_ = simulator_name == "Verilator" ? vpiReg : vpiNet;
 }
 
 vpiHandle RTLSimulatorClient::get_handle(const std::string &name) {
@@ -170,25 +170,14 @@ std::string RTLSimulatorClient::get_full_name(const std::string &name) const {
     }
 }
 
-std::vector<std::string> RTLSimulatorClient::get_argv() const {
-    t_vpi_vlog_info info{};
-    std::vector<std::string> result;
-    if (vpi_->vpi_get_vlog_info(&info)) {
-        result.reserve(info.argc);
-        for (int i = 0; i < info.argc; i++) {
-            std::string argv = info.argv[i];
-            result.emplace_back(argv);
-        }
-    }
-    return result;
+const std::vector<std::string> &RTLSimulatorClient::get_argv() {
+    get_simulator_info();
+    return sim_info_->args;
 }
 
-std::string RTLSimulatorClient::get_simulator_name() const {
-    t_vpi_vlog_info info{};
-    if (vpi_->vpi_get_vlog_info(&info)) {
-        return std::string(info.product);
-    }
-    return "";
+const std::string &RTLSimulatorClient::get_simulator_name() {
+    get_simulator_info();
+    return sim_info_->name;
 }
 
 uint64_t RTLSimulatorClient::get_simulation_time() const {
@@ -284,6 +273,25 @@ void RTLSimulatorClient::compute_hierarchy_name_prefix(std::unordered_set<std::s
                 top_names.erase(def_name);
             }
             handle_queues.emplace(child_handle);
+        }
+    }
+}
+
+void RTLSimulatorClient::get_simulator_info() {
+    if (!sim_info_) {
+        t_vpi_vlog_info info{};
+        if (vpi_->vpi_get_vlog_info(&info)) {
+            SimulatorInfo sim_info;
+            sim_info.name = info.product;
+            sim_info.args.reserve(info.argc);
+            for (int i = 0; i < info.argc; i++) {
+                std::string argv = info.argv[i];
+                sim_info.args.emplace_back(argv);
+            }
+            sim_info_ = sim_info;
+        } else {
+            // can't get simulator info
+            sim_info_ = SimulatorInfo{};
         }
     }
 }
