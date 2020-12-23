@@ -34,7 +34,8 @@ private:
 
 class BreakPointLocationResponse : public Response {
 public:
-    explicit BreakPointLocationResponse(std::vector<BreakPoint *> bps) : Response(), bps_(std::move(bps)) {}
+    explicit BreakPointLocationResponse(std::vector<BreakPoint *> bps)
+        : Response(), bps_(std::move(bps)) {}
     [[nodiscard]] std::string str(bool pretty_print) const override;
     [[nodiscard]] std::string type() const override { return "bp-location"; }
 
@@ -62,10 +63,13 @@ private:
     std::map<std::string, std::string> generator_values_;
 };
 
+enum class RequestType { error, breakpoint, connection, bp_location };
+
 class Request {
 public:
     [[nodiscard]] status_code status() const { return status_code_; }
     [[nodiscard]] const std::string &error_reason() const { return error_reason_; }
+    [[nodiscard]] virtual RequestType type() const = 0;
 
     [[nodiscard]] static std::unique_ptr<Request> parse_request(const std::string &str);
 
@@ -82,6 +86,7 @@ class ErrorRequest : public Request {
 public:
     explicit ErrorRequest(std::string reason);
     void parse_payload(const std::string &) override {}
+    [[nodiscard]] RequestType type() const override { return RequestType::error; }
 };
 
 class BreakpointRequest : public Request {
@@ -91,6 +96,7 @@ public:
     void parse_payload(const std::string &payload) override;
     [[nodiscard]] const auto &breakpoint() const { return bp_; }
     [[nodiscard]] auto bp_action() const { return bp_action_; }
+    [[nodiscard]] RequestType type() const override { return RequestType::breakpoint; }
 
 private:
     std::optional<BreakPoint> bp_;
@@ -101,6 +107,7 @@ class ConnectionRequest : public Request {
 public:
     ConnectionRequest() = default;
     void parse_payload(const std::string &payload) override;
+    [[nodiscard]] RequestType type() const override { return RequestType::connection; }
 
     [[nodiscard]] const auto &db_filename() const { return db_filename_; }
     [[nodiscard]] const auto &path_mapping() const { return path_mapping_; };
@@ -114,6 +121,7 @@ class BreakPointLocationRequest : public Request {
 public:
     BreakPointLocationRequest() = default;
     void parse_payload(const std::string &payload) override;
+    [[nodiscard]] RequestType type() const override { return RequestType::bp_location; }
 
     [[nodiscard]] const auto &filename() const { return filename_; }
     [[nodiscard]] const auto &line_num() const { return line_num_; }
