@@ -11,7 +11,7 @@ DebugDatabaseClient::DebugDatabaseClient(const std::string &filename) {
     setup_execution_order();
 }
 
-DebugDatabaseClient::DebugDatabaseClient(std::unique_ptr<DebugDatabase> &db) {
+DebugDatabaseClient::DebugDatabaseClient(std::unique_ptr<DebugDatabase> db) {
     // this will transfer ownership
     db_ = std::move(db);
     setup_execution_order();

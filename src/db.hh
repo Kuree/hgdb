@@ -14,7 +14,7 @@ class DebugDatabaseClient {
 public:
     explicit DebugDatabaseClient(const std::string &filename);
     // take over the DB ownership. normally used for testing
-    explicit DebugDatabaseClient(std::unique_ptr<DebugDatabase> &db);
+    explicit DebugDatabaseClient(std::unique_ptr<DebugDatabase> db);
     void close();
 
     // helper functions to query the database

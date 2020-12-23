@@ -32,6 +32,10 @@ void Debugger::initialize_db(const std::string &filename) {
     db_ = std::make_unique<DebugDatabaseClient>(filename);
 }
 
+void Debugger::initialize_db(std::unique_ptr<DebugDatabaseClient> db) {
+    db_ = std::move(db);
+}
+
 void Debugger::run() {
     auto on_ = [this](const std::string &msg) { on_message(msg); };
     server_thread_ = std::thread([on_, this]() {

@@ -20,9 +20,14 @@ function(add_test_vpi target)
     setup_target(${target})
 endfunction()
 
-add_executable(test_ws_server test_ws_server.cc)
-target_link_libraries(test_ws_server PRIVATE hgdb)
-add_include(test_ws_server)
+function(add_mock target)
+    add_executable(${target} ${target}.cc)
+    target_link_libraries(${target} PRIVATE hgdb)
+    add_include(${target})
+endfunction()
+
+add_mock(test_ws_server)
+add_mock(test_debug_server)
 
 add_test(test_schema)
 add_test(test_db)
