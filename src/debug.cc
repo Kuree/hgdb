@@ -1,9 +1,9 @@
 #include "debug.hh"
+#include "log.hh"
 
 #include <filesystem>
 
 #include "fmt/format.h"
-#include "spdlog/spdlog.h"
 
 namespace fs = std::filesystem;
 
@@ -87,16 +87,14 @@ bool Debugger::get_logging() {
 }
 
 void Debugger::log_error(const std::string &msg) const {
-    using namespace spdlog;
     if (log_enabled_) {
-        log(level::err, msg);
+        log::log(log::log_level::error, msg);
     }
 }
 
 void Debugger::log_info(const std::string &msg) const {
-    using namespace spdlog;
     if (log_enabled_) {
-        log(level::info, msg);
+        log::log(log::log_level::info, msg);
     }
 }
 
