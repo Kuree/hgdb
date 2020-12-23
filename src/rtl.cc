@@ -53,18 +53,26 @@ PLI_INT32 VPIProvider::vpi_control(PLI_INT32 operation, ...) {
     return result;
 }
 
+RTLSimulatorClient::RTLSimulatorClient(std::unique_ptr<AVPIProvider> vpi) {
+    initialize_vpi(std::move(vpi));
+}
+
 RTLSimulatorClient::RTLSimulatorClient(const std::vector<std::string> &instance_names)
     : RTLSimulatorClient(instance_names, nullptr) {}
 
 RTLSimulatorClient::RTLSimulatorClient(const std::vector<std::string> &instance_names,
                                        std::unique_ptr<AVPIProvider> vpi) {
-    // if vpi provider is null, we use the system default one
-    if (!vpi) {
-        vpi_ = std::make_unique<VPIProvider>();
-    } else {
-        // we take the ownership
-        vpi_ = std::move(vpi);
-    }
+    initialize(instance_names, std::move(vpi));
+}
+
+void RTLSimulatorClient::initialize(const std::vector<std::string> &instance_names,
+                                    std::unique_ptr<AVPIProvider> vpi) {
+    initialize_instance_mapping(instance_names);
+    initialize_vpi(std::move(vpi));
+}
+
+void RTLSimulatorClient::initialize_instance_mapping(
+    const std::vector<std::string> &instance_names) {
     std::unordered_set<std::string> top_names;
     for (auto const &name : instance_names) {
         auto top = get_path(name).first;
@@ -72,7 +80,16 @@ RTLSimulatorClient::RTLSimulatorClient(const std::vector<std::string> &instance_
     }
     // compute the naming map
     compute_hierarchy_name_prefix(top_names);
+}
 
+void RTLSimulatorClient::initialize_vpi(std::unique_ptr<AVPIProvider> vpi) {
+    // if vpi provider is null, we use the system default one
+    if (!vpi) {
+        vpi_ = std::make_unique<VPIProvider>();
+    } else {
+        // we take the ownership
+        vpi_ = std::move(vpi);
+    }
     // compute the vpiNet target. this is a special case for Verilator
     auto simulator_name = get_simulator_name();
     vpi_net_target_ = get_simulator_name() == "Verilator" ? vpiReg : vpiNet;

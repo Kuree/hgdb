@@ -11,6 +11,7 @@ target_include_directories(hgdb PUBLIC
        ../extern/asio/asio/include/
         ../extern/websocketpp
         ../extern/vlstd
+        ../extern/spdlog/include
         ../extern/exprtk)
 
-target_link_libraries(hgdb fmt sqlite3 Threads::Threads)
+target_link_libraries(hgdb fmt sqlite3 Threads::Threads spdlog)

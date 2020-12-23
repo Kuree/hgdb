@@ -48,9 +48,14 @@ class VPIProvider : public AVPIProvider {
 
 class RTLSimulatorClient {
 public:
+    RTLSimulatorClient(std::unique_ptr<AVPIProvider> vpi);
     explicit RTLSimulatorClient(const std::vector<std::string> &instance_names);
     RTLSimulatorClient(const std::vector<std::string> &instance_names,
                        std::unique_ptr<AVPIProvider> vpi);
+    void initialize(const std::vector<std::string> &instance_names,
+                    std::unique_ptr<AVPIProvider> vpi);
+    void initialize_instance_mapping(const std::vector<std::string> &instance_names);
+    void initialize_vpi(std::unique_ptr<AVPIProvider> vpi);
     vpiHandle get_handle(const std::string &name);
     std::optional<int64_t> get_value(const std::string &name);
     std::optional<int64_t> get_value(vpiHandle handle);
@@ -79,7 +84,7 @@ private:
     std::unordered_map<std::string, std::string> hierarchy_name_prefix_map_;
     // VPI provider
     std::unique_ptr<AVPIProvider> vpi_;
-    uint32_t vpi_net_target_;
+    uint32_t vpi_net_target_ = vpiNet;
     // callbacks
     std::unordered_map<std::string, vpiHandle> cb_handles_;
 
