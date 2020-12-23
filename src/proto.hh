@@ -5,6 +5,7 @@
 
 #include <string>
 #include <type_traits>
+#include <utility>
 
 #include "schema.hh"
 
@@ -13,8 +14,8 @@ enum class status_code { success = 0, error = 1 };
 class Response {
 public:
     Response() = default;
-    Response(status_code status) : status_(status) {}
-    [[nodiscard]] virtual std::string str(bool pretty_print=false) const = 0;
+    explicit Response(status_code status) : status_(status) {}
+    [[nodiscard]] virtual std::string str(bool pretty_print) const = 0;
     [[nodiscard]] virtual std::string type() const = 0;
 
 protected:
@@ -23,9 +24,9 @@ protected:
 
 class GenericResponse : public Response {
 public:
-    GenericResponse(status_code status, std::string reason = "");
-    std::string str(bool pretty_print) const override;
-    std::string type() const override { return "generic"; }
+    explicit GenericResponse(status_code status, std::string reason = "");
+    [[nodiscard]] std::string str(bool pretty_print) const override;
+    [[nodiscard]] std::string type() const override { return "generic"; }
 
 private:
     std::string reason_;
@@ -33,9 +34,9 @@ private:
 
 class BreakPointLocationResponse : public Response {
 public:
-    BreakPointLocationResponse(const std::vector<BreakPoint *> &bps) : Response(), bps_(bps) {}
-    std::string str(bool pretty_print) const override;
-    std::string type() const override { return "bp-location"; }
+    explicit BreakPointLocationResponse(std::vector<BreakPoint *> bps) : Response(), bps_(std::move(bps)) {}
+    [[nodiscard]] std::string str(bool pretty_print) const override;
+    [[nodiscard]] std::string type() const override { return "bp-location"; }
 
 private:
     std::vector<BreakPoint *> bps_;
@@ -45,8 +46,8 @@ class BreakPointResponse : public Response {
 public:
     BreakPointResponse(uint64_t time, std::string filename, uint64_t line_num,
                        uint64_t column_num = 0);
-    std::string str(bool pretty_print) const override;
-    std::string type() const override { return "breakpoint"; }
+    [[nodiscard]] std::string str(bool pretty_print) const override;
+    [[nodiscard]] std::string type() const override { return "breakpoint"; }
 
     void add_local_value(const std::string &name, const std::string &value);
     void add_generator_value(const std::string &name, const std::string &value);
@@ -89,7 +90,7 @@ public:
     BreakpointRequest() = default;
     void parse_payload(const std::string &payload) override;
     [[nodiscard]] const auto &breakpoint() const { return bp_; }
-    [[nodiscard]] const auto bp_action() const { return bp_action_; }
+    [[nodiscard]] auto bp_action() const { return bp_action_; }
 
 private:
     std::optional<BreakPoint> bp_;
