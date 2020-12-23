@@ -1,6 +1,7 @@
 function(add_include target)
     target_include_directories(${target} PRIVATE
             ../include
+            ../extern/googletest/googletest/include
             ../src)
 endfunction()
 
@@ -21,7 +22,7 @@ function(add_test_vpi target)
 endfunction()
 
 function(add_mock target)
-    add_executable(${target} ${target}.cc)
+    add_executable(${target} ${target}.cc vpi_dummy.cc)
     target_link_libraries(${target} PRIVATE hgdb)
     add_include(${target})
 endfunction()

@@ -67,8 +67,8 @@ RTLSimulatorClient::RTLSimulatorClient(const std::vector<std::string> &instance_
 
 void RTLSimulatorClient::initialize(const std::vector<std::string> &instance_names,
                                     std::unique_ptr<AVPIProvider> vpi) {
-    initialize_instance_mapping(instance_names);
     initialize_vpi(std::move(vpi));
+    initialize_instance_mapping(instance_names);
 }
 
 void RTLSimulatorClient::initialize_instance_mapping(

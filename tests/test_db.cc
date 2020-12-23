@@ -9,7 +9,7 @@ TEST_F(DBTest, test_scope_biuld) {  // NOLINT
     constexpr uint32_t scope_id = 42;
     hgdb::store_scope(*db, scope_id, 1u, 2u, 3u, 4u);
     // transfer the db ownership
-    hgdb::DebugDatabaseClient client(db);
+    hgdb::DebugDatabaseClient client(std::move(db));
     auto const &bps = client.execution_bp_orders();
     EXPECT_EQ(bps.size(), 4);
     for (uint32_t i = 1; i < 5; i++) {
@@ -28,7 +28,7 @@ TEST_F(DBTest, test_scope_biuld_raw) {  // NOLINT
     }
 
     // transfer the db ownership
-    hgdb::DebugDatabaseClient client(db);
+    hgdb::DebugDatabaseClient client(std::move(db));
     auto const &bps = client.execution_bp_orders();
     EXPECT_EQ(bps.size(), 4);
     for (uint32_t i = 0; i < 4; i++) {
@@ -48,7 +48,7 @@ TEST_F(DBTest, test_get_breakpoints) {  // NOLINT
     }
 
     // transfer the db ownership
-    hgdb::DebugDatabaseClient client(db);
+    hgdb::DebugDatabaseClient client(std::move(db));
 
     auto bps = client.get_breakpoints(__FILE__, line_num);
     EXPECT_EQ(bps.size(), num_breakpoints);
@@ -65,7 +65,7 @@ TEST_F(DBTest, test_get_breakpoint) {  // NOLINT
     hgdb::store_breakpoint(*db, breakpoint_id, instance_id, __FILE__, __LINE__);
 
     // transfer the db ownership
-    hgdb::DebugDatabaseClient client(db);
+    hgdb::DebugDatabaseClient client(std::move(db));
 
     auto bp = client.get_breakpoint(breakpoint_id);
     EXPECT_TRUE(bp);
@@ -87,7 +87,7 @@ TEST_F(DBTest, test_get_context_variable) {  // NOLINT
     }
 
     // transfer the db ownership
-    hgdb::DebugDatabaseClient client(db);
+    hgdb::DebugDatabaseClient client(std::move(db));
 
     auto values = client.get_context_variables(breakpoint_id);
     EXPECT_EQ(values.size(), num_variables);
@@ -110,7 +110,7 @@ TEST_F(DBTest, test_get_generator_variable) {  // NOLINT
     }
 
     // transfer the db ownership
-    hgdb::DebugDatabaseClient client(db);
+    hgdb::DebugDatabaseClient client(std::move(db));
 
     auto values = client.get_generator_variable(instance_id);
     EXPECT_EQ(values.size(), num_variables);
