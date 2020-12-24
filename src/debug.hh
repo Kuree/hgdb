@@ -38,6 +38,12 @@ private:
     bool get_logging();
     void log_error(const std::string &msg) const;
     void log_info(const std::string &msg) const;
+
+    // request handler
+    void handle_connection(const ConnectionRequest &req);
+    void handle_breakpoint(const BreakpointRequest &req);
+    void handle_bp_location(const BreakPointLocationRequest &req);
+    void handle_error(const ErrorRequest &req);
 };
 
 }  // namespace hgdb
