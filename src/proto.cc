@@ -49,6 +49,11 @@ namespace hgdb {
  *     line_num: [optional] - uint64_t
  *     column_num: [optional] - uint64_t
  *
+ * Command Request
+ * type: command
+ * payload:
+ *     command: [enum] - string
+ *
  * Breakpoint Location Response
  * type: bp-location
  * payload:
@@ -275,6 +280,8 @@ std::unique_ptr<Request> Request::parse_request(const std::string &str) {
         result = std::make_unique<ConnectionRequest>();
     } else if (type_str == "bp-location") {
         result = std::make_unique<BreakPointLocationRequest>();
+    } else if (type_str == "command") {
+        result = std::make_unique<CommandRequest>();
     } else {
         result = std::make_unique<ErrorRequest>("Unknown request");
     }
@@ -380,6 +387,30 @@ void BreakPointLocationRequest::parse_payload(const std::string &payload) {
 
     line_num_ = get_member<uint64_t>(document, "line_num", error_reason_);
     column_num_ = get_member<uint64_t>(document, "column_num", error_reason_);
+}
+
+void CommandRequest::parse_payload(const std::string &payload) {
+    using namespace rapidjson;
+    Document document;
+    document.Parse(payload.c_str());
+    if (!check_json(document, status_code_, error_reason_)) return;
+
+    auto command_str = get_member<std::string>(document, "command", error_reason_);
+    if (!command_str) {
+        status_code_ = status_code::error;
+        return;
+    }
+    auto const &command = *command_str;
+    if (command == "continue") {
+        command_type_ = CommandType::continue_;
+    } else if (command == "step_through") {
+        command_type_ = CommandType::step_through;
+    } else if (command == "stop") {
+        command_type_ = CommandType::stop;
+    } else {
+        status_code_ = status_code::error;
+        error_reason_ = "Unknown command type " + command;
+    }
 }
 
 }  // namespace hgdb

@@ -43,6 +43,7 @@ private:
     void handle_connection(const ConnectionRequest &req);
     void handle_breakpoint(const BreakpointRequest &req);
     void handle_bp_location(const BreakPointLocationRequest &req);
+    void handle_command(const CommandRequest &req);
     void handle_error(const ErrorRequest &req);
 };
 

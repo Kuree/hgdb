@@ -68,6 +68,11 @@ void Debugger::on_message(const std::string &message) {
             handle_bp_location(*r);
             break;
         }
+        case RequestType::command: {
+            auto *r = reinterpret_cast<CommandRequest *>(req.get());
+            handle_command(*r);
+            break;
+        }
         case RequestType::error: {
             auto *r = reinterpret_cast<ErrorRequest *>(req.get());
             handle_error(*r);
@@ -132,6 +137,8 @@ void Debugger::handle_connection(const ConnectionRequest &req) {
 void Debugger::handle_breakpoint(const BreakpointRequest &req) {}
 
 void Debugger::handle_bp_location(const BreakPointLocationRequest &req) {}
+
+void Debugger::handle_command(const CommandRequest &req) {}
 
 void Debugger::handle_error(const ErrorRequest &req) {}
 

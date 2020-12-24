@@ -112,6 +112,24 @@ TEST(proto, request_parse_bp_location) {    // NOLINT
     EXPECT_FALSE(bp->column_num());
 }
 
+
+TEST(proto, request_parse_command) {    // NOLINT
+    auto req = R"(
+{
+    "request": true,
+    "type": "command",
+    "payload": {
+        "command": "continue"
+    }
+}
+)";
+    auto r = hgdb::Request::parse_request(req);
+    EXPECT_EQ(r->status(), hgdb::status_code::success);
+    auto bp = dynamic_cast<hgdb::CommandRequest*>(r.get());
+    EXPECT_NE(bp, nullptr);
+    EXPECT_EQ(bp->command_type(), hgdb::CommandRequest::CommandType::continue_);
+}
+
 TEST(proto, generic_response) { // NOLINT
     auto res = hgdb::GenericResponse(hgdb::status_code::error, "TEST");
     auto s = res.str(false);
