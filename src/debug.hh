@@ -43,7 +43,7 @@ private:
     // helper functions
     uint16_t get_port();
     bool get_logging();
-    void log_error(const std::string &msg) const;
+    static void log_error(const std::string &msg) ;
     void log_info(const std::string &msg) const;
 
     // request handler

@@ -52,25 +52,41 @@ auto setup_db() {
 }
 
 auto set_mock() {
-    auto vpi = std::unique_ptr<MockVPIProvider>();
+    auto vpi = std::make_unique<MockVPIProvider>();
 
     return vpi;
 }
 
 int main(int argc, char *argv[]) {
+    // can only run if there is a +DEBUG_LOG flag
     std::vector<std::string> args;
     args.reserve(argc);
     for (int i = 0; i < argc; i++) {
         args.emplace_back(argv[i]);
     }
+    bool should_run = false;
+    for (auto const &arg: args) {
+        if (arg == "+DEBUG_LOG") {
+            should_run = true;
+            break;
+        }
+    }
+    if (!should_run) {
+        std::cerr << "[Usage]: "<< argv[0] << "+DEBUG_LOG" << std::endl;
+        return EXIT_FAILURE;
+    }
+
     auto db = setup_db();
 
     auto vpi = set_mock();
+    vpi->set_argv(args);
 
     auto debug = hgdb::Debugger(std::move(vpi));
     debug.initialize_db(std::move(db));
 
     debug.run();
+    // print out so that the other side can see it
+    std::cout << "INFO: START RUNNING" << std::endl;
 
     // evaluate the inserted breakpoint
     while (debug.is_running().load()) {

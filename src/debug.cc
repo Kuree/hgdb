@@ -92,9 +92,9 @@ void Debugger::on_message(const std::string &message) {
 uint16_t Debugger::get_port() {
     if (!rtl_) return default_port_num;
     auto args = rtl_->get_argv();
-    const static std::string plus_port = "+PORT=";
+    const static std::string plus_port = "+DEBUG_PORT=";
     for (auto const &arg : args) {
-        if (arg.find_first_of(plus_port) != std::string::npos) {
+        if (arg.find(plus_port) != std::string::npos) {
             auto port_str = arg.substr(plus_port.size());
             uint16_t value;
             try {
@@ -120,11 +120,7 @@ bool Debugger::get_logging() {
     return default_logging;
 }
 
-void Debugger::log_error(const std::string &msg) const {
-    if (log_enabled_) {
-        log::log(log::log_level::error, msg);
-    }
-}
+void Debugger::log_error(const std::string &msg) { log::log(log::log_level::error, msg); }
 
 void Debugger::log_info(const std::string &msg) const {
     if (log_enabled_) {
