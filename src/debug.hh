@@ -4,6 +4,7 @@
 #include "proto.hh"
 #include "rtl.hh"
 #include "server.hh"
+#include "thread.hh"
 
 namespace hgdb {
 
@@ -20,6 +21,9 @@ public:
     static constexpr uint16_t default_port_num = 8888;
     static constexpr bool default_logging = false;
 
+    // status to expose to outside world
+    [[nodiscard]] const std::atomic<bool> & is_running() const { return is_running_; }
+
 private:
     std::unique_ptr<RTLSimulatorClient> rtl_;
     std::unique_ptr<DebugDatabaseClient> db_;
@@ -29,6 +33,9 @@ private:
 
     // server thread
     std::thread server_thread_;
+    // runtime lock
+    RuntimeLock lock_;
+    std::atomic<bool> is_running_ = false;
 
     // message handler
     void on_message(const std::string &message);

@@ -38,13 +38,17 @@ void Debugger::run() {
     auto on_ = [this](const std::string &msg) { on_message(msg); };
     server_thread_ = std::thread([on_, this]() {
         server_->set_on_message(on_);
+        is_running_ = true;
         server_->run();
     });
+    // block this thread until we receive the continue from user
+    lock_.wait();
 }
 
 void Debugger::stop() {
     server_->stop();
     server_thread_.join();
+    is_running_ = false;
 }
 
 void Debugger::on_message(const std::string &message) {
@@ -138,7 +142,23 @@ void Debugger::handle_breakpoint(const BreakpointRequest &req) {}
 
 void Debugger::handle_bp_location(const BreakPointLocationRequest &req) {}
 
-void Debugger::handle_command(const CommandRequest &req) {}
+void Debugger::handle_command(const CommandRequest &req) {
+    switch (req.command_type()) {
+        case CommandRequest::CommandType::continue_: {
+            lock_.ready();
+            break;
+        }
+        case CommandRequest::CommandType::stop: {
+            lock_.ready();
+            rtl_->finish_sim();
+            stop();
+            break;
+        }
+        case CommandRequest::CommandType::step_through: {
+            break;
+        }
+    }
+}
 
 void Debugger::handle_error(const ErrorRequest &req) {}
 

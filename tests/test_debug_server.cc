@@ -2,7 +2,6 @@
 #include "schema.hh"
 #include "util.hh"
 
-
 /*
  * module top;
  *
@@ -71,6 +70,11 @@ int main(int argc, char *argv[]) {
     auto debug = hgdb::Debugger(std::move(vpi));
     debug.initialize_db(std::move(db));
 
+    debug.run();
+
+    // evaluate the inserted breakpoint
+    while (debug.is_running().load()) {
+    }
 
     return EXIT_SUCCESS;
 }
