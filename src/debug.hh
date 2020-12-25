@@ -24,6 +24,8 @@ public:
     // status to expose to outside world
     [[nodiscard]] const std::atomic<bool> & is_running() const { return is_running_; }
 
+    ~Debugger();
+
 private:
     std::unique_ptr<RTLSimulatorClient> rtl_;
     std::unique_ptr<DebugDatabaseClient> db_;

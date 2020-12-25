@@ -47,8 +47,11 @@ void Debugger::run() {
 
 void Debugger::stop() {
     server_->stop();
-    server_thread_.join();
     is_running_ = false;
+}
+
+Debugger::~Debugger() {
+    server_thread_.join();
 }
 
 void Debugger::on_message(const std::string &message) {

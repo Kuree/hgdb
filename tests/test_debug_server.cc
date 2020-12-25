@@ -65,14 +65,14 @@ int main(int argc, char *argv[]) {
         args.emplace_back(argv[i]);
     }
     bool should_run = false;
-    for (auto const &arg: args) {
+    for (auto const &arg : args) {
         if (arg == "+DEBUG_LOG") {
             should_run = true;
             break;
         }
     }
     if (!should_run) {
-        std::cerr << "[Usage]: "<< argv[0] << "+DEBUG_LOG" << std::endl;
+        std::cerr << "[Usage]: " << argv[0] << " +DEBUG_LOG" << std::endl;
         return EXIT_FAILURE;
     }
 
@@ -91,6 +91,8 @@ int main(int argc, char *argv[]) {
     // evaluate the inserted breakpoint
     while (debug.is_running().load()) {
     }
+
+    std::cout << "INFO: STOP RUNNING" << std::endl;
 
     return EXIT_SUCCESS;
 }

@@ -7,9 +7,11 @@ void RuntimeLock::wait() {
 }
 
 void RuntimeLock::ready() {
-    ready_ = true;
-    lock_.unlock();
-    cv_.notify_one();
+    if (!ready_.load()) {
+        ready_ = true;
+        lock_.unlock();
+        cv_.notify_one();
+    }
 }
 
 }  // namespace hgdb
