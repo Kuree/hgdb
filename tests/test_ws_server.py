@@ -24,7 +24,7 @@ def test_echo(start_server, find_free_port):
     # kill the server
     s.terminate()
     while s.poll() is None:
-        time.sleep(0.1)
+        pass
 
 
 def test_shutdown(start_server, find_free_port):
@@ -49,5 +49,9 @@ def test_shutdown(start_server, find_free_port):
 
 
 if __name__ == "__main__":
+    import os
+    import sys
+    sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
     from conftest import start_server_fn, find_free_port_fn
+
     test_shutdown(start_server_fn, find_free_port_fn)
