@@ -65,6 +65,7 @@ private:
     void handle_breakpoint(const BreakPointRequest &req);
     void handle_bp_location(const BreakPointLocationRequest &req);
     void handle_command(const CommandRequest &req);
+    void handle_debug_info(const DebuggerInformationRequest &req);
     void handle_error(const ErrorRequest &req);
 
     // common checker

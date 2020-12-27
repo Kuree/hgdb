@@ -86,6 +86,11 @@ void Debugger::on_message(const std::string &message) {
             handle_command(*r);
             break;
         }
+        case RequestType::debugger_info: {
+            auto *r = reinterpret_cast<DebuggerInformationRequest *>(req.get());
+            handle_debug_info(*r);
+            break;
+        }
         case RequestType::error: {
             auto *r = reinterpret_cast<ErrorRequest *>(req.get());
             handle_error(*r);
@@ -238,6 +243,35 @@ void Debugger::handle_command(const CommandRequest &req) {
         }
         case CommandRequest::CommandType::step_through: {
             break;
+        }
+    }
+}
+
+void Debugger::handle_debug_info(const DebuggerInformationRequest &req) {
+    switch (req.command_type()) {
+        case DebuggerInformationRequest::CommandType::breakpoints: {
+            std::vector<BreakPoint> bps;
+            std::vector<BreakPoint *> bps_;
+            bps.reserve(breakpoints_.size());
+            bps_.reserve(breakpoints_.size());
+            for (auto const &bp : breakpoints_) {
+                auto bp_id = bp.id;
+                auto bp_info = db_->get_breakpoint(bp_id);
+                if (bp_info) {
+                    bps.emplace_back(BreakPoint{.filename = bp_info->filename,
+                                                .line_num = bp_info->line_num,
+                                                .column_num = bp_info->column_num});
+                    bps_.emplace_back(&bps.back());
+                }
+            }
+
+            auto resp = DebuggerInformationResponse(bps_);
+            send_message(resp.str(log_enabled_));
+        }
+        default: {
+            auto resp = GenericResponse(status_code::error, "debugger_info",
+                                        "Unknown debugger info command");
+            send_message(resp.str(log_enabled_));
         }
     }
 }
