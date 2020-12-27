@@ -128,6 +128,23 @@ TEST(proto, request_parse_command) {  // NOLINT
     EXPECT_EQ(bp->command_type(), hgdb::CommandRequest::CommandType::continue_);
 }
 
+TEST(proto, request_parse_debugger) {  // NOLINT
+    auto req = R"(
+{
+    "request": true,
+    "type": "debugger-info",
+    "payload": {
+        "command": "breakpoints"
+    }
+}
+)";
+    auto r = hgdb::Request::parse_request(req);
+    EXPECT_EQ(r->status(), hgdb::status_code::success);
+    auto bp = dynamic_cast<hgdb::DebuggerInformationRequest *>(r.get());
+    EXPECT_NE(bp, nullptr);
+    EXPECT_EQ(bp->command_type(), hgdb::DebuggerInformationRequest::CommandType::breakpoints);
+}
+
 TEST(proto, generic_response) {  // NOLINT
     auto res = hgdb::GenericResponse(hgdb::status_code::error, "test", "TEST_ERROR");
     auto s = res.str(false);

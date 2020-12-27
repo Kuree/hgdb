@@ -64,7 +64,7 @@ private:
     std::map<std::string, std::string> generator_values_;
 };
 
-enum class RequestType { error, breakpoint, connection, bp_location, command };
+enum class RequestType { error, breakpoint, connection, bp_location, command, debugger_info };
 
 class Request {
 public:
@@ -146,6 +146,19 @@ public:
 
 private:
     CommandType command_type_ = CommandType::continue_;
+};
+
+class DebuggerInformationRequest : public Request {
+public:
+    enum class CommandType { breakpoints, status };
+    DebuggerInformationRequest() = default;
+    void parse_payload(const std::string &payload) override;
+    [[nodiscard]] RequestType type() const override { return RequestType::debugger_info; }
+
+    [[nodiscard]] auto const &command_type() const { return command_type_; }
+
+private:
+    CommandType command_type_;
 };
 
 }  // namespace hgdb

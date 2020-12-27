@@ -54,6 +54,11 @@ namespace hgdb {
  * payload:
  *     command: [enum] - string
  *
+ * Debugger Information Request
+ * type: debugger-info
+ * payload:
+ *     command: [enum] - string
+ *
  * Generic Response
  * type: generic
  * payload:
@@ -294,6 +299,8 @@ std::unique_ptr<Request> Request::parse_request(const std::string &str) {
         result = std::make_unique<BreakPointLocationRequest>();
     } else if (type_str == "command") {
         result = std::make_unique<CommandRequest>();
+    } else if (type_str == "debugger-info") {
+        result = std::make_unique<DebuggerInformationRequest>();
     } else {
         result = std::make_unique<ErrorRequest>("Unknown request");
     }
@@ -419,6 +426,29 @@ void CommandRequest::parse_payload(const std::string &payload) {
         command_type_ = CommandType::step_through;
     } else if (command == "stop") {
         command_type_ = CommandType::stop;
+    } else {
+        status_code_ = status_code::error;
+        error_reason_ = "Unknown command type " + command;
+    }
+}
+
+void DebuggerInformationRequest::parse_payload(const std::string &payload) {
+    using namespace rapidjson;
+    Document document;
+    document.Parse(payload.c_str());
+    if (!check_json(document, status_code_, error_reason_)) return;
+
+    auto command_str = get_member<std::string>(document, "command", error_reason_);
+    if (!command_str) {
+        status_code_ = status_code::error;
+        return;
+    }
+
+    auto const &command = *command_str;
+    if (command == "breakpoints") {
+        command_type_ = CommandType::breakpoints;
+    } else if (command == "status") {
+        command_type_ = CommandType::status;
     } else {
         status_code_ = status_code::error;
         error_reason_ = "Unknown command type " + command;
