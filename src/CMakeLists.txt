@@ -15,3 +15,6 @@ target_include_directories(hgdb PUBLIC
         ../extern/exprtk)
 
 target_link_libraries(hgdb fmt sqlite3 Threads::Threads)
+
+# turn on all the checks
+target_compile_options(hgdb PRIVATE -Wall -Werror -Wpedantic)
