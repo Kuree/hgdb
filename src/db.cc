@@ -40,6 +40,13 @@ std::vector<BreakPoint> DebugDatabaseClient::get_breakpoints(const std::string &
     return bps;
 }
 
+std::vector<BreakPoint> DebugDatabaseClient::get_breakpoints(const std::string &filename) {
+    using namespace sqlite_orm;
+    std::vector<BreakPoint> bps =
+        db_->get_all<BreakPoint>(where(c(&BreakPoint::filename) == filename));
+    return bps;
+}
+
 std::optional<BreakPoint> DebugDatabaseClient::get_breakpoint(uint32_t breakpoint_id) {
     auto ptr = db_->get_pointer<BreakPoint>(breakpoint_id);
     if (ptr) {
@@ -63,7 +70,7 @@ std::vector<DebugDatabaseClient::ContextVariableInfo> DebugDatabaseClient::get_c
     auto values = db_->select(columns(&ContextVariable::variable_id, &ContextVariable::name,
                                       &Variable::value, &Variable::is_rtl),
                               where(c(&ContextVariable::breakpoint_id) == breakpoint_id &&
-                                  c(&ContextVariable::variable_id) == &Variable::id));
+                                    c(&ContextVariable::variable_id) == &Variable::id));
     result.reserve(values.size());
     for (auto const &[variable_id, name, value, is_rtl] : values) {
         auto id = *variable_id;
@@ -83,7 +90,7 @@ std::vector<DebugDatabaseClient::GeneratorVariableInfo> DebugDatabaseClient::get
     auto values = db_->select(columns(&GeneratorVariable::variable_id, &GeneratorVariable::name,
                                       &Variable::value, &Variable::is_rtl),
                               where(c(&GeneratorVariable::instance_id) == instance_id &&
-                                  c(&GeneratorVariable::variable_id) == &Variable::id));
+                                    c(&GeneratorVariable::variable_id) == &Variable::id));
     result.reserve(values.size());
     for (auto const &[variable_id, name, value, is_rtl] : values) {
         auto id = *variable_id;

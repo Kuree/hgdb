@@ -3,8 +3,9 @@
 # that talks to the debug server via ws
 
 import asyncio
-import time
 import json
+import time
+
 import websockets
 
 
@@ -41,6 +42,60 @@ def test_continue_stop(start_server, find_free_port):
     assert "INFO: STOP RUNNING" in out
 
 
+def test_bp_location_request(start_server, find_free_port):
+    port = find_free_port()
+    s = start_server(port, "test_debug_server", ["+DEBUG_LOG"], use_plus_arg=True)
+    assert s.poll() is None
+
+    # search for the whole file
+    bp_location_payload1 = {"request": True, "type": "bp-location", "payload": {"filename": "/tmp/test.py"}}
+    # only search for particular line
+    bp_location_payload2 = {"request": True, "type": "bp-location",
+                            "payload": {"filename": "/tmp/test.py", "line_num": 1}}
+    bp_location_payload3 = {"request": True, "type": "bp-location",
+                            "payload": {"filename": "/tmp/test.py", "line_num": 42}}
+    bp_location_str1 = json.dumps(bp_location_payload1)
+    bp_location_str2 = json.dumps(bp_location_payload2)
+    bp_location_str3 = json.dumps(bp_location_payload3)
+
+    async def send_msg():
+        uri = "ws://localhost:{0}".format(port)
+        async with websockets.connect(uri) as ws:
+            await ws.send(bp_location_str1)
+            resp = json.loads(await ws.recv())
+            assert not resp["request"]
+            assert resp["type"] == "bp-location"
+            bps = resp["payload"]
+            assert len(bps) == 4
+            lines = set()
+            for bp in bps:
+                lines.add(bp["line_num"])
+            assert len(lines) == 4
+            assert 5 in lines
+
+            # single line
+            await ws.send(bp_location_str2)
+            resp = json.loads(await ws.recv())
+            assert not resp["request"]
+            bps = resp["payload"]
+            assert len(bps) == 1
+
+            # no bps
+            await ws.send(bp_location_str3)
+            resp = json.loads(await ws.recv())
+            assert not resp["request"]
+            assert len(resp["payload"]) == 0
+
+    asyncio.get_event_loop().run_until_complete(send_msg())
+    s.terminate()
+    while s.poll() is None:
+        pass
+
+
 if __name__ == "__main__":
+    import os
+    import sys
+    sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
     from conftest import start_server_fn, find_free_port_fn
-    test_continue_stop(start_server_fn, find_free_port_fn)
+
+    test_bp_location_request(start_server_fn, find_free_port_fn)

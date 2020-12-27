@@ -41,6 +41,7 @@ private:
 
     // message handler
     void on_message(const std::string &message);
+    void send_message(const std::string &message);
 
     // helper functions
     uint16_t get_port();
@@ -54,6 +55,9 @@ private:
     void handle_bp_location(const BreakPointLocationRequest &req);
     void handle_command(const CommandRequest &req);
     void handle_error(const ErrorRequest &req);
+
+    // common checker
+    bool check_send_db_error();
 };
 
 }  // namespace hgdb

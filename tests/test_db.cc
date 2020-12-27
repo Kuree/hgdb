@@ -56,6 +56,10 @@ TEST_F(DBTest, test_get_breakpoints) {  // NOLINT
     EXPECT_EQ(bps.size(), 1);
     bps = client.get_breakpoints(__FILE__, line_num, num_breakpoints + 1);
     EXPECT_TRUE(bps.empty());
+
+    // all breakpoints in a file
+    bps = client.get_breakpoints(__FILE__);
+    EXPECT_EQ(bps.size(), num_breakpoints);
 }
 
 TEST_F(DBTest, test_get_breakpoint) {  // NOLINT

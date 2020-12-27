@@ -50,9 +50,7 @@ void Debugger::stop() {
     is_running_ = false;
 }
 
-Debugger::~Debugger() {
-    server_thread_.join();
-}
+Debugger::~Debugger() { server_thread_.join(); }
 
 void Debugger::on_message(const std::string &message) {
     // server can only receives request
@@ -89,6 +87,12 @@ void Debugger::on_message(const std::string &message) {
             // do nothing
             return;
         }
+    }
+}
+
+void Debugger::send_message(const std::string &message) {
+    if (server_) {
+        server_->send(message);
     }
 }
 
@@ -139,7 +143,29 @@ void Debugger::handle_connection(const ConnectionRequest &req) {
 
 void Debugger::handle_breakpoint(const BreakpointRequest &req) {}
 
-void Debugger::handle_bp_location(const BreakPointLocationRequest &req) {}
+void Debugger::handle_bp_location(const BreakPointLocationRequest &req) {
+    // if db is not connected correctly, abort
+    if (!check_send_db_error()) return;
+
+    auto const &filename = req.filename();
+    auto const &line_num = req.line_num();
+    auto const &column_num = req.column_num();
+    std::vector<BreakPoint> bps;
+    if (!line_num) {
+        bps = db_->get_breakpoints(filename);
+    } else {
+        auto col_num = column_num ? *column_num : 0;
+        bps = db_->get_breakpoints(filename, *line_num, col_num);
+    }
+    std::vector<BreakPoint *> bps_(bps.size());
+    for (auto i = 0u; i < bps.size(); i++) {
+        bps_[i] = &bps[i];
+    }
+    // send breakpoint location response
+    auto resp = BreakPointLocationResponse(bps_);
+    // we don't do pretty print if log is not enabled
+    send_message(resp.str(log_enabled_));
+}
 
 void Debugger::handle_command(const CommandRequest &req) {
     switch (req.command_type()) {
@@ -160,5 +186,16 @@ void Debugger::handle_command(const CommandRequest &req) {
 }
 
 void Debugger::handle_error(const ErrorRequest &req) {}
+
+bool Debugger::check_send_db_error() {
+    if (!db_) {
+        // need to send error response
+        auto resp = GenericResponse(status_code::error,
+                                    "Database is not initialized or is initialized incorrectly");
+        send_message(resp.str(log_enabled_));
+        return false;
+    }
+    return true;
+}
 
 }  // namespace hgdb
