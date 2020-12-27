@@ -186,7 +186,7 @@ void Debugger::handle_breakpoint(const BreakPointRequest &req) {
         auto bps = db_->get_breakpoints(bp_info.filename, bp_info.line_num, bp_info.column_num);
         // notice that removal doesn't need reordering
         for (auto const &bp : bps) {
-            for (auto const &pos = breakpoints_.begin(); pos != breakpoints_.end(); pos++) {
+            for (auto pos = breakpoints_.begin(); pos != breakpoints_.end(); pos++) {
                 if (pos->id == bp.id) {
                     breakpoints_.erase(pos);
                     break;

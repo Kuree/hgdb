@@ -1,7 +1,7 @@
 #include "../src/proto.hh"
 #include "gtest/gtest.h"
 
-TEST(proto, breakpoint_request) { // NOLINT
+TEST(proto, breakpoint_request) {  // NOLINT
     auto req = R"(
 {
     "filename": "/tmp/abc",
@@ -48,7 +48,7 @@ TEST(proto, breakpoint_request_malformed) {  // NOLINT
     EXPECT_FALSE(r.error_reason().empty());
 }
 
-TEST(proto, request_parse_breakpoint) { // NOLINT
+TEST(proto, request_parse_breakpoint) {  // NOLINT
     auto req = R"(
 {
     "request": true,
@@ -67,7 +67,7 @@ TEST(proto, request_parse_breakpoint) { // NOLINT
     EXPECT_EQ(br->breakpoint().filename, "/tmp/abc");
 }
 
-TEST(proto, request_parse_connection) { // NOLINT
+TEST(proto, request_parse_connection) {  // NOLINT
     auto req = R"(
 {
     "request": true,
@@ -83,7 +83,7 @@ TEST(proto, request_parse_connection) { // NOLINT
 )";
     auto r = hgdb::Request::parse_request(req);
     EXPECT_EQ(r->status(), hgdb::status_code::success);
-    auto conn = dynamic_cast<hgdb::ConnectionRequest*>(r.get());
+    auto conn = dynamic_cast<hgdb::ConnectionRequest *>(r.get());
     EXPECT_NE(conn, nullptr);
     EXPECT_EQ(conn->db_filename(), "/tmp/abc.db");
     EXPECT_EQ(conn->path_mapping().size(), 2);
@@ -91,7 +91,7 @@ TEST(proto, request_parse_connection) { // NOLINT
     EXPECT_EQ(conn->path_mapping().at("b"), "/tmp/b");
 }
 
-TEST(proto, request_parse_bp_location) {    // NOLINT
+TEST(proto, request_parse_bp_location) {  // NOLINT
     auto req = R"(
 {
     "request": true,
@@ -104,15 +104,14 @@ TEST(proto, request_parse_bp_location) {    // NOLINT
 )";
     auto r = hgdb::Request::parse_request(req);
     EXPECT_EQ(r->status(), hgdb::status_code::success);
-    auto bp = dynamic_cast<hgdb::BreakPointLocationRequest*>(r.get());
+    auto bp = dynamic_cast<hgdb::BreakPointLocationRequest *>(r.get());
     EXPECT_NE(bp, nullptr);
     EXPECT_EQ(bp->filename(), "/tmp/abc");
     EXPECT_EQ(*bp->line_num(), 42);
     EXPECT_FALSE(bp->column_num());
 }
 
-
-TEST(proto, request_parse_command) {    // NOLINT
+TEST(proto, request_parse_command) {  // NOLINT
     auto req = R"(
 {
     "request": true,
@@ -124,21 +123,23 @@ TEST(proto, request_parse_command) {    // NOLINT
 )";
     auto r = hgdb::Request::parse_request(req);
     EXPECT_EQ(r->status(), hgdb::status_code::success);
-    auto bp = dynamic_cast<hgdb::CommandRequest*>(r.get());
+    auto bp = dynamic_cast<hgdb::CommandRequest *>(r.get());
     EXPECT_NE(bp, nullptr);
     EXPECT_EQ(bp->command_type(), hgdb::CommandRequest::CommandType::continue_);
 }
 
-TEST(proto, generic_response) { // NOLINT
-    auto res = hgdb::GenericResponse(hgdb::status_code::error, "TEST");
+TEST(proto, generic_response) {  // NOLINT
+    auto res = hgdb::GenericResponse(hgdb::status_code::error, "test", "TEST_ERROR");
     auto s = res.str(false);
-    EXPECT_EQ(s, R"({"request":false,"type":"generic","status":"error","reason":"TEST"})");
-    res = hgdb::GenericResponse(hgdb::status_code::success);
+    EXPECT_EQ(s, R"({"request":false,"type":"generic","status":"error",)"
+                 R"("payload":{"request-type":"test","reason":"TEST_ERROR"}})");
+    res = hgdb::GenericResponse(hgdb::status_code::success, "test");
     s = res.str(false);
-    EXPECT_EQ(s, R"({"request":false,"type":"generic","status":"success"})");
+    EXPECT_EQ(s, R"({"request":false,"type":"generic","status":"success",)"
+                 R"("payload":{"request-type":"test"}})");
 }
 
-TEST(proto, bp_location_response) { // NOLINT
+TEST(proto, bp_location_response) {  // NOLINT
     std::vector<std::unique_ptr<hgdb::BreakPoint>> bps;
     for (auto i = 0; i < 2; i++) {
         auto bp = std::make_unique<hgdb::BreakPoint>();
@@ -147,7 +148,7 @@ TEST(proto, bp_location_response) { // NOLINT
         bp->column_num = 0;
         bps.emplace_back(std::move(bp));
     }
-    std::vector<hgdb::BreakPoint*> values = {bps[0].get(), bps[1].get()};
+    std::vector<hgdb::BreakPoint *> values = {bps[0].get(), bps[1].get()};
     auto res = hgdb::BreakPointLocationResponse(values);
     auto s = res.str(true);
     constexpr auto expected_value = R"({

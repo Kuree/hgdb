@@ -54,6 +54,12 @@ namespace hgdb {
  * payload:
  *     command: [enum] - string
  *
+ * Generic Response
+ * type: generic
+ * payload:
+ *     request-type: string
+ *     reason: string [only exists if error]
+ *
  * Breakpoint Location Response
  * type: bp-location
  * payload:
@@ -124,8 +130,8 @@ static std::optional<T> get_member(rapidjson::Document &document, const char *me
     return std::nullopt;
 }
 
-GenericResponse::GenericResponse(status_code status, std::string reason)
-    : Response(status), reason_(std::move(reason)) {}
+GenericResponse::GenericResponse(status_code status, std::string request_type, std::string reason)
+    : Response(status), request_type_(std::move(request_type)), reason_(std::move(reason)) {}
 
 template <typename T, typename K, typename A>
 void set_member(K &json_value, A &allocator, const char *name, const T &value) {
@@ -185,9 +191,15 @@ std::string GenericResponse::str(bool pretty_print) const {
     auto &allocator = document.GetAllocator();
     set_response_header(document, this);
     set_status(document, status_);
+
+    // payload
+    Value payload(kObjectType);
+    set_member(payload, allocator, "request-type", request_type_);
+
     if (status_ == status_code::error) {
-        set_member(document, "reason", reason_);
+        set_member(payload, allocator, "reason", reason_);
     }
+    set_member(document, "payload", payload);
 
     return to_string(document, pretty_print);
 }

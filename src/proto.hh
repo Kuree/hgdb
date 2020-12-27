@@ -24,11 +24,12 @@ protected:
 
 class GenericResponse : public Response {
 public:
-    explicit GenericResponse(status_code status, std::string reason = "");
+    explicit GenericResponse(status_code status, std::string request_type, std::string reason = "");
     [[nodiscard]] std::string str(bool pretty_print) const override;
     [[nodiscard]] std::string type() const override { return "generic"; }
 
 private:
+    std::string request_type_;
     std::string reason_;
 };
 
