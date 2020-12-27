@@ -161,6 +161,19 @@ private:
     CommandType command_type_;
 };
 
+class DebuggerInformationResponse: public Response {
+public:
+    explicit DebuggerInformationResponse(std::vector<BreakPoint*> bps);
+    [[nodiscard]] std::string str(bool pretty_print) const override;
+    [[nodiscard]] std::string type() const override { return "debugger-info"; }
+
+private:
+    DebuggerInformationRequest::CommandType command_type_;
+    std::vector<BreakPoint*> bps_;
+    std::string get_command_str() const;
+};
+
+
 }  // namespace hgdb
 
 #endif  // HGDB_PROTO_HH

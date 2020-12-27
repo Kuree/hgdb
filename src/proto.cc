@@ -83,6 +83,14 @@ namespace hgdb {
  *     values:
  *         local: map<string, string> - name -> value
  *         generator: Array: map<string, string> - name -> value
+ *
+ *
+ * Debugger Information Response
+ * type: debugger-info
+ * payload:
+ *     command: [enum] string
+ *     # depends on the type, only one field will be available
+ *     breakpoints: Array<string, uint, uint> ->
  */
 
 static bool check_member(rapidjson::Document &document, const char *member_name, std::string &error,
@@ -270,6 +278,48 @@ void BreakPointResponse::add_local_value(const std::string &name, const std::str
 
 void BreakPointResponse::add_generator_value(const std::string &name, const std::string &value) {
     generator_values_.emplace(name, value);
+}
+
+DebuggerInformationResponse::DebuggerInformationResponse(std::vector<BreakPoint *> bps)
+    : command_type_(DebuggerInformationRequest::CommandType::breakpoints), bps_(std::move(bps)) {}
+
+std::string DebuggerInformationResponse::str(bool pretty_print) const {
+    using namespace rapidjson;
+    Document document(rapidjson::kObjectType);
+    auto &allocator = document.GetAllocator();
+    set_response_header(document, this);
+    set_status(document, status_);
+
+    Value payload(kObjectType);
+    set_member(payload, allocator, "command", get_command_str());
+
+    if (command_type_ == DebuggerInformationRequest::CommandType::breakpoints) {
+        Value array(kArrayType);
+        for (auto *bp : bps_) {
+            Value entry(kObjectType);
+            set_member(entry, allocator, "filename", bp->filename);
+            set_member(entry, allocator, "line_num", bp->line_num);
+            set_member(entry, allocator, "column_num", bp->column_num);
+            array.PushBack(entry, allocator);
+        }
+        set_member(payload, allocator, "breakpoints", array);
+    }
+    set_member(document, "payload", payload);
+
+    return to_string(document, pretty_print);
+}
+
+std::string DebuggerInformationResponse::get_command_str() const {
+    switch (command_type_) {
+        case DebuggerInformationRequest::CommandType::breakpoints: {
+            return "breakpoints";
+        }
+        case DebuggerInformationRequest::CommandType::status: {
+            return "status";
+        }
+        default:
+            return "";
+    }
 }
 
 std::unique_ptr<Request> Request::parse_request(const std::string &str) {
