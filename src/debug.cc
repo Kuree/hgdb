@@ -29,10 +29,18 @@ void Debugger::initialize_db(const std::string &filename) {
         log_error(fmt::format("{0} does not exist", filename));
         return;
     }
-    db_ = std::make_unique<DebugDatabaseClient>(filename);
+    initialize_db(std::make_unique<DebugDatabaseClient>(filename));
 }
 
-void Debugger::initialize_db(std::unique_ptr<DebugDatabaseClient> db) { db_ = std::move(db); }
+void Debugger::initialize_db(std::unique_ptr<DebugDatabaseClient> db) {
+    if (!db) return;
+    db_ = std::move(db);
+    // compute the look up table
+    auto const &bp_ordering = db_->execution_bp_orders();
+    for (auto i = 0u; i < bp_ordering.size(); i++) {
+        bp_ordering_table_.emplace(bp_ordering[i], i);
+    }
+}
 
 void Debugger::run() {
     auto on_ = [this](const std::string &msg) { on_message(msg); };
@@ -64,7 +72,7 @@ void Debugger::on_message(const std::string &message) {
             break;
         }
         case RequestType::breakpoint: {
-            auto *r = reinterpret_cast<BreakpointRequest *>(req.get());
+            auto *r = reinterpret_cast<BreakPointRequest *>(req.get());
             handle_breakpoint(*r);
             break;
         }
@@ -141,7 +149,52 @@ void Debugger::handle_connection(const ConnectionRequest &req) {
     initialize_db(db_filename);
 }
 
-void Debugger::handle_breakpoint(const BreakpointRequest &req) {}
+void Debugger::handle_breakpoint(const BreakPointRequest &req) {
+    if (!check_send_db_error()) return;
+
+    // depends on whether it is add or remove
+    auto const &bp_info = req.breakpoint();
+    if (req.bp_action() == BreakPointRequest::action::add) {
+        // we need to figure out the ordering and where to insert it
+        // the work is done here since inserting/removing breakpoint
+        // when the simulation is paused doesn't affect the overall
+        // performance. users care less about 0.1s slowdown when dealing
+        // with the debugger compared to slowed simulation performance
+        auto bps = db_->get_breakpoints(bp_info.filename, bp_info.line_num, bp_info.column_num);
+        // need to check if it is empty
+        // if so send an error back
+        if (bps.empty()) {
+
+        }
+        breakpoints_.reserve(breakpoints_.size() + bps.size());
+        for (auto const &bp : bps) {
+            // add them to the eval vector
+            std::string cond = "1";
+            if (!bp.condition.empty()) cond.append(" and " + bp.condition);
+            if (bp_info.condition.empty()) cond.append(" and " + bp_info.condition);
+            breakpoints_.emplace_back(DebugBreakPoint{.id = bp.id, .expr = DebugExpression(cond)});
+        }
+        // need to sort them by the ordering
+        // the easiest way is to sort them by their lookup table. assuming the number of breakpoints
+        // is relatively small, i.e. < 100, sorting can be efficient and less bug-prone
+        std::sort(breakpoints_.begin(), breakpoints_.end(),
+                  [this](const auto &left, const auto &right) -> bool {
+                      return bp_ordering_table_.at(left.id) < bp_ordering_table_.at(right.id);
+                  });
+    } else {
+        // remove
+        auto bps = db_->get_breakpoints(bp_info.filename, bp_info.line_num, bp_info.column_num);
+        // notice that removal doesn't need reordering
+        for (auto const &bp : bps) {
+            for (auto const &pos = breakpoints_.begin(); pos != breakpoints_.end(); pos++) {
+                if (pos->id == bp.id) {
+                    breakpoints_.erase(pos);
+                    break;
+                }
+            }
+        }
+    }
+}
 
 void Debugger::handle_bp_location(const BreakPointLocationRequest &req) {
     // if db is not connected correctly, abort

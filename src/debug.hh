@@ -4,6 +4,7 @@
 #include "proto.hh"
 #include "rtl.hh"
 #include "server.hh"
+#include "eval.hh"
 #include "thread.hh"
 
 namespace hgdb {
@@ -39,6 +40,16 @@ private:
     RuntimeLock lock_;
     std::atomic<bool> is_running_ = false;
 
+    // breakpoint information
+    struct DebugBreakPoint {
+        uint32_t id;
+        DebugExpression expr;
+    };
+    std::vector<DebugBreakPoint> breakpoints_;
+    // look up table for ordering of breakpoints
+    std::unordered_map<uint32_t, uint64_t> bp_ordering_table_;
+
+
     // message handler
     void on_message(const std::string &message);
     void send_message(const std::string &message);
@@ -51,7 +62,7 @@ private:
 
     // request handler
     void handle_connection(const ConnectionRequest &req);
-    void handle_breakpoint(const BreakpointRequest &req);
+    void handle_breakpoint(const BreakPointRequest &req);
     void handle_bp_location(const BreakPointLocationRequest &req);
     void handle_command(const CommandRequest &req);
     void handle_error(const ErrorRequest &req);

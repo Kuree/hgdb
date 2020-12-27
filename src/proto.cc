@@ -275,7 +275,7 @@ std::unique_ptr<Request> Request::parse_request(const std::string &str) {
     auto const &type_str = *type;
     std::unique_ptr<Request> result;
     if (type_str == "breakpoint") {
-        result = std::make_unique<BreakpointRequest>();
+        result = std::make_unique<BreakPointRequest>();
     } else if (type_str == "connection") {
         result = std::make_unique<ConnectionRequest>();
     } else if (type_str == "bp-location") {
@@ -307,7 +307,7 @@ bool check_json(rapidjson::Document &document, status_code &status, std::string 
     return true;
 }
 
-void BreakpointRequest::parse_payload(const std::string &payload) {
+void BreakPointRequest::parse_payload(const std::string &payload) {
     // parse the breakpoint based on the API specification
     // we use linux style error handling logic
     using namespace rapidjson;
@@ -323,8 +323,8 @@ void BreakpointRequest::parse_payload(const std::string &payload) {
         return;
     }
     bp_ = BreakPoint{};
-    bp_->filename = *filename;
-    bp_->line_num = *line_num;
+    bp_.filename = *filename;
+    bp_.line_num = *line_num;
     auto action_str = *bp_act;
     if (action_str == "add") {
         bp_action_ = action::add;
@@ -337,13 +337,13 @@ void BreakpointRequest::parse_payload(const std::string &payload) {
     auto column_num = get_member<uint64_t>(document, "column_num", error_reason_, false);
     auto condition = get_member<std::string>(document, "condition", error_reason_, false);
     if (column_num)
-        bp_->column_num = *column_num;
+        bp_.column_num = *column_num;
     else
-        bp_->column_num = 0;
+        bp_.column_num = 0;
     if (condition)
-        bp_->condition = *condition;
+        bp_.condition = *condition;
     else
-        bp_->condition = "";
+        bp_.condition = "";
 }
 
 ErrorRequest::ErrorRequest(std::string reason) {

@@ -89,18 +89,18 @@ public:
     [[nodiscard]] RequestType type() const override { return RequestType::error; }
 };
 
-class BreakpointRequest : public Request {
+class BreakPointRequest : public Request {
 public:
     enum class action { add, remove };
-    BreakpointRequest() = default;
+    BreakPointRequest() = default;
     void parse_payload(const std::string &payload) override;
     [[nodiscard]] const auto &breakpoint() const { return bp_; }
     [[nodiscard]] auto bp_action() const { return bp_action_; }
     [[nodiscard]] RequestType type() const override { return RequestType::breakpoint; }
 
 private:
-    std::optional<BreakPoint> bp_;
-    std::optional<action> bp_action_;
+    BreakPoint bp_;
+    action bp_action_ = action::add;
 };
 
 class ConnectionRequest : public Request {
