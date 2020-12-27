@@ -164,7 +164,11 @@ void Debugger::handle_breakpoint(const BreakPointRequest &req) {
         // need to check if it is empty
         // if so send an error back
         if (bps.empty()) {
-
+            auto error_response = GenericResponse(status_code::error, "breakpoint",
+                                                  fmt::format("{0}:{1} is not a valid breakpoint",
+                                                              bp_info.filename, bp_info.line_num));
+            send_message(error_response.str(log_enabled_));
+            return;
         }
         breakpoints_.reserve(breakpoints_.size() + bps.size());
         for (auto const &bp : bps) {
