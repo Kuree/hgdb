@@ -38,6 +38,7 @@ def test_continue_stop(start_server, find_free_port):
     assert killed
     out = s.communicate()[0].decode("ascii")
     assert "INFO: START RUNNING" in out
+    assert "INFO: STOP RUNNING" in out
 
 
 if __name__ == "__main__":
