@@ -17,9 +17,12 @@ public:
     explicit Response(status_code status) : status_(status) {}
     [[nodiscard]] virtual std::string str(bool pretty_print) const = 0;
     [[nodiscard]] virtual std::string type() const = 0;
+    [[nodiscard]] const std::string &token() const { return token_; }
+    void set_token(std::string token) { token_ = std::move(token); }
 
 protected:
     status_code status_ = status_code::success;
+    std::string token_;
 };
 
 class GenericResponse : public Response {
@@ -71,6 +74,7 @@ public:
     [[nodiscard]] status_code status() const { return status_code_; }
     [[nodiscard]] const std::string &error_reason() const { return error_reason_; }
     [[nodiscard]] virtual RequestType type() const = 0;
+    inline void set_token(Response &resp) const { resp.set_token(token_); }
 
     [[nodiscard]] static std::unique_ptr<Request> parse_request(const std::string &str);
 
@@ -79,6 +83,7 @@ public:
 protected:
     status_code status_code_ = status_code::success;
     std::string error_reason_;
+    std::string token_;
 
     virtual void parse_payload(const std::string &payload) = 0;
 };
@@ -161,18 +166,17 @@ private:
     CommandType command_type_;
 };
 
-class DebuggerInformationResponse: public Response {
+class DebuggerInformationResponse : public Response {
 public:
-    explicit DebuggerInformationResponse(std::vector<BreakPoint*> bps);
+    explicit DebuggerInformationResponse(std::vector<BreakPoint *> bps);
     [[nodiscard]] std::string str(bool pretty_print) const override;
     [[nodiscard]] std::string type() const override { return "debugger-info"; }
 
 private:
     DebuggerInformationRequest::CommandType command_type_;
-    std::vector<BreakPoint*> bps_;
+    std::vector<BreakPoint *> bps_;
     std::string get_command_str() const;
 };
-
 
 }  // namespace hgdb
 

@@ -1,6 +1,27 @@
 #include "../src/proto.hh"
 #include "gtest/gtest.h"
 
+TEST(proto, token_passing) {  // NOLINT
+    auto req = R"(
+{
+    "request": true,
+    "type": "breakpoint",
+    "token": "TEST_TOKEN",
+    "payload": {
+        "filename": "/tmp/abc",
+        "line_num": 123,
+        "action": "add"
+    }
+}
+)";
+    auto r = hgdb::Request::parse_request(req);
+    auto resp = hgdb::GenericResponse(hgdb::status_code::success, "breakpoint");
+    r->set_token(resp);
+    auto s = resp.str(false);
+    EXPECT_EQ(s, R"({"request":false,"type":"generic","token":"TEST_TOKEN",)"
+                 R"("status":"success","payload":{"request-type":"breakpoint"}})");
+}
+
 TEST(proto, breakpoint_request) {  // NOLINT
     auto req = R"(
 {
@@ -215,9 +236,9 @@ TEST(proto, breakpoint_response) {  // NOLINT
     EXPECT_EQ(s, expected_value);
 }
 
-TEST(proto, debugger_info_response) {   // NOLINT
-    auto bp = hgdb::BreakPoint{.filename="/tmp/a", .line_num=1, .column_num=1};
-    std::vector<hgdb::BreakPoint*> bps = {&bp};
+TEST(proto, debugger_info_response) {  // NOLINT
+    auto bp = hgdb::BreakPoint{.filename = "/tmp/a", .line_num = 1, .column_num = 1};
+    std::vector<hgdb::BreakPoint *> bps = {&bp};
     auto res = hgdb::DebuggerInformationResponse(bps);
     auto s = res.str(true);
     constexpr auto expected_value = R"({

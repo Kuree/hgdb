@@ -172,6 +172,7 @@ void Debugger::handle_breakpoint(const BreakPointRequest &req) {
             auto error_response = GenericResponse(status_code::error, "breakpoint",
                                                   fmt::format("{0}:{1} is not a valid breakpoint",
                                                               bp_info.filename, bp_info.line_num));
+            req.set_token(error_response);
             send_message(error_response.str(log_enabled_));
             return;
         }
@@ -190,6 +191,10 @@ void Debugger::handle_breakpoint(const BreakPointRequest &req) {
                   [this](const auto &left, const auto &right) -> bool {
                       return bp_ordering_table_.at(left.id) < bp_ordering_table_.at(right.id);
                   });
+        // tell client we're good
+        auto success_resp = GenericResponse(status_code::success, "breakpoint");
+        req.set_token(success_resp);
+        send_message(success_resp.str(log_enabled_));
     } else {
         // remove
         auto bps = db_->get_breakpoints(bp_info.filename, bp_info.line_num, bp_info.column_num);
@@ -225,6 +230,7 @@ void Debugger::handle_bp_location(const BreakPointLocationRequest &req) {
     }
     // send breakpoint location response
     auto resp = BreakPointLocationResponse(bps_);
+    req.set_token(resp);
     // we don't do pretty print if log is not enabled
     send_message(resp.str(log_enabled_));
 }
@@ -266,11 +272,13 @@ void Debugger::handle_debug_info(const DebuggerInformationRequest &req) {
             }
 
             auto resp = DebuggerInformationResponse(bps_);
+            req.set_token(resp);
             send_message(resp.str(log_enabled_));
         }
         default: {
             auto resp = GenericResponse(status_code::error, "debugger_info",
                                         "Unknown debugger info command");
+            req.set_token(resp);
             send_message(resp.str(log_enabled_));
         }
     }

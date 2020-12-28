@@ -19,11 +19,13 @@ namespace hgdb {
  * request: true
  * type: [required] - string
  * payload: [required] - object
+ * token: [optional] - string -> used to identify a unique request/response
  *
  * Response structure
  * request: false
  * type: [required] - string
  * payload: [required] - object
+ * token: [optional] - string -> used to identify a unique request/response
  *
  * Breakpoint Request
  * type: breakpoint
@@ -196,6 +198,9 @@ std::string to_string(rapidjson::Document &document, bool pretty_print) {
 void set_response_header(rapidjson::Document &document, const Response *response) {
     set_member(document, "request", false);
     set_member(document, "type", response->type());
+    if (!response->token().empty()) {
+        set_member(document, "token", response->token());
+    }
 }
 
 std::string GenericResponse::str(bool pretty_print) const {
@@ -338,6 +343,8 @@ std::unique_ptr<Request> Request::parse_request(const std::string &str) {
     // get payload
     auto payload = check_member(document, "payload", error);
     if (!payload) return std::make_unique<ErrorRequest>(error);
+    // get token
+    auto token = get_member<std::string>(document, "token", error, false, true);
 
     auto const &type_str = *type;
     std::unique_ptr<Request> result;
@@ -364,6 +371,9 @@ std::unique_ptr<Request> Request::parse_request(const std::string &str) {
     payload_member.Accept(writer);
     std::string payload_str = buffer.GetString();
     result->parse_payload(payload_str);
+    // set token if not empty
+    if (token) result->token_ = *token;
+
     return result;
 }
 
