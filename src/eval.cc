@@ -50,7 +50,7 @@ int64_t DebugExpression::eval(const std::unordered_map<std::string, int64_t> &va
     if (!correct()) return 0;
     uint64_t hit = 0;
     for (auto const &[name, value] : values) {
-        if (symbols_.find(name) != symbols_.end()) {
+        if (symbols_.find(name) != symbols_.end()) [[likely]] {
             hit++;
             symbol_table_[name] = value;
         }

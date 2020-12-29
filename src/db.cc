@@ -18,7 +18,7 @@ DebugDatabaseClient::DebugDatabaseClient(std::unique_ptr<DebugDatabase> db) {
 }
 
 void DebugDatabaseClient::close() {
-    if (!is_closed_) {
+    if (!is_closed_) [[likely]] {
         db_.reset();
         is_closed_ = true;
     }
