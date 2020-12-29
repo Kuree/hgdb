@@ -18,6 +18,7 @@ public:
     void initialize_db(std::unique_ptr<DebugDatabaseClient> db);
     void run();
     void stop();
+    void eval();
 
     static constexpr uint16_t default_port_num = 8888;
     static constexpr bool default_logging = false;

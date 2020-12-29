@@ -58,6 +58,46 @@ void Debugger::stop() {
     is_running_ = false;
 }
 
+void Debugger::eval() {
+    // the function that actually triggers breakpoints!
+    // notice that there is a hidden race condition
+    // when we trigger the breakpoint, the runtime (simulation side) will be paused via a lock.
+    // however, the server side can still takes breakpoint requests, hence modifying the
+    // breakpoints_.
+    // one way to do is to change breakpoints_ into a priority queue
+    // and we just pop one at a time
+    for (auto &bp : breakpoints_) {
+        auto &bp_expr = bp.expr;
+        // get table values
+        auto const &symbols = bp_expr.symbols();
+        auto const bp_id = bp.id;
+        auto const instance_name_ = db_->get_instance_name(bp_id);
+        if (!instance_name_) continue;
+        auto const &instance_name = *instance_name_;
+        std::unordered_map<std::string, int64_t> values;
+        // need to query through all its symbols
+        for (auto const &symbol_name : symbols) {
+            // need to map these symbol names into the actual hierarchy
+            // name
+            auto name = fmt::format("{0}.{1}", instance_name, symbol_name);
+            auto v = rtl_->get_value(name);
+            if (!v) break;
+            values.emplace(symbol_name, *v);
+        }
+        if (values.size() != symbols.size()) {
+            // something went wrong with the querying symbol
+            log_error(fmt::format("Unable to evaluate breakpoint %d", bp_id));
+        } else {
+            auto result = bp_expr.eval(values);
+            if (result) {
+                // trigger a breakpoint!
+
+                // then pause the execution
+            }
+        }
+    }
+}
+
 Debugger::~Debugger() { server_thread_.join(); }
 
 void Debugger::on_message(const std::string &message) {
