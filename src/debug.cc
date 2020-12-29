@@ -279,6 +279,7 @@ void Debugger::handle_debug_info(const DebuggerInformationRequest &req) {
             auto resp = DebuggerInformationResponse(bps_);
             req.set_token(resp);
             send_message(resp.str(log_enabled_));
+            return;
         }
         default: {
             auto resp = GenericResponse(status_code::error, req, "Unknown debugger info command");
