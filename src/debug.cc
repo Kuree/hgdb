@@ -221,33 +221,39 @@ void Debugger::handle_breakpoint(const BreakPointRequest &req) {
             send_message(error_response.str(log_enabled_));
             return;
         }
-        breakpoints_.reserve(breakpoints_.size() + bps.size());
-        for (auto const &bp : bps) {
-            // add them to the eval vector
-            std::string cond = "1";
-            if (!bp.condition.empty()) cond.append(" and " + bp.condition);
-            if (bp_info.condition.empty()) cond.append(" and " + bp_info.condition);
-            if (inserted_breakpoints_.find(bp.id) == inserted_breakpoints_.end()) {
-                breakpoints_.emplace_back(
-                    DebugBreakPoint{.id = bp.id, .expr = DebugExpression(cond)});
-                inserted_breakpoints_.emplace(bp.id);
-            } else {
-                // update breakpoint entry
-                for (auto &b : breakpoints_) {
-                    if (bp.id == b.id) {
-                        b.expr = DebugExpression(cond);
-                        continue;
+
+        {
+            std::lock_guard guard(breakpoint_lock_);
+            breakpoints_.reserve(breakpoints_.size() + bps.size());
+            for (auto const &bp : bps) {
+                // add them to the eval vector
+                std::string cond = "1";
+                if (!bp.condition.empty()) cond.append(" and " + bp.condition);
+                if (bp_info.condition.empty()) cond.append(" and " + bp_info.condition);
+                if (inserted_breakpoints_.find(bp.id) == inserted_breakpoints_.end()) {
+                    breakpoints_.emplace_back(
+                        DebugBreakPoint{.id = bp.id, .expr = DebugExpression(cond)});
+                    inserted_breakpoints_.emplace(bp.id);
+                } else {
+                    // update breakpoint entry
+                    for (auto &b : breakpoints_) {
+                        if (bp.id == b.id) {
+                            b.expr = DebugExpression(cond);
+                            continue;
+                        }
                     }
                 }
             }
+            // need to sort them by the ordering
+            // the easiest way is to sort them by their lookup table. assuming the number of
+            // breakpoints is relatively small, i.e. < 100, sorting can be efficient and less
+            // bug-prone
+            std::sort(breakpoints_.begin(), breakpoints_.end(),
+                      [this](const auto &left, const auto &right) -> bool {
+                          return bp_ordering_table_.at(left.id) < bp_ordering_table_.at(right.id);
+                      });
         }
-        // need to sort them by the ordering
-        // the easiest way is to sort them by their lookup table. assuming the number of breakpoints
-        // is relatively small, i.e. < 100, sorting can be efficient and less bug-prone
-        std::sort(breakpoints_.begin(), breakpoints_.end(),
-                  [this](const auto &left, const auto &right) -> bool {
-                      return bp_ordering_table_.at(left.id) < bp_ordering_table_.at(right.id);
-                  });
+
         // tell client we're good
         auto success_resp = GenericResponse(status_code::success, req);
         req.set_token(success_resp);
@@ -255,16 +261,21 @@ void Debugger::handle_breakpoint(const BreakPointRequest &req) {
     } else {
         // remove
         auto bps = db_->get_breakpoints(bp_info.filename, bp_info.line_num, bp_info.column_num);
-        // notice that removal doesn't need reordering
-        for (auto const &bp : bps) {
-            for (auto pos = breakpoints_.begin(); pos != breakpoints_.end(); pos++) {
-                if (pos->id == bp.id) {
-                    breakpoints_.erase(pos);
-                    inserted_breakpoints_.erase(bp.id);
-                    break;
+
+        {
+            std::lock_guard guard(breakpoint_lock_);
+            // notice that removal doesn't need reordering
+            for (auto const &bp : bps) {
+                for (auto pos = breakpoints_.begin(); pos != breakpoints_.end(); pos++) {
+                    if (pos->id == bp.id) {
+                        breakpoints_.erase(pos);
+                        inserted_breakpoints_.erase(bp.id);
+                        break;
+                    }
                 }
             }
         }
+
         auto success_resp = GenericResponse(status_code::success, req);
         req.set_token(success_resp);
         send_message(success_resp.str(log_enabled_));
@@ -319,16 +330,20 @@ void Debugger::handle_debug_info(const DebuggerInformationRequest &req) {
         case DebuggerInformationRequest::CommandType::breakpoints: {
             std::vector<BreakPoint> bps;
             std::vector<BreakPoint *> bps_;
-            bps.reserve(breakpoints_.size());
-            bps_.reserve(breakpoints_.size());
-            for (auto const &bp : breakpoints_) {
-                auto bp_id = bp.id;
-                auto bp_info = db_->get_breakpoint(bp_id);
-                if (bp_info) {
-                    bps.emplace_back(BreakPoint{.filename = bp_info->filename,
-                                                .line_num = bp_info->line_num,
-                                                .column_num = bp_info->column_num});
-                    bps_.emplace_back(&bps.back());
+
+            {
+                std::lock_guard guard(breakpoint_lock_);
+                bps.reserve(breakpoints_.size());
+                bps_.reserve(breakpoints_.size());
+                for (auto const &bp : breakpoints_) {
+                    auto bp_id = bp.id;
+                    auto bp_info = db_->get_breakpoint(bp_id);
+                    if (bp_info) {
+                        bps.emplace_back(BreakPoint{.filename = bp_info->filename,
+                                                    .line_num = bp_info->line_num,
+                                                    .column_num = bp_info->column_num});
+                        bps_.emplace_back(&bps.back());
+                    }
                 }
             }
 
