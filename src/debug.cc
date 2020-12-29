@@ -63,7 +63,12 @@ Debugger::~Debugger() { server_thread_.join(); }
 void Debugger::on_message(const std::string &message) {
     // server can only receives request
     auto req = Request::parse_request(message);
-    if (req->status() != status_code::success) return;
+    if (req->status() != status_code::success) {
+        // send back error message
+        auto resp = GenericResponse(status_code::error, *req, req->error_reason());
+        send_message(resp.str(log_enabled_));
+        return;
+    }
     switch (req->type()) {
         case RequestType::connection: {
             // this is a connection request
@@ -155,7 +160,7 @@ void Debugger::handle_connection(const ConnectionRequest &req) {
 }
 
 void Debugger::handle_breakpoint(const BreakPointRequest &req) {
-    if (!check_send_db_error()) return;
+    if (!check_send_db_error(req.type())) return;
 
     // depends on whether it is add or remove
     auto const &bp_info = req.breakpoint();
@@ -169,7 +174,7 @@ void Debugger::handle_breakpoint(const BreakPointRequest &req) {
         // need to check if it is empty
         // if so send an error back
         if (bps.empty()) {
-            auto error_response = GenericResponse(status_code::error, "breakpoint",
+            auto error_response = GenericResponse(status_code::error, req,
                                                   fmt::format("{0}:{1} is not a valid breakpoint",
                                                               bp_info.filename, bp_info.line_num));
             req.set_token(error_response);
@@ -192,7 +197,7 @@ void Debugger::handle_breakpoint(const BreakPointRequest &req) {
                       return bp_ordering_table_.at(left.id) < bp_ordering_table_.at(right.id);
                   });
         // tell client we're good
-        auto success_resp = GenericResponse(status_code::success, "breakpoint");
+        auto success_resp = GenericResponse(status_code::success, req);
         req.set_token(success_resp);
         send_message(success_resp.str(log_enabled_));
     } else {
@@ -212,7 +217,7 @@ void Debugger::handle_breakpoint(const BreakPointRequest &req) {
 
 void Debugger::handle_bp_location(const BreakPointLocationRequest &req) {
     // if db is not connected correctly, abort
-    if (!check_send_db_error()) return;
+    if (!check_send_db_error(req.type())) return;
 
     auto const &filename = req.filename();
     auto const &line_num = req.line_num();
@@ -276,8 +281,7 @@ void Debugger::handle_debug_info(const DebuggerInformationRequest &req) {
             send_message(resp.str(log_enabled_));
         }
         default: {
-            auto resp = GenericResponse(status_code::error, "debugger_info",
-                                        "Unknown debugger info command");
+            auto resp = GenericResponse(status_code::error, req, "Unknown debugger info command");
             req.set_token(resp);
             send_message(resp.str(log_enabled_));
         }
@@ -286,10 +290,10 @@ void Debugger::handle_debug_info(const DebuggerInformationRequest &req) {
 
 void Debugger::handle_error(const ErrorRequest &req) {}
 
-bool Debugger::check_send_db_error() {
+bool Debugger::check_send_db_error(RequestType type) {
     if (!db_) {
         // need to send error response
-        auto resp = GenericResponse(status_code::error,
+        auto resp = GenericResponse(status_code::error, type,
                                     "Database is not initialized or is initialized incorrectly");
         send_message(resp.str(log_enabled_));
         return false;

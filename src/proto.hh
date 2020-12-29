@@ -10,7 +10,12 @@
 #include "schema.hh"
 
 namespace hgdb {
+
 enum class status_code { success = 0, error = 1 };
+enum class RequestType { error, breakpoint, connection, bp_location, command, debugger_info };
+
+class Request;
+
 class Response {
 public:
     Response() = default;
@@ -27,7 +32,8 @@ protected:
 
 class GenericResponse : public Response {
 public:
-    explicit GenericResponse(status_code status, std::string request_type, std::string reason = "");
+    GenericResponse(status_code status, const Request &req, std::string reason = "");
+    GenericResponse(status_code status, RequestType type, std::string reason = "");
     [[nodiscard]] std::string str(bool pretty_print) const override;
     [[nodiscard]] std::string type() const override { return "generic"; }
 
@@ -67,7 +73,6 @@ private:
     std::map<std::string, std::string> generator_values_;
 };
 
-enum class RequestType { error, breakpoint, connection, bp_location, command, debugger_info };
 
 class Request {
 public:

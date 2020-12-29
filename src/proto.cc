@@ -145,8 +145,32 @@ static std::optional<T> get_member(rapidjson::Document &document, const char *me
     return std::nullopt;
 }
 
-GenericResponse::GenericResponse(status_code status, std::string request_type, std::string reason)
-    : Response(status), request_type_(std::move(request_type)), reason_(std::move(reason)) {}
+GenericResponse::GenericResponse(status_code status, const Request &req, std::string reason)
+    : GenericResponse(status, req.type(), std::move(reason)) {}
+
+GenericResponse::GenericResponse(status_code status, RequestType type, std::string reason)
+    : Response(status), reason_(std::move(reason)) {
+    switch (type) {
+        case RequestType::error:
+            request_type_ = "error";
+            break;
+        case RequestType::breakpoint:
+            request_type_ = "breakpoint";
+            break;
+        case RequestType::connection:
+            request_type_ = "connection";
+            break;
+        case RequestType::bp_location:
+            request_type_ = "bp_location";
+            break;
+        case RequestType::command:
+            request_type_ = "command";
+            break;
+        case RequestType::debugger_info:
+            request_type_ = "debugger_info";
+            break;
+    }
+}
 
 template <typename T, typename K, typename A>
 void set_member(K &json_value, A &allocator, const char *name, const T &value) {

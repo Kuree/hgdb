@@ -69,7 +69,7 @@ private:
     void handle_error(const ErrorRequest &req);
 
     // common checker
-    bool check_send_db_error();
+    bool check_send_db_error(RequestType type);
 };
 
 }  // namespace hgdb

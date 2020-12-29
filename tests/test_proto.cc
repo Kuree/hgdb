@@ -15,7 +15,7 @@ TEST(proto, token_passing) {  // NOLINT
 }
 )";
     auto r = hgdb::Request::parse_request(req);
-    auto resp = hgdb::GenericResponse(hgdb::status_code::success, "breakpoint");
+    auto resp = hgdb::GenericResponse(hgdb::status_code::success, hgdb::RequestType::breakpoint);
     r->set_token(resp);
     auto s = resp.str(false);
     EXPECT_EQ(s, R"({"request":false,"type":"generic","token":"TEST_TOKEN",)"
@@ -167,14 +167,15 @@ TEST(proto, request_parse_debugger) {  // NOLINT
 }
 
 TEST(proto, generic_response) {  // NOLINT
-    auto res = hgdb::GenericResponse(hgdb::status_code::error, "test", "TEST_ERROR");
+    auto res =
+        hgdb::GenericResponse(hgdb::status_code::error, hgdb::RequestType::error, "TEST_ERROR");
     auto s = res.str(false);
     EXPECT_EQ(s, R"({"request":false,"type":"generic","status":"error",)"
-                 R"("payload":{"request-type":"test","reason":"TEST_ERROR"}})");
-    res = hgdb::GenericResponse(hgdb::status_code::success, "test");
+                 R"("payload":{"request-type":"error","reason":"TEST_ERROR"}})");
+    res = hgdb::GenericResponse(hgdb::status_code::success, hgdb::RequestType::breakpoint);
     s = res.str(false);
     EXPECT_EQ(s, R"({"request":false,"type":"generic","status":"success",)"
-                 R"("payload":{"request-type":"test"}})");
+                 R"("payload":{"request-type":"breakpoint"}})");
 }
 
 TEST(proto, bp_location_response) {  // NOLINT
