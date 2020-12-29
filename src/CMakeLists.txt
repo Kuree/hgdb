@@ -16,5 +16,16 @@ target_include_directories(hgdb PUBLIC
 
 target_link_libraries(hgdb fmt sqlite3 Threads::Threads)
 
-# turn on all the checks
-target_compile_options(hgdb PRIVATE -Wall -Werror -Wpedantic)
+# check if the compiler support attributes like [[likely]]
+set(CMAKE_REQUIRED_FLAGS "-Wall -Werror")
+check_cxx_source_compiles(
+        "int main() { if (1) [[likely]] {}}"
+        SUPPORT_LIKELY
+)
+unset(CMAKE_REQUIRED_FLAGS)
+if (NOT SUPPORT_LIKELY)
+    set(EXTRA_WNO_FLAGS "-Wno-attributes")
+endif()
+
+# turn on as many warning flags as possible
+target_compile_options(hgdb PRIVATE -Wall -Werror -Wpedantic ${EXTRA_WNO_FLAGS})
