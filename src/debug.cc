@@ -225,6 +225,9 @@ void Debugger::handle_breakpoint(const BreakPointRequest &req) {
                 }
             }
         }
+        auto success_resp = GenericResponse(status_code::success, req);
+        req.set_token(success_resp);
+        send_message(success_resp.str(log_enabled_));
     }
 }
 
