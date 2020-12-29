@@ -187,7 +187,19 @@ void Debugger::handle_breakpoint(const BreakPointRequest &req) {
             std::string cond = "1";
             if (!bp.condition.empty()) cond.append(" and " + bp.condition);
             if (bp_info.condition.empty()) cond.append(" and " + bp_info.condition);
-            breakpoints_.emplace_back(DebugBreakPoint{.id = bp.id, .expr = DebugExpression(cond)});
+            if (inserted_breakpoints_.find(bp.id) == inserted_breakpoints_.end()) {
+                breakpoints_.emplace_back(
+                    DebugBreakPoint{.id = bp.id, .expr = DebugExpression(cond)});
+                inserted_breakpoints_.emplace(bp.id);
+            } else {
+                // update breakpoint entry
+                for (auto &b : breakpoints_) {
+                    if (bp.id == b.id) {
+                        b.expr = DebugExpression(cond);
+                        continue;
+                    }
+                }
+            }
         }
         // need to sort them by the ordering
         // the easiest way is to sort them by their lookup table. assuming the number of breakpoints
@@ -208,6 +220,7 @@ void Debugger::handle_breakpoint(const BreakPointRequest &req) {
             for (auto pos = breakpoints_.begin(); pos != breakpoints_.end(); pos++) {
                 if (pos->id == bp.id) {
                     breakpoints_.erase(pos);
+                    inserted_breakpoints_.erase(bp.id);
                     break;
                 }
             }
