@@ -92,10 +92,59 @@ def test_bp_location_request(start_server, find_free_port):
         pass
 
 
+def test_breakpoint_request(start_server, find_free_port):
+    port = find_free_port()
+    s = start_server(port, "test_debug_server", ["+DEBUG_LOG"], use_plus_arg=True)
+    assert s.poll() is None
+    bp_payload1 = {"request": True, "type": "breakpoint", "token": "bp1",
+                   "payload": {"filename": "/tmp/test.py", "line_num": 1, "action": "add"}}
+    bp_payload2 = {"request": True, "type": "breakpoint", "token": "bp2",
+                   "payload": {"filename": "/tmp/test.py", "line_num": 42, "action": "add"}}
+    bp_payload3 = {"request": True, "type": "breakpoint", "token": "bp1",
+                   "payload": {"filename": "/tmp/test.py", "line_num": 1, "action": "remove"}}
+    info_payload = {"request": True, "type": "debugger-info", "payload": {"command": "breakpoints"}}
+    bp_payload1_str = json.dumps(bp_payload1)
+    bp_payload2_str = json.dumps(bp_payload2)
+    bp_payload3_str = json.dumps(bp_payload3)
+    info_payload_str = json.dumps(info_payload)
+
+    async def send_msg():
+        uri = "ws://localhost:{0}".format(port)
+        async with websockets.connect(uri) as ws:
+            await ws.send(bp_payload1_str)
+            resp = json.loads(await ws.recv())
+            assert resp["token"] == "bp1" and resp["status"] == "success"
+            # send the duplicated request again
+            await ws.send(bp_payload1_str)
+            await ws.recv()
+            # asking for status
+            await ws.send(info_payload_str)
+            payload = json.loads(await ws.recv())["payload"]
+            assert len(payload["breakpoints"]) == 1
+            assert payload["breakpoints"][0]["line_num"] == 1
+            # send a wrong one
+            await ws.send(bp_payload2_str)
+            resp = json.loads(await ws.recv())
+            assert resp["token"] == "bp2" and resp["status"] == "error"
+            # remove the breakpoint
+            await ws.send(bp_payload3_str)
+            resp = json.loads(await ws.recv())
+            assert resp["token"] == "bp1" and resp["status"] == "success"
+            # query the system about breakpoints. it should be empty now
+            await ws.send(info_payload_str)
+            payload = json.loads(await ws.recv())["payload"]
+            assert len(payload["breakpoints"]) == 0
+
+    asyncio.get_event_loop().run_until_complete(send_msg())
+    s.terminate()
+    while s.poll() is None:
+        pass
+
+
 if __name__ == "__main__":
     import os
     import sys
     sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
     from conftest import start_server_fn, find_free_port_fn
 
-    test_bp_location_request(start_server_fn, find_free_port_fn)
+    test_breakpoint_request(start_server_fn, find_free_port_fn)
