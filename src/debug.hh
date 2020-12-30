@@ -54,7 +54,13 @@ private:
     std::mutex breakpoint_lock_;
 
     // used for scheduler
-
+    enum class EvaluationMode {
+        BreakPointOnly,
+        StepOver
+    };
+    EvaluationMode evaluation_mode_ = EvaluationMode::BreakPointOnly;
+    std::unordered_set<uint32_t> evaluated_ids_;
+    std::optional<uint32_t> current_breakpoint_id_;
 
     // message handler
     void on_message(const std::string &message);
@@ -74,8 +80,15 @@ private:
     void handle_debug_info(const DebuggerInformationRequest &req);
     void handle_error(const ErrorRequest &req);
 
+    // send functions
+    void send_breakpoint_hit(uint32_t bp_id);
+
     // common checker
     bool check_send_db_error(RequestType type);
+
+    // scheduler
+    Debugger::DebugBreakPoint* next_breakpoint();
+    void start_breakpoint_evaluation();
 };
 
 }  // namespace hgdb

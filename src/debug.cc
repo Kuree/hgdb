@@ -1,6 +1,7 @@
 #include "debug.hh"
 
 #include <filesystem>
+#include <functional>
 
 #include "fmt/format.h"
 #include "log.hh"
@@ -64,13 +65,14 @@ void Debugger::eval() {
     // when we trigger the breakpoint, the runtime (simulation side) will be paused via a lock.
     // however, the server side can still takes breakpoint requests, hence modifying the
     // breakpoints_.
-    // one way to do is to change breakpoints_ into a priority queue
-    // and we just pop one at a time
-    for (auto &bp : breakpoints_) {
-        auto &bp_expr = bp.expr;
+    start_breakpoint_evaluation();  // clean the state
+    while (true) {
+        auto bp = next_breakpoint();
+        if (!bp) break;
+        auto &bp_expr = bp->expr;
         // get table values
         auto const &symbols = bp_expr.symbols();
-        auto const bp_id = bp.id;
+        auto const bp_id = bp->id;
         auto const instance_name_ = db_->get_instance_name(bp_id);
         if (!instance_name_) continue;
         auto const &instance_name = *instance_name_;
@@ -91,8 +93,9 @@ void Debugger::eval() {
             auto result = bp_expr.eval(values);
             if (result) {
                 // trigger a breakpoint!
-
+                send_breakpoint_hit(bp->id);
                 // then pause the execution
+                lock_.wait();
             }
         }
     }
@@ -362,6 +365,42 @@ void Debugger::handle_debug_info(const DebuggerInformationRequest &req) {
 
 void Debugger::handle_error(const ErrorRequest &req) {}
 
+void Debugger::send_breakpoint_hit(uint32_t bp_id) {
+    // we send it here to avoid a round trip of client asking for context and send send it
+    // back
+    // first need to query all the values
+    auto generator_values = db_->get_generator_variable(bp_id);
+    auto context_values = db_->get_context_variables(bp_id);
+    auto bp = db_->get_breakpoint(bp_id);
+    BreakPointResponse resp(rtl_->get_simulation_time(), bp->filename, bp->line_num,
+                            bp->column_num);
+    for (auto const &[gen_var, var] : generator_values) {
+        std::string value_str;
+        if (var.is_rtl) {
+            auto value = rtl_->get_value(var.value);
+            value_str = value ? std::to_string(*value) : "ERROR";
+        } else {
+            value_str = var.value;
+        }
+        auto var_name = gen_var.name;
+        resp.add_generator_value(var_name, value_str);
+    }
+
+    for (auto const &[gen_var, var] : context_values) {
+        std::string value_str;
+        if (var.is_rtl) {
+            auto value = rtl_->get_value(var.value);
+            value_str = value ? std::to_string(*value) : "ERROR";
+        } else {
+            value_str = var.value;
+        }
+        auto var_name = gen_var.name;
+        resp.add_local_value(var_name, value_str);
+    }
+    auto str = resp.str(log_enabled_);
+    send_message(str);
+}
+
 bool Debugger::check_send_db_error(RequestType type) {
     if (!db_) {
         // need to send error response
@@ -371,6 +410,61 @@ bool Debugger::check_send_db_error(RequestType type) {
         return false;
     }
     return true;
+}
+
+Debugger::DebugBreakPoint *Debugger::next_breakpoint() {
+    // depends on which execution order we have
+    if (evaluation_mode_ == EvaluationMode::BreakPointOnly) {
+        // we need to make the experience the same as debugging software
+        // as a result, when user add new breakpoints to the list that has high priority,
+        // we need to skip then and evaluate them at the next evaluation cycle
+        uint64_t index = 0;
+        std::lock_guard guard(breakpoint_lock_);
+        // find index
+        std::optional<uint64_t> pos;
+        for (uint64_t i = 0; i < breakpoints_.size(); i++) {
+            auto id = breakpoints_[i].id;
+            if (evaluated_ids_.find(id) != evaluated_ids_.end()) {
+                pos = i;
+            }
+        }
+        if (pos) {
+            // we have a last hit
+            if (*pos + 1 < breakpoints_.size()) {
+                index = *pos + 1;
+            } else {
+                // the end
+                return nullptr;
+            }
+        }
+        current_breakpoint_id_ = breakpoints_[index].id;
+        return &breakpoints_[*current_breakpoint_id_];
+
+    } else if (evaluation_mode_ == EvaluationMode::StepOver) {
+        if (current_breakpoint_id_) {
+            auto current_id = *current_breakpoint_id_;
+            // need to get the actual ordering table
+            auto const &orders = db_->execution_bp_orders();
+            auto pos = std::find(orders.begin(), orders.end(), current_id);
+            if (pos != orders.end()) {
+                auto index = std::distance(orders.begin(), pos);
+                if (index != (orders.size() - 1)) {
+                    current_breakpoint_id_ = breakpoints_[index + 1].id;
+                    return &breakpoints_[*current_breakpoint_id_];
+                }
+            }
+            return nullptr;
+        } else {
+            return nullptr;
+        }
+    } else {
+        return nullptr;
+    }
+}
+
+void Debugger::start_breakpoint_evaluation() {
+    evaluated_ids_.clear();
+    current_breakpoint_id_ = std::nullopt;
 }
 
 }  // namespace hgdb
