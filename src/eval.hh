@@ -25,6 +25,9 @@ public:
     int64_t eval(const std::unordered_map<std::string, int64_t> &values);
     [[nodiscard]] bool correct() const { return expr_ != nullptr; }
 
+    // no copy construction
+    DebugExpression(const DebugExpression &) = delete;
+
 private:
     std::string expression_;
     std::unordered_set<std::string> symbols_;

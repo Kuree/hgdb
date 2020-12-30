@@ -46,7 +46,7 @@ private:
     // breakpoint information
     struct DebugBreakPoint {
         uint32_t id;
-        DebugExpression expr;
+        std::unique_ptr<DebugExpression> expr;
     };
     std::vector<DebugBreakPoint> breakpoints_;
     std::unordered_set<uint32_t> inserted_breakpoints_;
@@ -73,6 +73,7 @@ private:
     bool get_logging();
     static void log_error(const std::string &msg) ;
     void log_info(const std::string &msg) const;
+    void initialize_rtl(const std::unordered_set<std::string> &instance_names);
 
     // request handler
     void handle_connection(const ConnectionRequest &req);

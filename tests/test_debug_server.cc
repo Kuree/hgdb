@@ -52,11 +52,13 @@ auto setup_db_vpi(MockVPIProvider &vpi) {
     std::vector<vpiHandle> instance_handles;
     for (uint32_t instance_id = 0; instance_id < 2; instance_id++) {
         auto const &[def_name, inst_name] = instance_names[instance_id];
-        store_instance(*db, instance_id, inst_name);
         auto handle = vpi.add_module(def_name, inst_name);
         instance_handles.emplace_back(handle);
         if (instance_id == 0) {
             vpi.set_top(handle);
+        } else {
+            // store the dut to db using its def name
+            store_instance(*db, instance_id, def_name);
         }
     }
     constexpr auto dut_id = 1;
@@ -64,7 +66,7 @@ auto setup_db_vpi(MockVPIProvider &vpi) {
     std::map<std::string, uint32_t> variable_ids;
     std::map<std::string, vpiHandle> variable_handles;
     uint32_t var_id = 0;
-    std::string dut_instance_name = instance_names.back().second;
+    std::string dut_instance_name = instance_names.back().first;
     auto dut_instance_handle = instance_handles.back();
     for (const auto &name : variables) {
         store_variable(*db, var_id, fmt::format("{0}.{1}", dut_instance_name, name));

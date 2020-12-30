@@ -71,7 +71,7 @@ void Debugger::eval() {
         if (!bp) break;
         auto &bp_expr = bp->expr;
         // get table values
-        auto const &symbols = bp_expr.symbols();
+        auto const &symbols = bp_expr->symbols();
         auto const bp_id = bp->id;
         auto const instance_name_ = db_->get_instance_name(bp_id);
         if (!instance_name_) continue;
@@ -82,15 +82,17 @@ void Debugger::eval() {
             // need to map these symbol names into the actual hierarchy
             // name
             auto name = fmt::format("{0}.{1}", instance_name, symbol_name);
-            auto v = rtl_->get_value(name);
+            // FIXME: add cache for full name lookup
+            auto full_name = rtl_->get_full_name(name);
+            auto v = rtl_->get_value(full_name);
             if (!v) break;
             values.emplace(symbol_name, *v);
         }
         if (values.size() != symbols.size()) {
             // something went wrong with the querying symbol
-            log_error(fmt::format("Unable to evaluate breakpoint %d", bp_id));
+            log_error(fmt::format("Unable to evaluate breakpoint {0}", bp_id));
         } else {
-            auto result = bp_expr.eval(values);
+            auto result = bp_expr->eval(values);
             if (result) {
                 // trigger a breakpoint!
                 send_breakpoint_hit(bp->id);
@@ -234,14 +236,14 @@ void Debugger::handle_breakpoint(const BreakPointRequest &req) {
                 if (!bp.condition.empty()) cond.append(" and " + bp.condition);
                 if (bp_info.condition.empty()) cond.append(" and " + bp_info.condition);
                 if (inserted_breakpoints_.find(bp.id) == inserted_breakpoints_.end()) {
-                    breakpoints_.emplace_back(
-                        DebugBreakPoint{.id = bp.id, .expr = DebugExpression(cond)});
+                    breakpoints_.emplace_back(DebugBreakPoint{
+                        .id = bp.id, .expr = std::make_unique<DebugExpression>(cond)});
                     inserted_breakpoints_.emplace(bp.id);
                 } else {
                     // update breakpoint entry
                     for (auto &b : breakpoints_) {
                         if (bp.id == b.id) {
-                            b.expr = DebugExpression(cond);
+                            b.expr = std::make_unique<DebugExpression>(cond);
                             continue;
                         }
                     }
@@ -378,7 +380,8 @@ void Debugger::send_breakpoint_hit(uint32_t bp_id) {
     for (auto const &[gen_var, var] : generator_values) {
         std::string value_str;
         if (var.is_rtl) {
-            auto value = rtl_->get_value(var.value);
+            auto full_name = rtl_->get_full_name(var.value);
+            auto value = rtl_->get_value(full_name);
             value_str = value ? std::to_string(*value) : error_value_str;
         } else {
             value_str = var.value;
@@ -390,7 +393,8 @@ void Debugger::send_breakpoint_hit(uint32_t bp_id) {
     for (auto const &[gen_var, var] : context_values) {
         std::string value_str;
         if (var.is_rtl) {
-            auto value = rtl_->get_value(var.value);
+            auto full_name = rtl_->get_full_name(var.value);
+            auto value = rtl_->get_value(full_name);
             value_str = value ? std::to_string(*value) : error_value_str;
         } else {
             value_str = var.value;
@@ -439,7 +443,7 @@ Debugger::DebugBreakPoint *Debugger::next_breakpoint() {
             }
         }
         current_breakpoint_id_ = breakpoints_[index].id;
-        return &breakpoints_[*current_breakpoint_id_];
+        return &breakpoints_[index];
 
     } else if (evaluation_mode_ == EvaluationMode::StepOver) {
         if (current_breakpoint_id_) {
@@ -451,7 +455,7 @@ Debugger::DebugBreakPoint *Debugger::next_breakpoint() {
                 auto index = static_cast<uint64_t>(std::distance(orders.begin(), pos));
                 if (index != (orders.size() - 1)) {
                     current_breakpoint_id_ = breakpoints_[index + 1].id;
-                    return &breakpoints_[*current_breakpoint_id_];
+                    return &breakpoints_[index + 1];
                 }
             }
             return nullptr;

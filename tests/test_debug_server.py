@@ -157,6 +157,7 @@ def test_breakpoint_hit_continue(start_server, find_free_port):
         uri = "ws://localhost:{0}".format(port)
         async with websockets.connect(uri) as ws:
             await ws.send(bp_payload_str)
+            await ws.recv()
             # continue
             await ws.send(continue_payload_str)
             bp_info1 = await ws.recv()
