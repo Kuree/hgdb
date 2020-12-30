@@ -36,6 +36,9 @@ void Debugger::initialize_db(const std::string &filename) {
 void Debugger::initialize_db(std::unique_ptr<DebugDatabaseClient> db) {
     if (!db) return;
     db_ = std::move(db);
+    // get all the instance names
+    auto instances = db_->get_instance_names();
+    rtl_->initialize_instance_mapping(instances);
     // compute the look up table
     auto const &bp_ordering = db_->execution_bp_orders();
     for (auto i = 0u; i < bp_ordering.size(); i++) {

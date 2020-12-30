@@ -29,6 +29,7 @@ public:
     using GeneratorVariableInfo = std::pair<GeneratorVariable, Variable>;
     [[nodiscard]] std::vector<GeneratorVariableInfo> get_generator_variable(
         uint32_t instance_id) const;
+    [[nodiscard]] std::vector<std::string> get_instance_names() const;
 
     ~DebugDatabaseClient();
 

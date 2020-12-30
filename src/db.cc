@@ -114,6 +114,17 @@ std::vector<DebugDatabaseClient::GeneratorVariableInfo> DebugDatabaseClient::get
     return result;
 }
 
+std::vector<std::string> DebugDatabaseClient::get_instance_names() const {
+    using namespace sqlite_orm;
+    auto instances = db_->get_all<Instance>();
+    std::vector<std::string> result;
+    result.reserve(instances.size());
+    for (auto const &inst: instances) {
+        result.emplace_back(inst.name);
+    }
+    return result;
+}
+
 DebugDatabaseClient::~DebugDatabaseClient() { close(); }
 
 void DebugDatabaseClient::setup_execution_order() {
