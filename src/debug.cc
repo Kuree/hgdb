@@ -448,7 +448,7 @@ Debugger::DebugBreakPoint *Debugger::next_breakpoint() {
             auto const &orders = db_->execution_bp_orders();
             auto pos = std::find(orders.begin(), orders.end(), current_id);
             if (pos != orders.end()) {
-                auto index = std::distance(orders.begin(), pos);
+                auto index = static_cast<uint64_t>(std::distance(orders.begin(), pos));
                 if (index != (orders.size() - 1)) {
                     current_breakpoint_id_ = breakpoints_[index + 1].id;
                     return &breakpoints_[*current_breakpoint_id_];

@@ -65,9 +65,9 @@ std::optional<BreakPoint> DebugDatabaseClient::get_breakpoint(uint32_t breakpoin
 
 std::optional<std::string> DebugDatabaseClient::get_instance_name(uint32_t breakpoint_id) {
     using namespace sqlite_orm;
-    auto value =
-        db_->select(columns(&Instance::name), where(c(&Instance::id) == &BreakPoint::instance_id) &&
-                                                  c(&BreakPoint::id) == breakpoint_id);
+    auto value = db_->select(
+        columns(&Instance::name),
+        where(c(&Instance::id) == &BreakPoint::instance_id && c(&BreakPoint::id) == breakpoint_id));
     if (value.empty())
         return std::nullopt;
     else
