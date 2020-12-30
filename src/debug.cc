@@ -374,11 +374,12 @@ void Debugger::send_breakpoint_hit(uint32_t bp_id) {
     auto bp = db_->get_breakpoint(bp_id);
     BreakPointResponse resp(rtl_->get_simulation_time(), bp->filename, bp->line_num,
                             bp->column_num);
+    using namespace std::string_literals;
     for (auto const &[gen_var, var] : generator_values) {
         std::string value_str;
         if (var.is_rtl) {
             auto value = rtl_->get_value(var.value);
-            value_str = value ? std::to_string(*value) : "ERROR";
+            value_str = value ? std::to_string(*value) : error_value_str;
         } else {
             value_str = var.value;
         }
@@ -390,7 +391,7 @@ void Debugger::send_breakpoint_hit(uint32_t bp_id) {
         std::string value_str;
         if (var.is_rtl) {
             auto value = rtl_->get_value(var.value);
-            value_str = value ? std::to_string(*value) : "ERROR";
+            value_str = value ? std::to_string(*value) : error_value_str;
         } else {
             value_str = var.value;
         }

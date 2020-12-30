@@ -20,8 +20,10 @@ public:
     void stop();
     void eval();
 
+    // default and hardcoded values
     static constexpr uint16_t default_port_num = 8888;
     static constexpr bool default_logging = false;
+    static constexpr auto error_value_str = "ERROR";
 
     // status to expose to outside world
     [[nodiscard]] const std::atomic<bool> & is_running() const { return is_running_; }
