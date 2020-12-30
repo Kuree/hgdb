@@ -79,7 +79,7 @@ auto setup_db_vpi(MockVPIProvider &vpi) {
     }
     // variable that doesn't exist in the symbol table
     auto temp_variables = {"c", "c_0", "c_1", "c_2", "c_3"};
-    for (auto const &name: temp_variables) {
+    for (auto const &name : temp_variables) {
         auto handle = vpi.add_signal(dut_instance_handle, name);
         variable_handles.emplace(name, handle);
         // this is still valid variable, just not showing up in the context/generator map
@@ -135,10 +135,12 @@ int main(int argc, char *argv[]) {
         args.emplace_back(argv[i]);
     }
     bool should_run = false;
+    bool no_eval = false;
     for (auto const &arg : args) {
         if (arg == "+DEBUG_LOG") {
             should_run = true;
-            break;
+        } else if (arg == "+NO_EVAL") {
+            no_eval = true;
         }
     }
     if (!should_run) {
@@ -161,7 +163,7 @@ int main(int argc, char *argv[]) {
     // evaluate the inserted breakpoint
     while (debug.is_running().load()) {
         // eval loop
-        debug.eval();
+        if (!no_eval) debug.eval();
     }
 
     std::cout << "INFO: STOP RUNNING" << std::endl;
