@@ -158,6 +158,8 @@ int main(int argc, char *argv[]) {
 
     // evaluate the inserted breakpoint
     while (debug.is_running().load()) {
+        // eval loop
+        debug.eval();
     }
 
     std::cout << "INFO: STOP RUNNING" << std::endl;
