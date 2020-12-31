@@ -46,6 +46,7 @@ private:
     // breakpoint information
     struct DebugBreakPoint {
         uint32_t id;
+        uint32_t instance_id;
         std::unique_ptr<DebugExpression> expr;
     };
     std::vector<DebugBreakPoint> breakpoints_;
@@ -84,7 +85,7 @@ private:
     void handle_error(const ErrorRequest &req);
 
     // send functions
-    void send_breakpoint_hit(uint32_t bp_id);
+    void send_breakpoint_hit(const DebugBreakPoint &bp);
 
     // common checker
     bool check_send_db_error(RequestType type);

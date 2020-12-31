@@ -9,13 +9,12 @@ namespace hgdb {
 
 class RuntimeLock {
 public:
-    RuntimeLock() : lock_(m_) {}
+    RuntimeLock() = default;
     void wait();
     void ready();
 
 private:
     std::mutex m_;
-    std::unique_lock<std::mutex> lock_;
     std::atomic<bool> ready_ = false;
     std::condition_variable cv_;
 };

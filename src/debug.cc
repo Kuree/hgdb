@@ -98,7 +98,7 @@ void Debugger::eval() {
             auto result = bp_expr->eval(values);
             if (result) {
                 // trigger a breakpoint!
-                send_breakpoint_hit(bp->id);
+                send_breakpoint_hit(*bp);
                 // then pause the execution
                 lock_.wait();
             }
@@ -237,10 +237,12 @@ void Debugger::handle_breakpoint(const BreakPointRequest &req) {
                 // add them to the eval vector
                 std::string cond = "1";
                 if (!bp.condition.empty()) cond.append(" and " + bp.condition);
-                if (bp_info.condition.empty()) cond.append(" and " + bp_info.condition);
+                if (!bp_info.condition.empty()) cond.append(" and " + bp_info.condition);
                 if (inserted_breakpoints_.find(bp.id) == inserted_breakpoints_.end()) {
-                    breakpoints_.emplace_back(DebugBreakPoint{
-                        .id = bp.id, .expr = std::make_unique<DebugExpression>(cond)});
+                    breakpoints_.emplace_back(
+                        DebugBreakPoint{.id = bp.id,
+                                        .instance_id = *bp.instance_id,
+                                        .expr = std::make_unique<DebugExpression>(cond)});
                     inserted_breakpoints_.emplace(bp.id);
                 } else {
                     // update breakpoint entry
@@ -370,15 +372,16 @@ void Debugger::handle_debug_info(const DebuggerInformationRequest &req) {
 
 void Debugger::handle_error(const ErrorRequest &req) {}
 
-void Debugger::send_breakpoint_hit(uint32_t bp_id) {
+void Debugger::send_breakpoint_hit(const DebugBreakPoint &bp) {
     // we send it here to avoid a round trip of client asking for context and send send it
     // back
     // first need to query all the values
-    auto generator_values = db_->get_generator_variable(bp_id);
+    auto bp_id = bp.id;
+    auto generator_values = db_->get_generator_variable(bp.instance_id);
     auto context_values = db_->get_context_variables(bp_id);
-    auto bp = db_->get_breakpoint(bp_id);
-    BreakPointResponse resp(rtl_->get_simulation_time(), bp->filename, bp->line_num,
-                            bp->column_num);
+    auto bp_ptr = db_->get_breakpoint(bp_id);
+    BreakPointResponse resp(rtl_->get_simulation_time(), bp_ptr->filename, bp_ptr->line_num,
+                            bp_ptr->column_num);
     using namespace std::string_literals;
     for (auto const &[gen_var, var] : generator_values) {
         std::string value_str;
@@ -446,6 +449,7 @@ Debugger::DebugBreakPoint *Debugger::next_breakpoint() {
             }
         }
         current_breakpoint_id_ = breakpoints_[index].id;
+        evaluated_ids_.emplace(*current_breakpoint_id_);
         return &breakpoints_[index];
 
     } else if (evaluation_mode_ == EvaluationMode::StepOver) {
@@ -458,6 +462,7 @@ Debugger::DebugBreakPoint *Debugger::next_breakpoint() {
                 auto index = static_cast<uint64_t>(std::distance(orders.begin(), pos));
                 if (index != (orders.size() - 1)) {
                     current_breakpoint_id_ = breakpoints_[index + 1].id;
+                    evaluated_ids_.emplace(*current_breakpoint_id_);
                     return &breakpoints_[index + 1];
                 }
             }
