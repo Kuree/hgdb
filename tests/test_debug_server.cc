@@ -66,12 +66,15 @@ auto setup_db_vpi(MockVPIProvider &vpi) {
     std::map<std::string, uint32_t> variable_ids;
     std::map<std::string, vpiHandle> variable_handles;
     uint32_t var_id = 0;
-    std::string dut_instance_name = instance_names.back().first;
+    auto dut_instance_name = instance_names.back().first;
+    auto dut_instance_full_name = instance_names.back().second;
     auto dut_instance_handle = instance_handles.back();
     for (const auto &name : variables) {
-        store_variable(*db, var_id, fmt::format("{0}.{1}", dut_instance_name, name));
+        auto var_name = fmt::format("{0}.{1}", dut_instance_name, name);
+        auto var_full_name = fmt::format("{0}.{1}", dut_instance_full_name, name);
+        store_variable(*db, var_id, var_name);
         variable_ids.emplace(name, var_id);
-        auto handle = vpi.add_signal(dut_instance_handle, name);
+        auto handle = vpi.add_signal(dut_instance_handle, var_full_name);
         variable_handles.emplace(name, handle);
         // generator variable
         store_generator_variable(*db, name, dut_id, var_id);
@@ -80,10 +83,12 @@ auto setup_db_vpi(MockVPIProvider &vpi) {
     // variable that doesn't exist in the symbol table
     auto temp_variables = {"c", "c_0", "c_1", "c_2", "c_3"};
     for (auto const &name : temp_variables) {
-        auto handle = vpi.add_signal(dut_instance_handle, name);
+        auto var_name = fmt::format("{0}.{1}", dut_instance_name, name);
+        auto var_full_name = fmt::format("{0}.{1}", dut_instance_full_name, name);
+        auto handle = vpi.add_signal(dut_instance_handle, var_full_name);
         variable_handles.emplace(name, handle);
         // this is still valid variable, just not showing up in the context/generator map
-        store_variable(*db, var_id, fmt::format("{0}.{1}", dut_instance_name, name));
+        store_variable(*db, var_id, var_name);
         variable_ids.emplace(name, var_id);
     }
 
