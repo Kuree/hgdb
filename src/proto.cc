@@ -54,7 +54,7 @@ namespace hgdb {
  * Command Request
  * type: command
  * payload:
- *     command: [enum] - string
+ *     command: [enum] - string [continue/stop/step_over]
  *
  * Debugger Information Request
  * type: debugger-info
@@ -506,8 +506,8 @@ void CommandRequest::parse_payload(const std::string &payload) {
     auto const &command = *command_str;
     if (command == "continue") [[likely]] {
         command_type_ = CommandType::continue_;
-    } else if (command == "step_through") {
-        command_type_ = CommandType::step_through;
+    } else if (command == "step_over") {
+        command_type_ = CommandType::step_over;
     } else if (command == "stop") {
         command_type_ = CommandType::stop;
     } else {

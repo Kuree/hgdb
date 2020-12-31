@@ -48,6 +48,7 @@ private:
         uint32_t id;
         uint32_t instance_id;
         std::unique_ptr<DebugExpression> expr;
+        std::unique_ptr<DebugExpression> enable_expr;
     };
     std::vector<DebugBreakPoint> breakpoints_;
     std::unordered_set<uint32_t> inserted_breakpoints_;

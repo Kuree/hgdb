@@ -146,7 +146,7 @@ private:
 
 class CommandRequest : public Request {
 public:
-    enum class CommandType { continue_, step_through, stop };
+    enum class CommandType { continue_, step_over, stop };
 
     CommandRequest() = default;
     void parse_payload(const std::string &payload) override;

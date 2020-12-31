@@ -72,7 +72,8 @@ void Debugger::eval() {
     while (true) {
         auto bp = next_breakpoint();
         if (!bp) break;
-        auto &bp_expr = bp->expr;
+        auto &bp_expr =
+            evaluation_mode_ == EvaluationMode::BreakPointOnly ? bp->expr : bp->enable_expr;
         // get table values
         auto const &symbols = bp_expr->symbols();
         auto const bp_id = bp->id;
@@ -242,7 +243,9 @@ void Debugger::handle_breakpoint(const BreakPointRequest &req) {
                     breakpoints_.emplace_back(
                         DebugBreakPoint{.id = bp.id,
                                         .instance_id = *bp.instance_id,
-                                        .expr = std::make_unique<DebugExpression>(cond)});
+                                        .expr = std::make_unique<DebugExpression>(cond),
+                                        .enable_expr = std::make_unique<DebugExpression>(
+                                            bp.condition.empty() ? "1" : bp.condition)});
                     inserted_breakpoints_.emplace(bp.id);
                 } else {
                     // update breakpoint entry
@@ -329,7 +332,10 @@ void Debugger::handle_command(const CommandRequest &req) {
             stop();
             break;
         }
-        case CommandRequest::CommandType::step_through: {
+        case CommandRequest::CommandType::step_over: {
+            // change the mode into step through
+            evaluation_mode_ = EvaluationMode::StepOver;
+            lock_.ready();
             break;
         }
     }
