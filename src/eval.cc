@@ -22,7 +22,8 @@ std::unordered_set<std::string> ExpressionHelper::get_expr_symbols(const std::st
     generator.process(expression);
     // copied from exprtk implementation
     const static std::unordered_set<std::string> predefined_symbols = {
-        "and", "nand", "or", "nor", "xor", "xnor", "in", "like", "ilike", "&", "|", "not"};
+        "and",  "nand",  "or", "nor", "xor", "xnor", "in",
+        "like", "ilike", "&",  "|",   "not", "~",    "!"};
 
     auto size = generator.size();
     for (auto i = 0u; i < size; i++) {

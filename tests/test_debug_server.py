@@ -144,27 +144,36 @@ def test_breakpoint_request(start_server, find_free_port):
     kill_server(s)
 
 
-@pytest.mark.skip(reason="Not working yet")
 def test_breakpoint_hit_continue(start_server, find_free_port):
     port = find_free_port()
     s = start_server(port, "test_debug_server", ["+DEBUG_LOG"], use_plus_arg=True)
     assert s.poll() is None
-    bp_payload = {"request": True, "type": "breakpoint", "token": "bp1",
-                  "payload": {"filename": "/tmp/test.py", "line_num": 1, "action": "add"}}
-    continue_payload = {"request": True, "type": "command", "payload": {"command": "continue"}}
-    bp_payload_str = json.dumps(bp_payload)
-    continue_payload_str = json.dumps(continue_payload)
+    bp_payload1 = {"request": True, "type": "breakpoint", "token": "bp1",
+                   "payload": {"filename": "/tmp/test.py", "line_num": 1, "action": "add"}}
+
+    bp_payload2 = {"request": True, "type": "breakpoint", "token": "bp2",
+                   "payload": {"filename": "/tmp/test.py", "line_num": 4, "action": "add"}}
+    continue_payload1 = {"request": True, "type": "command", "payload": {"command": "continue"}}
+    bp_payload_str1 = json.dumps(bp_payload1)
+    bp_payload_str2 = json.dumps(bp_payload2)
+    continue_payload_str = json.dumps(continue_payload1)
 
     async def send_msg():
         uri = "ws://localhost:{0}".format(port)
         async with websockets.connect(uri) as ws:
-            await ws.send(bp_payload_str)
+            await ws.send(bp_payload_str1)
             await ws.recv()
+            await ws.send(bp_payload_str2)
+            status = json.loads(await ws.recv())
+            # inserted but shall not trigger
+            assert status["status"] == "success"
             # continue
             await ws.send(continue_payload_str)
-            bp_info1 = await ws.recv()
+            bp_info1 = json.loads(await ws.recv())
+            assert bp_info1["payload"]["line_num"] == 1
             await ws.send(continue_payload_str)
-            bp_info2 = await ws.recv()
+            bp_info2 = json.loads(await ws.recv())
+            assert bp_info2["payload"]["line_num"] == 1
 
     asyncio.get_event_loop().run_until_complete(send_msg())
     kill_server(s)
