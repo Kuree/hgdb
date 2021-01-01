@@ -27,6 +27,8 @@ public:
 
     // status to expose to outside world
     [[nodiscard]] const std::atomic<bool> & is_running() const { return is_running_; }
+    // outside world can directly control the RTL client if necessary
+    [[nodiscard]] RTLSimulatorClient* rtl_client() const { return rtl_.get(); }
 
     ~Debugger();
 
