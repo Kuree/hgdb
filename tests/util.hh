@@ -159,9 +159,7 @@ public:
         return reinterpret_cast<uint32_t *>(p);
     }
 
-    uint64_t get_handle_count() {
-        return reinterpret_cast<uint64_t>(vpi_handle_counter_);
-    }
+    uint64_t get_handle_count() { return reinterpret_cast<uint64_t>(vpi_handle_counter_); }
 
     vpiHandle add_module(const std::string &def_name, const std::string &hierarchy_name) {
         auto handle = get_new_handle();
@@ -201,6 +199,17 @@ public:
                 func(&cb_data);
             }
         }
+    }
+
+    std::vector<s_cb_data> get_cb_funcs(uint32_t reason) const {
+        std::vector<s_cb_data> result;
+        for (auto const &iter : callbacks_) {
+            auto cb_data = iter.second;
+            if (cb_data.reason == reason) {
+                result.emplace_back(cb_data);
+            }
+        }
+        return result;
     }
 
     void set_time(uint64_t time) { time_ = time; }

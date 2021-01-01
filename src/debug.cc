@@ -58,6 +58,8 @@ void Debugger::run() {
 }
 
 void Debugger::stop() {
+    // if wait, continue it
+    lock_.ready();
     server_->stop();
     is_running_ = false;
 }
