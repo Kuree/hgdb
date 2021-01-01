@@ -14,7 +14,18 @@ target_include_directories(hgdb PUBLIC
         ../extern/vlstd
         ../extern/exprtk)
 
-target_link_libraries(hgdb fmt sqlite3 Threads::Threads)
+# check if the compiler support static lib gcc
+# we need this because most
+CHECK_CXX_COMPILER_FLAG(-static-libgcc COMPILER_STATIC_LIBGCC)
+if (${COMPILER_STATIC_LIBGCC})
+    set(STATIC_GCC_FLAG "-static-libgcc")
+endif ()
+CHECK_CXX_COMPILER_FLAG(-static-libstdc++ COMPILER_STATIC_LIBCXX)
+if (${COMPILER_STATIC_LIBCXX})
+    set(STATIC_CXX_FLAG "-static-libstdc++")
+endif ()
+
+target_link_libraries(hgdb fmt sqlite3 Threads::Threads ${STATIC_GCC_FLAG} ${STATIC_CXX_FLAG})
 
 # check if the compiler support attributes like [[likely]]
 set(CMAKE_REQUIRED_FLAGS "-Wall -Werror")
@@ -24,8 +35,8 @@ check_cxx_source_compiles(
 )
 unset(CMAKE_REQUIRED_FLAGS)
 if (NOT SUPPORT_LIKELY)
-    set(EXTRA_WNO_FLAGS "-Wno-attributes")
-endif()
+    set(EXTRA_FLAGS "-Wno-attributes")
+endif ()
 
 # turn on as many warning flags as possible
-target_compile_options(hgdb PRIVATE -Wall -Werror -Wpedantic ${EXTRA_WNO_FLAGS})
+target_compile_options(hgdb PRIVATE -Wall -Werror -Wpedantic ${EXTRA_FLAGS})
