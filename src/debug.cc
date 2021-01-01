@@ -459,23 +459,34 @@ Debugger::DebugBreakPoint *Debugger::next_breakpoint() {
         return &breakpoints_[index];
 
     } else if (evaluation_mode_ == EvaluationMode::StepOver) {
-        if (current_breakpoint_id_) {
+        // need to get the actual ordering table
+        auto const &orders = db_->execution_bp_orders();
+        std::optional<uint32_t> next_breakpoint_id;
+        if (!current_breakpoint_id_) [[unlikely]] {
+            // need to grab the first one, doesn't matter which one
+            if (!orders.empty()) next_breakpoint_id = orders[0];
+        } else {
             auto current_id = *current_breakpoint_id_;
-            // need to get the actual ordering table
-            auto const &orders = db_->execution_bp_orders();
             auto pos = std::find(orders.begin(), orders.end(), current_id);
             if (pos != orders.end()) {
                 auto index = static_cast<uint64_t>(std::distance(orders.begin(), pos));
                 if (index != (orders.size() - 1)) {
-                    current_breakpoint_id_ = breakpoints_[index + 1].id;
-                    evaluated_ids_.emplace(*current_breakpoint_id_);
-                    return &breakpoints_[index + 1];
+                    next_breakpoint_id = orders[index + 1];
                 }
             }
-            return nullptr;
-        } else {
-            return nullptr;
         }
+        if (!next_breakpoint_id) return nullptr;
+        current_breakpoint_id_ = next_breakpoint_id;
+        evaluated_ids_.emplace(*current_breakpoint_id_);
+        // need to get a new breakpoint
+        auto bp_info = db_->get_breakpoint(*current_breakpoint_id_);
+        if (!bp_info) return nullptr;
+        std::string cond = bp_info->condition.empty() ? "1" : bp_info->condition;
+        step_over_breakpoint_.id = *current_breakpoint_id_;
+        step_over_breakpoint_.instance_id = *bp_info->instance_id;
+        step_over_breakpoint_.enable_expr = std::make_unique<DebugExpression>(cond);
+        return &step_over_breakpoint_;
+
     } else {
         return nullptr;
     }

@@ -179,6 +179,33 @@ def test_breakpoint_hit_continue(start_server, find_free_port):
     kill_server(s)
 
 
+def test_breakpoint_step_over(start_server, find_free_port):
+    port = find_free_port()
+    s = start_server(port, "test_debug_server", ["+DEBUG_LOG"], use_plus_arg=True)
+    assert s.poll() is None
+    step_over_payload = {"request": True, "type": "command", "payload": {"command": "step_over"}}
+    step_over_payload_str = json.dumps(step_over_payload)
+
+    async def send_msg():
+        uri = "ws://localhost:{0}".format(port)
+        async with websockets.connect(uri) as ws:
+            await ws.send(step_over_payload_str)
+            bp1 = json.loads(await ws.recv())
+            await ws.send(step_over_payload_str)
+            bp2 = json.loads(await ws.recv())
+            await ws.send(step_over_payload_str)
+            bp3 = json.loads(await ws.recv())
+            await ws.send(step_over_payload_str)
+            bp4 = json.loads(await ws.recv())
+            # the sequence should be 1, 2, 5, 1, ...
+            assert bp1["payload"]["line_num"] == 1 and bp4["payload"]["line_num"] == 1
+            assert bp2["payload"]["line_num"] == 2
+            assert bp3["payload"]["line_num"] == 5
+
+    asyncio.get_event_loop().run_until_complete(send_msg())
+    kill_server(s)
+
+
 if __name__ == "__main__":
     import os
     import sys
@@ -186,4 +213,4 @@ if __name__ == "__main__":
     sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
     from conftest import start_server_fn, find_free_port_fn
 
-    test_breakpoint_hit_continue(start_server_fn, find_free_port_fn)
+    test_breakpoint_step_over(start_server_fn, find_free_port_fn)
