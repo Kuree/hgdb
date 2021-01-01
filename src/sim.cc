@@ -25,9 +25,24 @@ PLI_INT32 eval_hgdb(p_cb_data cb_data) {
     return 0;
 }
 
-void initialize_hgdb_runtime() {
+void initialize_hgdb_runtime() { hgdb::initialize_hgdb_runtime_vpi(nullptr); }
+
+// register the VPI call
+extern "C" {
+// these are system level calls. register it to the simulator
+[[maybe_unused]] void (*vlog_startup_routines[])() = {initialize_hgdb_runtime, nullptr};
+}
+
+namespace hgdb {
+void initialize_hgdb_runtime_vpi(std::unique_ptr<AVPIProvider> vpi) {
     // use raw pointer here since we're dealing with ancient C stuff
-    auto *debugger = new hgdb::Debugger();
+    Debugger *debugger;
+    if (vpi) {
+        debugger = new Debugger(std::move(vpi));
+    } else {
+        debugger = new Debugger();
+    }
+
     auto *rtl = debugger->rtl_client();
     vpiHandle res;
 
@@ -46,9 +61,4 @@ void initialize_hgdb_runtime() {
                              reinterpret_cast<char *>(debugger));
     if (!res) std::cerr << "ERROR: failed to register runtime initialization" << std::endl;
 }
-
-// register the VPI call
-extern "C" {
-// these are system level calls. register it to the simulator
-[[maybe_unused]] void (*vlog_startup_routines[])() = {initialize_hgdb_runtime, nullptr};
-}
+}  // namespace hgdb
