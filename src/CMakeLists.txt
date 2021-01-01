@@ -1,4 +1,4 @@
-add_library(hgdb db.cc debug.cc server.cc util.cc rtl.cc eval.cc
+add_library(hgdb SHARED db.cc debug.cc server.cc util.cc rtl.cc eval.cc
         proto.cc log.cc thread.cc sim.cc)
 
 target_compile_definitions(hgdb PUBLIC ASIO_STANDALONE)

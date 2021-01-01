@@ -3,6 +3,10 @@ project(hgdb)
 
 set(CMAKE_CXX_STANDARD 20)
 
+# global options
+# set -fPIC everywhere
+set(CMAKE_POSITION_INDEPENDENT_CODE ON)
+
 # extern dependencies
 add_subdirectory(extern/fmt)
 add_subdirectory(extern/sqlite)
