@@ -11,4 +11,3 @@ RUN apt-get update && \
         build-essential cmake clang-tidy clang-format  && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
-

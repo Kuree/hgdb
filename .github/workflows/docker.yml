@@ -6,6 +6,7 @@ on:
       - master
     paths:
       - docker/test/Dockerfile
+      - docker/lint/Dockerfile
 
 jobs:
   build:
@@ -17,10 +18,12 @@ jobs:
     - name: Build docker test image 📦
       shell: bash
       run: |
-        cd docker/test
-        docker build . -t keyiz/hgdb:test
+        cd docker
+        cd test && docker build . -t keyiz/hgdb:test && cd ../
+        cd lint && docker build . -t keyiz/hgdb:lint && cd ../
         docker login -u $DOCKER_USERNAME -p $DOCKER_PASSWORD
         docker push keyiz/hgdb:test
+        docker push keyiz/hgdb:lint
       env:
         DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
         DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
