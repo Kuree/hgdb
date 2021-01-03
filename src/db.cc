@@ -119,7 +119,7 @@ std::vector<std::string> DebugDatabaseClient::get_instance_names() const {
     auto instances = db_->get_all<Instance>();
     std::vector<std::string> result;
     result.reserve(instances.size());
-    for (auto const &inst: instances) {
+    for (auto const &inst : instances) {
         result.emplace_back(inst.name);
     }
     return result;

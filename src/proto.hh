@@ -73,7 +73,6 @@ private:
     std::map<std::string, std::string> generator_values_;
 };
 
-
 class Request {
 public:
     [[nodiscard]] status_code status() const { return status_code_; }

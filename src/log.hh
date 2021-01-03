@@ -4,13 +4,10 @@
 #include <string>
 
 namespace hgdb::log {
-enum class log_level {
-    info,
-    error
-};
+enum class log_level { info, error };
 
 void log(log_level level, const std::string &msg);
 
-}
+}  // namespace hgdb::log
 
 #endif  // HGDB_LOG_HH

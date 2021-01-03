@@ -1,9 +1,9 @@
 #ifndef HGDB_THREAD_HH
 #define HGDB_THREAD_HH
 
+#include <atomic>
 #include <condition_variable>
 #include <mutex>
-#include <atomic>
 
 namespace hgdb {
 

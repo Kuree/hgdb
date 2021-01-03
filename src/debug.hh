@@ -1,10 +1,10 @@
 #ifndef HGDB_DEBUG_HH
 #define HGDB_DEBUG_HH
 #include "db.hh"
+#include "eval.hh"
 #include "proto.hh"
 #include "rtl.hh"
 #include "server.hh"
-#include "eval.hh"
 #include "thread.hh"
 
 namespace hgdb {
@@ -26,9 +26,9 @@ public:
     static constexpr auto error_value_str = "ERROR";
 
     // status to expose to outside world
-    [[nodiscard]] const std::atomic<bool> & is_running() const { return is_running_; }
+    [[nodiscard]] const std::atomic<bool> &is_running() const { return is_running_; }
     // outside world can directly control the RTL client if necessary
-    [[nodiscard]] RTLSimulatorClient* rtl_client() const { return rtl_.get(); }
+    [[nodiscard]] RTLSimulatorClient *rtl_client() const { return rtl_.get(); }
 
     ~Debugger();
 
@@ -62,10 +62,7 @@ private:
     DebugBreakPoint step_over_breakpoint_;
 
     // used for scheduler
-    enum class EvaluationMode {
-        BreakPointOnly,
-        StepOver
-    };
+    enum class EvaluationMode { BreakPointOnly, StepOver };
     EvaluationMode evaluation_mode_ = EvaluationMode::BreakPointOnly;
     std::unordered_set<uint32_t> evaluated_ids_;
     std::optional<uint32_t> current_breakpoint_id_;
@@ -77,7 +74,7 @@ private:
     // helper functions
     uint16_t get_port();
     bool get_logging();
-    static void log_error(const std::string &msg) ;
+    static void log_error(const std::string &msg);
     void log_info(const std::string &msg) const;
 
     // request handler
@@ -95,7 +92,7 @@ private:
     bool check_send_db_error(RequestType type);
 
     // scheduler
-    Debugger::DebugBreakPoint* next_breakpoint();
+    Debugger::DebugBreakPoint *next_breakpoint();
     void start_breakpoint_evaluation();
 };
 
