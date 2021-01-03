@@ -35,7 +35,11 @@ check_cxx_source_compiles(
 )
 unset(CMAKE_REQUIRED_FLAGS)
 if (NOT SUPPORT_LIKELY)
-    set(EXTRA_FLAGS "-Wno-attributes")
+    if (CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+        set(EXTRA_FLAGS -Wno-unknown-attributes"")
+    else ()
+        set(EXTRA_FLAGS "-Wno-attributes")
+    endif ()
 endif ()
 
 # turn on as many warning flags as possible
@@ -45,4 +49,4 @@ target_compile_options(hgdb PRIVATE -Wall -Werror -Wpedantic ${EXTRA_FLAGS})
 if (${USE_CLANG_TIDY})
     MESSAGE("-- Running clang-tidy")
     set_target_properties(hgdb PROPERTIES CXX_CLANG_TIDY "clang-tidy")
-endif()
+endif ()
