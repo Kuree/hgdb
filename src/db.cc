@@ -18,7 +18,7 @@ DebugDatabaseClient::DebugDatabaseClient(std::unique_ptr<DebugDatabase> db) {
 }
 
 void DebugDatabaseClient::close() {
-    if (!is_closed_) [[likely]] {
+    if (!is_closed_) [[likely]] {  // NOLINT
         db_.reset();
         is_closed_ = true;
     }
@@ -48,7 +48,7 @@ std::vector<BreakPoint> DebugDatabaseClient::get_breakpoints(const std::string &
 }
 
 std::optional<BreakPoint> DebugDatabaseClient::get_breakpoint(uint32_t breakpoint_id) {
-    auto ptr = db_->get_pointer<BreakPoint>(breakpoint_id);
+    auto ptr = db_->get_pointer<BreakPoint>(breakpoint_id);  // NOLINT
     if (ptr) {
         // notice that BreakPoint has a unique_ptr, so we can't just copy them over
         return BreakPoint{.id = ptr->id,
@@ -98,6 +98,7 @@ std::vector<DebugDatabaseClient::GeneratorVariableInfo> DebugDatabaseClient::get
     uint32_t instance_id) const {
     using namespace sqlite_orm;
     std::vector<DebugDatabaseClient::GeneratorVariableInfo> result;
+    // NOLINTNEXTLINE
     auto values = db_->select(columns(&GeneratorVariable::variable_id, &GeneratorVariable::name,
                                       &Variable::value, &Variable::is_rtl),
                               where(c(&GeneratorVariable::instance_id) == instance_id &&
@@ -116,7 +117,7 @@ std::vector<DebugDatabaseClient::GeneratorVariableInfo> DebugDatabaseClient::get
 
 std::vector<std::string> DebugDatabaseClient::get_instance_names() const {
     using namespace sqlite_orm;
-    auto instances = db_->get_all<Instance>();
+    auto instances = db_->get_all<Instance>();  // NOLINT
     std::vector<std::string> result;
     result.reserve(instances.size());
     for (auto const &inst : instances) {

@@ -3,7 +3,7 @@
 namespace hgdb::util {
 std::vector<std::string> get_tokens(const std::string &line, const std::string &delimiter) {
     std::vector<std::string> tokens;
-    size_t prev = 0, pos = 0;
+    size_t prev = 0, pos;
     std::string token;
     // copied from https://stackoverflow.com/a/7621814
     while ((pos = line.find_first_of(delimiter, prev)) != std::string::npos) {

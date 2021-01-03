@@ -44,8 +44,7 @@ private:
 
 class BreakPointLocationResponse : public Response {
 public:
-    explicit BreakPointLocationResponse(std::vector<BreakPoint *> bps)
-        : Response(), bps_(std::move(bps)) {}
+    explicit BreakPointLocationResponse(std::vector<BreakPoint *> bps) : bps_(std::move(bps)) {}
     [[nodiscard]] std::string str(bool pretty_print) const override;
     [[nodiscard]] std::string type() const override { return "bp-location"; }
 

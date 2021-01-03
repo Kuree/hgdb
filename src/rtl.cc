@@ -3,7 +3,6 @@
 #include <fmt/format.h>
 
 #include <cstdarg>
-#include <iostream>
 #include <queue>
 #include <unordered_set>
 
@@ -102,8 +101,8 @@ vpiHandle RTLSimulatorClient::get_handle(const std::string &name) {
         return handle_map_.at(full_name);
     } else {
         // need to query via VPI
-        auto handle = const_cast<char *>(full_name.c_str());
-        auto ptr = vpi_->vpi_handle_by_name(handle, nullptr);
+        auto *handle = const_cast<char *>(full_name.c_str());
+        auto *ptr = vpi_->vpi_handle_by_name(handle, nullptr);
         if (ptr) {
             // if we actually found the handle, need to store it
             handle_map_.emplace(full_name, ptr);
@@ -124,7 +123,7 @@ std::optional<int64_t> RTLSimulatorClient::get_value(vpiHandle handle) {
 }
 
 std::optional<int64_t> RTLSimulatorClient::get_value(const std::string &name) {
-    auto handle = get_handle(name);
+    auto *handle = get_handle(name);
     return get_value(handle);
 }
 
@@ -133,7 +132,7 @@ std::unordered_map<std::string, vpiHandle> RTLSimulatorClient::get_module_signal
     if (module_signals_cache_.find(name) != module_signals_cache_.end()) {
         return module_signals_cache_.at(name);
     }
-    auto module_handle = get_handle(name);
+    auto *module_handle = get_handle(name);
     if (!module_handle) return {};
     // need to make sure it is module type
     auto module_handle_type = vpi_->vpi_get(vpiType, module_handle);
@@ -141,7 +140,7 @@ std::unordered_map<std::string, vpiHandle> RTLSimulatorClient::get_module_signal
 
     std::unordered_map<std::string, vpiHandle> result;
     // get all net from that particular module
-    auto net_iter = vpi_->vpi_iterate(vpi_net_target_, module_handle);
+    auto *net_iter = vpi_->vpi_iterate(vpi_net_target_, module_handle);
     if (!net_iter) return {};
     vpiHandle net_handle;
     while ((net_handle = vpi_->vpi_scan(net_iter)) != nullptr) {
@@ -204,7 +203,7 @@ vpiHandle RTLSimulatorClient::add_call_back(const std::string &cb_name, int cb_t
                       .time = &time,
                       .value = &value,
                       .user_data = reinterpret_cast<char *>(user_data)};
-    auto handle = vpi_->vpi_register_cb(&cb_data);
+    auto *handle = vpi_->vpi_register_cb(&cb_data);
     if (!handle) {
         cb_handles_.emplace(cb_name, handle);
     }
@@ -214,7 +213,7 @@ vpiHandle RTLSimulatorClient::add_call_back(const std::string &cb_name, int cb_t
 
 void RTLSimulatorClient::remove_call_back(const std::string &cb_name) {
     if (cb_handles_.find(cb_name) != cb_handles_.end()) {
-        auto handle = cb_handles_.at(cb_name);
+        auto *handle = cb_handles_.at(cb_name);
         remove_call_back(handle);
     }
 }
@@ -256,9 +255,9 @@ void RTLSimulatorClient::compute_hierarchy_name_prefix(std::unordered_set<std::s
     handle_queues.emplace(nullptr);
     while ((!handle_queues.empty()) && !top_names.empty()) {
         // scan through the design hierarchy
-        auto mod_handle = handle_queues.front();
+        auto *mod_handle = handle_queues.front();
         handle_queues.pop();
-        auto handle_iter = vpi_->vpi_iterate(vpiModule, mod_handle);
+        auto *handle_iter = vpi_->vpi_iterate(vpiModule, mod_handle);
         if (!handle_iter) continue;
         vpiHandle child_handle;
         while ((child_handle = vpi_->vpi_scan(handle_iter)) != nullptr) {

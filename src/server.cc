@@ -48,7 +48,7 @@ void DebugServer::stop() {
 }
 
 void DebugServer::send(const std::string &payload) {
-    for (auto &conn : connections_) {
+    for (const auto &conn : connections_) {
         conn->send(payload);
     }
 }

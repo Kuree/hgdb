@@ -3,14 +3,14 @@
 #include "debug.hh"
 
 PLI_INT32 initialize_hgdb_debugger(p_cb_data cb_data) {
-    auto raw_debugger = cb_data->user_data;
+    auto *raw_debugger = cb_data->user_data;
     auto *debugger = reinterpret_cast<hgdb::Debugger *>(raw_debugger);
     debugger->run();
     return 0;
 }
 
 PLI_INT32 teardown_hgdb_debugger(p_cb_data cb_data) {
-    auto raw_debugger = cb_data->user_data;
+    auto *raw_debugger = cb_data->user_data;
     auto *debugger = reinterpret_cast<hgdb::Debugger *>(raw_debugger);
     debugger->stop();
     // free up the object to avoid memory leak
@@ -19,7 +19,7 @@ PLI_INT32 teardown_hgdb_debugger(p_cb_data cb_data) {
 }
 
 PLI_INT32 eval_hgdb(p_cb_data cb_data) {
-    auto raw_debugger = cb_data->user_data;
+    auto *raw_debugger = cb_data->user_data;
     auto *debugger = reinterpret_cast<hgdb::Debugger *>(raw_debugger);
     debugger->eval();
     return 0;

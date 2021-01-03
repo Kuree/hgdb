@@ -72,7 +72,7 @@ void Debugger::eval() {
     // breakpoints_.
     start_breakpoint_evaluation();  // clean the state
     while (true) {
-        auto bp = next_breakpoint();
+        auto *bp = next_breakpoint();
         if (!bp) break;
         auto &bp_expr =
             evaluation_mode_ == EvaluationMode::BreakPointOnly ? bp->expr : bp->enable_expr;
@@ -464,7 +464,7 @@ Debugger::DebugBreakPoint *Debugger::next_breakpoint() {
         // need to get the actual ordering table
         auto const &orders = db_->execution_bp_orders();
         std::optional<uint32_t> next_breakpoint_id;
-        if (!current_breakpoint_id_) [[unlikely]] {
+        if (!current_breakpoint_id_) [[unlikely]] {  // NOLINT
             // need to grab the first one, doesn't matter which one
             if (!orders.empty()) next_breakpoint_id = orders[0];
         } else {
