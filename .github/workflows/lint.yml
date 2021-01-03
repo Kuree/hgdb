@@ -19,3 +19,6 @@ jobs:
     - name: Run clang-format 📋
       shell: bash
       run: bash scripts/format.sh
+    - name: Run clang-tidy 🧹
+      shell: bash
+      run: bash scripts/tidy.sh
