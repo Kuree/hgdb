@@ -11,7 +11,8 @@ def start_server_fn(port_num, program_name, args=None, use_plus_arg=False):
     # find build folder
     dirs = [d for d in os.listdir(root) if os.path.isdir(d) and "build" in d]
     assert len(dirs) > 0, "Unable to detect build folder"
-    # use the first one
+    # use the shortest one
+    dirs.sort(key=lambda x: len(x))
     build_dir = dirs[0]
     server_path = os.path.join(build_dir, "tests", program_name)
     if args is None:
