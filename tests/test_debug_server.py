@@ -5,7 +5,7 @@
 import asyncio
 import json
 import time
-import pytest
+import hgdb
 
 import websockets
 
@@ -20,22 +20,14 @@ def test_continue_stop(start_server, find_free_port):
     port = find_free_port()
     s = start_server(port, "test_debug_server", ["+DEBUG_LOG", "+NO_EVAL"], use_plus_arg=True)
     assert s.poll() is None
+    uri = "ws://localhost:{0}".format(port)
 
-    continue_payload = {"request": True, "type": "command", "payload": {"command": "continue"}}
-    stop_payload = {"request": True, "type": "command", "payload": {"command": "stop"}}
-    continue_str = json.dumps(continue_payload)
-    stop_payload = json.dumps(stop_payload)
-
-    async def send_msg():
-        uri = "ws://localhost:{0}".format(port)
-        async with websockets.connect(uri) as ws:
-            await ws.send(continue_str)
-            # wait a little bit
-            time.sleep(0.1)
-            # send stop
-            await ws.send(stop_payload)
-
-    asyncio.get_event_loop().run_until_complete(send_msg())
+    async def test_logic():
+        client = hgdb.HGDBClient(uri, None)
+        await client.connect()
+        await client.continue_()
+        await client.stop()
+    asyncio.get_event_loop().run_until_complete(test_logic())
     # check if process exit
     t = time.time()
     killed = False
@@ -53,47 +45,35 @@ def test_bp_location_request(start_server, find_free_port):
     port = find_free_port()
     s = start_server(port, "test_debug_server", ["+DEBUG_LOG"], use_plus_arg=True)
     assert s.poll() is None
+    uri = "ws://localhost:{0}".format(port)
 
-    # search for the whole file
-    bp_location_payload1 = {"request": True, "type": "bp-location", "payload": {"filename": "/tmp/test.py"}}
-    # only search for particular line
-    bp_location_payload2 = {"request": True, "type": "bp-location",
-                            "payload": {"filename": "/tmp/test.py", "line_num": 1}}
-    bp_location_payload3 = {"request": True, "type": "bp-location",
-                            "payload": {"filename": "/tmp/test.py", "line_num": 42}}
-    bp_location_str1 = json.dumps(bp_location_payload1)
-    bp_location_str2 = json.dumps(bp_location_payload2)
-    bp_location_str3 = json.dumps(bp_location_payload3)
+    async def test_logic():
+        client = hgdb.HGDBClient(uri, None)
+        await client.connect()
+        # search for the whole file
+        resp = await client.request_breakpoint_location("/tmp/test.py")
+        assert not resp["request"]
+        assert resp["type"] == "bp-location"
+        bps = resp["payload"]
+        assert len(bps) == 4
+        lines = set()
+        for bp in bps:
+            lines.add(bp["line_num"])
+        assert len(lines) == 4
+        assert 5 in lines
 
-    async def send_msg():
-        uri = "ws://localhost:{0}".format(port)
-        async with websockets.connect(uri) as ws:
-            await ws.send(bp_location_str1)
-            resp = json.loads(await ws.recv())
-            assert not resp["request"]
-            assert resp["type"] == "bp-location"
-            bps = resp["payload"]
-            assert len(bps) == 4
-            lines = set()
-            for bp in bps:
-                lines.add(bp["line_num"])
-            assert len(lines) == 4
-            assert 5 in lines
+        # single line
+        resp = await client.request_breakpoint_location("/tmp/test.py", 1)
+        assert not resp["request"]
+        bps = resp["payload"]
+        assert len(bps) == 1
 
-            # single line
-            await ws.send(bp_location_str2)
-            resp = json.loads(await ws.recv())
-            assert not resp["request"]
-            bps = resp["payload"]
-            assert len(bps) == 1
+        # no bps
+        resp = await client.request_breakpoint_location("/tmp/test.py", 42)
+        assert not resp["request"]
+        assert len(resp["payload"]) == 0
 
-            # no bps
-            await ws.send(bp_location_str3)
-            resp = json.loads(await ws.recv())
-            assert not resp["request"]
-            assert len(resp["payload"]) == 0
-
-    asyncio.get_event_loop().run_until_complete(send_msg())
+    asyncio.get_event_loop().run_until_complete(test_logic())
     kill_server(s)
 
 
@@ -101,46 +81,28 @@ def test_breakpoint_request(start_server, find_free_port):
     port = find_free_port()
     s = start_server(port, "test_debug_server", ["+DEBUG_LOG"], use_plus_arg=True)
     assert s.poll() is None
-    bp_payload1 = {"request": True, "type": "breakpoint", "token": "bp1",
-                   "payload": {"filename": "/tmp/test.py", "line_num": 1, "action": "add"}}
-    bp_payload2 = {"request": True, "type": "breakpoint", "token": "bp2",
-                   "payload": {"filename": "/tmp/test.py", "line_num": 42, "action": "add"}}
-    bp_payload3 = {"request": True, "type": "breakpoint", "token": "bp1",
-                   "payload": {"filename": "/tmp/test.py", "line_num": 1, "action": "remove"}}
-    info_payload = {"request": True, "type": "debugger-info", "payload": {"command": "breakpoints"}}
-    bp_payload1_str = json.dumps(bp_payload1)
-    bp_payload2_str = json.dumps(bp_payload2)
-    bp_payload3_str = json.dumps(bp_payload3)
-    info_payload_str = json.dumps(info_payload)
+    uri = "ws://localhost:{0}".format(port)
 
-    async def send_msg():
-        uri = "ws://localhost:{0}".format(port)
-        async with websockets.connect(uri) as ws:
-            await ws.send(bp_payload1_str)
-            resp = json.loads(await ws.recv())
-            assert resp["token"] == "bp1" and resp["status"] == "success"
-            # send the duplicated request again
-            await ws.send(bp_payload1_str)
-            await ws.recv()
-            # asking for status
-            await ws.send(info_payload_str)
-            payload = json.loads(await ws.recv())["payload"]
-            assert len(payload["breakpoints"]) == 1
-            assert payload["breakpoints"][0]["line_num"] == 1
-            # send a wrong one
-            await ws.send(bp_payload2_str)
-            resp = json.loads(await ws.recv())
-            assert resp["token"] == "bp2" and resp["status"] == "error"
-            # remove the breakpoint
-            await ws.send(bp_payload3_str)
-            resp = json.loads(await ws.recv())
-            assert resp["token"] == "bp1" and resp["status"] == "success"
-            # query the system about breakpoints. it should be empty now
-            await ws.send(info_payload_str)
-            payload = json.loads(await ws.recv())["payload"]
-            assert len(payload["breakpoints"]) == 0
+    async def test_logic():
+        client = hgdb.HGDBClient(uri, None)
+        await client.connect()
+        resp = await client.set_breakpoint("/tmp/test.py", 1, token="bp1")
+        assert resp["token"] == "bp1"
+        # asking for status
+        info = (await client.get_info())["payload"]
+        assert len(info["breakpoints"]) == 1
+        assert info["breakpoints"][0]["line_num"] == 1
+        # send a wrong one
+        resp = await client.set_breakpoint("/tmp/test.py", 42, token="bp2", check_error=False)
+        assert resp["token"] == "bp2" and resp["status"] == "error"
+        # remove the breakpoint
+        resp = await client.remove_breakpoint("/tmp/test.py", 1, token="bp1")
+        assert resp["token"] == "bp1" and resp["status"] == "success"
+        # query the system about breakpoints. it should be empty now
+        info = (await client.get_info())["payload"]
+        assert len(info["breakpoints"]) == 0
 
-    asyncio.get_event_loop().run_until_complete(send_msg())
+    asyncio.get_event_loop().run_until_complete(test_logic())
     kill_server(s)
 
 
@@ -148,34 +110,24 @@ def test_breakpoint_hit_continue(start_server, find_free_port):
     port = find_free_port()
     s = start_server(port, "test_debug_server", ["+DEBUG_LOG"], use_plus_arg=True)
     assert s.poll() is None
-    bp_payload1 = {"request": True, "type": "breakpoint", "token": "bp1",
-                   "payload": {"filename": "/tmp/test.py", "line_num": 1, "action": "add"}}
+    uri = "ws://localhost:{0}".format(port)
 
-    bp_payload2 = {"request": True, "type": "breakpoint", "token": "bp2",
-                   "payload": {"filename": "/tmp/test.py", "line_num": 4, "action": "add"}}
-    continue_payload1 = {"request": True, "type": "command", "payload": {"command": "continue"}}
-    bp_payload_str1 = json.dumps(bp_payload1)
-    bp_payload_str2 = json.dumps(bp_payload2)
-    continue_payload_str = json.dumps(continue_payload1)
+    async def test_logic():
+        client = hgdb.HGDBClient(uri, None)
+        await client.connect()
+        await client.set_breakpoint("/tmp/test.py", 1, token="bp1")
+        # inserted but shall not trigger
+        await client.set_breakpoint("/tmp/test.py", 4, token="bp1")
+        # continue
+        await client.continue_()
+        # should get breakpoint info
+        bp_info1 = await client.recv()
+        assert bp_info1["payload"]["line_num"] == 1
+        await client.continue_()
+        bp_info2 = await client.recv()
+        assert bp_info2["payload"]["line_num"] == 1
 
-    async def send_msg():
-        uri = "ws://localhost:{0}".format(port)
-        async with websockets.connect(uri) as ws:
-            await ws.send(bp_payload_str1)
-            await ws.recv()
-            await ws.send(bp_payload_str2)
-            status = json.loads(await ws.recv())
-            # inserted but shall not trigger
-            assert status["status"] == "success"
-            # continue
-            await ws.send(continue_payload_str)
-            bp_info1 = json.loads(await ws.recv())
-            assert bp_info1["payload"]["line_num"] == 1
-            await ws.send(continue_payload_str)
-            bp_info2 = json.loads(await ws.recv())
-            assert bp_info2["payload"]["line_num"] == 1
-
-    asyncio.get_event_loop().run_until_complete(send_msg())
+    asyncio.get_event_loop().run_until_complete(test_logic())
     kill_server(s)
 
 
@@ -183,26 +135,26 @@ def test_breakpoint_step_over(start_server, find_free_port):
     port = find_free_port()
     s = start_server(port, "test_debug_server", ["+DEBUG_LOG"], use_plus_arg=True)
     assert s.poll() is None
-    step_over_payload = {"request": True, "type": "command", "payload": {"command": "step_over"}}
-    step_over_payload_str = json.dumps(step_over_payload)
+    uri = "ws://localhost:{0}".format(port)
 
-    async def send_msg():
-        uri = "ws://localhost:{0}".format(port)
-        async with websockets.connect(uri) as ws:
-            await ws.send(step_over_payload_str)
-            bp1 = json.loads(await ws.recv())
-            await ws.send(step_over_payload_str)
-            bp2 = json.loads(await ws.recv())
-            await ws.send(step_over_payload_str)
-            bp3 = json.loads(await ws.recv())
-            await ws.send(step_over_payload_str)
-            bp4 = json.loads(await ws.recv())
-            # the sequence should be 1, 2, 5, 1, ...
-            assert bp1["payload"]["line_num"] == 1 and bp4["payload"]["line_num"] == 1
-            assert bp2["payload"]["line_num"] == 2
-            assert bp3["payload"]["line_num"] == 5
+    async def test_logic():
+        client = hgdb.HGDBClient(uri, None)
+        await client.connect()
+        await client.step_over()
+        await client.continue_()
+        bp1 = await client.recv()
+        await client.continue_()
+        bp2 = await client.recv()
+        await client.continue_()
+        bp3 = await client.recv()
+        await client.continue_()
+        bp4 = await client.recv()
+        # the sequence should be 1, 2, 5, 1, ...
+        assert bp1["payload"]["line_num"] == 1 and bp4["payload"]["line_num"] == 1
+        assert bp2["payload"]["line_num"] == 2
+        assert bp3["payload"]["line_num"] == 5
 
-    asyncio.get_event_loop().run_until_complete(send_msg())
+    asyncio.get_event_loop().run_until_complete(test_logic())
     kill_server(s)
 
 
