@@ -146,15 +146,15 @@ void DebugDatabaseClient::setup_execution_order() {
 
 void DebugDatabaseClient::build_execution_order_from_bp() {
     // use map's ordered ability
-    std::map<std::string, std::map<uint32_t, uint32_t>> bp_ids;
+    std::map<std::string, std::map<uint32_t, std::vector<uint32_t>>> bp_ids;
     auto bps = db_->get_all<BreakPoint>();
     for (auto const &bp : bps) {
-        bp_ids[bp.filename].emplace(bp.line_num, bp.id);
+        bp_ids[bp.filename][bp.line_num].emplace_back(bp.id);
     }
-    for (auto const &iter : bp_ids) {
+    for (auto &iter : bp_ids) {
         execution_bp_orders_.reserve(execution_bp_orders_.size() + iter.second.size());
         for (auto const &iter_ : iter.second) {
-            execution_bp_orders_.emplace_back(iter_.second);
+            for (auto const bp : iter_.second) execution_bp_orders_.emplace_back(bp);
         }
     }
 }
