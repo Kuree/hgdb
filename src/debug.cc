@@ -74,6 +74,7 @@ void Debugger::eval() {
     // when we trigger the breakpoint, the runtime (simulation side) will be paused via a lock.
     // however, the server side can still takes breakpoint requests, hence modifying the
     // breakpoints_.
+    log_info("Start breakpoint evaluation...");
     start_breakpoint_evaluation();  // clean the state
     while (true) {
         auto *bp = next_breakpoint();
@@ -254,6 +255,7 @@ void Debugger::handle_breakpoint(const BreakPointRequest &req) {
                 std::string cond = "1";
                 if (!bp.condition.empty()) cond.append(" and " + bp.condition);
                 if (!bp_info.condition.empty()) cond.append(" and " + bp_info.condition);
+                log_info(fmt::format("Breakpoint inserted into {0}:{1}", bp.filename, bp.line_num));
                 if (inserted_breakpoints_.find(bp.id) == inserted_breakpoints_.end()) {
                     breakpoints_.emplace_back(
                         DebugBreakPoint{.id = bp.id,
