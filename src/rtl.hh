@@ -48,7 +48,7 @@ class VPIProvider : public AVPIProvider {
 
 class RTLSimulatorClient {
 public:
-    RTLSimulatorClient(std::unique_ptr<AVPIProvider> vpi);
+    explicit RTLSimulatorClient(std::unique_ptr<AVPIProvider> vpi);
     explicit RTLSimulatorClient(const std::vector<std::string> &instance_names);
     RTLSimulatorClient(const std::vector<std::string> &instance_names,
                        std::unique_ptr<AVPIProvider> vpi);
@@ -99,9 +99,14 @@ private:
     };
     std::optional<SimulatorInfo> sim_info_;
 
+    // only used for verilator
+    std::optional<bool> is_verilator_;
+
     static std::pair<std::string, std::string> get_path(const std::string &name);
     void compute_hierarchy_name_prefix(std::unordered_set<std::string> &top_names);
     void get_simulator_info();
+    void compute_verilator_name_prefix(std::unordered_set<std::string> &top_names);
+    bool is_verilator();
 };
 }  // namespace hgdb
 

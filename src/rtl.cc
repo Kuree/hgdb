@@ -90,8 +90,7 @@ void RTLSimulatorClient::initialize_vpi(std::unique_ptr<AVPIProvider> vpi) {
         vpi_ = std::move(vpi);
     }
     // compute the vpiNet target. this is a special case for Verilator
-    auto simulator_name = get_simulator_name();
-    vpi_net_target_ = simulator_name == "Verilator" ? vpiReg : vpiNet;
+    vpi_net_target_ = is_verilator() ? vpiReg : vpiNet;
 }
 
 vpiHandle RTLSimulatorClient::get_handle(const std::string &name) {
@@ -250,6 +249,11 @@ std::pair<std::string, std::string> RTLSimulatorClient::get_path(const std::stri
 }
 
 void RTLSimulatorClient::compute_hierarchy_name_prefix(std::unordered_set<std::string> &top_names) {
+    // Verilator doesn't support vpiDefName
+    if (is_verilator()) {
+        compute_verilator_name_prefix(top_names);
+        return;
+    }
     // we do a BFS search from the top;
     std::queue<vpiHandle> handle_queues;
     handle_queues.emplace(nullptr);
@@ -292,6 +296,24 @@ void RTLSimulatorClient::get_simulator_info() {
             // can't get simulator info
             sim_info_ = SimulatorInfo{};
         }
+    }
+}
+
+void RTLSimulatorClient::compute_verilator_name_prefix(std::unordered_set<std::string> &top_names) {
+    // verilator is simply TOP.[def_name], which in our cases TOP.[inst_name]
+    for (auto const &def_name: top_names) {
+        auto name = fmt::format("TOP.{0}.", def_name);
+        hierarchy_name_prefix_map_.emplace(def_name, name);
+    }
+}
+
+bool RTLSimulatorClient::is_verilator() {
+    if (is_verilator_)  {
+        return *is_verilator_;
+    } else {
+        auto simulator_name = get_simulator_name();
+        is_verilator_ = simulator_name == "Verilator";
+        return *is_verilator_;
     }
 }
 
