@@ -12,6 +12,8 @@ DebugServer::DebugServer(uint16_t port, bool enable_logging) {
     if (enable_logging) {
         server_.set_access_channels(websocketpp::log::alevel::all);
         server_.clear_access_channels(websocketpp::log::alevel::frame_payload);
+    } else {
+        server_.clear_access_channels(websocketpp::log::alevel::all);
     }
 
     // on connection
