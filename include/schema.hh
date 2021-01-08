@@ -98,8 +98,8 @@ struct Variable {
      */
     uint32_t id;
     /**
-     * If the variable represents a RTL signal, it is the full hierarchy name,
-     * otherwise it is the string value
+     * If the variable represents a RTL signal, it is the full hierarchy name or the name within
+     * the scope of its parent module, otherwise it is the string value
      */
     std::string value;
     /**

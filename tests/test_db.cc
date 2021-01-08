@@ -107,7 +107,7 @@ TEST_F(DBTest, test_get_generator_variable) {  // NOLINT
     constexpr uint32_t instance_id = 42;
     constexpr uint32_t num_variables = 10;
     hgdb::store_instance(*db, instance_id, "top.mod");
-    // insert a range of context variable to that breakpoint
+    // insert a range of generator variable to that breakpoint
     for (uint32_t i = 0; i < num_variables; i++) {
         hgdb::store_variable(*db, i, std::to_string(i), false);
         hgdb::store_generator_variable(*db, "name" + std::to_string(i), instance_id, i);
@@ -123,5 +123,45 @@ TEST_F(DBTest, test_get_generator_variable) {  // NOLINT
         EXPECT_EQ(context_v.name, "name" + std::to_string(i));
         EXPECT_EQ(v.value, std::to_string(i));
         EXPECT_EQ(v.id, i);
+    }
+}
+
+TEST_F(DBTest, test_get_variable_prefix) {  // NOLINT
+    // test out automatic full name computation
+    constexpr uint32_t instance_id = 42;
+    constexpr uint32_t num_variables = 10;
+    constexpr uint32_t breakpoint_id = 1729;
+    hgdb::store_instance(*db, instance_id, "top.mod");
+    hgdb::store_breakpoint(*db, breakpoint_id, instance_id, __FILE__, __LINE__);
+    // insert a range of generator variable to that breakpoint
+    uint32_t id_count = 0;
+    for (uint32_t i = 0; i < num_variables; i++) {
+        hgdb::store_variable(*db, id_count, std::to_string(i), true);
+        hgdb::store_generator_variable(*db, "name" + std::to_string(i), instance_id, id_count);
+        id_count++;
+    }
+    // insert a range of context variable to that breakpoint
+    for (uint32_t i = 0; i < num_variables; i++) {
+        hgdb::store_variable(*db, id_count, std::to_string(i), false);
+        hgdb::store_context_variable(*db, "name" + std::to_string(i), breakpoint_id, id_count);
+        id_count++;
+    }
+
+    // transfer the db ownership
+    hgdb::DebugDatabaseClient client(std::move(db));
+
+    auto gen_values = client.get_generator_variable(instance_id);
+    EXPECT_EQ(gen_values.size(), num_variables);
+    for (uint32_t i = 0; i < gen_values.size(); i++) {
+        auto const &[context_v, v] = gen_values[i];
+        EXPECT_EQ(context_v.name, "name" + std::to_string(i));
+        EXPECT_EQ(v.value, "top.mod." + std::to_string(i));
+    }
+    auto context_values = client.get_context_variables(breakpoint_id);
+    EXPECT_EQ(context_values.size(), num_variables);
+    for (uint32_t i = 0; i < context_values.size(); i++) {
+        auto const &[context_v, v] = context_values[i];
+        EXPECT_EQ(context_v.name, "name" + std::to_string(i));
+        EXPECT_EQ(v.value, std::to_string(i));
     }
 }
