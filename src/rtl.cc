@@ -301,14 +301,14 @@ void RTLSimulatorClient::get_simulator_info() {
 
 void RTLSimulatorClient::compute_verilator_name_prefix(std::unordered_set<std::string> &top_names) {
     // verilator is simply TOP.[def_name], which in our cases TOP.[inst_name]
-    for (auto const &def_name: top_names) {
+    for (auto const &def_name : top_names) {
         auto name = fmt::format("TOP.{0}.", def_name);
         hierarchy_name_prefix_map_.emplace(def_name, name);
     }
 }
 
 bool RTLSimulatorClient::is_verilator() {
-    if (is_verilator_)  {
+    if (is_verilator_) {
         return *is_verilator_;
     } else {
         auto simulator_name = get_simulator_name();

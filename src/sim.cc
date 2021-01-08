@@ -27,7 +27,9 @@ PLI_INT32 eval_hgdb(p_cb_data cb_data) {
 
 void initialize_hgdb_runtime() { hgdb::initialize_hgdb_runtime_vpi(nullptr); }
 
-[[maybe_unused]] void initialize_hgdb_runtime_dpi() { hgdb::initialize_hgdb_runtime_vpi(nullptr, true); }
+[[maybe_unused]] void initialize_hgdb_runtime_dpi() {
+    hgdb::initialize_hgdb_runtime_vpi(nullptr, true);
+}
 
 // register the VPI call
 extern "C" {
