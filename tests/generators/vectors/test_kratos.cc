@@ -17,6 +17,8 @@ void eval(Vmod &dut, int increment = 1) {
     dut.eval();
     VerilatedVpi::callValueCbs(); // required to call callbacks
     VerilatedVpi::callTimedCbs();
+    // force verilator to handle cbNextSimTime
+    VerilatedVpi::callCbs(cbNextSimTime);
     main_time += increment;
 }
 
@@ -32,7 +34,7 @@ void reset(Vmod &dut) {
 int main(int argc, char **argv) {
     Verilated::commandArgs(argc, argv);
     Vmod dut;
-    // Verilated::internalsDump();  // See scopes to help debug
+    Verilated::internalsDump();  // See scopes to help debug
     // Create an instance of our module under test
     hgdb::initialize_hgdb_runtime_cxx();
 

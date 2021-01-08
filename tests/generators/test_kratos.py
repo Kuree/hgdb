@@ -41,7 +41,6 @@ def test_kratos_verilator(find_free_port):
     py_line_num = get_line_num(py_filename, "            out = out + data[i]")
 
     with tempfile.TemporaryDirectory() as temp:
-        temp = "temp"
         temp = os.path.abspath(temp)
         db_filename = os.path.join(temp, "debug.db")
         sv_filename = os.path.join(temp, "mod.sv")
@@ -62,8 +61,21 @@ def test_kratos_verilator(find_free_port):
                 # set breakpoint
                 await client.set_breakpoint(py_filename, py_line_num)
                 await client.continue_()
+                for i in range(buffer_size):
+                    bp = await client.recv()
+                    assert bp["payload"]["values"]["local"]["i"] == str(i)
+                    await client.continue_()
+                # checking for SSA. notice that this checks if kratos generates
+                # the symbol table properly
+                # first breakpoint out is 0
+                # second breakpoint out should be added with in, which is 1
+                for i in range(2):
+                    bp = await client.recv()
+                    assert bp["payload"]["values"]["local"]["out"] == str(i)
+                    await client.continue_()
+                time.sleep(0.1)
 
-            time.sleep(0.5)
+            time.sleep(0.1)
             asyncio.get_event_loop().run_until_complete(client_logic())
 
 
