@@ -4,6 +4,7 @@
 #include <memory>
 #include <optional>
 #include <string>
+#include <mutex>
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
@@ -44,6 +45,9 @@ class VPIProvider : public AVPIProvider {
     PLI_INT32 vpi_remove_cb(vpiHandle cb_obj) override;
     PLI_INT32 vpi_release_handle(vpiHandle object) override;
     PLI_INT32 vpi_control(PLI_INT32 operation, ...) override;
+
+private:
+    std::mutex vpi_lock_;
 };
 
 class RTLSimulatorClient {

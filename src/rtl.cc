@@ -9,42 +9,62 @@
 namespace hgdb {
 
 void VPIProvider::vpi_get_value(vpiHandle expr, p_vpi_value value_p) {
+    std::lock_guard guard(vpi_lock_);
     return ::vpi_get_value(expr, value_p);
 }
 
 PLI_INT32 VPIProvider::vpi_get(PLI_INT32 property, vpiHandle object) {
+    std::lock_guard guard(vpi_lock_);
     return ::vpi_get(property, object);
 }
 
 vpiHandle VPIProvider::vpi_iterate(PLI_INT32 type, vpiHandle refHandle) {
+    std::lock_guard guard(vpi_lock_);
     return ::vpi_iterate(type, refHandle);
 }
 
-vpiHandle VPIProvider::vpi_scan(vpiHandle iterator) { return ::vpi_scan(iterator); }
+vpiHandle VPIProvider::vpi_scan(vpiHandle iterator) {
+    std::lock_guard guard(vpi_lock_);
+    return ::vpi_scan(iterator);
+}
 
 char *VPIProvider::vpi_get_str(PLI_INT32 property, vpiHandle object) {
+    std::lock_guard guard(vpi_lock_);
     return ::vpi_get_str(property, object);
 }
 
 vpiHandle VPIProvider::vpi_handle_by_name(char *name, vpiHandle scope) {
+    std::lock_guard guard(vpi_lock_);
     return ::vpi_handle_by_name(name, scope);
 }
 
 PLI_INT32 VPIProvider::vpi_get_vlog_info(p_vpi_vlog_info vlog_info_p) {
+    std::lock_guard guard(vpi_lock_);
     return ::vpi_get_vlog_info(vlog_info_p);
 }
 
 void VPIProvider::vpi_get_time(vpiHandle object, p_vpi_time time_p) {
+    std::lock_guard guard(vpi_lock_);
     return ::vpi_get_time(object, time_p);
 }
 
-vpiHandle VPIProvider::vpi_register_cb(p_cb_data cb_data_p) { return ::vpi_register_cb(cb_data_p); }
+vpiHandle VPIProvider::vpi_register_cb(p_cb_data cb_data_p) {
+    std::lock_guard guard(vpi_lock_);
+    return ::vpi_register_cb(cb_data_p);
+}
 
-PLI_INT32 VPIProvider::vpi_remove_cb(vpiHandle cb_obj) { return ::vpi_remove_cb(cb_obj); }
+PLI_INT32 VPIProvider::vpi_remove_cb(vpiHandle cb_obj) {
+    std::lock_guard guard(vpi_lock_);
+    return ::vpi_remove_cb(cb_obj);
+}
 
-PLI_INT32 VPIProvider::vpi_release_handle(vpiHandle object) { return ::vpi_release_handle(object); }
+PLI_INT32 VPIProvider::vpi_release_handle(vpiHandle object) {
+    std::lock_guard guard(vpi_lock_);
+    return ::vpi_release_handle(object);
+}
 
 PLI_INT32 VPIProvider::vpi_control(PLI_INT32 operation, ...) {
+    std::lock_guard guard(vpi_lock_);
     std::va_list args;
     va_start(args, operation);
     auto result = ::vpi_control(operation, args);
