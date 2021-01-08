@@ -14,7 +14,7 @@ public:
     Debugger();
     explicit Debugger(std::unique_ptr<AVPIProvider> vpi);
 
-    void initialize_db(const std::string &filename);
+    bool initialize_db(const std::string &filename);
     void initialize_db(std::unique_ptr<DebugDatabaseClient> db);
     void run();
     void stop();

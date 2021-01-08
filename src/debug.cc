@@ -23,14 +23,16 @@ Debugger::Debugger(std::unique_ptr<AVPIProvider> vpi) {
     log_info(fmt::format("Debugging server started at :{0}", port));
 }
 
-void Debugger::initialize_db(const std::string &filename) {
+bool Debugger::initialize_db(const std::string &filename) {
     // we cannot accept in-memory database since in the debug mode,
     // it is readonly
     if (!fs::exists(filename)) {
         log_error(fmt::format("{0} does not exist", filename));
-        return;
+        return false;
     }
+    log_info(fmt::format("Debug database set to {0}", filename));
     initialize_db(std::make_unique<DebugDatabaseClient>(filename));
+    return true;
 }
 
 void Debugger::initialize_db(std::unique_ptr<DebugDatabaseClient> db) {
@@ -38,8 +40,10 @@ void Debugger::initialize_db(std::unique_ptr<DebugDatabaseClient> db) {
     db_ = std::move(db);
     // get all the instance names
     auto instances = db_->get_instance_names();
+    log_info("Compute instance mapping");
     rtl_->initialize_instance_mapping(instances);
     // compute the look up table
+    log_info("Compute breakpoint look up table");
     auto const &bp_ordering = db_->execution_bp_orders();
     for (auto i = 0u; i < bp_ordering.size(); i++) {
         bp_ordering_table_.emplace(bp_ordering[i], i);
@@ -207,7 +211,16 @@ void Debugger::log_info(const std::string &msg) const {
 void Debugger::handle_connection(const ConnectionRequest &req) {
     auto const &db_filename = req.db_filename();
     // path mapping not supported yet
-    initialize_db(db_filename);
+    auto r = initialize_db(db_filename);
+    if (r) {
+        auto resp = GenericResponse(status_code::success, req);
+        send_message(resp.str(log_enabled_));
+    } else {
+        auto resp = GenericResponse(status_code::error, req,
+                                    fmt::format("Unable to find {0}", db_filename));
+        send_message(resp.str(log_enabled_));
+    }
+    log_info("handle_connection finished");
 }
 
 void Debugger::handle_breakpoint(const BreakPointRequest &req) {
@@ -325,16 +338,19 @@ void Debugger::handle_bp_location(const BreakPointLocationRequest &req) {
 void Debugger::handle_command(const CommandRequest &req) {
     switch (req.command_type()) {
         case CommandRequest::CommandType::continue_: {
+            log_info("handle_command: continue_");
             lock_.ready();
             break;
         }
         case CommandRequest::CommandType::stop: {
+            log_info("handle_command: stop");
             lock_.ready();
             rtl_->finish_sim();
             stop();
             break;
         }
         case CommandRequest::CommandType::step_over: {
+            log_info("handle_command: step_over");
             // change the mode into step through
             evaluation_mode_ = EvaluationMode::StepOver;
             lock_.ready();

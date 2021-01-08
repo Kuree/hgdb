@@ -20,6 +20,6 @@ package hgdb_pkg;
   
   vcs and other simulators share similar command line switches
 */
-import "DPI-C" function void initialize_hgdb_runtime();
+import "DPI-C" function void initialize_hgdb_runtime_dpi();
 
 endpackage

@@ -27,6 +27,8 @@ PLI_INT32 eval_hgdb(p_cb_data cb_data) {
 
 void initialize_hgdb_runtime() { hgdb::initialize_hgdb_runtime_vpi(nullptr); }
 
+[[maybe_unused]] void initialize_hgdb_runtime_dpi() { hgdb::initialize_hgdb_runtime_vpi(nullptr, true); }
+
 // register the VPI call
 extern "C" {
 // these are system level calls. register it to the simulator
@@ -34,7 +36,15 @@ extern "C" {
 }
 
 namespace hgdb {
+void initialize_hgdb_runtime_cxx(bool start_server) {
+    initialize_hgdb_runtime_vpi(nullptr, start_server);
+}
+
 void initialize_hgdb_runtime_vpi(std::unique_ptr<AVPIProvider> vpi) {
+    initialize_hgdb_runtime_vpi(std::move(vpi), false);
+}
+
+void initialize_hgdb_runtime_vpi(std::unique_ptr<AVPIProvider> vpi, bool start_server) {
     // use raw pointer here since we're dealing with ancient C stuff
     Debugger *debugger;
     if (vpi) {
@@ -47,9 +57,14 @@ void initialize_hgdb_runtime_vpi(std::unique_ptr<AVPIProvider> vpi) {
     vpiHandle res;
 
     // start the debugger at the start of the simulation
-    res = rtl->add_call_back("initialize_hgdb", cbStartOfSimulation, initialize_hgdb_debugger,
-                             nullptr, reinterpret_cast<char *>(debugger));
-    if (!res) std::cerr << "ERROR: failed to register runtime initialization" << std::endl;
+    // if start_server is set to true, start immediately
+    if (start_server) {
+        debugger->run();
+    } else {
+        res = rtl->add_call_back("initialize_hgdb", cbStartOfSimulation, initialize_hgdb_debugger,
+                                 nullptr, reinterpret_cast<char *>(debugger));
+        if (!res) std::cerr << "ERROR: failed to register runtime initialization" << std::endl;
+    }
 
     // teardown the debugger at the end of the simulation
     res = rtl->add_call_back("teardown_hgdb", cbEndOfSimulation, teardown_hgdb_debugger, nullptr,
