@@ -21,6 +21,13 @@ def get_uri(port):
     return "ws://localhost:{0}".format(port)
 
 
+def get_line_num(filename, target_line):
+    with open(filename) as f:
+        lines = f.readlines()
+        lines = [line.rstrip() for line in lines]
+        return lines.index(target_line) + 1
+
+
 # simple CAD tool runners
 class Tester:
     __test__ = False
@@ -78,6 +85,7 @@ class Tester:
         return env
 
     def _run(self, args, cwd, env, blocking):
+        print("running with args", " ".join(args))
         if blocking:
             subprocess.check_call(args, cwd=cwd, env=env)
         else:
@@ -90,10 +98,13 @@ class Tester:
             shutil.rmtree(self.cwd)
 
     @staticmethod
-    def __get_flags(kwargs):
+    def _get_flags(kwargs):
         flags = []
         for k, v in kwargs.items():
-            flags.append("+{0}={1}".format(k, v))
+            if isinstance(v, bool) and v:
+                flags.append("+" + k)
+            else:
+                flags.append("+{0}={1}".format(k, v))
         return flags
 
     def __exit__(self, exc_type, exc_val, exc_tb):
@@ -132,7 +143,7 @@ class VerilatorTester(Tester):
                               cwd=self.cwd, env=env)
         # run the application
         name = os.path.join("obj_dir", mk_file.replace(".mk", ""))
-        flags = self.__get_flags(kwargs)
+        flags = self._get_flags(kwargs)
         self._run([name] + flags, self.cwd, env, blocking)
 
 
@@ -147,7 +158,7 @@ class CadenceTester(Tester):
         env = self._set_lib_env()
         # run it
         args = [self.toolchain] + list(self.files) + self.__get_flag()
-        args += self.__get_flags(kwargs)
+        args += self._get_flags(kwargs)
         self._run(args, self.cwd, env, blocking)
 
     def __get_flag(self):
@@ -170,7 +181,7 @@ class VCSTester(Tester):
         args = ["vcs"] + list(self.files) + self.__get_flag()
         self._run(args, self.cwd, env, True)
         # run the simv
-        flags = self.__get_flags(kwargs)
+        flags = self._get_flags(kwargs)
         self._run(["./simv"] + flags, self.cwd, env, blocking)
 
     def __get_flag(self):

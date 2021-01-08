@@ -1,13 +1,13 @@
-from util import VerilatorTester, get_vector_file, get_uri, get_root
+from util import VerilatorTester, get_vector_file, get_uri, get_root, get_line_num
 import tempfile
 import os
 import sys
 import hgdb
 import asyncio
 import pytest
+import time
 
 
-@pytest.mark.skip(reason="Not working yet")
 def test_kratos_verilator(find_free_port):
     from kratos import Generator, clog2, always_ff, always_comb, verilog, posedge
     input_width = 16
@@ -37,8 +37,12 @@ def test_kratos_verilator(find_free_port):
     mod.add_always(sum_data, ssa_transform=True)
     mod.add_always(buffer_logic)
 
+    py_filename = os.path.abspath(__file__)
+    py_line_num = get_line_num(py_filename, "            out = out + data[i]")
+
     with tempfile.TemporaryDirectory() as temp:
         temp = "temp"
+        temp = os.path.abspath(temp)
         db_filename = os.path.join(temp, "debug.db")
         sv_filename = os.path.join(temp, "mod.sv")
         verilog(mod, filename=sv_filename, insert_debug_info=True,
@@ -50,12 +54,16 @@ def test_kratos_verilator(find_free_port):
             port = find_free_port()
             uri = get_uri(port)
             # set the port
-            tester.run(blocking=False, DEBUG_PORT=port)
+            tester.run(blocking=False, DEBUG_PORT=port, DEBUG_LOG=True)
 
             async def client_logic():
                 client = hgdb.HGDBClient(uri, db_filename)
                 await client.connect()
+                # set breakpoint
+                await client.set_breakpoint(py_filename, py_line_num)
+                await client.continue_()
 
+            time.sleep(0.5)
             asyncio.get_event_loop().run_until_complete(client_logic())
 
 
