@@ -76,6 +76,7 @@ private:
     bool get_logging();
     static void log_error(const std::string &msg);
     void log_info(const std::string &msg) const;
+    std::unordered_map<std::string, int64_t> get_context_static_values(uint32_t breakpoint_id);
 
     // request handler
     void handle_connection(const ConnectionRequest &req);

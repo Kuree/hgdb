@@ -88,16 +88,23 @@ void Debugger::eval() {
         if (!instance_name_) continue;
         auto const &instance_name = *instance_name_;
         std::unordered_map<std::string, int64_t> values;
+        // just in case there are some context values need to pull in
+        auto context_values = get_context_static_values(bp_id);
         // need to query through all its symbols
         for (auto const &symbol_name : symbols) {
-            // need to map these symbol names into the actual hierarchy
-            // name
-            auto name = fmt::format("{0}.{1}", instance_name, symbol_name);
-            // FIXME: add cache for full name lookup
-            auto full_name = rtl_->get_full_name(name);
-            auto v = rtl_->get_value(full_name);
-            if (!v) break;
-            values.emplace(symbol_name, *v);
+            // if it is an context symbol
+            if (context_values.find(symbol_name) != context_values.end()) {
+                values.emplace(symbol_name, context_values.at(symbol_name));
+            } else {
+                // need to map these symbol names into the actual hierarchy
+                // name
+                auto name = fmt::format("{0}.{1}", instance_name, symbol_name);
+                // FIXME: add cache for full name lookup
+                auto full_name = rtl_->get_full_name(name);
+                auto v = rtl_->get_value(full_name);
+                if (!v) break;
+                values.emplace(symbol_name, *v);
+            }
         }
         if (values.size() != symbols.size()) {
             // something went wrong with the querying symbol
@@ -207,6 +214,27 @@ void Debugger::log_info(const std::string &msg) const {
     if (log_enabled_) {
         log::log(log::log_level::info, msg);
     }
+}
+
+std::unordered_map<std::string, int64_t> Debugger::get_context_static_values(
+    uint32_t breakpoint_id) {
+    // only integer values allowed
+    std::unordered_map<std::string, int64_t> result;
+    if (!db_) return result;
+    auto context_variables = db_->get_context_variables(breakpoint_id);
+    for (auto const &bp : context_variables) {
+        // non-rtl value only
+        if (bp.second.is_rtl) continue;
+        auto const &symbol_name = bp.first.name;
+        auto const &str_value = bp.second.value;
+        try {
+            int64_t value = std::stoll(str_value);
+            result.emplace(symbol_name, value);
+        } catch (const std::invalid_argument &) {
+        } catch (const std::out_of_range &) {
+        }
+    }
+    return result;
 }
 
 void Debugger::handle_connection(const ConnectionRequest &req) {
