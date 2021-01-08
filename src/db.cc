@@ -29,6 +29,7 @@ std::vector<BreakPoint> DebugDatabaseClient::get_breakpoints(const std::string &
                                                              uint32_t line_num, uint32_t col_num) {
     using namespace sqlite_orm;
     std::vector<BreakPoint> bps;
+    std::lock_guard guard(db_lock_);
     if (col_num != 0) {
         bps = db_->get_all<BreakPoint>(where(c(&BreakPoint::filename) == filename &&
                                              c(&BreakPoint::line_num) == line_num &&
@@ -43,12 +44,14 @@ std::vector<BreakPoint> DebugDatabaseClient::get_breakpoints(const std::string &
 
 std::vector<BreakPoint> DebugDatabaseClient::get_breakpoints(const std::string &filename) {
     using namespace sqlite_orm;
+    std::lock_guard guard(db_lock_);
     std::vector<BreakPoint> bps =
         db_->get_all<BreakPoint>(where(c(&BreakPoint::filename) == filename));
     return bps;
 }
 
 std::optional<BreakPoint> DebugDatabaseClient::get_breakpoint(uint32_t breakpoint_id) {
+    std::lock_guard guard(db_lock_);
     auto ptr = db_->get_pointer<BreakPoint>(breakpoint_id);  // NOLINT
     if (ptr) {
         // notice that BreakPoint has a unique_ptr, so we can't just copy them over
@@ -66,6 +69,7 @@ std::optional<BreakPoint> DebugDatabaseClient::get_breakpoint(uint32_t breakpoin
 
 std::optional<std::string> DebugDatabaseClient::get_instance_name(uint32_t breakpoint_id) {
     using namespace sqlite_orm;
+    std::lock_guard guard(db_lock_);
     auto value = db_->select(
         columns(&Instance::name),
         where(c(&Instance::id) == &BreakPoint::instance_id && c(&BreakPoint::id) == breakpoint_id));
@@ -86,9 +90,10 @@ std::string get_var_value(bool is_rtl, const std::string &value, const std::stri
 }
 
 std::vector<DebugDatabaseClient::ContextVariableInfo> DebugDatabaseClient::get_context_variables(
-    uint32_t breakpoint_id) const {
+    uint32_t breakpoint_id) {
     using namespace sqlite_orm;
     std::vector<DebugDatabaseClient::ContextVariableInfo> result;
+    std::lock_guard guard(db_lock_);
     auto values = db_->select(
         columns(&ContextVariable::variable_id, &ContextVariable::name, &Variable::value,
                 &Variable::is_rtl, &Instance::name),
@@ -109,9 +114,10 @@ std::vector<DebugDatabaseClient::ContextVariableInfo> DebugDatabaseClient::get_c
 }
 
 std::vector<DebugDatabaseClient::GeneratorVariableInfo> DebugDatabaseClient::get_generator_variable(
-    uint32_t instance_id) const {
+    uint32_t instance_id) {
     using namespace sqlite_orm;
     std::vector<DebugDatabaseClient::GeneratorVariableInfo> result;
+    std::lock_guard guard(db_lock_);
     // NOLINTNEXTLINE
     auto values = db_->select(columns(&GeneratorVariable::variable_id, &GeneratorVariable::name,
                                       &Variable::value, &Variable::is_rtl, &Instance::name),
@@ -131,8 +137,9 @@ std::vector<DebugDatabaseClient::GeneratorVariableInfo> DebugDatabaseClient::get
     return result;
 }
 
-std::vector<std::string> DebugDatabaseClient::get_instance_names() const {
+std::vector<std::string> DebugDatabaseClient::get_instance_names() {
     using namespace sqlite_orm;
+    std::lock_guard guard(db_lock_);
     auto instances = db_->get_all<Instance>();  // NOLINT
     std::vector<std::string> result;
     result.reserve(instances.size());
@@ -163,6 +170,7 @@ void DebugDatabaseClient::setup_execution_order() {
 void DebugDatabaseClient::build_execution_order_from_bp() {
     // use map's ordered ability
     std::map<std::string, std::map<uint32_t, std::vector<uint32_t>>> bp_ids;
+    std::lock_guard guard(db_lock_);
     auto bps = db_->get_all<BreakPoint>();
     for (auto const &bp : bps) {
         bp_ids[bp.filename][bp.line_num].emplace_back(bp.id);

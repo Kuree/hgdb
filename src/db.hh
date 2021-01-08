@@ -1,6 +1,7 @@
 #ifndef HGDB_DB_HH
 #define HGDB_DB_HH
 
+#include <mutex>
 #include <unordered_map>
 #include <vector>
 
@@ -24,12 +25,10 @@ public:
     std::optional<BreakPoint> get_breakpoint(uint32_t breakpoint_id);
     std::optional<std::string> get_instance_name(uint32_t breakpoint_id);
     using ContextVariableInfo = std::pair<ContextVariable, Variable>;
-    [[nodiscard]] std::vector<ContextVariableInfo> get_context_variables(
-        uint32_t breakpoint_id) const;
+    [[nodiscard]] std::vector<ContextVariableInfo> get_context_variables(uint32_t breakpoint_id);
     using GeneratorVariableInfo = std::pair<GeneratorVariable, Variable>;
-    [[nodiscard]] std::vector<GeneratorVariableInfo> get_generator_variable(
-        uint32_t instance_id) const;
-    [[nodiscard]] std::vector<std::string> get_instance_names() const;
+    [[nodiscard]] std::vector<GeneratorVariableInfo> get_generator_variable(uint32_t instance_id);
+    [[nodiscard]] std::vector<std::string> get_instance_names();
 
     ~DebugDatabaseClient();
 
@@ -41,6 +40,7 @@ public:
 private:
     std::unique_ptr<DebugDatabase> db_;
     bool is_closed_ = false;
+    std::mutex db_lock_;
 
     // we compute the execution order as we initialize the client, which is defined by the scope
     std::vector<uint32_t> execution_bp_orders_;
