@@ -24,10 +24,13 @@ class HGDBClient:
             res = await self.recv()
             self.__check_status(res)
 
-    async def set_breakpoint(self, filename, line_num, column_num=0, token="", check_error=True):
+    async def set_breakpoint(self, filename, line_num, column_num=0, token="", cond="",
+                             check_error=True):
         payload = {"request": True, "type": "breakpoint", "token": token,
                    "payload": {"filename": filename, "line_num": line_num, "column_num": column_num,
                                "action": "add"}}
+        if len(cond) > 0:
+            payload["payload"]["condition"] = cond
         await self.send(payload)
         res = await self.recv()
         if check_error:

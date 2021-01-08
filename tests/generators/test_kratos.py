@@ -73,6 +73,16 @@ def test_kratos_verilator(find_free_port):
                     bp = await client.recv()
                     assert bp["payload"]["values"]["local"]["out"] == str(i)
                     await client.continue_()
+                # remove the breakpoint and set a conditional breakpoint
+                # discard the current breakpoint information
+                await client.recv()
+                # remove the current breakpoint
+                await client.remove_breakpoint(py_filename, py_line_num)
+                await client.set_breakpoint(py_filename, py_line_num, cond="out == 6 and i == 3")
+                await client.continue_()
+                bp = await client.recv()
+                assert bp["payload"]["values"]["local"]["out"] == "6"
+                assert bp["payload"]["values"]["local"]["i"] == "3"
                 time.sleep(0.1)
 
             time.sleep(0.1)
