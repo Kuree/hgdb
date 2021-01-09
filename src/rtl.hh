@@ -2,9 +2,9 @@
 #define HGDB_RTL_HH
 
 #include <memory>
+#include <mutex>
 #include <optional>
 #include <string>
-#include <mutex>
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
