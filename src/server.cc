@@ -46,6 +46,14 @@ void DebugServer::run() {
 
 void DebugServer::stop() {
     server_.stop_listening();
+    // close all the ongoing connections
+    {
+        std::lock_guard guard(connections_lock_);
+        for (auto const &conn : connections_) {
+            conn->close(websocketpp::close::status::going_away, "Server stopped upon user request");
+        }
+        connections_.clear();
+    }
     server_.stop();
 }
 
