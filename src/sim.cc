@@ -1,6 +1,9 @@
 #include "sim.hh"
 
 #include "debug.hh"
+#include "log.hh"
+
+void schedule_next_eval(hgdb::Debugger *debugger);
 
 PLI_INT32 initialize_hgdb_debugger(p_cb_data cb_data) {
     auto *raw_debugger = cb_data->user_data;
@@ -22,7 +25,21 @@ PLI_INT32 eval_hgdb(p_cb_data cb_data) {
     auto *raw_debugger = cb_data->user_data;
     auto *debugger = reinterpret_cast<hgdb::Debugger *>(raw_debugger);
     debugger->eval();
+    // Verilator seems to only need to schedule once per simulation?
+    // I don't think the LRM actually specifies this
+    if (!debugger->is_verilator()) {
+        schedule_next_eval(debugger);
+    }
+
     return 0;
+}
+
+void schedule_next_eval(hgdb::Debugger *debugger) {
+    // register the callback to emulate breakpoint
+    auto *rtl = debugger->rtl_client();
+    auto *res = rtl->add_call_back("eval_hgdb", cbNextSimTime, eval_hgdb, nullptr,
+                                   reinterpret_cast<char *>(debugger));
+    if (!res) std::cerr << "ERROR: failed to register runtime initialization" << std::endl;
 }
 
 void initialize_hgdb_runtime() { hgdb::initialize_hgdb_runtime_vpi(nullptr); }
@@ -73,9 +90,6 @@ void initialize_hgdb_runtime_vpi(std::unique_ptr<AVPIProvider> vpi, bool start_s
                              reinterpret_cast<char *>(debugger));
     if (!res) std::cerr << "ERROR: failed to register runtime initialization" << std::endl;
 
-    // register the callback to emulate breakpoint
-    res = rtl->add_call_back("eval_hgdb", cbNextSimTime, eval_hgdb, nullptr,
-                             reinterpret_cast<char *>(debugger));
-    if (!res) std::cerr << "ERROR: failed to register runtime initialization" << std::endl;
+    schedule_next_eval(debugger);
 }
 }  // namespace hgdb

@@ -121,6 +121,13 @@ void Debugger::eval() {
     }
 }
 
+bool Debugger::is_verilator() {
+    if (rtl_) {
+        return rtl_->is_verilator();
+    }
+    return false;
+}
+
 Debugger::~Debugger() { server_thread_.join(); }
 
 void Debugger::on_message(const std::string &message) {

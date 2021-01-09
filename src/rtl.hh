@@ -81,6 +81,9 @@ public:
     // expose raw vpi client if necessary
     AVPIProvider &vpi() { return *vpi_; }
 
+    // indicate if the simulator is verilator
+    bool is_verilator();
+
 private:
     std::unordered_map<std::string, vpiHandle> handle_map_;
     // it is a map just in case there are separated tops being generated
@@ -110,7 +113,6 @@ private:
     void compute_hierarchy_name_prefix(std::unordered_set<std::string> &top_names);
     void get_simulator_info();
     void compute_verilator_name_prefix(std::unordered_set<std::string> &top_names);
-    bool is_verilator();
 };
 }  // namespace hgdb
 

@@ -20,6 +20,9 @@ public:
     void stop();
     void eval();
 
+    // some public information about the debugger
+    [[nodiscard]] bool is_verilator();
+
     // default and hardcoded values
     static constexpr uint16_t default_port_num = 8888;
     static constexpr bool default_logging = false;
