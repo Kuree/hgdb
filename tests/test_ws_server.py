@@ -45,6 +45,8 @@ def test_shutdown(start_server, find_free_port):
         if s.poll() is not None:
             killed = True
             break
+    if not killed:
+        s.terminate()
     assert killed
 
 

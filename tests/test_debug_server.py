@@ -3,11 +3,8 @@
 # that talks to the debug server via ws
 
 import asyncio
-import json
 import time
 import hgdb
-
-import websockets
 
 
 def kill_server(s):
@@ -35,6 +32,8 @@ def test_continue_stop(start_server, find_free_port):
         if s.poll() is not None:
             killed = True
             break
+    if not killed:
+        s.terminate()
     assert killed
     out = s.communicate()[0].decode("ascii")
     assert "INFO: START RUNNING" in out
