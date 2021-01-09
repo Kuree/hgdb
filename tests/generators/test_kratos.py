@@ -95,7 +95,7 @@ def test_kratos(find_free_port, simulator):
                 assert bp["payload"]["values"]["local"]["out"] == "6"
                 assert bp["payload"]["values"]["local"]["i"] == "3"
 
-            time.sleep(3) # give it enough time for Xcelium to bring up
+            time.sleep(0.5)   # give it enough time for the server to bring up
             asyncio.get_event_loop().run_until_complete(client_logic())
 
 

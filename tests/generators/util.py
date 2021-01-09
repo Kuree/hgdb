@@ -126,7 +126,6 @@ class VerilatorTester(Tester):
         args = [verilator, "--cc", "--exe", "--vpi"]
         args += self.files + [os.path.abspath(self.lib_path), "-Wno-fatal"]
         subprocess.check_call(args, cwd=self.cwd)
-        # symbolic link it first
         env = self._set_lib_env()
 
         # find the shortest file
@@ -161,8 +160,10 @@ class CadenceTester(Tester):
         env = self._set_lib_env()
         # run it
         args = [self.toolchain] + list(self.files) + self.__get_flag()
-        args += self._get_flags(kwargs)
-        self._run(args, self.cwd, env, blocking)
+        # first elaborate, which is blocking
+        self._run(args + ["-elaborate"], self.cwd, env, True)
+        # then use the latest snapshot
+        self._run([self.toolchain, "-R"] + self._get_flags(kwargs), self.cwd, env, blocking)
 
     def __get_flag(self):
         # bind vpi entry point as well
