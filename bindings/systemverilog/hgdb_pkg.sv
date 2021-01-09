@@ -13,12 +13,17 @@ package hgdb_pkg;
 * example:
 * in SystemVerilog Test bench
 *   initial begin
-      initialize_hgdb_runtime();
-    end
-  Then in the simulator command line, do
-  xrun -sv_lib libhgdb.so hgdb_pkg.sv [other files]
-  
-  vcs and other simulators share similar command line switches
+*       initialize_hgdb_runtime_dpi();
+*   end
+* Then in the simulator command line, do
+* xrun -sv_lib libhgdb.so hgdb_pkg.sv [other files]
+*
+* vcs and other simulators share similar command line switches.
+*
+*
+* The recommended way, however, it to load it directly through the
+* command line. Here is an example for Xcelium
+*     -loadvpi libhgdb.so:initialize_hgdb_runtime
 */
 import "DPI-C" function void initialize_hgdb_runtime_dpi();
 
