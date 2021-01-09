@@ -37,3 +37,6 @@ build
 # Python
 *.pyc
 env
+
+# Simulator files
+xrun*
