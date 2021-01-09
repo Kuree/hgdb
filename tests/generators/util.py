@@ -146,12 +146,15 @@ class VerilatorTester(Tester):
         flags = self._get_flags(kwargs)
         self._run([name] + flags, self.cwd, env, blocking)
 
+    @staticmethod
+    def available():
+        return shutil.which("verilator") is not None
+
 
 class CadenceTester(Tester):
     def __init__(self, *files: str, cwd=None, clean_up_run=False):
         super().__init__(*files, cwd=cwd, clean_up_run=clean_up_run)
         self.toolchain = ""
-        self.lib_path = os.path.relpath(self.lib_path, cwd)
 
     def run(self, blocking=True, **kwargs):
         assert len(self.toolchain) > 0
@@ -162,13 +165,20 @@ class CadenceTester(Tester):
         self._run(args, self.cwd, env, blocking)
 
     def __get_flag(self):
-        return ["-sv_lib", self.lib_path]
+        # bind vpi entry point as well
+        lib_name = os.path.basename(self.lib_path)
+        entry_point = lib_name + ":initialize_hgdb_runtime"
+        return ["-sv_lib", self.lib_path, "-access", "+r", "-loadvpi", entry_point]
 
 
 class XceliumTester(CadenceTester):
     def __init__(self, *files: str, cwd=None, clean_up_run=False):
         super().__init__(*files, cwd=cwd, clean_up_run=clean_up_run)
         self.toolchain = "xrun"
+
+    @staticmethod
+    def available():
+        return shutil.which("xrun") is not None
 
 
 class VCSTester(Tester):

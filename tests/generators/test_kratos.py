@@ -1,4 +1,5 @@
-from util import VerilatorTester, get_vector_file, get_uri, get_root, get_line_num
+from util import (VerilatorTester, get_vector_file, get_uri, get_root, get_line_num,
+                  XceliumTester)
 import tempfile
 import os
 import sys
@@ -8,7 +9,10 @@ import pytest
 import time
 
 
-def test_kratos_verilator(find_free_port):
+@pytest.mark.parametrize("simulator", [VerilatorTester, XceliumTester])
+def test_kratos(find_free_port, simulator):
+    if not simulator.available():
+        pytest.skip(simulator.__name__ + " not available")
     from kratos import Generator, clog2, always_ff, always_comb, verilog, posedge
     input_width = 16
     buffer_size = 4
@@ -29,6 +33,7 @@ def test_kratos_verilator(find_free_port):
     @always_ff((posedge, clk), (posedge, rst))
     def buffer_logic():
         if rst:
+            data = 0
             counter = 0
         else:
             data[counter] = in_
@@ -48,8 +53,9 @@ def test_kratos_verilator(find_free_port):
                 debug_db_filename=db_filename, ssa_transform=True,
                 insert_verilator_info=True)
         # run verilator
-        main_file = get_vector_file("test_kratos.cc")
-        with VerilatorTester(sv_filename, main_file, cwd=temp) as tester:
+        tb = "test_kratos.cc" if simulator == VerilatorTester else "test_kratos.sv"
+        main_file = get_vector_file(tb)
+        with simulator(sv_filename, main_file, cwd=temp) as tester:
             port = find_free_port()
             uri = get_uri(port)
             # set the port
@@ -61,13 +67,18 @@ def test_kratos_verilator(find_free_port):
                 # set breakpoint
                 await client.set_breakpoint(py_filename, py_line_num)
                 await client.continue_()
-                for i in range(buffer_size):
+                i = 0
+                while i < buffer_size:
                     bp = await client.recv()
+                    if int(bp["payload"]["time"]) < 5:
+                        await client.continue_()
+                        continue
                     assert bp["payload"]["values"]["local"]["i"] == str(i)
                     await client.continue_()
+                    i += 1
                 # checking for SSA. notice that this checks if kratos generates
                 # the symbol table properly
-                # first breakpoint out is 0
+                # first breakpoint out is 1
                 # second breakpoint out should be added with in, which is 1
                 for i in range(2):
                     bp = await client.recv()
@@ -83,13 +94,12 @@ def test_kratos_verilator(find_free_port):
                 bp = await client.recv()
                 assert bp["payload"]["values"]["local"]["out"] == "6"
                 assert bp["payload"]["values"]["local"]["i"] == "3"
-                time.sleep(0.1)
 
-            time.sleep(0.1)
+            time.sleep(3) # give it enough time for Xcelium to bring up
             asyncio.get_event_loop().run_until_complete(client_logic())
 
 
 if __name__ == "__main__":
     sys.path.append(get_root())
     from conftest import find_free_port_fn
-    test_kratos_verilator(find_free_port_fn)
+    test_kratos(find_free_port_fn, VerilatorTester)

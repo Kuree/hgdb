@@ -38,13 +38,15 @@ int main(int argc, char **argv) {
     // Create an instance of our module under test
     hgdb::initialize_hgdb_runtime_cxx();
 
+    reset(dut);
+
     for (int i = 0; i < 4; i++) {
         dut.in = i + 1;
         eval(dut);
         dut.clk = 1;
-        eval(dut, 5);
+        eval(dut, 10);
         dut.clk = 0;
-        eval(dut, 5);
+        eval(dut, 10);
     }
     dut.final();
 
