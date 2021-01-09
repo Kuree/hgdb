@@ -224,6 +224,12 @@ vpiHandle RTLSimulatorClient::add_call_back(const std::string &cb_name, int cb_t
                       .user_data = reinterpret_cast<char *>(user_data)};
     auto *handle = vpi_->vpi_register_cb(&cb_data);
     if (!handle) {
+        // need to free the old one to avoid memory leak
+        if (cb_handles_.find(cb_name) != cb_handles_.end()) {
+            auto *old_handle = cb_handles_.at(cb_name);
+            vpi_->vpi_release_handle(old_handle);
+            cb_handles_.erase(cb_name);
+        }
         cb_handles_.emplace(cb_name, handle);
     }
 
@@ -334,6 +340,13 @@ bool RTLSimulatorClient::is_verilator() {
         auto simulator_name = get_simulator_name();
         is_verilator_ = simulator_name == "Verilator";
         return *is_verilator_;
+    }
+}
+
+RTLSimulatorClient::~RTLSimulatorClient() {
+    // free callback handles
+    for (auto const &iter : cb_handles_) {
+        vpi_->vpi_release_handle(iter.second);
     }
 }
 

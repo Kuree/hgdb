@@ -84,6 +84,9 @@ public:
     // indicate if the simulator is verilator
     bool is_verilator();
 
+    // destructor to avoid memory leak in the simulator
+    ~RTLSimulatorClient();
+
 private:
     std::unordered_map<std::string, vpiHandle> handle_map_;
     // it is a map just in case there are separated tops being generated
