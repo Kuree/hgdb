@@ -62,8 +62,8 @@ private:
 
 class BreakPointResponse : public Response {
 public:
-    BreakPointResponse(uint64_t time, uint64_t instance_id, std::string filename, uint64_t line_num,
-                       uint64_t column_num = 0);
+    BreakPointResponse(uint64_t time, uint64_t instance_id, uint64_t breakpoint_id,
+                       std::string filename, uint64_t line_num, uint64_t column_num = 0);
     [[nodiscard]] std::string str(bool pretty_print) const override;
     [[nodiscard]] std::string type() const override { return "breakpoint"; }
 
@@ -73,6 +73,7 @@ public:
 private:
     uint64_t time_;
     uint64_t instance_id_;
+    uint64_t breakpoint_id_;
     std::string filename_;
     uint64_t line_num_;
     uint64_t column_num_;

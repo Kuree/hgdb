@@ -283,10 +283,12 @@ std::string BreakPointLocationResponse::str(bool pretty_print) const {
     return to_string(document, pretty_print);
 }
 
-BreakPointResponse::BreakPointResponse(uint64_t time, uint64_t instance_id, std::string filename,
+BreakPointResponse::BreakPointResponse(uint64_t time, uint64_t instance_id, uint64_t breakpoint_id,
+                                       std::string filename,
                                        uint64_t line_num, uint64_t column_num)
     : time_(time),
       instance_id_(instance_id),
+      breakpoint_id_(breakpoint_id),
       filename_(std::move(filename)),
       line_num_(line_num),
       column_num_(column_num) {}
@@ -301,6 +303,7 @@ std::string BreakPointResponse::str(bool pretty_print) const {
     Value payload(kObjectType);
     set_member(payload, allocator, "time", time_);
     set_member(payload, allocator, "instance_id", instance_id_);
+    set_member(payload, allocator, "breakpoint_id", breakpoint_id_);
     set_member(payload, allocator, "filename", filename_);
     set_member(payload, allocator, "line_num", line_num_);
     set_member(payload, allocator, "column_num", column_num_);
