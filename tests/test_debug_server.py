@@ -100,6 +100,14 @@ def test_breakpoint_request(start_server, find_free_port):
         # query the system about breakpoints. it should be empty now
         info = (await client.get_info())["payload"]
         assert len(info["breakpoints"]) == 0
+        # add bp by id
+        await client.set_breakpoint_id(1)
+        info = (await client.get_info())["payload"]
+        assert len(info["breakpoints"]) == 1
+        # remove by id
+        await client.remove_breakpoint_id(1)
+        info = (await client.get_info())["payload"]
+        assert len(info["breakpoints"]) == 0
 
     asyncio.get_event_loop().run_until_complete(test_logic())
     kill_server(s)

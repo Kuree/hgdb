@@ -383,6 +383,8 @@ std::unique_ptr<Request> Request::parse_request(const std::string &str) {
     std::unique_ptr<Request> result;
     if (type_str == "breakpoint") {
         result = std::make_unique<BreakPointRequest>();
+    } else if (type_str == "breakpoint-id") {
+        result = std::make_unique<BreakPointIDRequest>();
     } else if (type_str == "connection") {
         result = std::make_unique<ConnectionRequest>();
     } else if (type_str == "bp-location") {

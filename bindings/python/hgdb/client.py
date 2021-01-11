@@ -1,5 +1,6 @@
-import websockets
 import json
+
+import websockets
 
 
 class HGDBClient:
@@ -20,9 +21,14 @@ class HGDBClient:
             payload = {"request": True, "type": "connection", "payload": {
                 "db_filename": self.filename,
             }}
-            await self.send(payload)
-            res = await self.recv()
+            return await self.__send_check(payload, True)
+
+    async def __send_check(self, payload, check_error=False):
+        await self.send(payload)
+        res = await self.recv()
+        if check_error:
             self.__check_status(res)
+        return res
 
     async def set_breakpoint(self, filename, line_num, column_num=0, token="", cond="",
                              check_error=True):
@@ -31,22 +37,25 @@ class HGDBClient:
                                "action": "add"}}
         if len(cond) > 0:
             payload["payload"]["condition"] = cond
-        await self.send(payload)
-        res = await self.recv()
-        if check_error:
-            self.__check_status(res)
-        return res
+        return await self.__send_check(payload, check_error)
+
+    async def set_breakpoint_id(self, bp_id, cond="", token="", check_error=True):
+        payload = {"request": True, "type": "breakpoint-id", "token": token,
+                   "payload": {"id": bp_id, "action": "add"}}
+        if len(cond) > 0:
+            payload["payload"]["condition"] = cond
+        return await self.__send_check(payload, check_error)
 
     async def remove_breakpoint(self, filename, line_num, column_num=0, token="", check_error=True):
         payload = {"request": True, "type": "breakpoint", "token": token,
                    "payload": {"filename": filename, "line_num": line_num, "column_num": column_num,
                                "action": "remove"}}
-        await self.send(payload)
-        res = await self.recv()
-        if check_error:
-            self.__check_status(res)
-            return res
-        return res
+        return await self.__send_check(payload, check_error)
+
+    async def remove_breakpoint_id(self, bp_id, token="", check_error=True):
+        payload = {"request": True, "type": "breakpoint-id", "token": token,
+                   "payload": {"id": bp_id, "action": "remove"}}
+        return await self.__send_check(payload, check_error)
 
     async def request_breakpoint_location(self, filename, line_num=None, column_num=None):
         payload = {"request": True, "type": "bp-location", "payload": {"filename": filename}}
@@ -54,9 +63,7 @@ class HGDBClient:
             payload["payload"]["line_num"] = line_num
         if column_num is not None:
             payload["payload"]["column_num"] = column_num
-        await self.send(payload)
-        res = await self.recv()
-        return res
+        return await self.__send_check(payload)
 
     async def continue_(self):
         await self.__send_command("continue")
@@ -73,11 +80,7 @@ class HGDBClient:
 
     async def get_info(self, status_command="breakpoints", check_error=True):
         payload = {"request": True, "type": "debugger-info", "payload": {"command": status_command}}
-        await self.send(payload)
-        res = await self.recv()
-        if check_error:
-            self.__check_status(res)
-        return res
+        return await self.__send_check(payload, check_error)
 
     async def close(self):
         await self.ws.close()
@@ -86,4 +89,3 @@ class HGDBClient:
     def __check_status(res):
         if res["status"] != "success":
             raise Exception(res["payload"]["reason"])
-

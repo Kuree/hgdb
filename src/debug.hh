@@ -80,10 +80,14 @@ private:
     static void log_error(const std::string &msg);
     void log_info(const std::string &msg) const;
     std::unordered_map<std::string, int64_t> get_context_static_values(uint32_t breakpoint_id);
+    void add_breakpoint(const BreakPoint &bp_info, const BreakPoint &db_bp);
+    void reorder_breakpoints();
+    void remove_breakpoint(const BreakPoint &bp);
 
     // request handler
     void handle_connection(const ConnectionRequest &req);
     void handle_breakpoint(const BreakPointRequest &req);
+    void handle_breakpoint_id(const BreakPointIDRequest &req);
     void handle_bp_location(const BreakPointLocationRequest &req);
     void handle_command(const CommandRequest &req);
     void handle_debug_info(const DebuggerInformationRequest &req);

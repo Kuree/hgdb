@@ -151,6 +151,11 @@ void Debugger::on_message(const std::string &message) {
             handle_breakpoint(*r);
             break;
         }
+        case RequestType::breakpoint_id: {
+            auto *r = reinterpret_cast<BreakPointIDRequest *>(req.get());
+            handle_breakpoint_id(*r);
+            break;
+        }
         case RequestType::bp_location: {
             auto *r = reinterpret_cast<BreakPointLocationRequest *>(req.get());
             handle_bp_location(*r);
@@ -170,10 +175,6 @@ void Debugger::on_message(const std::string &message) {
             auto *r = reinterpret_cast<ErrorRequest *>(req.get());
             handle_error(*r);
             break;
-        }
-        default: {
-            // do nothing
-            return;
         }
     }
 }
@@ -244,6 +245,56 @@ std::unordered_map<std::string, int64_t> Debugger::get_context_static_values(
     return result;
 }
 
+void Debugger::add_breakpoint(const BreakPoint &bp_info, const BreakPoint &db_bp) {
+    // add them to the eval vector
+    std::string cond = "1";
+    if (!db_bp.condition.empty()) cond = db_bp.condition;
+    if (!bp_info.condition.empty()) cond.append(" and " + bp_info.condition);
+    log_info(fmt::format("Breakpoint inserted into {0}:{1}", db_bp.filename, db_bp.line_num));
+    std::lock_guard guard(breakpoint_lock_);
+    if (inserted_breakpoints_.find(db_bp.id) == inserted_breakpoints_.end()) {
+        breakpoints_.emplace_back(
+            DebugBreakPoint{.id = db_bp.id,
+                            .instance_id = *db_bp.instance_id,
+                            .expr = std::make_unique<DebugExpression>(cond),
+                            .enable_expr = std::make_unique<DebugExpression>(
+                                db_bp.condition.empty() ? "1" : db_bp.condition)});
+        inserted_breakpoints_.emplace(db_bp.id);
+    } else {
+        // update breakpoint entry
+        for (auto &b : breakpoints_) {
+            if (db_bp.id == b.id) {
+                b.expr = std::make_unique<DebugExpression>(cond);
+                return;
+            }
+        }
+    }
+}
+
+void Debugger::reorder_breakpoints() {
+    std::lock_guard guard(breakpoint_lock_);
+    // need to sort them by the ordering
+    // the easiest way is to sort them by their lookup table. assuming the number of
+    // breakpoints is relatively small, i.e. < 100, sorting can be efficient and less
+    // bug-prone
+    std::sort(breakpoints_.begin(), breakpoints_.end(),
+              [this](const auto &left, const auto &right) -> bool {
+                  return bp_ordering_table_.at(left.id) < bp_ordering_table_.at(right.id);
+              });
+}
+
+void Debugger::remove_breakpoint(const BreakPoint &bp) {
+    std::lock_guard guard(breakpoint_lock_);
+    // notice that removal doesn't need reordering
+    for (auto pos = breakpoints_.begin(); pos != breakpoints_.end(); pos++) {
+        if (pos->id == bp.id) {
+            breakpoints_.erase(pos);
+            inserted_breakpoints_.erase(bp.id);
+            break;
+        }
+    }
+}
+
 void Debugger::handle_connection(const ConnectionRequest &req) {
     auto const &db_filename = req.db_filename();
     // path mapping not supported yet
@@ -282,69 +333,49 @@ void Debugger::handle_breakpoint(const BreakPointRequest &req) {
             return;
         }
 
-        {
-            std::lock_guard guard(breakpoint_lock_);
-            breakpoints_.reserve(breakpoints_.size() + bps.size());
-            for (auto const &bp : bps) {
-                // add them to the eval vector
-                std::string cond = "1";
-                if (!bp.condition.empty()) cond.append(" and " + bp.condition);
-                if (!bp_info.condition.empty()) cond.append(" and " + bp_info.condition);
-                log_info(fmt::format("Breakpoint inserted into {0}:{1}", bp.filename, bp.line_num));
-                if (inserted_breakpoints_.find(bp.id) == inserted_breakpoints_.end()) {
-                    breakpoints_.emplace_back(
-                        DebugBreakPoint{.id = bp.id,
-                                        .instance_id = *bp.instance_id,
-                                        .expr = std::make_unique<DebugExpression>(cond),
-                                        .enable_expr = std::make_unique<DebugExpression>(
-                                            bp.condition.empty() ? "1" : bp.condition)});
-                    inserted_breakpoints_.emplace(bp.id);
-                } else {
-                    // update breakpoint entry
-                    for (auto &b : breakpoints_) {
-                        if (bp.id == b.id) {
-                            b.expr = std::make_unique<DebugExpression>(cond);
-                            continue;
-                        }
-                    }
-                }
-            }
-            // need to sort them by the ordering
-            // the easiest way is to sort them by their lookup table. assuming the number of
-            // breakpoints is relatively small, i.e. < 100, sorting can be efficient and less
-            // bug-prone
-            std::sort(breakpoints_.begin(), breakpoints_.end(),
-                      [this](const auto &left, const auto &right) -> bool {
-                          return bp_ordering_table_.at(left.id) < bp_ordering_table_.at(right.id);
-                      });
+        for (auto const &bp : bps) {
+            add_breakpoint(bp_info, bp);
         }
 
-        // tell client we're good
-        auto success_resp = GenericResponse(status_code::success, req);
-        req.set_token(success_resp);
-        send_message(success_resp.str(log_enabled_));
+        reorder_breakpoints();
     } else {
         // remove
         auto bps = db_->get_breakpoints(bp_info.filename, bp_info.line_num, bp_info.column_num);
 
-        {
-            std::lock_guard guard(breakpoint_lock_);
-            // notice that removal doesn't need reordering
-            for (auto const &bp : bps) {
-                for (auto pos = breakpoints_.begin(); pos != breakpoints_.end(); pos++) {
-                    if (pos->id == bp.id) {
-                        breakpoints_.erase(pos);
-                        inserted_breakpoints_.erase(bp.id);
-                        break;
-                    }
-                }
-            }
+        // notice that removal doesn't need reordering
+        for (auto const &bp : bps) {
+            remove_breakpoint(bp);
         }
-
-        auto success_resp = GenericResponse(status_code::success, req);
-        req.set_token(success_resp);
-        send_message(success_resp.str(log_enabled_));
     }
+    // tell client we're good
+    auto success_resp = GenericResponse(status_code::success, req);
+    req.set_token(success_resp);
+    send_message(success_resp.str(log_enabled_));
+}
+
+void Debugger::handle_breakpoint_id(const BreakPointIDRequest &req) {
+    if (!check_send_db_error(req.type())) return;
+    // depends on whether it is add or remove
+    auto const &bp_info = req.breakpoint();
+    if (req.bp_action() == BreakPointRequest::action::add) {
+        // need to query the db to get the actual breakpoint
+        auto bp = db_->get_breakpoint(bp_info.id);
+        if (!bp) {
+            auto error_response =
+                GenericResponse(status_code::error, req,
+                                fmt::format("BP ({0}) is not a valid breakpoint", bp_info.id));
+            req.set_token(error_response);
+            send_message(error_response.str(log_enabled_));
+            return;
+        }
+        add_breakpoint(bp_info, *bp);
+    } else {
+        remove_breakpoint(bp_info);
+    }
+    // tell client we're good
+    auto success_resp = GenericResponse(status_code::success, req);
+    req.set_token(success_resp);
+    send_message(success_resp.str(log_enabled_));
 }
 
 void Debugger::handle_bp_location(const BreakPointLocationRequest &req) {
