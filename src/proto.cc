@@ -37,6 +37,12 @@ namespace hgdb {
  *     column_num: [optional] - uint64_t
  *     condition: [optional] - string
  *
+ * Breakpoint ID Request
+ * type: breakpoint-id
+ * payload:
+ *     id: [required] - uint64_t
+ *     action: [required] - string: "add" or "remove"
+ *
  *
  * Connection Request
  * type: connection
@@ -158,6 +164,9 @@ GenericResponse::GenericResponse(status_code status, RequestType type, std::stri
             break;
         case RequestType::breakpoint:
             request_type_ = "breakpoint";
+            break;
+        case RequestType::breakpoint_id:
+            request_type_ = "breakpoint-id";
             break;
         case RequestType::connection:
             request_type_ = "connection";
@@ -411,7 +420,6 @@ bool check_json(rapidjson::Document &document, status_code &status, std::string 
 
 void BreakPointRequest::parse_payload(const std::string &payload) {
     // parse the breakpoint based on the API specification
-    // we use linux style error handling logic
     using namespace rapidjson;
     Document document;
     document.Parse(payload.c_str());
@@ -446,6 +454,32 @@ void BreakPointRequest::parse_payload(const std::string &payload) {
         bp_.condition = *condition;
     else
         bp_.condition = "";
+}
+
+void BreakPointIDRequest::parse_payload(const std::string &payload) {
+    using namespace rapidjson;
+    Document document;
+    document.Parse(payload.c_str());
+    if (!check_json(document, status_code_, error_reason_)) return;
+
+    auto id = get_member<uint64_t>(document, "id", error_reason_);
+    auto bp_act = get_member<std::string>(document, "action", error_reason_);
+    if (!id || !bp_act) {
+        status_code_ = status_code::error;
+        return;
+    }
+
+    bp_ = BreakPoint{};
+    bp_.id = *id;
+    auto action_str = *bp_act;
+    if (action_str == "add") {
+        bp_action_ = action::add;
+    } else if (action_str == "remove") {
+        bp_action_ = action::remove;
+    } else {
+        status_code_ = status_code::error;
+        return;
+    }
 }
 
 ErrorRequest::ErrorRequest(std::string reason) {

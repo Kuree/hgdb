@@ -12,7 +12,15 @@
 namespace hgdb {
 
 enum class status_code { success = 0, error = 1 };
-enum class RequestType { error, breakpoint, connection, bp_location, command, debugger_info };
+enum class RequestType {
+    error,
+    breakpoint,
+    breakpoint_id,
+    connection,
+    bp_location,
+    command,
+    debugger_info
+};
 
 class Request;
 
@@ -107,9 +115,16 @@ public:
     [[nodiscard]] auto bp_action() const { return bp_action_; }
     [[nodiscard]] RequestType type() const override { return RequestType::breakpoint; }
 
-private:
+protected:
     BreakPoint bp_;
     action bp_action_ = action::add;
+};
+
+class BreakPointIDRequest : public BreakPointRequest {
+public:
+    BreakPointIDRequest() = default;
+    void parse_payload(const std::string &payload) override;
+    [[nodiscard]] RequestType type() const override { return RequestType::breakpoint_id; }
 };
 
 class ConnectionRequest : public Request {
