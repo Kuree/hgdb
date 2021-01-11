@@ -89,6 +89,8 @@ namespace hgdb {
  * payload:
  *     time: uint64_t
  *     instance_id: uint64_t
+ *     instance_name: string
+ *     breakpoint_id: uint64_t
  *     filename: string
  *     line_num: uint64_t
  *     column_num: uint64_t
@@ -283,11 +285,12 @@ std::string BreakPointLocationResponse::str(bool pretty_print) const {
     return to_string(document, pretty_print);
 }
 
-BreakPointResponse::BreakPointResponse(uint64_t time, uint64_t instance_id, uint64_t breakpoint_id,
-                                       std::string filename,
-                                       uint64_t line_num, uint64_t column_num)
+BreakPointResponse::BreakPointResponse(uint64_t time, uint64_t instance_id,
+                                       std::string instance_name, uint64_t breakpoint_id,
+                                       std::string filename, uint64_t line_num, uint64_t column_num)
     : time_(time),
       instance_id_(instance_id),
+      instance_name_(std::move(instance_name)),
       breakpoint_id_(breakpoint_id),
       filename_(std::move(filename)),
       line_num_(line_num),
@@ -303,6 +306,7 @@ std::string BreakPointResponse::str(bool pretty_print) const {
     Value payload(kObjectType);
     set_member(payload, allocator, "time", time_);
     set_member(payload, allocator, "instance_id", instance_id_);
+    set_member(payload, allocator, "instance_name", instance_name_);
     set_member(payload, allocator, "breakpoint_id", breakpoint_id_);
     set_member(payload, allocator, "filename", filename_);
     set_member(payload, allocator, "line_num", line_num_);

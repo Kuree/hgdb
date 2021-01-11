@@ -231,7 +231,7 @@ TEST(proto, bp_location_response) {  // NOLINT
 }
 
 TEST(proto, breakpoint_response) {  // NOLINT
-    auto res = hgdb::BreakPointResponse(1, 42, 43, "a", 2, 3);
+    auto res = hgdb::BreakPointResponse(1, 42, "mod", 43, "a", 2, 3);
     res.add_generator_value("c", "4");
     res.add_local_value("d", "5");
     auto s = res.str(true);
@@ -242,6 +242,7 @@ TEST(proto, breakpoint_response) {  // NOLINT
     "payload": {
         "time": 1,
         "instance_id": 42,
+        "instance_name": "mod",
         "breakpoint_id": 43,
         "filename": "a",
         "line_num": 2,

@@ -472,8 +472,10 @@ void Debugger::send_breakpoint_hit(const DebugBreakPoint &bp) {
     auto generator_values = db_->get_generator_variable(bp.instance_id);
     auto context_values = db_->get_context_variables(bp_id);
     auto bp_ptr = db_->get_breakpoint(bp_id);
-    BreakPointResponse resp(rtl_->get_simulation_time(), bp.instance_id, bp.id, bp_ptr->filename,
-                            bp_ptr->line_num, bp_ptr->column_num);
+    auto instance_name = db_->get_instance_name(bp.instance_id);
+    auto instance_name_str = instance_name ? *instance_name : "";
+    BreakPointResponse resp(rtl_->get_simulation_time(), bp.instance_id, instance_name_str, bp.id,
+                            bp_ptr->filename, bp_ptr->line_num, bp_ptr->column_num);
     using namespace std::string_literals;
     for (auto const &[gen_var, var] : generator_values) {
         std::string value_str;

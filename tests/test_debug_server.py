@@ -130,6 +130,7 @@ def test_breakpoint_hit_continue(start_server, find_free_port):
         # should get breakpoint info
         bp_info1 = await client.recv()
         assert bp_info1["payload"]["line_num"] == 1
+        assert bp_info1["payload"]["instance_name"] == "mod"
         await client.continue_()
         bp_info2 = await client.recv()
         assert bp_info2["payload"]["line_num"] == 1
@@ -172,4 +173,4 @@ if __name__ == "__main__":
     sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
     from conftest import start_server_fn, find_free_port_fn
 
-    test_breakpoint_step_over(start_server_fn, find_free_port_fn)
+    test_breakpoint_hit_continue(start_server_fn, find_free_port_fn)
