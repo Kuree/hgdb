@@ -24,6 +24,7 @@ namespace hgdb {
  * Response structure
  * request: false
  * type: [required] - string
+ * status: [required] - string: "success" or "error"
  * payload: [required] - object
  * token: [optional] - string -> used to identify a unique request/response
  *
@@ -71,6 +72,7 @@ namespace hgdb {
  * type: bp-location
  * payload:
  *     Array:
+ *         id: string
  *         filename: string
  *         line_num: uint64_t
  *         column_num: uint64_t
@@ -259,6 +261,7 @@ std::string BreakPointLocationResponse::str(bool pretty_print) const {
     for (auto const &bp_p : bps_) {
         auto &bp = *bp_p;
         Value value(kObjectType);
+        set_member(value, allocator, "id", bp.id);
         set_member(value, allocator, "filename", bp.filename);
         set_member(value, allocator, "line_num", bp.line_num);
         set_member(value, allocator, "column_num", bp.column_num);

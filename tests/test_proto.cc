@@ -185,6 +185,7 @@ TEST(proto, bp_location_response) {  // NOLINT
         bp->filename = "/tmp/a";
         bp->line_num = i;
         bp->column_num = 0;
+        bp->id = i;
         bps.emplace_back(std::move(bp));
     }
     std::vector<hgdb::BreakPoint *> values = {bps[0].get(), bps[1].get()};
@@ -196,11 +197,13 @@ TEST(proto, bp_location_response) {  // NOLINT
     "status": "success",
     "payload": [
         {
+            "id": 0,
             "filename": "/tmp/a",
             "line_num": 0,
             "column_num": 0
         },
         {
+            "id": 1,
             "filename": "/tmp/a",
             "line_num": 1,
             "column_num": 0
