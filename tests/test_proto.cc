@@ -47,7 +47,8 @@ TEST(proto, breakpoint_id_request) {  // NOLINT
     const auto *req = R"(
 {
     "id": 42,
-    "action": "add"
+    "action": "add",
+    "condition": "a"
 }
 )";
     hgdb::BreakPointIDRequest r;
@@ -55,6 +56,7 @@ TEST(proto, breakpoint_id_request) {  // NOLINT
     EXPECT_EQ(r.status(), hgdb::status_code::success);
     auto const &bp = r.breakpoint();
     EXPECT_EQ(bp.id, 42);
+    EXPECT_EQ(bp.condition, "a");
     EXPECT_EQ(r.bp_action(), hgdb::BreakPointRequest::action::add);
 }
 

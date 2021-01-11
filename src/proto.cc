@@ -42,6 +42,7 @@ namespace hgdb {
  * payload:
  *     id: [required] - uint64_t
  *     action: [required] - string: "add" or "remove"
+ *     condition: [optional] - string
  *
  *
  * Connection Request
@@ -450,10 +451,7 @@ void BreakPointRequest::parse_payload(const std::string &payload) {
         bp_.column_num = *column_num;
     else
         bp_.column_num = 0;
-    if (condition)
-        bp_.condition = *condition;
-    else
-        bp_.condition = "";
+    if (condition) bp_.condition = *condition;
 }
 
 void BreakPointIDRequest::parse_payload(const std::string &payload) {
@@ -480,6 +478,9 @@ void BreakPointIDRequest::parse_payload(const std::string &payload) {
         status_code_ = status_code::error;
         return;
     }
+
+    auto condition = get_member<std::string>(document, "condition", error_reason_, false);
+    if (condition) bp_.condition = *condition;
 }
 
 ErrorRequest::ErrorRequest(std::string reason) {
