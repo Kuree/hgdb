@@ -43,6 +43,22 @@ TEST(proto, breakpoint_request) {  // NOLINT
     EXPECT_EQ(r.bp_action(), hgdb::BreakPointRequest::action::add);
 }
 
+TEST(proto, breakpoint_request_remove_no_line_num) {  // NOLINT
+    const auto *req = R"(
+{
+    "filename": "/tmp/abc",
+    "action": "remove",
+    "column_num": 42
+}
+)";
+    hgdb::BreakPointRequest r;
+    r.parse_payload(req);
+    EXPECT_EQ(r.status(), hgdb::status_code::success);
+    auto const &bp = r.breakpoint();
+    EXPECT_EQ(bp.filename, "/tmp/abc");
+    EXPECT_EQ(r.bp_action(), hgdb::BreakPointRequest::action::remove);
+}
+
 TEST(proto, breakpoint_id_request) {  // NOLINT
     const auto *req = R"(
 {
@@ -73,8 +89,7 @@ TEST(proto, breakpoint_request_malformed) {  // NOLINT
     auto req2 = R"(
 {
     "filename": "/tmp/abc",
-    "action": "remove",
-    "line_num": "123"
+    "action": "remove_all",
 }
 )";
     hgdb::BreakPointRequest r;

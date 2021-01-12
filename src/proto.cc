@@ -32,7 +32,7 @@ namespace hgdb {
  * type: breakpoint
  * payload:
  *     filename: [required] - string
- *     line_num: [required] - uint64_t
+ *     line_num: [required - optional for remove] - uint64_t
  *     action: [required] - string: "add" or "remove"
  *     column_num: [optional] - uint64_t
  *     condition: [optional] - string
@@ -440,15 +440,14 @@ void BreakPointRequest::parse_payload(const std::string &payload) {
     if (!check_json(document, status_code_, error_reason_)) return;
 
     auto filename = get_member<std::string>(document, "filename", error_reason_);
-    auto line_num = get_member<uint64_t>(document, "line_num", error_reason_);
     auto bp_act = get_member<std::string>(document, "action", error_reason_);
-    if (!filename || !line_num || !bp_act) {
+    if (!filename || !bp_act) {
         status_code_ = status_code::error;
         return;
     }
+
     bp_ = BreakPoint{};
     bp_.filename = *filename;
-    bp_.line_num = *line_num;
     auto action_str = *bp_act;
     if (action_str == "add") {
         bp_action_ = action::add;
@@ -458,6 +457,14 @@ void BreakPointRequest::parse_payload(const std::string &payload) {
         status_code_ = status_code::error;
         return;
     }
+
+    bool line_num_required = bp_action_ == action::add;
+    auto line_num = get_member<uint64_t>(document, "line_num", error_reason_, line_num_required);
+    if (line_num_required || line_num)
+        bp_.line_num = *line_num;
+    else
+        bp_.line_num = 0;
+
     auto column_num = get_member<uint64_t>(document, "column_num", error_reason_, false);
     auto condition = get_member<std::string>(document, "condition", error_reason_, false);
     if (column_num)

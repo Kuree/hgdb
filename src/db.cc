@@ -34,20 +34,18 @@ std::vector<BreakPoint> DebugDatabaseClient::get_breakpoints(const std::string &
         bps = db_->get_all<BreakPoint>(where(c(&BreakPoint::filename) == filename &&
                                              c(&BreakPoint::line_num) == line_num &&
                                              c(&BreakPoint::column_num) == col_num));
-    } else {
+    } else if (line_num != 0) {
         bps = db_->get_all<BreakPoint>(
             where(c(&BreakPoint::filename) == filename && c(&BreakPoint::line_num) == line_num));
+    } else {
+        bps = db_->get_all<BreakPoint>(where(c(&BreakPoint::filename) == filename));
     }
 
     return bps;
 }
 
 std::vector<BreakPoint> DebugDatabaseClient::get_breakpoints(const std::string &filename) {
-    using namespace sqlite_orm;
-    std::lock_guard guard(db_lock_);
-    std::vector<BreakPoint> bps =
-        db_->get_all<BreakPoint>(where(c(&BreakPoint::filename) == filename));
-    return bps;
+    return get_breakpoints(filename, 0, 0);
 }
 
 std::optional<BreakPoint> DebugDatabaseClient::get_breakpoint(uint32_t breakpoint_id) {
