@@ -10,6 +10,7 @@ from setuptools.command.build_ext import build_ext
 # https://github.com/pybind/cmake_example/blob/master/setup.py
 # with the following changes:
 #  - On unix, make is used instead of Ninja.
+#  - use DEBUG=1 to build in debug mode
 
 # Convert distutils Windows platform specifiers to CMake -A arguments
 PLAT_TO_CMAKE = {
@@ -38,6 +39,8 @@ class CMakeBuild(build_ext):
             extdir += os.path.sep
 
         cfg = "Debug" if self.debug else "Release"
+        if "DEBUG" in os.environ:
+            cfg = "Debug"
 
         # CMake lets you override the generator - we need to check this.
         # Can be set with Conda-Build, for example.
