@@ -30,19 +30,19 @@ class DebugSymbolTable:
                 raise DebugSymbolTableException(f"Breakpoint {breakpoint_id} does not exist!")
         _hgdb.store_scope(self.db, id_, *args)
 
-    def store_context_variable(self, variable_id: int, breakpoint_id: int, name: str):
+    def store_context_variable(self, name: str, breakpoint_id: int, variable_id: int):
         if not self.has_breakpoint_id(breakpoint_id):
             raise DebugSymbolTableException(f"Breakpoint {breakpoint_id} does not exist!")
         if not self.has_variable_id(variable_id):
             raise DebugSymbolTableException(f"Variable {variable_id} does not exist!")
-        _hgdb.store_context_variable(self.db, variable_id, breakpoint_id, name)
+        _hgdb.store_context_variable(self.db, name, breakpoint_id, variable_id)
 
-    def store_generator_variable(self, variable_id: int, instance_id: int, name: str):
+    def store_generator_variable(self, name: str, instance_id: int, variable_id: int):
         if not self.has_instance_id(instance_id):
             raise DebugSymbolTableException(f"Instance {instance_id} does not exist!")
         if not self.has_variable_id(variable_id):
             raise DebugSymbolTableException(f"Variable {variable_id} does not exist!")
-        _hgdb.store_generator_variable(self.db, variable_id, instance_id, name)
+        _hgdb.store_generator_variable(self.db, name, instance_id, variable_id)
 
     # checkers
     def has_instance_id(self, id_):
@@ -52,4 +52,4 @@ class DebugSymbolTable:
         return _hgdb.has_breakpoint_id(self.db, id_)
 
     def has_variable_id(self, id_):
-        return _hgdb.has_variable_id(self.dn, id_)
+        return _hgdb.has_variable_id(self.db, id_)
