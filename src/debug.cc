@@ -1,5 +1,6 @@
 #include "debug.hh"
 
+#include <algorithm>
 #include <filesystem>
 #include <functional>
 
@@ -269,6 +270,8 @@ void Debugger::add_breakpoint(const BreakPoint &bp_info, const BreakPoint &db_bp
             }
         }
     }
+    // clang-tidy reports memory leak due to the usage of emplace make_unique
+    // NOLINTNEXTLINE
 }
 
 void Debugger::reorder_breakpoints() {
@@ -295,11 +298,23 @@ void Debugger::remove_breakpoint(const BreakPoint &bp) {
     }
 }
 
+bool Debugger::has_cli_flag(const std::string &flag) {
+    if (!rtl_) return false;
+    const auto &argv = rtl_->get_argv();
+    return std::any_of(argv.begin(), argv.end(), [&flag](const auto &v) { return v == flag; });
+}
+
 void Debugger::handle_connection(const ConnectionRequest &req) {
-    auto const &db_filename = req.db_filename();
-    // path mapping not supported yet
-    auto r = initialize_db(db_filename);
-    if (r) {
+    // if we have a debug cli flag, don't load the db
+    bool success = true;
+    std::string db_filename = "debug symbol table";
+    if (!has_cli_flag(debug_skip_db_load)) {
+        db_filename = req.db_filename();
+        // path mapping not supported yet
+        success = initialize_db(db_filename);
+    }
+
+    if (success) {
         auto resp = GenericResponse(status_code::success, req);
         send_message(resp.str(log_enabled_));
     } else {
@@ -307,6 +322,7 @@ void Debugger::handle_connection(const ConnectionRequest &req) {
                                     fmt::format("Unable to find {0}", db_filename));
         send_message(resp.str(log_enabled_));
     }
+
     log_info("handle_connection finished");
 }
 

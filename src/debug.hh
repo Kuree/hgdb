@@ -27,6 +27,7 @@ public:
     static constexpr uint16_t default_port_num = 8888;
     static constexpr bool default_logging = false;
     static constexpr auto error_value_str = "ERROR";
+    static constexpr auto debug_skip_db_load = "+DEBUG_NO_DB";
 
     // status to expose to outside world
     [[nodiscard]] const std::atomic<bool> &is_running() const { return is_running_; }
@@ -83,6 +84,7 @@ private:
     void add_breakpoint(const BreakPoint &bp_info, const BreakPoint &db_bp);
     void reorder_breakpoints();
     void remove_breakpoint(const BreakPoint &bp);
+    bool has_cli_flag(const std::string &flag);
 
     // request handler
     void handle_connection(const ConnectionRequest &req);
