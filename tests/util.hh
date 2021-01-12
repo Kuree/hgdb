@@ -34,6 +34,9 @@ public:
         if (property == vpiType) {
             if (signals_.find(object) != signals_.end()) return vpiNet;
             if (modules_.find(object) != modules_.end()) return vpiModule;
+        } else if (property == vpiSize) {
+            // every signal is 1-bit for now
+            return 1;
         }
         return vpiError;
     }

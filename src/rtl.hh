@@ -84,6 +84,9 @@ public:
     // indicate if the simulator is verilator
     bool is_verilator();
 
+    // search for clock signals
+    [[nodiscard]] std::vector<std::string> get_clocks_from_design();
+
     // destructor to avoid memory leak in the simulator
     ~RTLSimulatorClient();
 
@@ -116,6 +119,9 @@ private:
     void compute_hierarchy_name_prefix(std::unordered_set<std::string> &top_names);
     void get_simulator_info();
     void compute_verilator_name_prefix(std::unordered_set<std::string> &top_names);
+
+    // used for compute potential clock signals if user doesn't provide proper annotation
+    static constexpr std::array clock_names_{"clk", "clock", "clk_in", "clock_in"};
 };
 }  // namespace hgdb
 

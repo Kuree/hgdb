@@ -343,6 +343,29 @@ bool RTLSimulatorClient::is_verilator() {
     }
 }
 
+std::vector<std::string> RTLSimulatorClient::get_clocks_from_design() {
+    if (!vpi_) return {};
+    // this employ some naming heuristics to get the name
+    std::vector<std::string> result;
+    for (auto const &iter : hierarchy_name_prefix_map_) {
+        auto const &instance_name = iter.second;
+        for (auto const &clk_name : clock_names_) {
+            auto const &signal_name = instance_name + clk_name;
+            // test to see if there is a signal name that match
+            auto *handle =
+                vpi_->vpi_handle_by_name(const_cast<char *>(signal_name.c_str()), nullptr);
+            if (handle) {
+                // make sure it's 1 bit as well
+                int width = vpi_->vpi_get(vpiSize, handle);
+                if (width == 1) {
+                    result.emplace_back(signal_name);
+                }
+            }
+        }
+    }
+    return result;
+}
+
 RTLSimulatorClient::~RTLSimulatorClient() {
     // free callback handles
     for (auto const &iter : cb_handles_) {

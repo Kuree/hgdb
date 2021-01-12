@@ -46,9 +46,11 @@ protected:
             // adding signal in full name
             auto a = vpi_->add_signal(handle, name + ".a");
             auto b = vpi_->add_signal(handle, name + ".b");
+            auto clk = vpi_->add_signal(handle, name + ".clk");
             // also set the values
             vpi_->set_signal_value(a, a_value);
             vpi_->set_signal_value(b, b_value);
+            vpi_->set_signal_value(clk, 0);
         }
         // set argv
         vpi_->set_argv(argv);
@@ -160,4 +162,10 @@ TEST_F(RTLModuleTest, test_control) {  // NOLINT
     EXPECT_EQ(ops.size(), 2);
     EXPECT_EQ(ops[0], vpiStop);
     EXPECT_EQ(ops[1], vpiFinish);
+}
+
+TEST_F(RTLModuleTest, test_search_clk) {    // NOLINT
+    auto values = client->get_clocks_from_design();
+    EXPECT_FALSE(values.empty());
+    EXPECT_EQ(values[0], "top.dut.clk");
 }
