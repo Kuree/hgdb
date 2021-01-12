@@ -1,6 +1,7 @@
 #include "../src/db.hh"
 #include "gtest/gtest.h"
 #include "util.hh"
+#include <array>
 
 class DBTest : public DBTestHelper {};
 
@@ -125,6 +126,23 @@ TEST_F(DBTest, test_get_generator_variable) {  // NOLINT
         EXPECT_EQ(v.id, i);
     }
 }
+
+TEST_F(DBTest, test_get_annotation_values) {    // NOLINT
+    constexpr auto name = "name";
+    constexpr std::array values{"1", "2", "3"};
+    for (auto const &value: values) {
+        hgdb::store_annotation(*db, name, value);
+    }
+
+    // transfer the db ownership
+    hgdb::DebugDatabaseClient client(std::move(db));
+
+    auto a_values = client.get_annotation_values(name);
+    for (auto const &value: values) {
+        EXPECT_NE(std::find(a_values.begin(), a_values.end(), value), a_values.end());
+    }
+}
+
 
 TEST_F(DBTest, test_get_variable_prefix) {  // NOLINT
     // test out automatic full name computation

@@ -531,11 +531,13 @@ bool Debugger::check_send_db_error(RequestType type) {
 Debugger::DebugBreakPoint *Debugger::next_breakpoint() {
     // depends on which execution order we have
     if (evaluation_mode_ == EvaluationMode::BreakPointOnly) {
+        // if no breakpoint inserted. return early
+        std::lock_guard guard(breakpoint_lock_);
+        if (breakpoints_.empty()) return nullptr;
         // we need to make the experience the same as debugging software
         // as a result, when user add new breakpoints to the list that has high priority,
         // we need to skip then and evaluate them at the next evaluation cycle
         uint64_t index = 0;
-        std::lock_guard guard(breakpoint_lock_);
         // find index
         std::optional<uint64_t> pos;
         for (uint64_t i = 0; i < breakpoints_.size(); i++) {

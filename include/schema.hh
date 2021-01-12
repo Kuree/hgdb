@@ -144,6 +144,28 @@ struct GeneratorVariable {
     std::unique_ptr<uint32_t> variable_id;
 };
 
+/*
+ * Annotation on the symbol table. Can be used to store metadata
+ * information or pass extra design information to the debugger
+ *
+ * Some annotation used by the debugger:
+ * - clock
+ *   * for each unique clock used in your dut, store one entry
+ *   * the value should be under the scope of your dut top, e.g.
+ *     mod.clk. This follow the same semantics as hierarchy name
+ *     in the instance table
+ */
+struct Annotation {
+    /**
+     * Annotation name
+     */
+    std::string name;
+    /**
+     * Annotation value
+     */
+    std::string value;
+};
+
 auto inline init_debug_db(const std::string &filename) {
     using namespace sqlite_orm;
     auto storage = make_storage(
@@ -171,7 +193,9 @@ auto inline init_debug_db(const std::string &filename) {
                    make_column("instance_id", &GeneratorVariable::instance_id),
                    make_column("variable_id", &GeneratorVariable::variable_id),
                    foreign_key(&GeneratorVariable::instance_id).references(&Instance::id),
-                   foreign_key(&GeneratorVariable::variable_id).references(&Variable::id)));
+                   foreign_key(&GeneratorVariable::variable_id).references(&Variable::id)),
+        make_table("annotation", make_column("name", &Annotation::name),
+                   make_column("value", &Annotation::value)));
     storage.sync_schema();
     return storage;
 }
@@ -212,7 +236,7 @@ inline void store_scope(DebugDatabase &db, uint32_t id, const std::vector<uint32
 
 template <typename... Ts>
 inline void store_scope(DebugDatabase &db, uint32_t id, Ts... ids) {
-    store_scope(db, id, std::vector<uint32_t> {ids...});
+    store_scope(db, id, std::vector<uint32_t>{ids...});
 }
 
 inline void store_variable(DebugDatabase &db, uint32_t id, const std::string &value,
@@ -232,6 +256,10 @@ inline void store_generator_variable(DebugDatabase &db, const std::string &name,
     db.replace(GeneratorVariable{.name = name,
                                  .instance_id = std::make_unique<uint32_t>(instance_id),
                                  .variable_id = std::make_unique<uint32_t>(variable_id)});
+}
+
+inline void store_annotation(DebugDatabase &db, const std::string &name, const std::string &value) {
+    db.replace(Annotation{.name = name, .value = value});
 }
 
 }  // namespace hgdb

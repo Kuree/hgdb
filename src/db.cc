@@ -147,6 +147,18 @@ std::vector<std::string> DebugDatabaseClient::get_instance_names() {
     return result;
 }
 
+std::vector<std::string> DebugDatabaseClient::get_annotation_values(const std::string &name) {
+    using namespace sqlite_orm;
+    std::lock_guard guard(db_lock_);
+    auto values = db_->select(columns(&Annotation::value), where(c(&Annotation::name) == name));
+    std::vector<std::string> result;
+    result.reserve(values.size());
+    for (auto const &[v] : values) {
+        result.emplace_back(v);
+    }
+    return result;
+}
+
 DebugDatabaseClient::~DebugDatabaseClient() { close(); }
 
 void DebugDatabaseClient::setup_execution_order() {

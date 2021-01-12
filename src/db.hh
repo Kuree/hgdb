@@ -29,6 +29,7 @@ public:
     using GeneratorVariableInfo = std::pair<GeneratorVariable, Variable>;
     [[nodiscard]] std::vector<GeneratorVariableInfo> get_generator_variable(uint32_t instance_id);
     [[nodiscard]] std::vector<std::string> get_instance_names();
+    [[nodiscard]] std::vector<std::string> get_annotation_values(const std::string &name);
 
     ~DebugDatabaseClient();
 

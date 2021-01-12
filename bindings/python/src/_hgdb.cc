@@ -29,8 +29,8 @@ PYBIND11_MODULE(_hgdb, m) {
         hgdb::store_scope(db, scope_id, bps);
     });
     m.def("store_instance", &hgdb::store_instance);
+    m.def("store_annotation", &hgdb::store_annotation);
     // checkers
-
     m.def("has_instance_id", [](hgdb::DebugDatabase &db, uint32_t instance_id) -> bool {
         return has_type_id<hgdb::Instance>(db, instance_id);
     });
