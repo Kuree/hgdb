@@ -157,35 +157,33 @@ static std::optional<T> get_member(rapidjson::Document &document, const char *me
     return std::nullopt;
 }
 
-GenericResponse::GenericResponse(status_code status, const Request &req, std::string reason)
-    : GenericResponse(status, req.type(), std::move(reason)) {}
-
-GenericResponse::GenericResponse(status_code status, RequestType type, std::string reason)
-    : Response(status), reason_(std::move(reason)) {
+std::string to_string(RequestType type) noexcept {
     switch (type) {
         case RequestType::error:
-            request_type_ = "error";
-            break;
+            return "error";
         case RequestType::breakpoint:
-            request_type_ = "breakpoint";
-            break;
+            return "breakpoint";
         case RequestType::breakpoint_id:
-            request_type_ = "breakpoint-id";
-            break;
+            return "breakpoint-id";
         case RequestType::connection:
-            request_type_ = "connection";
-            break;
+            return "connection";
         case RequestType::bp_location:
-            request_type_ = "bp_location";
-            break;
+            return "bp_location";
         case RequestType::command:
-            request_type_ = "command";
-            break;
+            return "command";
         case RequestType::debugger_info:
-            request_type_ = "debugger_info";
-            break;
+            return "debugger_info";
     }
+    return "error";
 }
+
+GenericResponse::GenericResponse(status_code status, const Request &req, std::string reason)
+    : GenericResponse(status, req.type(), std::move(reason)) {
+    token_ = req.get_token();
+}
+
+GenericResponse::GenericResponse(status_code status, RequestType type, std::string reason)
+    : Response(status), request_type_(to_string(type)), reason_(std::move(reason)) {}
 
 template <typename T, typename K, typename A>
 void set_member(K &json_value, A &allocator, const char *name, const T &value) {
@@ -517,8 +515,8 @@ void ConnectionRequest::parse_payload(const std::string &payload) {
     db_filename_ = *db;
 
     // get optional mapping
-    auto mapping =
-        get_member<std::map<std::string, std::string>>(document, "path_mapping", error_reason_);
+    auto mapping = get_member<std::map<std::string, std::string>>(document, "path_mapping",
+                                                                  error_reason_, false);
     if (mapping) {
         path_mapping_ = *mapping;
     }

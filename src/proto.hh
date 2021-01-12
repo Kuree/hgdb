@@ -22,6 +22,8 @@ enum class RequestType {
     debugger_info
 };
 
+[[nodiscard]] std::string to_string(RequestType type) noexcept;
+
 class Request;
 
 class Response {
@@ -90,6 +92,7 @@ public:
     [[nodiscard]] const std::string &error_reason() const { return error_reason_; }
     [[nodiscard]] virtual RequestType type() const = 0;
     inline void set_token(Response &resp) const { resp.set_token(token_); }
+    [[nodiscard]] inline const std::string &get_token() const { return token_; }
 
     [[nodiscard]] static std::unique_ptr<Request> parse_request(const std::string &str);
 

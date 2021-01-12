@@ -344,7 +344,6 @@ void Debugger::handle_breakpoint(const BreakPointRequest &req) {
             auto error_response = GenericResponse(status_code::error, req,
                                                   fmt::format("{0}:{1} is not a valid breakpoint",
                                                               bp_info.filename, bp_info.line_num));
-            req.set_token(error_response);
             send_message(error_response.str(log_enabled_));
             return;
         }
@@ -365,7 +364,6 @@ void Debugger::handle_breakpoint(const BreakPointRequest &req) {
     }
     // tell client we're good
     auto success_resp = GenericResponse(status_code::success, req);
-    req.set_token(success_resp);
     send_message(success_resp.str(log_enabled_));
 }
 
@@ -380,7 +378,6 @@ void Debugger::handle_breakpoint_id(const BreakPointIDRequest &req) {
             auto error_response =
                 GenericResponse(status_code::error, req,
                                 fmt::format("BP ({0}) is not a valid breakpoint", bp_info.id));
-            req.set_token(error_response);
             send_message(error_response.str(log_enabled_));
             return;
         }
@@ -390,7 +387,6 @@ void Debugger::handle_breakpoint_id(const BreakPointIDRequest &req) {
     }
     // tell client we're good
     auto success_resp = GenericResponse(status_code::success, req);
-    req.set_token(success_resp);
     send_message(success_resp.str(log_enabled_));
 }
 
@@ -472,7 +468,6 @@ void Debugger::handle_debug_info(const DebuggerInformationRequest &req) {
         }
         default: {
             auto resp = GenericResponse(status_code::error, req, "Unknown debugger info command");
-            req.set_token(resp);
             send_message(resp.str(log_enabled_));
         }
     }
