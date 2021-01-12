@@ -11,6 +11,6 @@ docker run -d --name ci-test --rm -it --mount type=bind,source=${ROOT},target=/h
 # build everything
 docker exec -i ci-test bash -c "cd /hgdb && mkdir build && cd build && cmake .. && make -j"
 # install tests dependencies
-docker exec -i ci-test bash -c "pip install /hgdb/bindings/python/[client] kratos"
+docker exec -i ci-test bash -c "DEBUG=1 pip install /hgdb/bindings/python/[client] kratos"
 docker exec -i ci-test bash -c "cd /hgdb && pytest tests/ build/tests -v"
 docker stop ci-test
