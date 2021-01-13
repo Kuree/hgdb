@@ -102,15 +102,15 @@ private:
     void handle_error(const ErrorRequest &req);
 
     // send functions
-    void send_breakpoint_hit(const std::vector<const DebugBreakPoint*> &bps);
+    void send_breakpoint_hit(const std::vector<const DebugBreakPoint *> &bps);
 
     // common checker
     bool check_send_db_error(RequestType type);
 
     // scheduler
-    std::vector<Debugger::DebugBreakPoint*> next_breakpoints();
+    std::vector<Debugger::DebugBreakPoint *> next_breakpoints();
     Debugger::DebugBreakPoint *next_step_over_breakpoint();
-    std::vector<Debugger::DebugBreakPoint*> next_normal_breakpoints();
+    std::vector<Debugger::DebugBreakPoint *> next_normal_breakpoints();
     void start_breakpoint_evaluation();
 };
 
