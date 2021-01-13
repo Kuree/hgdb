@@ -366,6 +366,21 @@ std::vector<std::string> RTLSimulatorClient::get_clocks_from_design() {
     return result;
 }
 
+void RTLSimulatorClient::monitor_signals(const std::vector<std::string> &signals,
+                                         int (*cb_func)(p_cb_data),
+                                         void *user_data) {
+    for (auto const &name : signals) {
+        // get full name if not yet already
+        auto full_name = get_full_name(name);
+        auto *handle = vpi_->vpi_handle_by_name(const_cast<char *>(full_name.c_str()), nullptr);
+        if (handle) {
+            // only add valid callback to avoid simulator errors
+            auto callback_name = "Monitor " + full_name;
+            add_call_back(callback_name, cbValueChange, cb_func, handle, user_data);
+        }
+    }
+}
+
 RTLSimulatorClient::~RTLSimulatorClient() {
     // free callback handles
     for (auto const &iter : cb_handles_) {

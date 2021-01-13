@@ -217,7 +217,22 @@ public:
 
     void set_time(uint64_t time) { time_ = time; }
 
-    void set_signal_value(vpiHandle handle, int64_t value) { signal_values_[handle] = value; }
+    void set_signal_value(vpiHandle handle, int64_t value) {
+        bool value_changed = signal_values_.find(handle) == signal_values_.end() ||
+                             signal_values_.at(handle) != value;
+        signal_values_[handle] = value;
+        // need to see if we need to call any callback
+        // no adding callbacks inside the callback allowed
+        if (value_changed) {
+            for (auto &iter : callbacks_) {
+                auto &cb = iter.second;
+                if (cb.obj == handle && cb.reason == cbValueChange) {
+                    // trigger the callback
+                    cb.cb_rtn(&cb);
+                }
+            }
+        }
+    }
     void set_top(vpiHandle top) { top_ = top; }
 
     [[nodiscard]] const std::vector<uint32_t> &vpi_ops() const { return vpi_ops_; }

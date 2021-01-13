@@ -169,3 +169,36 @@ TEST_F(RTLModuleTest, test_search_clk) {    // NOLINT
     EXPECT_FALSE(values.empty());
     EXPECT_EQ(values[0], "top.dut.clk");
 }
+
+int test_value_change(p_cb_data cb_data) {
+    auto *user_data = cb_data->user_data;
+    auto *int_value = reinterpret_cast<int *>(user_data);
+    *int_value = 42;
+    return 0;
+}
+
+TEST_F(RTLModuleTest, test_cb_value_change) {   // NOLINT
+    // two singles, one before full name one after full name
+    auto constexpr signal1 = "parent_mod.a";
+    auto constexpr signal2 = "top.dut.b";
+
+    auto &mock_vpi = vpi();
+    std::string_view name1 = "top.dut.a";
+    std::string_view name2 = signal2;
+    auto *handle_a = mock_vpi.vpi_handle_by_name(const_cast<char*>(name1.data()), nullptr);
+    auto *handle_b = mock_vpi.vpi_handle_by_name(const_cast<char*>(name2.data()), nullptr);
+    mock_vpi.set_signal_value(handle_a,  0);
+    mock_vpi.set_signal_value(handle_b, 0);
+
+    // register callback
+    int value1 = 0, value2 = 0;
+    client->monitor_signals({signal1}, test_value_change, &value1);
+    client->monitor_signals({signal2}, test_value_change, &value2);
+
+    // set value
+    mock_vpi.set_signal_value(handle_a,  1);
+    mock_vpi.set_signal_value(handle_b, 1);
+
+    EXPECT_EQ(value1, 42);
+    EXPECT_EQ(value2, 42);
+}

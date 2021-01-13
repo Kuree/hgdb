@@ -86,6 +86,9 @@ public:
 
     // search for clock signals
     [[nodiscard]] std::vector<std::string> get_clocks_from_design();
+    // add monitors on signals
+    void monitor_signals(const std::vector<std::string> &signals, int(cb_func)(p_cb_data),
+                         void *user_data);
 
     // destructor to avoid memory leak in the simulator
     ~RTLSimulatorClient();
