@@ -46,6 +46,7 @@ def test_kratos(find_free_port, simulator):
     py_line_num = get_line_num(py_filename, "            out = out + data[i]")
 
     with tempfile.TemporaryDirectory() as temp:
+        temp = "temp"
         temp = os.path.abspath(temp)
         db_filename = os.path.join(temp, "debug.db")
         sv_filename = os.path.join(temp, "mod.sv")
@@ -67,23 +68,22 @@ def test_kratos(find_free_port, simulator):
                 # set breakpoint
                 await client.set_breakpoint(py_filename, py_line_num)
                 await client.continue_()
-                i = 0
-                while i < buffer_size:
+                for i in range(4):
                     bp = await client.recv()
-                    if int(bp["payload"]["time"]) < 5:
-                        await client.continue_()
-                        continue
                     assert bp["payload"]["values"]["local"]["i"] == str(i)
                     await client.continue_()
-                    i += 1
-                # checking for SSA. notice that this checks if kratos generates
-                # the symbol table properly
-                # first breakpoint out is 1
-                # second breakpoint out should be added with in, which is 1
-                for i in range(2):
+
+                for i in range(4):
+                    # the first breakpoint, out is not calculated yet
+                    # so it should be 0
+                    # after that, it should be 1
                     bp = await client.recv()
-                    assert bp["payload"]["values"]["local"]["out"] == str(i)
+                    if i == 0:
+                        assert bp["payload"]["values"]["local"]["out"] == "0"
+                    else:
+                        assert bp["payload"]["values"]["local"]["out"] == "1"
                     await client.continue_()
+
                 # remove the breakpoint and set a conditional breakpoint
                 # discard the current breakpoint information
                 await client.recv()
@@ -95,11 +95,11 @@ def test_kratos(find_free_port, simulator):
                 assert bp["payload"]["values"]["local"]["out"] == "6"
                 assert bp["payload"]["values"]["local"]["i"] == "3"
 
-            time.sleep(0.5)   # give it enough time for the server to bring up
+            time.sleep(2)   # give it enough time for the server to bring up
             asyncio.get_event_loop().run_until_complete(client_logic())
 
 
 if __name__ == "__main__":
     sys.path.append(get_root())
     from conftest import find_free_port_fn
-    test_kratos(find_free_port_fn, VerilatorTester)
+    test_kratos(find_free_port_fn, XceliumTester)

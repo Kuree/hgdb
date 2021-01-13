@@ -17,8 +17,6 @@ void eval(Vmod &dut, int increment = 1) {
     dut.eval();
     VerilatedVpi::callValueCbs(); // required to call callbacks
     VerilatedVpi::callTimedCbs();
-    // force verilator to handle cbNextSimTime
-    VerilatedVpi::callCbs(cbNextSimTime);
     main_time += increment;
 }
 
