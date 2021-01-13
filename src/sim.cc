@@ -19,6 +19,15 @@ PLI_INT32 teardown_hgdb_debugger(p_cb_data cb_data) {
     return 0;
 }
 
+PLI_INT32 eval_hgdb(p_cb_data cb_data) {
+    auto *raw_debugger = cb_data->user_data;
+    auto *debugger = reinterpret_cast<hgdb::Debugger *>(raw_debugger);
+    debugger->eval();
+    // Verilator seems to only need to schedule once per simulation?
+    // I don't think the LRM actually specifies this
+    return 0;
+}
+
 void initialize_hgdb_runtime() { hgdb::initialize_hgdb_runtime_vpi(nullptr); }
 
 [[maybe_unused]] void initialize_hgdb_runtime_dpi() {
@@ -68,5 +77,13 @@ void initialize_hgdb_runtime_vpi(std::unique_ptr<AVPIProvider> vpi, bool start_s
                              debugger_ptr);
     if (!res) std::cerr << "ERROR: failed to register runtime tear down" << std::endl;
 
+    // special case for Verilator
+    // cbValueChange on clock is tricky in Verilator because once you call eval, the states are
+    // already updated
+    if (rtl->is_verilator()) {
+        res = rtl->add_call_back("eval_hgdb", cbNextSimTime, eval_hgdb, nullptr,
+                                 reinterpret_cast<char *>(debugger));
+        if (!res) std::cerr << "ERROR: failed to register runtime initialization" << std::endl;
+    }
 }
 }  // namespace hgdb

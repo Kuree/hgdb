@@ -345,7 +345,8 @@ void Debugger::handle_connection(const ConnectionRequest &req) {
     }
 
     // if success, need to register call backs on the clocks
-    if (success && rtl_) {
+    // Verilator is handled differently
+    if (success && rtl_ && !rtl_->is_verilator()) {
         // only trigger eval at the posedge clk
         auto clock_signals = get_clock_signals();
         bool r = rtl_->monitor_signals(clock_signals, eval_hgdb_on_clk, this);

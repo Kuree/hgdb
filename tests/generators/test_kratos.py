@@ -100,4 +100,4 @@ def test_kratos(find_free_port, simulator):
 if __name__ == "__main__":
     sys.path.append(get_root())
     from conftest import find_free_port_fn
-    test_kratos(find_free_port_fn, XceliumTester)
+    test_kratos(find_free_port_fn, VerilatorTester)
