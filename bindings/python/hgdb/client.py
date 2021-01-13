@@ -22,7 +22,7 @@ class HGDBClient:
             try:
                 self.ws = await websockets.connect(self.uri)
                 break
-            except ConnectionRefusedError:
+            except (ConnectionRefusedError, OSError):
                 time.sleep(0.5)
         if self.filename is not None:
             payload = {"request": True, "type": "connection", "payload": {
