@@ -124,7 +124,7 @@ private:
     void compute_verilator_name_prefix(std::unordered_set<std::string> &top_names);
 
     // used for compute potential clock signals if user doesn't provide proper annotation
-    static constexpr std::array clock_names_{"clk", "clock", "clk_in", "clock_in"};
+    static constexpr std::array clock_names_{"clk", "clock", "clk_in", "clock_in", "CLK", "CLOCK"};
 };
 }  // namespace hgdb
 
