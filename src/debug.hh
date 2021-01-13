@@ -34,6 +34,9 @@ public:
     // outside world can directly control the RTL client if necessary
     [[nodiscard]] RTLSimulatorClient *rtl_client() const { return rtl_.get(); }
 
+    // used to monitor clocks
+    [[nodiscard]] std::vector<std::string> get_clock_signals();
+
     ~Debugger();
 
 private:
@@ -85,7 +88,6 @@ private:
     void reorder_breakpoints();
     void remove_breakpoint(const BreakPoint &bp);
     bool has_cli_flag(const std::string &flag);
-    [[nodiscard]] std::vector<std::string> get_clock_signals();
 
     // request handler
     void handle_connection(const ConnectionRequest &req);

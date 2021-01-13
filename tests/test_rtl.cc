@@ -192,8 +192,11 @@ TEST_F(RTLModuleTest, test_cb_value_change) {  // NOLINT
 
     // register callback
     int value1 = 0, value2 = 0;
-    client->monitor_signals({signal1}, test_value_change, &value1);
-    client->monitor_signals({signal2}, test_value_change, &value2);
+    bool res;
+    res = client->monitor_signals({signal1}, test_value_change, &value1);
+    EXPECT_TRUE(res);
+    res = client->monitor_signals({signal2}, test_value_change, &value2);
+    EXPECT_TRUE(res);
 
     // set value
     mock_vpi.set_signal_value(handle_a, 1);
