@@ -246,30 +246,35 @@ TEST(proto, bp_location_response) {  // NOLINT
 }
 
 TEST(proto, breakpoint_response) {  // NOLINT
-    auto res = hgdb::BreakPointResponse(1, 42, "mod", 43, "a", 2, 3);
-    res.add_generator_value("c", "4");
-    res.add_local_value("d", "5");
+    auto res = hgdb::BreakPointResponse(1, "a", 2, 3);
+    auto scope = hgdb::BreakPointResponse::Scope(42, "mod", 43);
+    scope.add_generator_value("c", "4");
+    scope.add_local_value("d", "5");
+    res.add_scope(scope);
     auto s = res.str(true);
+    printf("%s\n", s.c_str());
     constexpr auto expected_value = R"({
     "request": false,
     "type": "breakpoint",
     "status": "success",
     "payload": {
         "time": 1,
-        "instance_id": 42,
-        "instance_name": "mod",
-        "breakpoint_id": 43,
         "filename": "a",
         "line_num": 2,
         "column_num": 3,
-        "values": {
-            "local": {
-                "d": "5"
-            },
-            "generator": {
-                "c": "4"
+        "instances": [
+            {
+                "instance_id": 42,
+                "instance_name": "mod",
+                "breakpoint_id": 43,
+                "local": {
+                    "d": "5"
+                },
+                "generator": {
+                    "c": "4"
+                }
             }
-        }
+        ]
     }
 })";
     EXPECT_EQ(s, expected_value);

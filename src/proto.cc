@@ -94,7 +94,7 @@ namespace hgdb {
  *     filename: string
  *     line_num: uint64_t
  *     column_num: uint64_t
- *     values:
+ *     instances:
  *         instance_id: uint64_t
  *         instance_name: string
  *         breakpoint_id: uint64_t
@@ -315,6 +315,7 @@ std::string BreakPointResponse::str(bool pretty_print) const {
 
         instances.PushBack(entry, allocator);
     }
+    set_member(payload, allocator, "instances", instances);
 
     set_member(document, "payload", payload);
 
