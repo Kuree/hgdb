@@ -1,4 +1,5 @@
 import json
+import time
 
 import websockets
 
@@ -16,7 +17,13 @@ class HGDBClient:
         await self.ws.send(json.dumps(payload))
 
     async def connect(self):
-        self.ws = await websockets.connect(self.uri)
+        start = time.time()
+        while time.time() < start + 10:
+            try:
+                self.ws = await websockets.connect(self.uri)
+                break
+            except ConnectionRefusedError:
+                time.sleep(0.5)
         if self.filename is not None:
             payload = {"request": True, "type": "connection", "payload": {
                 "db_filename": self.filename,

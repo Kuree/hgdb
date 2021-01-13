@@ -46,7 +46,6 @@ def test_kratos(find_free_port, simulator):
     py_line_num = get_line_num(py_filename, "            out = out + data[i]")
 
     with tempfile.TemporaryDirectory() as temp:
-        temp = "temp"
         temp = os.path.abspath(temp)
         db_filename = os.path.join(temp, "debug.db")
         sv_filename = os.path.join(temp, "mod.sv")
@@ -95,7 +94,6 @@ def test_kratos(find_free_port, simulator):
                 assert bp["payload"]["values"]["local"]["out"] == "6"
                 assert bp["payload"]["values"]["local"]["i"] == "3"
 
-            time.sleep(2)   # give it enough time for the server to bring up
             asyncio.get_event_loop().run_until_complete(client_logic())
 
 
