@@ -367,8 +367,7 @@ std::vector<std::string> RTLSimulatorClient::get_clocks_from_design() {
 }
 
 void RTLSimulatorClient::monitor_signals(const std::vector<std::string> &signals,
-                                         int (*cb_func)(p_cb_data),
-                                         void *user_data) {
+                                         int (*cb_func)(p_cb_data), void *user_data) {
     for (auto const &name : signals) {
         // get full name if not yet already
         auto full_name = get_full_name(name);

@@ -91,9 +91,10 @@ TEST_F(RTLModuleTest, get_module_signals) {  // NOLINT
     auto mods = {"parent_mod", "parent_mod.inst1", "parent_mod.inst2"};
     for (auto const &mod_name : mods) {
         auto mod_signals = client->get_module_signals(mod_name);
-        EXPECT_EQ(mod_signals.size(), 2);
+        EXPECT_EQ(mod_signals.size(), 3);
         EXPECT_NE(mod_signals.find("a"), mod_signals.end());
         EXPECT_NE(mod_signals.find("b"), mod_signals.end());
+        EXPECT_NE(mod_signals.find("clk"), mod_signals.end());
         // check the cache if it's working
         // the handle count shall not increase if the result is cached
         auto handle_count = vpi().get_handle_count();
