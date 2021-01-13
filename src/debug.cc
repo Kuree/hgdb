@@ -304,6 +304,24 @@ bool Debugger::has_cli_flag(const std::string &flag) {
     return std::any_of(argv.begin(), argv.end(), [&flag](const auto &v) { return v == flag; });
 }
 
+std::vector<std::string> Debugger::get_clock_signals() {
+    if (!rtl_) return {};
+    std::vector<std::string> result;
+    if (db_) {
+        // always load from db first
+        auto db_clock_names = db_->get_annotation_values("clock");
+        for (auto const &name : db_clock_names) {
+            auto full_name = rtl_->get_full_name(name);
+            result.emplace_back(full_name);
+        }
+    }
+    if (result.empty()) {
+        // use rtl based heuristics
+        result = rtl_->get_clocks_from_design();
+    }
+    return result;
+}
+
 void Debugger::handle_connection(const ConnectionRequest &req) {
     // if we have a debug cli flag, don't load the db
     bool success = true;
