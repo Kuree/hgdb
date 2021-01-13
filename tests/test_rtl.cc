@@ -34,19 +34,19 @@ protected:
 
     void SetUp() override {
         auto vpi_ = std::make_unique<MockVPIProvider>();
-        auto top = vpi_->add_module("top", "top");
+        auto *top = vpi_->add_module("top", "top");
         vpi_->set_top(top);
-        auto dut = vpi_->add_module("parent_mod", "top.dut");
-        auto inst1 = vpi_->add_module("child_mod", "top.dut.inst1");
-        auto inst2 = vpi_->add_module("child_mod", "top.dut.inst2");
+        auto *dut = vpi_->add_module("parent_mod", "top.dut");
+        auto *inst1 = vpi_->add_module("child_mod", "top.dut.inst1");
+        auto *inst2 = vpi_->add_module("child_mod", "top.dut.inst2");
         // add signals
         auto mods = {dut, inst1, inst2};
-        for (auto handle : mods) {
+        for (auto *handle : mods) {
             std::string name = vpi_->vpi_get_str(vpiFullName, handle);
             // adding signal in full name
-            auto a = vpi_->add_signal(handle, name + ".a");
-            auto b = vpi_->add_signal(handle, name + ".b");
-            auto clk = vpi_->add_signal(handle, name + ".clk");
+            auto *a = vpi_->add_signal(handle, name + ".a");
+            auto *b = vpi_->add_signal(handle, name + ".b");
+            auto *clk = vpi_->add_signal(handle, name + ".clk");
             // also set the values
             vpi_->set_signal_value(a, a_value);
             vpi_->set_signal_value(b, b_value);
@@ -64,11 +64,10 @@ protected:
 
     MockVPIProvider &vpi() {
         auto *vpi = &client->vpi();
-        auto mock_vpi = reinterpret_cast<MockVPIProvider *>(vpi);
+        auto *mock_vpi = reinterpret_cast<MockVPIProvider *>(vpi);
         return *mock_vpi;
     }
 
-protected:
     std::unique_ptr<hgdb::RTLSimulatorClient> client;
 };
 
@@ -129,8 +128,8 @@ TEST_F(RTLModuleTest, get_time) {  // NOLINT
 }
 
 int test_cb_func(p_cb_data cb_data) {
-    auto user_data = cb_data->user_data;
-    auto int_value = reinterpret_cast<int *>(user_data);
+    auto *user_data = cb_data->user_data;
+    auto *int_value = reinterpret_cast<int *>(user_data);
     *int_value += 1;
     return 0;
 }
@@ -164,7 +163,7 @@ TEST_F(RTLModuleTest, test_control) {  // NOLINT
     EXPECT_EQ(ops[1], vpiFinish);
 }
 
-TEST_F(RTLModuleTest, test_search_clk) {    // NOLINT
+TEST_F(RTLModuleTest, test_search_clk) {  // NOLINT
     auto values = client->get_clocks_from_design();
     EXPECT_FALSE(values.empty());
     EXPECT_EQ(values[0], "top.dut.clk");
@@ -177,7 +176,7 @@ int test_value_change(p_cb_data cb_data) {
     return 0;
 }
 
-TEST_F(RTLModuleTest, test_cb_value_change) {   // NOLINT
+TEST_F(RTLModuleTest, test_cb_value_change) {  // NOLINT
     // two singles, one before full name one after full name
     auto constexpr signal1 = "parent_mod.a";
     auto constexpr signal2 = "top.dut.b";
@@ -185,9 +184,9 @@ TEST_F(RTLModuleTest, test_cb_value_change) {   // NOLINT
     auto &mock_vpi = vpi();
     std::string_view name1 = "top.dut.a";
     std::string_view name2 = signal2;
-    auto *handle_a = mock_vpi.vpi_handle_by_name(const_cast<char*>(name1.data()), nullptr);
-    auto *handle_b = mock_vpi.vpi_handle_by_name(const_cast<char*>(name2.data()), nullptr);
-    mock_vpi.set_signal_value(handle_a,  0);
+    auto *handle_a = mock_vpi.vpi_handle_by_name(const_cast<char *>(name1.data()), nullptr);
+    auto *handle_b = mock_vpi.vpi_handle_by_name(const_cast<char *>(name2.data()), nullptr);
+    mock_vpi.set_signal_value(handle_a, 0);
     mock_vpi.set_signal_value(handle_b, 0);
 
     // register callback
@@ -196,7 +195,7 @@ TEST_F(RTLModuleTest, test_cb_value_change) {   // NOLINT
     client->monitor_signals({signal2}, test_value_change, &value2);
 
     // set value
-    mock_vpi.set_signal_value(handle_a,  1);
+    mock_vpi.set_signal_value(handle_a, 1);
     mock_vpi.set_signal_value(handle_b, 1);
 
     EXPECT_EQ(value1, 42);
