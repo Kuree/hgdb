@@ -322,6 +322,18 @@ std::vector<std::string> Debugger::get_clock_signals() {
     return result;
 }
 
+PLI_INT32 eval_hgdb_on_clk(p_cb_data cb_data) {
+    // only if the clock value is high
+    auto value = cb_data->value->value.integer;
+    if (value) {
+        auto *raw_debugger = cb_data->user_data;
+        auto *debugger = reinterpret_cast<hgdb::Debugger *>(raw_debugger);
+        debugger->eval();
+    }
+
+    return 0;
+}
+
 void Debugger::handle_connection(const ConnectionRequest &req) {
     // if we have a debug cli flag, don't load the db
     bool success = true;
@@ -330,6 +342,14 @@ void Debugger::handle_connection(const ConnectionRequest &req) {
         db_filename = req.db_filename();
         // path mapping not supported yet
         success = initialize_db(db_filename);
+    }
+
+    // if success, need to register call backs on the clocks
+    if (success && rtl_) {
+        // only trigger eval at the posedge clk
+        auto clock_signals = get_clock_signals();
+        bool r = rtl_->monitor_signals(clock_signals, eval_hgdb_on_clk, this);
+        if (!r || clock_signals.empty()) log_error("Failed to register evaluation callback");
     }
 
     if (success) {

@@ -359,6 +359,7 @@ std::vector<std::string> RTLSimulatorClient::get_clocks_from_design() {
                 int width = vpi_->vpi_get(vpiSize, handle);
                 if (width == 1) {
                     result.emplace_back(signal_name);
+                    break;
                 }
             }
         }
