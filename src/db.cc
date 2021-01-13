@@ -66,7 +66,7 @@ std::optional<BreakPoint> DebugDatabaseClient::get_breakpoint(uint32_t breakpoin
     }
 }
 
-std::optional<std::string> DebugDatabaseClient::get_instance_name(uint32_t breakpoint_id) {
+std::optional<std::string> DebugDatabaseClient::get_instance_name_from_bp(uint32_t breakpoint_id) {
     using namespace sqlite_orm;
     std::lock_guard guard(db_lock_);
     auto value = db_->select(

@@ -23,7 +23,7 @@ public:
                                             uint32_t col_num = 0);
     std::vector<BreakPoint> get_breakpoints(const std::string &filename);
     std::optional<BreakPoint> get_breakpoint(uint32_t breakpoint_id);
-    std::optional<std::string> get_instance_name(uint32_t breakpoint_id);
+    std::optional<std::string> get_instance_name_from_bp(uint32_t breakpoint_id);
     using ContextVariableInfo = std::pair<ContextVariable, Variable>;
     [[nodiscard]] std::vector<ContextVariableInfo> get_context_variables(uint32_t breakpoint_id);
     using GeneratorVariableInfo = std::pair<GeneratorVariable, Variable>;

@@ -87,7 +87,7 @@ void Debugger::eval() {
             // get table values
             auto const &symbols = bp_expr->symbols();
             auto const bp_id = bp->id;
-            auto const instance_name_ = db_->get_instance_name(bp_id);
+            auto const instance_name_ = db_->get_instance_name_from_bp(bp_id);
             if (!instance_name_) continue;
             auto const &instance_name = *instance_name_;
             std::unordered_map<std::string, int64_t> values;
@@ -120,10 +120,12 @@ void Debugger::eval() {
                 }
             }
         }
-        // send the breakpoint hit information
-        send_breakpoint_hit(hits);
-        // then pause the execution
-        lock_.wait();
+        if (!hits.empty()) {
+            // send the breakpoint hit information
+            send_breakpoint_hit(hits);
+            // then pause the execution
+            lock_.wait();
+        }
     }
 }
 
@@ -534,7 +536,7 @@ void Debugger::send_breakpoint_hit(const std::vector<const DebugBreakPoint *> &b
         auto generator_values = db_->get_generator_variable(bp->instance_id);
         auto context_values = db_->get_context_variables(bp_id);
         auto bp_ptr = db_->get_breakpoint(bp_id);
-        auto instance_name = db_->get_instance_name(bp->instance_id);
+        auto instance_name = db_->get_instance_name_from_bp(bp_id);
         auto instance_name_str = instance_name ? *instance_name : "";
 
         BreakPointResponse::Scope scope(bp->instance_id, instance_name_str, bp_id);
@@ -631,6 +633,8 @@ std::vector<Debugger::DebugBreakPoint *> Debugger::next_normal_breakpoints() {
     // we need to make the experience the same as debugging software
     // as a result, when user add new breakpoints to the list that has high priority,
     // we need to skip then and evaluate them at the next evaluation cycle
+    // maybe revisit this logic later? doesn't seem to be correct to me where there are
+    // breakpoint inserted during breakpoint hit
     uint64_t index = 0;
     // find index
     std::optional<uint64_t> pos;
