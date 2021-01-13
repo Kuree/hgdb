@@ -69,7 +69,7 @@ def test_kratos(find_free_port, simulator):
                 await client.continue_()
                 for i in range(4):
                     bp = await client.recv()
-                    assert bp["payload"]["values"]["local"]["i"] == str(i)
+                    assert bp["payload"]["instances"][0]["local"]["i"] == str(i)
                     await client.continue_()
 
                 for i in range(4):
@@ -78,9 +78,9 @@ def test_kratos(find_free_port, simulator):
                     # after that, it should be 1
                     bp = await client.recv()
                     if i == 0:
-                        assert bp["payload"]["values"]["local"]["out"] == "0"
+                        assert bp["payload"]["instances"][0]["local"]["out"] == "0"
                     else:
-                        assert bp["payload"]["values"]["local"]["out"] == "1"
+                        assert bp["payload"]["instances"][0]["local"]["out"] == "1"
                     await client.continue_()
 
                 # remove the breakpoint and set a conditional breakpoint
@@ -91,8 +91,8 @@ def test_kratos(find_free_port, simulator):
                 await client.set_breakpoint(py_filename, py_line_num, cond="out == 6 and i == 3")
                 await client.continue_()
                 bp = await client.recv()
-                assert bp["payload"]["values"]["local"]["out"] == "6"
-                assert bp["payload"]["values"]["local"]["i"] == "3"
+                assert bp["payload"]["instances"][0]["local"]["out"] == "6"
+                assert bp["payload"]["instances"][0]["local"]["i"] == "3"
 
             asyncio.get_event_loop().run_until_complete(client_logic())
 
