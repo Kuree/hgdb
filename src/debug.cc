@@ -80,7 +80,7 @@ void Debugger::eval() {
     while (true) {
         auto bps = next_breakpoints();
         if (bps.empty()) break;
-        std::vector<const DebugBreakPoint*> hits;
+        std::vector<const DebugBreakPoint *> hits;
         for (auto const *bp : bps) {
             const auto &bp_expr =
                 evaluation_mode_ == EvaluationMode::BreakPointOnly ? bp->expr : bp->enable_expr;
@@ -590,7 +590,10 @@ std::vector<Debugger::DebugBreakPoint *> Debugger::next_breakpoints() {
         return next_normal_breakpoints();
     } else if (evaluation_mode_ == EvaluationMode::StepOver) {
         auto *bp = next_step_over_breakpoint();
-        return {bp};
+        if (bp)
+            return {bp};
+        else
+            return {};
     } else {
         return {};
     }
@@ -623,6 +626,9 @@ Debugger::DebugBreakPoint *Debugger::next_step_over_breakpoint() {
     step_over_breakpoint_.id = *current_breakpoint_id_;
     step_over_breakpoint_.instance_id = *bp_info->instance_id;
     step_over_breakpoint_.enable_expr = std::make_unique<DebugExpression>(cond);
+    step_over_breakpoint_.filename = bp_info->filename;
+    step_over_breakpoint_.line_num = bp_info->line_num;
+    step_over_breakpoint_.column_num = bp_info->column_num;
     return &step_over_breakpoint_;
 }
 
@@ -675,8 +681,9 @@ std::vector<Debugger::DebugBreakPoint *> Debugger::next_normal_breakpoints() {
             result.emplace_back(&next_bp);
         }
     }
-    // the tail will be current breakpoint id
-    current_breakpoint_id_ = result.back()->id;
+    // the first will be current breakpoint id since we might skip some of them
+    // in the middle
+    current_breakpoint_id_ = result.front()->id;
     for (auto const *bp : result) {
         evaluated_ids_.emplace(bp->id);
     }
