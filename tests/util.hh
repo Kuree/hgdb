@@ -10,7 +10,7 @@
 class DBTestHelper : public ::testing::Test {
 protected:
     void SetUp() override {
-        auto db_filename = ":memory:";
+        const auto *db_filename = ":memory:";
         db = std::make_unique<hgdb::DebugDatabase>(hgdb::init_debug_db(db_filename));
         db->sync_schema();
     }
@@ -87,7 +87,7 @@ public:
                 return nullptr;
             }
             scan_iter_[iterator]++;
-            auto result = handles[idx];
+            auto *result = handles[idx];
             return result;
         } else {
             return nullptr;
@@ -110,7 +110,7 @@ public:
             }
         }
         if (!handles.empty()) {
-            auto iter = get_new_handle();
+            auto *iter = get_new_handle();
             for (auto const &signal : handles) {
                 scan_map_[iter].emplace_back(signal);
             }
@@ -136,7 +136,7 @@ public:
     }
 
     vpiHandle vpi_register_cb(p_cb_data cb_data_p) override {
-        auto handle = get_new_handle();
+        auto *handle = get_new_handle();
         callbacks_.emplace(handle, *cb_data_p);
         return handle;
     }
@@ -158,21 +158,21 @@ public:
     }
 
     vpiHandle get_new_handle() {
-        auto p = vpi_handle_counter_++;
+        auto *p = vpi_handle_counter_++;
         return reinterpret_cast<uint32_t *>(p);
     }
 
     uint64_t get_handle_count() { return reinterpret_cast<uint64_t>(vpi_handle_counter_); }
 
     vpiHandle add_module(const std::string &def_name, const std::string &hierarchy_name) {
-        auto handle = get_new_handle();
+        auto *handle = get_new_handle();
         modules_.emplace(handle, hierarchy_name);
         modules_defs_.emplace(handle, def_name);
         // compute the hierarchy automatically
         auto pos = hierarchy_name.find_last_of('.');
         if (pos != std::string::npos) {
             auto instance_name = hierarchy_name.substr(0, pos);
-            auto parent = vpi_handle_by_name(const_cast<char *>(instance_name.c_str()), nullptr);
+            auto *parent = vpi_handle_by_name(const_cast<char *>(instance_name.c_str()), nullptr);
             if (!parent) throw std::runtime_error("unable to find parent of " + hierarchy_name);
             module_hierarchy_[parent].emplace(handle);
         }
@@ -180,7 +180,7 @@ public:
     }
 
     vpiHandle add_signal(vpiHandle parent, const std::string &signal_name) {
-        auto handle = get_new_handle();
+        auto *handle = get_new_handle();
         signals_.emplace(handle, signal_name);
         module_signals_[parent].emplace(handle);
         return handle;
