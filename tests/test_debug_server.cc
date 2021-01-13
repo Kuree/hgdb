@@ -68,9 +68,8 @@ auto setup_db_vpi(MockVPIProvider &vpi) {
         std::map<std::string, uint32_t> variable_ids;
         std::map<std::string, vpiHandle> variable_handles;
         uint32_t var_id = 0;
-        auto dut_instance_name = instance_names.back().first;
-        auto dut_instance_full_name = instance_names.back().second;
-        auto *dut_instance_handle = instance_handles.back();
+        auto const &[dut_instance_name, dut_instance_full_name] = instance_names[dut_id];
+        auto *dut_instance_handle = instance_handles[dut_id];
         for (const auto &name : variables) {
             auto var_name = fmt::format("{0}.{1}", dut_instance_name, name);
             auto var_full_name = fmt::format("{0}.{1}", dut_instance_full_name, name);
@@ -96,19 +95,20 @@ auto setup_db_vpi(MockVPIProvider &vpi) {
 
         // now we need to deal with breakpoints
         constexpr auto filename = "/tmp/test.py";
+        auto base_id = (dut_id - 1) * 5;
         // assign c_0 = ~a; // a = a  en: a           -> c = ~a
-        store_breakpoint(*db, 0 + dut_id * 5, dut_id, filename, 2, 0, "a");
-        store_context_variable(*db, "a", 0 + dut_id * 5, variable_ids.at("a"));
+        store_breakpoint(*db, 0 + base_id, dut_id, filename, 2, 0, "a");
+        store_context_variable(*db, "a", 0 + base_id, variable_ids.at("a"));
         // assign c_1 = 0;  // a = a  en: ~a          -> c = 0
-        store_breakpoint(*db, 1 + dut_id * 5, dut_id, filename, 4, 0, "~a");
-        store_context_variable(*db, "a", 1 + dut_id * 5, variable_ids.at("a"));
+        store_breakpoint(*db, 1 + base_id, dut_id, filename, 4, 0, "~a");
+        store_context_variable(*db, "a", 1 + base_id, variable_ids.at("a"));
         // assign c_2 = a? c_0: c_1; // a = a en: 1   -> if (a)
-        store_breakpoint(*db, 2 + dut_id * 5, dut_id, filename, 1, 0, "1");
-        store_context_variable(*db, "a", 2 + dut_id * 5, variable_ids.at("a"));
+        store_breakpoint(*db, 2 + base_id, dut_id, filename, 1, 0, "1");
+        store_context_variable(*db, "a", 2 + base_id, variable_ids.at("a"));
         // assign c_3 = a; // a = a, c = c_2 en: 1     -> c = a
-        store_breakpoint(*db, 3 + dut_id * 5, dut_id, filename, 5, 0, "1");
-        store_context_variable(*db, "a", 3 + dut_id * 5, variable_ids.at("a"));
-        store_context_variable(*db, "c", 3 + dut_id * 5, variable_ids.at("c_2"));
+        store_breakpoint(*db, 3 + base_id, dut_id, filename, 5, 0, "1");
+        store_context_variable(*db, "a", 3 + base_id, variable_ids.at("a"));
+        store_context_variable(*db, "c", 3 + base_id, variable_ids.at("c_2"));
 
         // set values
         // we simulate the case where a is 1
