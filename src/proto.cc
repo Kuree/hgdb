@@ -95,6 +95,9 @@ namespace hgdb {
  *     line_num: uint64_t
  *     column_num: uint64_t
  *     values:
+ *         instance_id: uint64_t
+ *         instance_name: string
+ *         breakpoint_id: uint64_t
  *         local: map<string, string> - name -> value
  *         generator: Array: map<string, string> - name -> value
  *
@@ -283,16 +286,9 @@ std::string BreakPointLocationResponse::str(bool pretty_print) const {
     return to_string(document, pretty_print);
 }
 
-BreakPointResponse::BreakPointResponse(uint64_t time, uint64_t instance_id,
-                                       std::string instance_name, uint64_t breakpoint_id,
-                                       std::string filename, uint64_t line_num, uint64_t column_num)
-    : time_(time),
-      instance_id_(instance_id),
-      instance_name_(std::move(instance_name)),
-      breakpoint_id_(breakpoint_id),
-      filename_(std::move(filename)),
-      line_num_(line_num),
-      column_num_(column_num) {}
+BreakPointResponse::BreakPointResponse(uint64_t time, std::string filename, uint64_t line_num,
+                                       uint64_t column_num)
+    : time_(time), filename_(std::move(filename)), line_num_(line_num), column_num_(column_num) {}
 
 std::string BreakPointResponse::str(bool pretty_print) const {
     using namespace rapidjson;
@@ -303,30 +299,41 @@ std::string BreakPointResponse::str(bool pretty_print) const {
 
     Value payload(kObjectType);
     set_member(payload, allocator, "time", time_);
-    set_member(payload, allocator, "instance_id", instance_id_);
-    set_member(payload, allocator, "instance_name", instance_name_);
-    set_member(payload, allocator, "breakpoint_id", breakpoint_id_);
     set_member(payload, allocator, "filename", filename_);
     set_member(payload, allocator, "line_num", line_num_);
     set_member(payload, allocator, "column_num", column_num_);
 
-    Value values(kObjectType);
-    // set the local and generator values
-    set_member(values, allocator, "local", local_values_);
-    set_member(values, allocator, "generator", generator_values_);
-    set_member(payload, allocator, "values", values);
+    Value instances(kArrayType);
+    for (auto const &scope : scopes_) {
+        Value entry(kObjectType);
+
+        set_member(entry, allocator, "instance_id", scope.instance_id);
+        set_member(entry, allocator, "instance_name", scope.instance_name);
+        set_member(entry, allocator, "breakpoint_id", scope.breakpoint_id);
+        set_member(entry, allocator, "local", scope.local_values);
+        set_member(entry, allocator, "generator", scope.generator_values);
+
+        instances.PushBack(entry, allocator);
+    }
 
     set_member(document, "payload", payload);
 
     return to_string(document, pretty_print);
 }
 
-void BreakPointResponse::add_local_value(const std::string &name, const std::string &value) {
-    local_values_.emplace(name, value);
+BreakPointResponse::Scope::Scope(uint64_t instance_id, std::string instance_name,
+                                 uint64_t breakpoint_id)
+    : instance_id(instance_id),
+      breakpoint_id(breakpoint_id),
+      instance_name(std::move(instance_name)) {}
+
+void BreakPointResponse::Scope::add_local_value(const std::string &name, const std::string &value) {
+    local_values.emplace(name, value);
 }
 
-void BreakPointResponse::add_generator_value(const std::string &name, const std::string &value) {
-    generator_values_.emplace(name, value);
+void BreakPointResponse::Scope::add_generator_value(const std::string &name,
+                                                    const std::string &value) {
+    generator_values.emplace(name, value);
 }
 
 DebuggerInformationResponse::DebuggerInformationResponse(std::vector<BreakPoint *> bps)

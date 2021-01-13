@@ -28,6 +28,8 @@ public:
     // no copy construction
     DebugExpression(const DebugExpression &) = delete;
 
+    [[nodiscard]] const std::string &expression() const { return expression_; }
+
 private:
     std::string expression_;
     std::unordered_set<std::string> symbols_;

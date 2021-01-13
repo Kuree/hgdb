@@ -78,51 +78,56 @@ void Debugger::eval() {
     log_info("Start breakpoint evaluation...");
     start_breakpoint_evaluation();  // clean the state
     while (true) {
-        auto *bp = next_breakpoint();
-        if (!bp) break;
-        auto &bp_expr =
-            evaluation_mode_ == EvaluationMode::BreakPointOnly ? bp->expr : bp->enable_expr;
-        // get table values
-        auto const &symbols = bp_expr->symbols();
-        auto const bp_id = bp->id;
-        auto const instance_name_ = db_->get_instance_name(bp_id);
-        if (!instance_name_) continue;
-        auto const &instance_name = *instance_name_;
-        std::unordered_map<std::string, int64_t> values;
-        // just in case there are some context values need to pull in
-        auto context_values = get_context_static_values(bp_id);
-        // need to query through all its symbols
-        for (auto const &symbol_name : symbols) {
-            // if it is an context symbol
-            if (context_values.find(symbol_name) != context_values.end()) {
-                values.emplace(symbol_name, context_values.at(symbol_name));
+        auto bps = next_breakpoints();
+        if (bps.empty()) break;
+        std::vector<const DebugBreakPoint*> hits;
+        for (auto const *bp : bps) {
+            const auto &bp_expr =
+                evaluation_mode_ == EvaluationMode::BreakPointOnly ? bp->expr : bp->enable_expr;
+            // get table values
+            auto const &symbols = bp_expr->symbols();
+            auto const bp_id = bp->id;
+            auto const instance_name_ = db_->get_instance_name(bp_id);
+            if (!instance_name_) continue;
+            auto const &instance_name = *instance_name_;
+            std::unordered_map<std::string, int64_t> values;
+            // just in case there are some context values need to pull in
+            auto context_values = get_context_static_values(bp_id);
+            // need to query through all its symbols
+            for (auto const &symbol_name : symbols) {
+                // if it is an context symbol
+                if (context_values.find(symbol_name) != context_values.end()) {
+                    values.emplace(symbol_name, context_values.at(symbol_name));
+                } else {
+                    // need to map these symbol names into the actual hierarchy
+                    // name
+                    auto name = fmt::format("{0}.{1}", instance_name, symbol_name);
+                    // FIXME: add cache for full name lookup
+                    auto full_name = rtl_->get_full_name(name);
+                    auto v = rtl_->get_value(full_name);
+                    if (!v) break;
+                    values.emplace(symbol_name, *v);
+                }
+            }
+            if (values.size() != symbols.size()) {
+                // something went wrong with the querying symbol
+                log_error(fmt::format("Unable to evaluate breakpoint {0}", bp_id));
             } else {
-                // need to map these symbol names into the actual hierarchy
-                // name
-                auto name = fmt::format("{0}.{1}", instance_name, symbol_name);
-                // FIXME: add cache for full name lookup
-                auto full_name = rtl_->get_full_name(name);
-                auto v = rtl_->get_value(full_name);
-                if (!v) break;
-                values.emplace(symbol_name, *v);
+                auto result = bp_expr->eval(values);
+                if (result) {
+                    // trigger a breakpoint!
+                    hits.emplace_back(bp);
+                }
             }
         }
-        if (values.size() != symbols.size()) {
-            // something went wrong with the querying symbol
-            log_error(fmt::format("Unable to evaluate breakpoint {0}", bp_id));
-        } else {
-            auto result = bp_expr->eval(values);
-            if (result) {
-                // trigger a breakpoint!
-                send_breakpoint_hit(*bp);
-                // then pause the execution
-                lock_.wait();
-            }
-        }
+        // send the breakpoint hit information
+        send_breakpoint_hit(hits);
+        // then pause the execution
+        lock_.wait();
     }
 }
 
-bool Debugger::is_verilator() {
+[[maybe_unused]] bool Debugger::is_verilator() {
     if (rtl_) {
         return rtl_->is_verilator();
     }
@@ -254,12 +259,15 @@ void Debugger::add_breakpoint(const BreakPoint &bp_info, const BreakPoint &db_bp
     log_info(fmt::format("Breakpoint inserted into {0}:{1}", db_bp.filename, db_bp.line_num));
     std::lock_guard guard(breakpoint_lock_);
     if (inserted_breakpoints_.find(db_bp.id) == inserted_breakpoints_.end()) {
-        breakpoints_.emplace_back(
-            DebugBreakPoint{.id = db_bp.id,
-                            .instance_id = *db_bp.instance_id,
-                            .expr = std::make_unique<DebugExpression>(cond),
-                            .enable_expr = std::make_unique<DebugExpression>(
-                                db_bp.condition.empty() ? "1" : db_bp.condition)});
+        breakpoints_.emplace_back(DebugBreakPoint{
+            .id = db_bp.id,
+            .instance_id = *db_bp.instance_id,
+            .expr = std::make_unique<DebugExpression>(cond),
+            .enable_expr =
+                std::make_unique<DebugExpression>(db_bp.condition.empty() ? "1" : db_bp.condition),
+            .filename = db_bp.filename,
+            .line_num = db_bp.line_num,
+            .column_num = db_bp.column_num});
         inserted_breakpoints_.emplace(db_bp.id);
     } else {
         // update breakpoint entry
@@ -514,44 +522,52 @@ void Debugger::handle_debug_info(const DebuggerInformationRequest &req) {
 
 void Debugger::handle_error(const ErrorRequest &req) {}
 
-void Debugger::send_breakpoint_hit(const DebugBreakPoint &bp) {
+void Debugger::send_breakpoint_hit(const std::vector<const DebugBreakPoint *> &bps) {
     // we send it here to avoid a round trip of client asking for context and send send it
     // back
-    // first need to query all the values
-    auto bp_id = bp.id;
-    auto generator_values = db_->get_generator_variable(bp.instance_id);
-    auto context_values = db_->get_context_variables(bp_id);
-    auto bp_ptr = db_->get_breakpoint(bp_id);
-    auto instance_name = db_->get_instance_name(bp.instance_id);
-    auto instance_name_str = instance_name ? *instance_name : "";
-    BreakPointResponse resp(rtl_->get_simulation_time(), bp.instance_id, instance_name_str, bp.id,
-                            bp_ptr->filename, bp_ptr->line_num, bp_ptr->column_num);
-    using namespace std::string_literals;
-    for (auto const &[gen_var, var] : generator_values) {
-        std::string value_str;
-        if (var.is_rtl) {
-            auto full_name = rtl_->get_full_name(var.value);
-            auto value = rtl_->get_value(full_name);
-            value_str = value ? std::to_string(*value) : error_value_str;
-        } else {
-            value_str = var.value;
+    auto const *first_bp = bps.front();
+    BreakPointResponse resp(rtl_->get_simulation_time(), first_bp->filename, first_bp->line_num,
+                            first_bp->column_num);
+    for (auto const *bp : bps) {
+        // first need to query all the values
+        auto bp_id = bp->id;
+        auto generator_values = db_->get_generator_variable(bp->instance_id);
+        auto context_values = db_->get_context_variables(bp_id);
+        auto bp_ptr = db_->get_breakpoint(bp_id);
+        auto instance_name = db_->get_instance_name(bp->instance_id);
+        auto instance_name_str = instance_name ? *instance_name : "";
+
+        BreakPointResponse::Scope scope(bp->instance_id, instance_name_str, bp_id);
+
+        using namespace std::string_literals;
+        for (auto const &[gen_var, var] : generator_values) {
+            std::string value_str;
+            if (var.is_rtl) {
+                auto full_name = rtl_->get_full_name(var.value);
+                auto value = rtl_->get_value(full_name);
+                value_str = value ? std::to_string(*value) : error_value_str;
+            } else {
+                value_str = var.value;
+            }
+            auto var_name = gen_var.name;
+            scope.add_generator_value(var_name, value_str);
         }
-        auto var_name = gen_var.name;
-        resp.add_generator_value(var_name, value_str);
+
+        for (auto const &[gen_var, var] : context_values) {
+            std::string value_str;
+            if (var.is_rtl) {
+                auto full_name = rtl_->get_full_name(var.value);
+                auto value = rtl_->get_value(full_name);
+                value_str = value ? std::to_string(*value) : error_value_str;
+            } else {
+                value_str = var.value;
+            }
+            auto var_name = gen_var.name;
+            scope.add_local_value(var_name, value_str);
+        }
+        resp.add_scope(scope);
     }
 
-    for (auto const &[gen_var, var] : context_values) {
-        std::string value_str;
-        if (var.is_rtl) {
-            auto full_name = rtl_->get_full_name(var.value);
-            auto value = rtl_->get_value(full_name);
-            value_str = value ? std::to_string(*value) : error_value_str;
-        } else {
-            value_str = var.value;
-        }
-        auto var_name = gen_var.name;
-        resp.add_local_value(var_name, value_str);
-    }
     auto str = resp.str(log_enabled_);
     send_message(str);
 }
@@ -567,69 +583,100 @@ bool Debugger::check_send_db_error(RequestType type) {
     return true;
 }
 
-Debugger::DebugBreakPoint *Debugger::next_breakpoint() {
-    // depends on which execution order we have
+std::vector<Debugger::DebugBreakPoint *> Debugger::next_breakpoints() {
     if (evaluation_mode_ == EvaluationMode::BreakPointOnly) {
-        // if no breakpoint inserted. return early
-        std::lock_guard guard(breakpoint_lock_);
-        if (breakpoints_.empty()) return nullptr;
-        // we need to make the experience the same as debugging software
-        // as a result, when user add new breakpoints to the list that has high priority,
-        // we need to skip then and evaluate them at the next evaluation cycle
-        uint64_t index = 0;
-        // find index
-        std::optional<uint64_t> pos;
-        for (uint64_t i = 0; i < breakpoints_.size(); i++) {
-            auto id = breakpoints_[i].id;
-            if (evaluated_ids_.find(id) != evaluated_ids_.end()) {
-                pos = i;
-            }
-        }
-        if (pos) {
-            // we have a last hit
-            if (*pos + 1 < breakpoints_.size()) {
-                index = *pos + 1;
-            } else {
-                // the end
-                return nullptr;
-            }
-        }
-        current_breakpoint_id_ = breakpoints_[index].id;
-        evaluated_ids_.emplace(*current_breakpoint_id_);
-        return &breakpoints_[index];
-
+        return next_normal_breakpoints();
     } else if (evaluation_mode_ == EvaluationMode::StepOver) {
-        // need to get the actual ordering table
-        auto const &orders = db_->execution_bp_orders();
-        std::optional<uint32_t> next_breakpoint_id;
-        if (!current_breakpoint_id_) [[unlikely]] {  // NOLINT
-            // need to grab the first one, doesn't matter which one
-            if (!orders.empty()) next_breakpoint_id = orders[0];
-        } else {
-            auto current_id = *current_breakpoint_id_;
-            auto pos = std::find(orders.begin(), orders.end(), current_id);
-            if (pos != orders.end()) {
-                auto index = static_cast<uint64_t>(std::distance(orders.begin(), pos));
-                if (index != (orders.size() - 1)) {
-                    next_breakpoint_id = orders[index + 1];
-                }
+        auto *bp = next_step_over_breakpoint();
+        return {bp};
+    } else {
+        return {};
+    }
+}
+
+Debugger::DebugBreakPoint *Debugger::next_step_over_breakpoint() {
+    // need to get the actual ordering table
+    auto const &orders = db_->execution_bp_orders();
+    std::optional<uint32_t> next_breakpoint_id;
+    if (!current_breakpoint_id_) [[unlikely]] {  // NOLINT
+        // need to grab the first one, doesn't matter which one
+        if (!orders.empty()) next_breakpoint_id = orders[0];
+    } else {
+        auto current_id = *current_breakpoint_id_;
+        auto pos = std::find(orders.begin(), orders.end(), current_id);
+        if (pos != orders.end()) {
+            auto index = static_cast<uint64_t>(std::distance(orders.begin(), pos));
+            if (index != (orders.size() - 1)) {
+                next_breakpoint_id = orders[index + 1];
             }
         }
-        if (!next_breakpoint_id) return nullptr;
-        current_breakpoint_id_ = next_breakpoint_id;
-        evaluated_ids_.emplace(*current_breakpoint_id_);
-        // need to get a new breakpoint
-        auto bp_info = db_->get_breakpoint(*current_breakpoint_id_);
-        if (!bp_info) return nullptr;
-        std::string cond = bp_info->condition.empty() ? "1" : bp_info->condition;
-        step_over_breakpoint_.id = *current_breakpoint_id_;
-        step_over_breakpoint_.instance_id = *bp_info->instance_id;
-        step_over_breakpoint_.enable_expr = std::make_unique<DebugExpression>(cond);
-        return &step_over_breakpoint_;
-
-    } else {
-        return nullptr;
     }
+    if (!next_breakpoint_id) return nullptr;
+    current_breakpoint_id_ = next_breakpoint_id;
+    evaluated_ids_.emplace(*current_breakpoint_id_);
+    // need to get a new breakpoint
+    auto bp_info = db_->get_breakpoint(*current_breakpoint_id_);
+    if (!bp_info) return nullptr;
+    std::string cond = bp_info->condition.empty() ? "1" : bp_info->condition;
+    step_over_breakpoint_.id = *current_breakpoint_id_;
+    step_over_breakpoint_.instance_id = *bp_info->instance_id;
+    step_over_breakpoint_.enable_expr = std::make_unique<DebugExpression>(cond);
+    return &step_over_breakpoint_;
+}
+
+std::vector<Debugger::DebugBreakPoint *> Debugger::next_normal_breakpoints() {
+    // if no breakpoint inserted. return early
+    std::lock_guard guard(breakpoint_lock_);
+    if (breakpoints_.empty()) return {};
+    // we need to make the experience the same as debugging software
+    // as a result, when user add new breakpoints to the list that has high priority,
+    // we need to skip then and evaluate them at the next evaluation cycle
+    uint64_t index = 0;
+    // find index
+    std::optional<uint64_t> pos;
+    for (uint64_t i = 0; i < breakpoints_.size(); i++) {
+        auto id = breakpoints_[i].id;
+        if (evaluated_ids_.find(id) != evaluated_ids_.end()) {
+            pos = i;
+        }
+    }
+    if (pos) {
+        // we have a last hit
+        if (*pos + 1 < breakpoints_.size()) {
+            index = *pos + 1;
+        } else {
+            // the end
+            return {};
+        }
+    }
+    // once we have a hit index, scanning down the list to see if we have more
+    // hits if it shares the same fn/ln/cn tuple
+    // matching criteria:
+    // - same enable condition
+    // - different
+    auto const &ref_bp = breakpoints_[index];
+    auto const &target_expr = ref_bp.enable_expr->expression();
+    std::vector<Debugger::DebugBreakPoint *> result{&breakpoints_[index]};
+    for (uint64_t i = index + 1; i < breakpoints_.size(); i++) {
+        auto &next_bp = breakpoints_[i];
+        // if fn/ln/cn tuple doesn't match, stop
+        // reorder the comparison in a way that exploits short circuit
+        if (next_bp.line_num != ref_bp.line_num || next_bp.filename != ref_bp.filename ||
+            next_bp.column_num != ref_bp.column_num) {
+            break;
+        }
+        // same enable expression but different instance id
+        if (next_bp.instance_id != ref_bp.instance_id &&
+            next_bp.enable_expr->expression() == target_expr) {
+            result.emplace_back(&next_bp);
+        }
+    }
+    // the tail will be current breakpoint id
+    current_breakpoint_id_ = result.back()->id;
+    for (auto const *bp : result) {
+        evaluated_ids_.emplace(bp->id);
+    }
+    return result;
 }
 
 void Debugger::start_breakpoint_evaluation() {

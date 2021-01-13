@@ -64,26 +64,34 @@ private:
 
 class BreakPointResponse : public Response {
 public:
-    BreakPointResponse(uint64_t time, uint64_t instance_id, std::string instance_name,
-                       uint64_t breakpoint_id, std::string filename, uint64_t line_num,
+    BreakPointResponse(uint64_t time, std::string filename, uint64_t line_num,
                        uint64_t column_num = 0);
     [[nodiscard]] std::string str(bool pretty_print) const override;
     [[nodiscard]] std::string type() const override { return "breakpoint"; }
 
-    void add_local_value(const std::string &name, const std::string &value);
-    void add_generator_value(const std::string &name, const std::string &value);
+    struct Scope {
+    public:
+        uint64_t instance_id;
+        uint64_t breakpoint_id;
+        std::string instance_name;
+        std::map<std::string, std::string> local_values;
+        std::map<std::string, std::string> generator_values;
+
+        Scope(uint64_t instance_id, std::string instance_name, uint64_t breakpoint_id);
+
+        void add_local_value(const std::string &name, const std::string &value);
+        void add_generator_value(const std::string &name, const std::string &value);
+    };
+
+    inline void add_scope(const Scope &scope) { scopes_.emplace_back(scope); }
 
 private:
     uint64_t time_;
-    uint64_t instance_id_;
-    std::string instance_name_;
-    uint64_t breakpoint_id_;
     std::string filename_;
     uint64_t line_num_;
     uint64_t column_num_;
 
-    std::map<std::string, std::string> local_values_;
-    std::map<std::string, std::string> generator_values_;
+    std::vector<Scope> scopes_;
 };
 
 class Request {

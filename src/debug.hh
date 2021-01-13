@@ -21,7 +21,7 @@ public:
     void eval();
 
     // some public information about the debugger
-    [[nodiscard]] bool is_verilator();
+    [[maybe_unused]] [[nodiscard]] bool is_verilator();
 
     // default and hardcoded values
     static constexpr uint16_t default_port_num = 8888;
@@ -58,6 +58,9 @@ private:
         uint32_t instance_id;
         std::unique_ptr<DebugExpression> expr;
         std::unique_ptr<DebugExpression> enable_expr;
+        std::string filename;
+        uint32_t line_num;
+        uint32_t column_num;
     };
     std::vector<DebugBreakPoint> breakpoints_;
     std::unordered_set<uint32_t> inserted_breakpoints_;
@@ -99,13 +102,15 @@ private:
     void handle_error(const ErrorRequest &req);
 
     // send functions
-    void send_breakpoint_hit(const DebugBreakPoint &bp);
+    void send_breakpoint_hit(const std::vector<const DebugBreakPoint*> &bps);
 
     // common checker
     bool check_send_db_error(RequestType type);
 
     // scheduler
-    Debugger::DebugBreakPoint *next_breakpoint();
+    std::vector<Debugger::DebugBreakPoint*> next_breakpoints();
+    Debugger::DebugBreakPoint *next_step_over_breakpoint();
+    std::vector<Debugger::DebugBreakPoint*> next_normal_breakpoints();
     void start_breakpoint_evaluation();
 };
 
