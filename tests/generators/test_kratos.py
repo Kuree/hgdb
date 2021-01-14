@@ -8,9 +8,11 @@ import asyncio
 import pytest
 import time
 
+py_filename = os.path.abspath(__file__)
+
 
 @pytest.mark.parametrize("simulator", [VerilatorTester, XceliumTester])
-def test_kratos(find_free_port, simulator):
+def test_kratos_single_instance(find_free_port, simulator):
     if not simulator.available():
         pytest.skip(simulator.__name__ + " not available")
     from kratos import Generator, clog2, always_ff, always_comb, verilog, posedge
@@ -41,8 +43,6 @@ def test_kratos(find_free_port, simulator):
 
     mod.add_always(sum_data, ssa_transform=True)
     mod.add_always(buffer_logic)
-
-    py_filename = os.path.abspath(__file__)
     py_line_num = get_line_num(py_filename, "            out = out + data[i]")
 
     with tempfile.TemporaryDirectory() as temp:
@@ -97,7 +97,72 @@ def test_kratos(find_free_port, simulator):
             asyncio.get_event_loop().run_until_complete(client_logic())
 
 
+@pytest.mark.parametrize("simulator", [VerilatorTester, XceliumTester])
+def test_kratos_multiple_instances(find_free_port, simulator):
+    if not simulator.available():
+        pytest.skip(simulator.__name__ + " not available")
+    # we re-use the same test bench with different logic
+    from kratos import Generator, clog2, always_ff, always_comb, verilog, posedge
+    input_width = 16
+    mod = Generator("mod", debug=True)
+    child1 = Generator("child", debug=True)
+    child2 = Generator("child", debug=True)
+    gens = [mod, child1, child2]
+    for g in gens:
+        g.clock("clk")
+        g.reset("rst")
+        g.input("in", input_width)
+        g.output("out", input_width)
+
+    for idx, g in enumerate([child1, child2]):
+        clk = g.ports.clk
+        rst = g.ports.rst
+        in_ = g.ports["in"]
+        out = g.ports.out
+
+        @always_ff((posedge, clk), (posedge, rst))
+        def logic():
+            if rst:
+                out = 0
+            else:
+                out = in_
+
+        g.add_always(logic)
+        mod.add_child(f"child_{idx}", g, clk=mod.ports.clk, rst=mod.ports.rst)
+        mod.wire(mod.ports["in"], in_)
+    mod.wire(mod.ports.out, child1.ports.out + child2.ports.out)
+    with tempfile.TemporaryDirectory() as temp:
+        temp = os.path.abspath(temp)
+        db_filename = os.path.join(temp, "debug.db")
+        sv_filename = os.path.join(temp, "mod.sv")
+        verilog(mod, filename=sv_filename, insert_debug_info=True,
+                debug_db_filename=db_filename, insert_verilator_info=True)
+        # run verilator
+        tb = "test_kratos.cc"
+        main_file = get_vector_file(tb)
+        py_line_num = get_line_num(py_filename, "                out = in_")
+        with simulator(sv_filename, main_file, cwd=temp) as tester:
+            port = find_free_port()
+            uri = get_uri(port)
+            # set the port
+            tester.run(blocking=False, DEBUG_PORT=port, DEBUG_LOG=True)
+
+            async def client_logic():
+                client = hgdb.HGDBClient(uri, db_filename)
+                await client.connect()
+                # set breakpoint
+                await client.set_breakpoint(py_filename, py_line_num)
+                await client.continue_()
+                bp = await client.recv()
+                # bp should have two instances
+                assert len(bp["payload"]["instances"]) == 2
+                assert {bp["payload"]["instances"][0]["instance_id"],
+                        bp["payload"]["instances"][1]["instance_id"]} == {1, 2}
+
+            asyncio.get_event_loop().run_until_complete(client_logic())
+
+
 if __name__ == "__main__":
     sys.path.append(get_root())
     from conftest import find_free_port_fn
-    test_kratos(find_free_port_fn, VerilatorTester)
+    test_kratos_multiple_instances(find_free_port_fn, VerilatorTester)
