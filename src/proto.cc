@@ -171,11 +171,11 @@ std::string to_string(RequestType type) noexcept {
         case RequestType::connection:
             return "connection";
         case RequestType::bp_location:
-            return "bp_location";
+            return "bp-location";
         case RequestType::command:
             return "command";
         case RequestType::debugger_info:
-            return "debugger_info";
+            return "debugger-info";
     }
     return "error";
 }

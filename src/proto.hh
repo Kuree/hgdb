@@ -56,7 +56,7 @@ class BreakPointLocationResponse : public Response {
 public:
     explicit BreakPointLocationResponse(std::vector<BreakPoint *> bps) : bps_(std::move(bps)) {}
     [[nodiscard]] std::string str(bool pretty_print) const override;
-    [[nodiscard]] std::string type() const override { return "bp-location"; }
+    [[nodiscard]] std::string type() const override { return to_string(RequestType::bp_location); }
 
 private:
     std::vector<BreakPoint *> bps_;
@@ -67,7 +67,7 @@ public:
     BreakPointResponse(uint64_t time, std::string filename, uint64_t line_num,
                        uint64_t column_num = 0);
     [[nodiscard]] std::string str(bool pretty_print) const override;
-    [[nodiscard]] std::string type() const override { return "breakpoint"; }
+    [[nodiscard]] std::string type() const override { return to_string(RequestType::breakpoint); }
 
     struct Scope {
     public:
@@ -203,7 +203,9 @@ class DebuggerInformationResponse : public Response {
 public:
     explicit DebuggerInformationResponse(std::vector<BreakPoint *> bps);
     [[nodiscard]] std::string str(bool pretty_print) const override;
-    [[nodiscard]] std::string type() const override { return "debugger-info"; }
+    [[nodiscard]] std::string type() const override {
+        return to_string(RequestType::debugger_info);
+    }
 
 private:
     DebuggerInformationRequest::CommandType command_type_;
