@@ -741,8 +741,7 @@ std::string Debugger::get_full_name(uint64_t instance_id, const std::string &var
         }
     }
     // exist lock here since this is local
-    // notice that rtl full name already suffix "."
-    auto full_name = instance_name + var_name;
+    auto full_name = fmt::format("{0}.{1}", instance_name, var_name);
     return full_name;
 }
 
