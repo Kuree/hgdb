@@ -6,6 +6,7 @@
 
 #include "fmt/format.h"
 #include "log.hh"
+#include "util.hh"
 
 namespace fs = std::filesystem;
 
@@ -80,16 +81,13 @@ void Debugger::eval() {
     while (true) {
         auto bps = next_breakpoints();
         if (bps.empty()) break;
-        std::vector<const DebugBreakPoint *> hits;
-        for (auto const *bp : bps) {
+        std::vector<DebugBreakPoint *> hits;
+        for (auto *bp : bps) {
             const auto &bp_expr =
                 evaluation_mode_ == EvaluationMode::BreakPointOnly ? bp->expr : bp->enable_expr;
             // get table values
             auto const &symbols = bp_expr->symbols();
             auto const bp_id = bp->id;
-            auto const instance_name_ = db_->get_instance_name_from_bp(bp_id);
-            if (!instance_name_) continue;
-            auto const &instance_name = *instance_name_;
             std::unordered_map<std::string, int64_t> values;
             // just in case there are some context values need to pull in
             auto context_values = get_context_static_values(bp_id);
@@ -101,9 +99,7 @@ void Debugger::eval() {
                 } else {
                     // need to map these symbol names into the actual hierarchy
                     // name
-                    auto name = fmt::format("{0}.{1}", instance_name, symbol_name);
-                    // FIXME: add cache for full name lookup
-                    auto full_name = rtl_->get_full_name(name);
+                    auto full_name = get_full_name(bp->instance_id, symbol_name);
                     auto v = rtl_->get_value(full_name);
                     if (!v) break;
                     values.emplace(symbol_name, *v);
@@ -113,8 +109,9 @@ void Debugger::eval() {
                 // something went wrong with the querying symbol
                 log_error(fmt::format("Unable to evaluate breakpoint {0}", bp_id));
             } else {
-                auto result = bp_expr->eval(values);
-                if (result) {
+                auto eval_result = bp_expr->eval(values);
+                auto trigger_result = should_trigger(bp);
+                if (eval_result && trigger_result) {
                     // trigger a breakpoint!
                     hits.emplace_back(bp);
                 }
@@ -253,6 +250,13 @@ std::unordered_map<std::string, int64_t> Debugger::get_context_static_values(
     return result;
 }
 
+// functions that compute the trigger values
+std::vector<std::string> compute_trigger_symbol(const BreakPoint &bp) {
+    auto const &trigger_str = bp.trigger;
+    auto tokens = util::get_tokens(trigger_str, " ");
+    return tokens;
+}
+
 void Debugger::add_breakpoint(const BreakPoint &bp_info, const BreakPoint &db_bp) {
     // add them to the eval vector
     std::string cond = "1";
@@ -269,7 +273,8 @@ void Debugger::add_breakpoint(const BreakPoint &bp_info, const BreakPoint &db_bp
                 std::make_unique<DebugExpression>(db_bp.condition.empty() ? "1" : db_bp.condition),
             .filename = db_bp.filename,
             .line_num = db_bp.line_num,
-            .column_num = db_bp.column_num});
+            .column_num = db_bp.column_num,
+            .trigger_symbols = compute_trigger_symbol(db_bp)});
         inserted_breakpoints_.emplace(db_bp.id);
     } else {
         // update breakpoint entry
@@ -524,7 +529,7 @@ void Debugger::handle_debug_info(const DebuggerInformationRequest &req) {
 
 void Debugger::handle_error(const ErrorRequest &req) {}
 
-void Debugger::send_breakpoint_hit(const std::vector<const DebugBreakPoint *> &bps) {
+void Debugger::send_breakpoint_hit(const std::vector<DebugBreakPoint *> &bps) {
     // we send it here to avoid a round trip of client asking for context and send send it
     // back
     auto const *first_bp = bps.front();
@@ -693,6 +698,71 @@ std::vector<Debugger::DebugBreakPoint *> Debugger::next_normal_breakpoints() {
 void Debugger::start_breakpoint_evaluation() {
     evaluated_ids_.clear();
     current_breakpoint_id_ = std::nullopt;
+    cached_signal_values_.clear();
+}
+
+bool Debugger::should_trigger(DebugBreakPoint *bp) {
+    auto const &symbols = bp->trigger_symbols;
+    // empty symbols means always trigger
+    if (symbols.empty()) return true;
+    bool should_trigger = false;
+    for (auto const &symbol : symbols) {
+        // if we haven't seen the value yet, definitely trigger it
+        auto full_name = get_full_name(bp->instance_id, symbol);
+        auto op_v = get_value(full_name);
+        if (!op_v) {
+            log_error(fmt::format("Unable to find signal {0} associated with breakpoint id {1}",
+                                  full_name, bp->id));
+            return true;
+        }
+        auto value = *op_v;
+        if (bp->trigger_values.find(symbol) == bp->trigger_values.end() ||
+            bp->trigger_values.at(symbol) != value) {
+            should_trigger = true;
+        }
+        bp->trigger_values[symbol] = value;
+    }
+    return should_trigger;
+}
+
+std::string Debugger::get_full_name(uint64_t instance_id, const std::string &var_name) {
+    std::string instance_name;
+    {
+        std::lock_guard guard(cached_instance_name_lock_);
+        if (cached_instance_name_.find(instance_id) == cached_instance_name_.end()) {
+            auto name = db_->get_instance_name(instance_id);
+            if (name) {
+                // need to remap to the full name
+                instance_name = rtl_->get_full_name(*name);
+                cached_instance_name_.emplace(instance_id, instance_name);
+            }
+        } else {
+            instance_name = cached_instance_name_.at(instance_id);
+        }
+    }
+    // exist lock here since this is local
+    // notice that rtl full name already suffix "."
+    auto full_name = instance_name + var_name;
+    return full_name;
+}
+
+std::optional<int64_t> Debugger::get_value(const std::string &signal_name) {
+    // assume the name is already elaborated/mapped
+    {
+        std::lock_guard guard(cached_signal_values_lock_);
+        if (cached_signal_values_.find(signal_name) != cached_signal_values_.end()) {
+            return cached_signal_values_.at(signal_name);
+        }
+    }
+    // need to actually get the value
+    auto value = rtl_->get_value(signal_name);
+    if (value) {
+        std::lock_guard guard(cached_signal_values_lock_);
+        cached_signal_values_.emplace(signal_name, *value);
+        return *value;
+    } else {
+        return {};
+    }
 }
 
 }  // namespace hgdb

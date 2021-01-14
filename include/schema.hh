@@ -51,6 +51,17 @@ struct BreakPoint {
      * And it is only valid if net a is true, we put "a" as condition
      */
     std::string condition;
+
+    /**
+     * List of the signals that need to be changed in order to trigger the breakpoint.
+     * The difference between trigger and condition is that condition is stateless whereas
+     * trigger tracks the signal values and only enables breakpoints whose associated trigger
+     * signals have changed.
+     *
+     * Store as a list of raw signal names (under the scope of instance name) separated by
+     * space
+     */
+    std::string trigger;
 };
 
 /**
@@ -176,6 +187,7 @@ auto inline init_debug_db(const std::string &filename) {
                    make_column("line_num", &BreakPoint::line_num),
                    make_column("column_num", &BreakPoint::column_num),
                    make_column("condition", &BreakPoint::condition),
+                   make_column("trigger", &BreakPoint::trigger),
                    foreign_key(&BreakPoint::instance_id).references(&Instance::id)),
         make_table("instance", make_column("id", &Instance::id, primary_key()),
                    make_column("name", &Instance::name)),
@@ -206,13 +218,16 @@ using DebugDatabase = decltype(init_debug_db(""));
 // helper functions
 inline void store_breakpoint(DebugDatabase &db, uint32_t id, uint32_t instance_id,
                              const std::string &filename, uint32_t line_num,
-                             uint32_t column_num = 0, const std::string &condition = "") {
+                             uint32_t column_num = 0, const std::string &condition = "",
+                             const std::string &trigger = "") {
     db.replace(BreakPoint{.id = id,
                           .instance_id = std::make_unique<uint32_t>(instance_id),
                           .filename = filename,
                           .line_num = line_num,
                           .column_num = column_num,
-                          .condition = condition});
+                          .condition = condition,
+                          .trigger = trigger});
+    // NOLINTNEXTLINE
 }
 
 inline void store_instance(DebugDatabase &db, uint32_t id, const std::string &name) {
@@ -249,6 +264,7 @@ inline void store_context_variable(DebugDatabase &db, const std::string &name,
     db.replace(ContextVariable{.name = name,
                                .breakpoint_id = std::make_unique<uint32_t>(breakpoint_id),
                                .variable_id = std::make_unique<uint32_t>(variable_id)});
+    // NOLINTNEXTLINE
 }
 
 inline void store_generator_variable(DebugDatabase &db, const std::string &name,
@@ -256,6 +272,7 @@ inline void store_generator_variable(DebugDatabase &db, const std::string &name,
     db.replace(GeneratorVariable{.name = name,
                                  .instance_id = std::make_unique<uint32_t>(instance_id),
                                  .variable_id = std::make_unique<uint32_t>(variable_id)});
+    // NOLINTNEXTLINE
 }
 
 inline void store_annotation(DebugDatabase &db, const std::string &name, const std::string &value) {

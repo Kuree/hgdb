@@ -15,11 +15,11 @@ class DebugSymbolTable:
         _hgdb.store_variable(self.db, id_, value, is_rtl)
 
     def store_breakpoint(self, id_: int, instance_id: int, filename: str, line_num: int, column_num: int = 0,
-                         condition: str = ""):
+                         condition: str = "", trigger: str = ""):
         # check instance id
         if not self.has_instance_id(instance_id):
             raise DebugSymbolTableException(f"Instance {instance_id} does not exist!")
-        _hgdb.store_breakpoint(self.db, id_, instance_id, filename, line_num, column_num, condition)
+        _hgdb.store_breakpoint(self.db, id_, instance_id, filename, line_num, column_num, condition, trigger)
 
     def store_instance(self, id_: int, full_name: str):
         _hgdb.store_instance(self.db, id_, full_name)

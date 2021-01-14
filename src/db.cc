@@ -78,6 +78,17 @@ std::optional<std::string> DebugDatabaseClient::get_instance_name_from_bp(uint32
         return std::get<0>(value[0]);
 }
 
+std::optional<std::string> DebugDatabaseClient::get_instance_name(uint32_t id) {
+    using namespace sqlite_orm;
+    std::lock_guard guard(db_lock_);
+    auto value = db_->get_pointer<Instance>(id);
+    if (value) {
+        return value->name;
+    } else {
+        return {};
+    }
+}
+
 std::string get_var_value(bool is_rtl, const std::string &value, const std::string &instance_name) {
     std::string fullname;
     if (is_rtl && value.find(instance_name) == std::string::npos) {

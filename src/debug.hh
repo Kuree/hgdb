@@ -61,6 +61,11 @@ private:
         std::string filename;
         uint32_t line_num;
         uint32_t column_num;
+        // this is to match with the always_comb semantics
+        // first table stores the overall symbols that triggers
+        // second table stores the seen value
+        std::vector<std::string> trigger_symbols;
+        std::unordered_map<std::string, int64_t> trigger_values;
     };
     std::vector<DebugBreakPoint> breakpoints_;
     std::unordered_set<uint32_t> inserted_breakpoints_;
@@ -76,6 +81,12 @@ private:
     EvaluationMode evaluation_mode_ = EvaluationMode::BreakPointOnly;
     std::unordered_set<uint32_t> evaluated_ids_;
     std::optional<uint32_t> current_breakpoint_id_;
+    // reduce VPI traffic
+    std::unordered_map<std::string, int64_t> cached_signal_values_;
+    std::mutex cached_signal_values_lock_;
+    // reduce DB traffic and remapping computation
+    std::unordered_map<uint64_t, std::string> cached_instance_name_;
+    std::mutex cached_instance_name_lock_;
 
     // message handler
     void on_message(const std::string &message);
@@ -102,7 +113,7 @@ private:
     void handle_error(const ErrorRequest &req);
 
     // send functions
-    void send_breakpoint_hit(const std::vector<const DebugBreakPoint *> &bps);
+    void send_breakpoint_hit(const std::vector<DebugBreakPoint *> &bps);
 
     // common checker
     bool check_send_db_error(RequestType type);
@@ -112,6 +123,11 @@ private:
     Debugger::DebugBreakPoint *next_step_over_breakpoint();
     std::vector<Debugger::DebugBreakPoint *> next_normal_breakpoints();
     void start_breakpoint_evaluation();
+    bool should_trigger(DebugBreakPoint *bp);
+
+    // cached wrapper
+    std::optional<int64_t> get_value(const std::string &signal_name);
+    std::string get_full_name(uint64_t instance_id, const std::string &var_name);
 };
 
 }  // namespace hgdb
