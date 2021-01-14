@@ -41,7 +41,7 @@ TEST(sim, sim_cb) {  // NOLINT
     auto mock = std::make_unique<MockVPIProvider>();
     // even through the ownership gets transferred, as long as we don't
     // teardown the runtime, vpi_ptr is always valid
-    auto vpi_ptr = mock.get();
+    auto *vpi_ptr = mock.get();
     vpi_ptr->set_argv({"+DEBUG_PORT=" + std::to_string(port)});
 
     std::unique_ptr<hgdb::AVPIProvider> vpi_ = std::move(mock);

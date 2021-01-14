@@ -2,7 +2,7 @@
 #include "gtest/gtest.h"
 
 TEST(eval, get_tokens) {    // NOLINT
-    auto expr = "a + b - c";
+    const auto *expr = "a + b - c";
     auto tokens = hgdb::ExpressionHelper::get_expr_symbols(expr);
     EXPECT_EQ(tokens.size(), 3);
     for (auto const &s: {"a", "b", "c"}) {
@@ -11,7 +11,7 @@ TEST(eval, get_tokens) {    // NOLINT
 }
 
 TEST(eval, eval_expr) { // NOLINT
-    auto expr_str = "a == 5 and b == 6";
+    const auto *expr_str = "a == 5 and b == 6";
     auto expr = hgdb::DebugExpression(expr_str);
     EXPECT_EQ(expr.symbols().size(), 2);
     std::unordered_map<std::string, int64_t> values{{"a", 5}, {"b", 6}};

@@ -2,7 +2,7 @@
 #include "gtest/gtest.h"
 
 TEST(proto, token_passing) {  // NOLINT
-    auto req = R"(
+    const auto *req = R"(
 {
     "request": true,
     "type": "breakpoint",
@@ -23,7 +23,7 @@ TEST(proto, token_passing) {  // NOLINT
 }
 
 TEST(proto, breakpoint_request) {  // NOLINT
-    auto req = R"(
+    const auto *req = R"(
 {
     "filename": "/tmp/abc",
     "line_num": 123,
@@ -77,7 +77,7 @@ TEST(proto, breakpoint_id_request) {  // NOLINT
 }
 
 TEST(proto, breakpoint_request_malformed) {  // NOLINT
-    auto req1 = R"(
+    const auto *req1 = R"(
 {
     "line_num": 123,
     "column_num": 42,
@@ -86,7 +86,7 @@ TEST(proto, breakpoint_request_malformed) {  // NOLINT
 }
 )";
 
-    auto req2 = R"(
+    const auto *req2 = R"(
 {
     "filename": "/tmp/abc",
     "action": "remove_all",
@@ -102,7 +102,7 @@ TEST(proto, breakpoint_request_malformed) {  // NOLINT
 }
 
 TEST(proto, request_parse_breakpoint) {  // NOLINT
-    auto req = R"(
+    const auto *req = R"(
 {
     "request": true,
     "type": "breakpoint",
@@ -115,13 +115,13 @@ TEST(proto, request_parse_breakpoint) {  // NOLINT
 )";
     auto r = hgdb::Request::parse_request(req);
     EXPECT_EQ(r->status(), hgdb::status_code::success);
-    auto br = dynamic_cast<hgdb::BreakPointRequest *>(r.get());
+    auto *br = dynamic_cast<hgdb::BreakPointRequest *>(r.get());
     EXPECT_NE(br, nullptr);
     EXPECT_EQ(br->breakpoint().filename, "/tmp/abc");
 }
 
 TEST(proto, request_parse_connection) {  // NOLINT
-    auto req = R"(
+    const auto *req = R"(
 {
     "request": true,
     "type": "connection",
@@ -136,7 +136,7 @@ TEST(proto, request_parse_connection) {  // NOLINT
 )";
     auto r = hgdb::Request::parse_request(req);
     EXPECT_EQ(r->status(), hgdb::status_code::success);
-    auto conn = dynamic_cast<hgdb::ConnectionRequest *>(r.get());
+    auto *conn = dynamic_cast<hgdb::ConnectionRequest *>(r.get());
     EXPECT_NE(conn, nullptr);
     EXPECT_EQ(conn->db_filename(), "/tmp/abc.db");
     EXPECT_EQ(conn->path_mapping().size(), 2);
@@ -145,7 +145,7 @@ TEST(proto, request_parse_connection) {  // NOLINT
 }
 
 TEST(proto, request_parse_bp_location) {  // NOLINT
-    auto req = R"(
+    const auto *req = R"(
 {
     "request": true,
     "type": "bp-location",
@@ -157,7 +157,7 @@ TEST(proto, request_parse_bp_location) {  // NOLINT
 )";
     auto r = hgdb::Request::parse_request(req);
     EXPECT_EQ(r->status(), hgdb::status_code::success);
-    auto bp = dynamic_cast<hgdb::BreakPointLocationRequest *>(r.get());
+    auto *bp = dynamic_cast<hgdb::BreakPointLocationRequest *>(r.get());
     EXPECT_NE(bp, nullptr);
     EXPECT_EQ(bp->filename(), "/tmp/abc");
     EXPECT_EQ(*bp->line_num(), 42);
@@ -165,7 +165,7 @@ TEST(proto, request_parse_bp_location) {  // NOLINT
 }
 
 TEST(proto, request_parse_command) {  // NOLINT
-    auto req = R"(
+    const auto *req = R"(
 {
     "request": true,
     "type": "command",
@@ -176,13 +176,13 @@ TEST(proto, request_parse_command) {  // NOLINT
 )";
     auto r = hgdb::Request::parse_request(req);
     EXPECT_EQ(r->status(), hgdb::status_code::success);
-    auto bp = dynamic_cast<hgdb::CommandRequest *>(r.get());
+    auto *bp = dynamic_cast<hgdb::CommandRequest *>(r.get());
     EXPECT_NE(bp, nullptr);
     EXPECT_EQ(bp->command_type(), hgdb::CommandRequest::CommandType::continue_);
 }
 
 TEST(proto, request_parse_debugger) {  // NOLINT
-    auto req = R"(
+    const auto *req = R"(
 {
     "request": true,
     "type": "debugger-info",
@@ -193,7 +193,7 @@ TEST(proto, request_parse_debugger) {  // NOLINT
 )";
     auto r = hgdb::Request::parse_request(req);
     EXPECT_EQ(r->status(), hgdb::status_code::success);
-    auto bp = dynamic_cast<hgdb::DebuggerInformationRequest *>(r.get());
+    auto *bp = dynamic_cast<hgdb::DebuggerInformationRequest *>(r.get());
     EXPECT_NE(bp, nullptr);
     EXPECT_EQ(bp->command_type(), hgdb::DebuggerInformationRequest::CommandType::breakpoints);
 }
