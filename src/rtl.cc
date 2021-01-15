@@ -6,6 +6,8 @@
 #include <queue>
 #include <unordered_set>
 
+#include "util.hh"
+
 namespace hgdb {
 
 void VPIProvider::vpi_get_value(vpiHandle expr, p_vpi_value value_p) {
@@ -36,6 +38,11 @@ char *VPIProvider::vpi_get_str(PLI_INT32 property, vpiHandle object) {
 vpiHandle VPIProvider::vpi_handle_by_name(char *name, vpiHandle scope) {
     std::lock_guard guard(vpi_lock_);
     return ::vpi_handle_by_name(name, scope);
+}
+
+vpiHandle VPIProvider::vpi_handle_by_index(vpiHandle object, PLI_INT32 index) {
+    std::lock_guard guard(vpi_lock_);
+    return ::vpi_handle_by_index(object, index);
 }
 
 PLI_INT32 VPIProvider::vpi_get_vlog_info(p_vpi_vlog_info vlog_info_p) {
@@ -116,18 +123,75 @@ void RTLSimulatorClient::initialize_vpi(std::unique_ptr<AVPIProvider> vpi) {
 vpiHandle RTLSimulatorClient::get_handle(const std::string &name) {
     auto full_name = get_full_name(name);
     // if we already queried this handle before
-    if (handle_map_.find(full_name) != handle_map_.end()) {
+    std::lock_guard guard(handle_map_lock_);
+    if (handle_map_.find(full_name) != handle_map_.end()) [[likely]] {  // NOLINT
         return handle_map_.at(full_name);
     } else {
         // need to query via VPI
         auto *handle = const_cast<char *>(full_name.c_str());
         auto *ptr = vpi_->vpi_handle_by_name(handle, nullptr);
-        if (ptr) {
+        if (ptr) [[likely]] {  // NOLINT
             // if we actually found the handle, need to store it
             handle_map_.emplace(full_name, ptr);
+        } else {
+            // full back to brute-force resolving names. usually we have to
+            // deal with verilator. remove []
+            auto tokens = util::get_tokens(full_name, ".[]");
+            ptr = get_handle(tokens);
+            if (ptr) handle_map_.emplace(name, ptr);
         }
         return ptr;
     }
+}
+
+vpiHandle RTLSimulatorClient::get_handle(const std::vector<std::string> &tokens) {
+    if (tokens.empty()) [[unlikely]] {  // NOLINT
+        return nullptr;
+    } else {
+        // notice that this will be called inside the normal get_handle
+        // we we can assume that handle_map_ is well protected
+        // strip off the trailing tokens until it becomes a variable
+        for (auto i = tokens.size() - 1; i > 0; i--) {
+            auto pos = tokens.begin() + i;
+            auto handle_name = util::join(tokens.begin(), pos, ".");
+            vpiHandle ptr;
+            if (handle_map_.find(handle_name) != handle_map_.end()) {
+                ptr = handle_map_.at(handle_name);
+            } else {
+                auto *handle_name_ptr = const_cast<char *>(handle_name.c_str());
+                ptr = vpi_->vpi_handle_by_name(handle_name_ptr, nullptr);
+                if (ptr) {
+                    handle_map_.emplace(handle_name, ptr);
+                }
+            }
+            if (ptr) {
+                auto type = vpi_->vpi_get(vpiType, ptr);
+                if (type != vpiModule) {
+                    // best effort
+                    // notice that we only support array indexing, since struct
+                    // access should handled by simulator properly
+                    return access_arrays(pos, tokens.end(), ptr);
+                }
+            }
+        }
+        return nullptr;
+    }
+}
+
+vpiHandle RTLSimulatorClient::access_arrays(StringIterator begin, StringIterator end,
+                                            vpiHandle var_handle) {
+    auto it = begin;
+    while (it != end) {
+        auto idx = *it;
+        if (!std::all_of(idx.begin(), idx.end(), ::isdigit)) {
+            return nullptr;
+        }
+        auto index_value = std::stoll(idx);
+        var_handle = vpi_->vpi_handle_by_index(var_handle, index_value);
+        if (!var_handle) return nullptr;
+        it++;
+    }
+    return var_handle;
 }
 
 std::optional<int64_t> RTLSimulatorClient::get_value(vpiHandle handle) {

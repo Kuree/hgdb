@@ -34,6 +34,13 @@ public:
         if (property == vpiType) {
             if (signals_.find(object) != signals_.end()) return vpiNet;
             if (modules_.find(object) != modules_.end()) return vpiModule;
+            // search for array
+            for (auto const &iter : array_handles_) {
+                if (std::find(iter.second.begin(), iter.second.end(), object) !=
+                    iter.second.end()) {
+                    return vpiReg;
+                }
+            }
         } else if (property == vpiSize) {
             // every signal is 1-bit for now
             return 1;
@@ -157,6 +164,18 @@ public:
         return 1;
     }
 
+    vpiHandle vpi_handle_by_index(vpiHandle object, PLI_INT32 index) override {
+        if (array_handles_.find(object) == array_handles_.end()) {
+            return nullptr;
+        }
+        auto &array = array_handles_.at(object);
+        if (index < array.size()) {
+            return array[index];
+        } else {
+            return nullptr;
+        }
+    }
+
     vpiHandle get_new_handle() {
         auto *p = vpi_handle_counter_++;
         return reinterpret_cast<uint32_t *>(p);
@@ -184,6 +203,14 @@ public:
         signals_.emplace(handle, signal_name);
         module_signals_[parent].emplace(handle);
         return handle;
+    }
+
+    std::vector<vpiHandle> set_signal_dim(vpiHandle signal, uint32_t dim) {
+        array_handles_[signal].resize(dim);
+        for (uint32_t i = 0; i < dim; i++) {
+            array_handles_[signal][i] = get_new_handle();
+        }
+        return array_handles_[signal];
     }
 
     void set_argv(const std::vector<std::string> &argv) {
@@ -249,6 +276,8 @@ private:
     std::unordered_map<vpiHandle, std::unordered_set<vpiHandle>> module_hierarchy_;
     std::unordered_map<vpiHandle, std::unordered_set<vpiHandle>> module_signals_;
     std::unordered_map<vpiHandle, int64_t> signal_values_;
+    // for arrays
+    std::unordered_map<vpiHandle, std::vector<vpiHandle>> array_handles_;
 
     std::unordered_map<vpiHandle, s_cb_data> callbacks_;
 

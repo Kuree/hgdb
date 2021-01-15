@@ -23,6 +23,7 @@ public:
     virtual vpiHandle vpi_scan(vpiHandle iterator) = 0;
     virtual char *vpi_get_str(PLI_INT32 property, vpiHandle object) = 0;
     virtual vpiHandle vpi_handle_by_name(char *name, vpiHandle scope) = 0;
+    virtual vpiHandle vpi_handle_by_index(vpiHandle object, PLI_INT32 index) = 0;
     virtual PLI_INT32 vpi_get_vlog_info(p_vpi_vlog_info vlog_info_p) = 0;
     virtual void vpi_get_time(vpiHandle object, p_vpi_time time_p) = 0;
     virtual vpiHandle vpi_register_cb(p_cb_data cb_data_p) = 0;
@@ -39,6 +40,7 @@ class VPIProvider : public AVPIProvider {
     vpiHandle vpi_scan(vpiHandle iterator) override;
     char *vpi_get_str(PLI_INT32 property, vpiHandle object) override;
     vpiHandle vpi_handle_by_name(char *name, vpiHandle scope) override;
+    vpiHandle vpi_handle_by_index(vpiHandle object, PLI_INT32 index) override;
     PLI_INT32 vpi_get_vlog_info(p_vpi_vlog_info vlog_info_p) override;
     void vpi_get_time(vpiHandle object, p_vpi_time time_p) override;
     vpiHandle vpi_register_cb(p_cb_data cb_data_p) override;
@@ -61,6 +63,7 @@ public:
     void initialize_instance_mapping(const std::vector<std::string> &instance_names);
     void initialize_vpi(std::unique_ptr<AVPIProvider> vpi);
     vpiHandle get_handle(const std::string &name);
+    vpiHandle get_handle(const std::vector<std::string> &tokens);
     std::optional<int64_t> get_value(const std::string &name);
     std::optional<int64_t> get_value(vpiHandle handle);
     using ModuleSignals = std::unordered_map<std::string, vpiHandle>;
@@ -95,6 +98,7 @@ public:
 
 private:
     std::unordered_map<std::string, vpiHandle> handle_map_;
+    std::mutex handle_map_lock_;
     // it is a map just in case there are separated tops being generated
     // in this case, each top needs to get mapped to a different hierarchy
     std::unordered_map<std::string, std::string> hierarchy_name_prefix_map_;
@@ -125,6 +129,10 @@ private:
 
     // used for compute potential clock signals if user doesn't provide proper annotation
     static constexpr std::array clock_names_{"clk", "clock", "clk_in", "clock_in", "CLK", "CLOCK"};
+
+    // brute-force to deal with verilator array indexing stuff
+    using StringIterator = typename std::vector<std::string>::const_iterator;
+    vpiHandle access_arrays(StringIterator begin, StringIterator end, vpiHandle var_handle);
 };
 }  // namespace hgdb
 

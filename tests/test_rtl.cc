@@ -31,6 +31,7 @@ protected:
     static constexpr int64_t a_value = 42;
     static constexpr int64_t b_value = 43;
     static constexpr uint64_t time = 0x12345678'9ABCDEF0;
+    static constexpr uint32_t array_dim = 4;
 
     void SetUp() override {
         auto vpi_ = std::make_unique<MockVPIProvider>();
@@ -51,6 +52,14 @@ protected:
             vpi_->set_signal_value(a, a_value);
             vpi_->set_signal_value(b, b_value);
             vpi_->set_signal_value(clk, 0);
+            // add array
+            auto *array = vpi_->add_signal(handle, name + ".array");
+            // set dim
+            auto handles = vpi_->set_signal_dim(array, array_dim);
+            // nested as well
+            for (uint32_t i = 0; i < array_dim; i++) {
+                vpi_->set_signal_dim(handles[i], array_dim);
+            }
         }
         // set argv
         vpi_->set_argv(argv);
@@ -91,7 +100,7 @@ TEST_F(RTLModuleTest, get_module_signals) {  // NOLINT
     auto mods = {"parent_mod", "parent_mod.inst1", "parent_mod.inst2"};
     for (auto const &mod_name : mods) {
         auto mod_signals = client->get_module_signals(mod_name);
-        EXPECT_EQ(mod_signals.size(), 3);
+        EXPECT_EQ(mod_signals.size(), 4);
         EXPECT_NE(mod_signals.find("a"), mod_signals.end());
         EXPECT_NE(mod_signals.find("b"), mod_signals.end());
         EXPECT_NE(mod_signals.find("clk"), mod_signals.end());
@@ -204,4 +213,20 @@ TEST_F(RTLModuleTest, test_cb_value_change) {  // NOLINT
 
     EXPECT_EQ(value1, 42);
     EXPECT_EQ(value2, 42);
+}
+
+TEST_F(RTLModuleTest, test_array_access) {   // NOLINT
+    auto *handle1 = client->get_handle("parent_mod.inst1.array.0");
+    auto *handle2 = client->get_handle("parent_mod.inst1.array[0]");
+    EXPECT_NE(handle1, nullptr);
+    EXPECT_EQ(handle1, handle2);
+    auto *handle3 = client->get_handle("parent_mod.inst1.array.0.0");
+    auto *handle4 = client->get_handle("parent_mod.inst1.array[0][0]");
+    EXPECT_NE(handle3, nullptr);
+    EXPECT_EQ(handle3, handle4);
+
+    auto &mock_vpi = vpi();
+    mock_vpi.set_signal_value(handle3, 42);
+    auto value = client->get_value("parent_mod.inst1.array.0.0");
+    EXPECT_EQ(value, 42);
 }
