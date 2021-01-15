@@ -14,6 +14,16 @@ def kill_server(s):
         pass
 
 
+def is_killed(s):
+    t = time.time()
+    killed = False
+    while time.time() < t + 1:
+        if s.poll() is not None:
+            killed = True
+            break
+    return killed
+
+
 def test_continue_stop(start_server, find_free_port):
     port = find_free_port()
     s = start_server(port, "test_debug_server", ["+DEBUG_LOG", "+NO_EVAL"], use_plus_arg=True)
@@ -28,12 +38,7 @@ def test_continue_stop(start_server, find_free_port):
 
     asyncio.get_event_loop().run_until_complete(test_logic())
     # check if process exit
-    t = time.time()
-    killed = False
-    while time.time() < t + 1:
-        if s.poll() is not None:
-            killed = True
-            break
+    killed = is_killed(s)
     if not killed:
         s.terminate()
     assert killed
@@ -180,6 +185,35 @@ def test_breakpoint_step_over(start_server, find_free_port):
     kill_server(s)
 
 
+def test_trigger(start_server, find_free_port):
+    port = find_free_port()
+    s = start_server(port, "test_debug_server", ["+DEBUG_LOG"], use_plus_arg=True)
+    assert s.poll() is None
+    uri = "ws://localhost:{0}".format(port)
+
+    async def test_logic():
+        client = hgdb.HGDBClient(uri, None)
+        await client.connect()
+        await client.set_breakpoint("/tmp/test.py", 6)
+        await client.continue_()
+        await client.recv()
+        await client.continue_()
+        await client.recv()
+        await client.continue_()
+        # set with timeout
+        await client.recv(0.5)
+    # should not trigger any more since things are stable
+    # as a result the simulation should finish
+
+    try:
+        asyncio.get_event_loop().run_until_complete(test_logic())
+        assert False, "Should not receive breakpoint"
+    except asyncio.TimeoutError:
+        pass
+
+    kill_server(s)
+
+
 if __name__ == "__main__":
     import os
     import sys
@@ -187,4 +221,4 @@ if __name__ == "__main__":
     sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
     from conftest import start_server_fn, find_free_port_fn
 
-    test_breakpoint_step_over(start_server_fn, find_free_port_fn)
+    test_trigger(start_server_fn, find_free_port_fn)

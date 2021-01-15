@@ -1,5 +1,6 @@
 import json
 import time
+import asyncio
 
 import websockets
 
@@ -10,8 +11,11 @@ class HGDBClient:
         self.uri = uri
         self.ws = None
 
-    async def recv(self):
-        return json.loads(await self.ws.recv())
+    async def recv(self, timeout=0):
+        if timeout == 0:
+            return json.loads(await self.ws.recv())
+        else:
+            return json.loads(await asyncio.wait_for(self.ws.recv(), timeout))
 
     async def send(self, payload):
         await self.ws.send(json.dumps(payload))

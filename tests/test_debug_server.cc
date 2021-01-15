@@ -28,6 +28,11 @@
  * assign c_2 = a? c_0: c_1; // a = a en: 1   -> if (a)  | ln: 1
  * assign c_3 = a; // a = a c = c_2 en: 1     -> c = a   | ln: 5
  *
+ * // this is just for testing trigger
+ * logic d, e;
+ * // always_comb
+ * //     d = e
+ * assign d = e; // d = d e = e en: 1 trigger e   -> d = e | ln: 6
  *
  * always_ff @(posedge clk, posedge rst) begin
  *     if (rst)
@@ -81,8 +86,8 @@ auto setup_db_vpi(MockVPIProvider &vpi) {
             store_generator_variable(*db, name, dut_id, var_id);
             var_id++;
         }
-        // variable that doesn't exist in the symbol table
-        auto temp_variables = {"c", "c_0", "c_1", "c_2", "c_3"};
+
+        auto temp_variables = {"c", "c_0", "c_1", "c_2", "c_3", "d", "e"};
         for (auto const &name : temp_variables) {
             auto var_name = fmt::format("{0}.{1}", dut_instance_name, name);
             auto var_full_name = fmt::format("{0}.{1}", dut_instance_full_name, name);
@@ -109,6 +114,10 @@ auto setup_db_vpi(MockVPIProvider &vpi) {
         store_breakpoint(*db, 3 + base_id, dut_id, filename, 5, 0, "1");
         store_context_variable(*db, "a", 3 + base_id, variable_ids.at("a"));
         store_context_variable(*db, "c", 3 + base_id, variable_ids.at("c_2"));
+        // assign d = e;
+        store_breakpoint(*db, 4 + base_id, dut_id, filename, 6, 0, "", "e");
+        store_context_variable(*db, "d", 4 + base_id, variable_ids.at("d"));
+        store_context_variable(*db, "e", 4 + base_id, variable_ids.at("e"));
 
         // set values
         // we simulate the case where a is 1
@@ -124,6 +133,8 @@ auto setup_db_vpi(MockVPIProvider &vpi) {
         vpi.set_signal_value(variable_handles.at("c_2"), 0);
         vpi.set_signal_value(variable_handles.at("c_3"), 1);
         vpi.set_signal_value(variable_handles.at("a"), 1);
+
+        // don't set e here but in the loop
     }
 
     auto db_client = std::make_unique<hgdb::DebugDatabaseClient>(std::move(db));
@@ -161,6 +172,7 @@ int main(int argc, char *argv[]) {
     auto db = setup_db_vpi(*vpi);
 
     vpi->set_argv(args);
+    auto *raw_vpi = vpi.get();
 
     auto debug = hgdb::Debugger(std::move(vpi));
     debug.initialize_db(std::move(db));
@@ -170,9 +182,19 @@ int main(int argc, char *argv[]) {
     std::cout << "INFO: START RUNNING" << std::endl;
 
     // evaluate the inserted breakpoint
+    int time = 0;
+    constexpr const char *mod1_e = "top.dut.e";
     while (debug.is_running().load()) {
         // eval loop
-        if (!no_eval) debug.eval();
+        if (!no_eval) {
+            debug.eval();
+            time++;
+            // notice that we only set dut here, so after the first breakpoint hits
+            // only one will be hit later on
+            raw_vpi->set_signal_value(
+                raw_vpi->vpi_handle_by_name(const_cast<char *>(mod1_e), nullptr),
+                time > 1 ? 1 : time);
+        }
     }
 
     std::cout << "INFO: STOP RUNNING" << std::endl;
