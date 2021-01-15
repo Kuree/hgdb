@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <filesystem>
 #include <functional>
+#include <thread>
 
 #include "fmt/format.h"
 #include "log.hh"
@@ -81,45 +82,26 @@ void Debugger::eval() {
     while (true) {
         auto bps = next_breakpoints();
         if (bps.empty()) break;
-        std::vector<DebugBreakPoint *> hits;
-        for (auto *bp : bps) {
-            const auto &bp_expr =
-                evaluation_mode_ == EvaluationMode::BreakPointOnly ? bp->expr : bp->enable_expr;
-            // get table values
-            auto const &symbols = bp_expr->symbols();
-            auto const bp_id = bp->id;
-            std::unordered_map<std::string, int64_t> values;
-            // just in case there are some context values need to pull in
-            auto context_values = get_context_static_values(bp_id);
-            // need to query through all its symbols
-            for (auto const &symbol_name : symbols) {
-                // if it is an context symbol
-                if (context_values.find(symbol_name) != context_values.end()) {
-                    values.emplace(symbol_name, context_values.at(symbol_name));
-                } else {
-                    // need to map these symbol names into the actual hierarchy
-                    // name
-                    auto full_name = get_full_name(bp->instance_id, symbol_name);
-                    auto v = rtl_->get_value(full_name);
-                    if (!v) break;
-                    values.emplace(symbol_name, *v);
-                }
-            }
-            if (values.size() != symbols.size()) {
-                // something went wrong with the querying symbol
-                log_error(fmt::format("Unable to evaluate breakpoint {0}", bp_id));
-            } else {
-                auto eval_result = bp_expr->eval(values);
-                auto trigger_result = should_trigger(bp);
-                if (eval_result && trigger_result) {
-                    // trigger a breakpoint!
-                    hits.emplace_back(bp);
-                }
-            }
+        std::vector<bool> hits(bps.size());
+        std::fill(hits.begin(), hits.end(), false);
+        // multi-threading for the win
+        std::vector<std::thread> threads;
+        threads.reserve(bps.size());
+        for (auto i = 0u; i < bps.size(); i++) {
+            auto *bp = bps[i];
+            // lock-free map
+            threads.emplace_back(
+                std::thread([bp, i, &hits, this]() { this->eval_breakpoint(bp, hits, i); }));
         }
-        if (!hits.empty()) {
+        for (auto &t : threads) t.join();
+        std::vector<const DebugBreakPoint*> result;
+        result.reserve(bps.size());
+        for (auto i = 0u; i < bps.size(); i++) {
+            if (hits[i]) result.emplace_back(bps[i]);
+        }
+        if (!result.empty()) {
             // send the breakpoint hit information
-            send_breakpoint_hit(hits);
+            send_breakpoint_hit(result);
             // then pause the execution
             lock_.wait();
         }
@@ -529,7 +511,7 @@ void Debugger::handle_debug_info(const DebuggerInformationRequest &req) {
 
 void Debugger::handle_error(const ErrorRequest &req) {}
 
-void Debugger::send_breakpoint_hit(const std::vector<DebugBreakPoint *> &bps) {
+void Debugger::send_breakpoint_hit(const std::vector<const DebugBreakPoint *> &bps) {
     // we send it here to avoid a round trip of client asking for context and send send it
     // back
     auto const *first_bp = bps.front();
@@ -761,6 +743,42 @@ std::optional<int64_t> Debugger::get_value(const std::string &signal_name) {
         return *value;
     } else {
         return {};
+    }
+}
+
+void Debugger::eval_breakpoint(DebugBreakPoint *bp, std::vector<bool> &result, uint32_t index) {
+    const auto &bp_expr =
+        evaluation_mode_ == EvaluationMode::BreakPointOnly ? bp->expr : bp->enable_expr;
+    // get table values
+    auto const &symbols = bp_expr->symbols();
+    auto const bp_id = bp->id;
+    std::unordered_map<std::string, int64_t> values;
+    // just in case there are some context values need to pull in
+    auto context_values = get_context_static_values(bp_id);
+    // need to query through all its symbols
+    for (auto const &symbol_name : symbols) {
+        // if it is an context symbol
+        if (context_values.find(symbol_name) != context_values.end()) {
+            values.emplace(symbol_name, context_values.at(symbol_name));
+        } else {
+            // need to map these symbol names into the actual hierarchy
+            // name
+            auto full_name = get_full_name(bp->instance_id, symbol_name);
+            auto v = rtl_->get_value(full_name);
+            if (!v) break;
+            values.emplace(symbol_name, *v);
+        }
+    }
+    if (values.size() != symbols.size()) {
+        // something went wrong with the querying symbol
+        log_error(fmt::format("Unable to evaluate breakpoint {0}", bp_id));
+    } else {
+        auto eval_result = bp_expr->eval(values);
+        auto trigger_result = should_trigger(bp);
+        if (eval_result && trigger_result) {
+            // trigger a breakpoint!
+            result[index] = true;
+        }
     }
 }
 
