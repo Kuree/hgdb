@@ -81,6 +81,7 @@ std::optional<std::string> DebugDatabaseClient::get_instance_name_from_bp(uint32
 std::optional<std::string> DebugDatabaseClient::get_instance_name(uint32_t id) {
     using namespace sqlite_orm;
     std::lock_guard guard(db_lock_);
+    // NOLINTNEXTLINE
     auto value = db_->get_pointer<Instance>(id);
     if (value) {
         return value->name;

@@ -94,7 +94,7 @@ void Debugger::eval() {
                 std::thread([bp, i, &hits, this]() { this->eval_breakpoint(bp, hits, i); }));
         }
         for (auto &t : threads) t.join();
-        std::vector<const DebugBreakPoint*> result;
+        std::vector<const DebugBreakPoint *> result;
         result.reserve(bps.size());
         for (auto i = 0u; i < bps.size(); i++) {
             if (hits[i]) result.emplace_back(bps[i]);

@@ -124,7 +124,7 @@ private:
     std::vector<Debugger::DebugBreakPoint *> next_normal_breakpoints();
     void start_breakpoint_evaluation();
     bool should_trigger(DebugBreakPoint *bp);
-    void eval_breakpoint(DebugBreakPoint* bp, std::vector<bool> &result, uint32_t index);
+    void eval_breakpoint(DebugBreakPoint *bp, std::vector<bool> &result, uint32_t index);
 
     // cached wrapper
     std::optional<int64_t> get_value(const std::string &signal_name);
