@@ -1,12 +1,13 @@
-from util import (VerilatorTester, get_vector_file, get_uri, get_root, get_line_num,
-                  XceliumTester)
-import tempfile
+import asyncio
 import os
 import sys
+import tempfile
+
 import hgdb
-import asyncio
 import pytest
-import time
+
+from util import (VerilatorTester, get_vector_file, get_uri, get_root, get_line_num,
+                  XceliumTester)
 
 py_filename = os.path.abspath(__file__)
 
@@ -70,6 +71,8 @@ def test_kratos_single_instance(find_free_port, simulator):
                 for i in range(4):
                     bp = await client.recv()
                     assert bp["payload"]["instances"][0]["local"]["i"] == str(i)
+                    if simulator == XceliumTester:
+                        assert bp["payload"]["time"] == 10
                     await client.continue_()
 
                 for i in range(4):
@@ -77,6 +80,8 @@ def test_kratos_single_instance(find_free_port, simulator):
                     # so it should be 0
                     # after that, it should be 1
                     bp = await client.recv()
+                    if simulator == XceliumTester:
+                        assert bp["payload"]["time"] == 30
                     if i == 0:
                         assert bp["payload"]["instances"][0]["local"]["out"] == "0"
                     else:
@@ -102,7 +107,7 @@ def test_kratos_multiple_instances(find_free_port, simulator):
     if not simulator.available():
         pytest.skip(simulator.__name__ + " not available")
     # we re-use the same test bench with different logic
-    from kratos import Generator, clog2, always_ff, always_comb, verilog, posedge
+    from kratos import Generator, always_ff, verilog, posedge
     input_width = 16
     mod = Generator("mod", debug=True)
     child1 = Generator("child", debug=True)
@@ -138,7 +143,7 @@ def test_kratos_multiple_instances(find_free_port, simulator):
         verilog(mod, filename=sv_filename, insert_debug_info=True,
                 debug_db_filename=db_filename, insert_verilator_info=True)
         # run verilator
-        tb = "test_kratos.cc"
+        tb = "test_kratos.cc" if simulator == VerilatorTester else "test_kratos.sv"
         main_file = get_vector_file(tb)
         py_line_num = get_line_num(py_filename, "                out = in_")
         with simulator(sv_filename, main_file, cwd=temp) as tester:
@@ -156,8 +161,8 @@ def test_kratos_multiple_instances(find_free_port, simulator):
                 bp = await client.recv()
                 # bp should have two instances
                 assert len(bp["payload"]["instances"]) == 2
-                assert {bp["payload"]["instances"][0]["instance_id"],
-                        bp["payload"]["instances"][1]["instance_id"]} == {1, 2}
+                assert len({bp["payload"]["instances"][0]["instance_id"],
+                            bp["payload"]["instances"][1]["instance_id"]}) == 2
 
             asyncio.get_event_loop().run_until_complete(client_logic())
 
