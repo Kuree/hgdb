@@ -1,16 +1,26 @@
 #include <chrono>
 #include <iostream>
 #include <thread>
+#include <array>
 
 #include "../src/server.hh"
 
 constexpr auto stop_msg = "stop";
+// for some reason gcc-10 and clang-11 still can't support constexpr std::string
+// specified in C++20
+// http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2019/p0980r1.pdf
+// https://godbolt.org/z/K3sjP7
+// will remove the std::string conversion hack once it's officially supported
+constexpr auto debug_port = "+DEBUG_PORT=";
 
 int main(int argc, char* argv[]) {
     using namespace std::chrono_literals;
 
     if (argc != 2) return EXIT_FAILURE;
-    uint16_t port = std::stoul(argv[1]);
+    std::string arg_port = argv[1];
+    std::string debug_port_str = debug_port;
+    auto port_str = arg_port.substr(arg_port.find(debug_port_str) + debug_port_str.size());
+    uint16_t port = std::stoul(port_str);
     std::cout << "Using port " << port << std::endl;
     // enable logging for testing/debugging
     hgdb::DebugServer server(port, true);

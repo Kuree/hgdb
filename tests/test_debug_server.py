@@ -26,7 +26,7 @@ def is_killed(s):
 
 def test_continue_stop(start_server, find_free_port):
     port = find_free_port()
-    s = start_server(port, "test_debug_server", ["+DEBUG_LOG", "+NO_EVAL"], use_plus_arg=True)
+    s = start_server(port, "test_debug_server", ["+DEBUG_LOG", "+NO_EVAL"])
     assert s.poll() is None
     uri = "ws://localhost:{0}".format(port)
 
@@ -49,7 +49,7 @@ def test_continue_stop(start_server, find_free_port):
 
 def test_bp_location_request(start_server, find_free_port):
     port = find_free_port()
-    s = start_server(port, "test_debug_server", ["+DEBUG_LOG"], use_plus_arg=True)
+    s = start_server(port, "test_debug_server", ["+DEBUG_LOG"])
     assert s.poll() is None
     uri = "ws://localhost:{0}".format(port)
     num_instances = 2
@@ -62,11 +62,11 @@ def test_bp_location_request(start_server, find_free_port):
         assert not resp["request"]
         assert resp["type"] == "bp-location"
         bps = resp["payload"]
-        assert len(bps) == 4 * num_instances
+        assert len(bps) == 5 * num_instances
         lines = set()
         for bp in bps:
             lines.add(bp["line_num"])
-        assert len(lines) == 4
+        assert len(lines) == 5
         assert 5 in lines
 
         # single line
@@ -86,7 +86,7 @@ def test_bp_location_request(start_server, find_free_port):
 
 def test_breakpoint_request(start_server, find_free_port):
     port = find_free_port()
-    s = start_server(port, "test_debug_server", ["+DEBUG_LOG"], use_plus_arg=True)
+    s = start_server(port, "test_debug_server", ["+DEBUG_LOG"])
     assert s.poll() is None
     uri = "ws://localhost:{0}".format(port)
     num_instances = 2
@@ -124,7 +124,7 @@ def test_breakpoint_request(start_server, find_free_port):
 
 def test_breakpoint_hit_continue(start_server, find_free_port):
     port = find_free_port()
-    s = start_server(port, "test_debug_server", ["+DEBUG_LOG"], use_plus_arg=True)
+    s = start_server(port, "test_debug_server", ["+DEBUG_LOG"])
     assert s.poll() is None
     uri = "ws://localhost:{0}".format(port)
 
@@ -154,7 +154,7 @@ def test_breakpoint_hit_continue(start_server, find_free_port):
 
 def test_breakpoint_step_over(start_server, find_free_port):
     port = find_free_port()
-    s = start_server(port, "test_debug_server", ["+DEBUG_LOG"], use_plus_arg=True)
+    s = start_server(port, "test_debug_server", ["+DEBUG_LOG"])
     assert s.poll() is None
     uri = "ws://localhost:{0}".format(port)
 
@@ -172,11 +172,13 @@ def test_breakpoint_step_over(start_server, find_free_port):
         await client.recv()  # second instance
         await client.continue_()  # second instance
         bp3 = await client.recv()
-        await client.continue_()
-        await client.recv()  # second instance
-        await client.continue_()  # second instance
-        bp4 = await client.recv()
-        # the sequence should be 1, 2, 5, 1, ...
+        bp4 = None
+        for i in range(2):  # skip the 6
+            await client.continue_()
+            await client.recv()  # second instance
+            await client.continue_()  # second instance
+            bp4 = await client.recv()
+        # the sequence should be 1, 2, 5, 6, 1, ...
         assert bp1["payload"]["line_num"] == 1 and bp4["payload"]["line_num"] == 1
         assert bp2["payload"]["line_num"] == 2
         assert bp3["payload"]["line_num"] == 5
@@ -187,7 +189,7 @@ def test_breakpoint_step_over(start_server, find_free_port):
 
 def test_trigger(start_server, find_free_port):
     port = find_free_port()
-    s = start_server(port, "test_debug_server", ["+DEBUG_LOG"], use_plus_arg=True)
+    s = start_server(port, "test_debug_server", ["+DEBUG_LOG"])
     assert s.poll() is None
     uri = "ws://localhost:{0}".format(port)
 

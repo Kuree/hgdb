@@ -6,7 +6,7 @@ import socket
 from contextlib import closing
 
 
-def start_server_fn(port_num, program_name, args=None, use_plus_arg=False):
+def start_server_fn(port_num, program_name, args=None, gdbserver_port=None):
     root = os.path.dirname(os.path.realpath(__file__))
     # find build folder
     dirs = [d for d in os.listdir(root) if os.path.isdir(d) and "build" in d]
@@ -17,11 +17,11 @@ def start_server_fn(port_num, program_name, args=None, use_plus_arg=False):
     server_path = os.path.join(build_dir, "tests", program_name)
     if args is None:
         args = []
-    if use_plus_arg:
-        args.append("+DEBUG_PORT=" + str(port_num))
-    else:
-        args.append(str(port_num))
-    p = subprocess.Popen([server_path] + args, stdout=subprocess.PIPE)
+    args.append("+DEBUG_PORT=" + str(port_num))
+    args = [server_path] + args
+    if gdbserver_port is not None:
+        args = ["gdbserver", "localhost:{0}".format(gdbserver_port)] + args
+    p = subprocess.Popen(args, stdout=subprocess.PIPE)
     # sleep a little bit so that the server will setup properly
     time.sleep(0.05)
     return p
