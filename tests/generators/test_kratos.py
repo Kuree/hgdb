@@ -25,7 +25,8 @@ def test_kratos_single_instance(find_free_port, simulator):
     in_ = mod.input("in", input_width)
     out = mod.output("out", input_width)
     counter = mod.var("count", clog2(buffer_size))
-    data = mod.var("data", input_width, size=buffer_size, packed=True)
+    # notice that verilator does not support probing on packed array!!!
+    data = mod.var("data", input_width, size=buffer_size)
 
     @always_comb
     def sum_data():
@@ -36,7 +37,8 @@ def test_kratos_single_instance(find_free_port, simulator):
     @always_ff((posedge, clk), (posedge, rst))
     def buffer_logic():
         if rst:
-            data = 0
+            for i in range(buffer_size):
+                data[i] = 0
             counter = 0
         else:
             data[counter] = in_
@@ -98,6 +100,7 @@ def test_kratos_single_instance(find_free_port, simulator):
                 bp = await client.recv()
                 assert bp["payload"]["instances"][0]["local"]["out"] == "6"
                 assert bp["payload"]["instances"][0]["local"]["i"] == "3"
+                assert bp["payload"]["instances"][0]["local"]["data.2"] == "3"
 
             asyncio.get_event_loop().run_until_complete(client_logic())
 
@@ -170,4 +173,4 @@ def test_kratos_multiple_instances(find_free_port, simulator):
 if __name__ == "__main__":
     sys.path.append(get_root())
     from conftest import find_free_port_fn
-    test_kratos_multiple_instances(find_free_port_fn, VerilatorTester)
+    test_kratos_single_instance(find_free_port_fn, VerilatorTester)
