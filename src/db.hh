@@ -34,7 +34,7 @@ public:
 
     ~DebugDatabaseClient();
 
-    void set_src_mapping(const std::unordered_map<std::string, std::string> &mapping);
+    void set_src_mapping(const std::map<std::string, std::string> &mapping);
     [[nodiscard]] std::string resolve_filename_to_db(const std::string &filename) const;
     [[nodiscard]] std::string resolve_filename_to_client(const std::string &filename) const;
 
@@ -52,7 +52,7 @@ private:
     std::vector<uint32_t> execution_bp_orders_;
 
     // we handle the source remap here
-    std::unordered_map<std::string, std::string> src_remap_;
+    std::map<std::string, std::string> src_remap_;
 
     void setup_execution_order();
     // scope table not provided - build from heuristics

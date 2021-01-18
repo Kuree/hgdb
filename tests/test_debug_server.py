@@ -4,6 +4,7 @@
 
 import asyncio
 import time
+import os
 
 import hgdb
 
@@ -216,11 +217,32 @@ def test_trigger(start_server, find_free_port):
     kill_server(s)
 
 
+def test_src_mapping(start_server, find_free_port):
+    port = find_free_port()
+    s = start_server(port, "test_debug_server", ["+DEBUG_LOG"])
+    assert s.poll() is None
+    uri = "ws://localhost:{0}".format(port)
+    dirname = "/workspace/test"
+    mapping = {dirname: "/tmp/"}
+    filename = os.path.join(dirname, "test.py")
+
+    async def test_logic():
+        client = hgdb.HGDBClient(uri, None, mapping)
+        await client.connect()
+        await client.set_src_mapping(mapping)
+        await client.set_breakpoint(filename, 1)
+        await client.continue_()
+        bp = await client.recv()
+        assert bp["payload"]["filename"] == filename
+
+    asyncio.get_event_loop().run_until_complete(test_logic())
+    kill_server(s)
+
+
 if __name__ == "__main__":
-    import os
     import sys
 
     sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
     from conftest import start_server_fn, find_free_port_fn
 
-    test_trigger(start_server_fn, find_free_port_fn)
+    test_src_mapping(start_server_fn, find_free_port_fn)

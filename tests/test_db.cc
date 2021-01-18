@@ -185,7 +185,7 @@ TEST_F(DBTest, test_get_variable_prefix) {  // NOLINT
 }
 
 TEST_F(DBTest, resolve_path) {  // NOLINT
-    std::unordered_map<std::string, std::string> remap = {{"/abc", "/tmp/abc"}, {"/a/", "/a/abc"}};
+    std::map<std::string, std::string> remap = {{"/abc", "/tmp/abc"}, {"/a/", "/a/abc"}};
     hgdb::DebugDatabaseClient client(std::move(db));
 
     client.set_src_mapping(remap);

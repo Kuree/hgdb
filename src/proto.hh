@@ -19,7 +19,8 @@ enum class RequestType {
     connection,
     bp_location,
     command,
-    debugger_info
+    debugger_info,
+    path_mapping
 };
 
 [[nodiscard]] std::string to_string(RequestType type) noexcept;
@@ -197,6 +198,20 @@ public:
 
 private:
     CommandType command_type_;
+};
+
+class PathMappingRequest : public Request {
+public:
+    PathMappingRequest() = default;
+    void parse_payload(const std::string &payload) override;
+    [[nodiscard]] RequestType type() const override { return RequestType::path_mapping; }
+
+    [[nodiscard]] const std::map<std::string, std::string> &path_mapping() const {
+        return path_mapping_;
+    }
+
+private:
+    std::map<std::string, std::string> path_mapping_;
 };
 
 class DebuggerInformationResponse : public Response {

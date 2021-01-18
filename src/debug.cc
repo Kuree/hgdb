@@ -1,6 +1,5 @@
 #include "debug.hh"
 
-#include <algorithm>
 #include <filesystem>
 #include <functional>
 #include <thread>
@@ -156,6 +155,11 @@ void Debugger::on_message(const std::string &message) {
         case RequestType::debugger_info: {
             auto *r = reinterpret_cast<DebuggerInformationRequest *>(req.get());
             handle_debug_info(*r);
+            break;
+        }
+        case RequestType::path_mapping: {
+            auto *r = reinterpret_cast<PathMappingRequest *>(req.get());
+            handle_path_mapping(*r);
             break;
         }
         case RequestType::error: {
@@ -350,6 +354,9 @@ void Debugger::handle_connection(const ConnectionRequest &req) {
         if (!r || clock_signals.empty()) log_error("Failed to register evaluation callback");
     }
 
+    // need to set the remap
+    db_->set_src_mapping(req.path_mapping());
+
     if (success) {
         auto resp = GenericResponse(status_code::success, req);
         send_message(resp.str(log_enabled_));
@@ -506,6 +513,17 @@ void Debugger::handle_debug_info(const DebuggerInformationRequest &req) {
             auto resp = GenericResponse(status_code::error, req, "Unknown debugger info command");
             send_message(resp.str(log_enabled_));
         }
+    }
+}
+
+void Debugger::handle_path_mapping(const PathMappingRequest &req) {
+    if (db_ && req.status() == status_code::success) [[likely]] {
+        db_->set_src_mapping(req.path_mapping());
+        auto resp = GenericResponse(status_code::success, req);
+        send_message(resp.str(log_enabled_));
+    } else {
+        auto resp = GenericResponse(status_code::error, req, req.error_reason());
+        send_message(resp.str(log_enabled_));
     }
 }
 

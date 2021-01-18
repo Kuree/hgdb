@@ -1,15 +1,16 @@
+import asyncio
 import json
 import time
-import asyncio
 
 import websockets
 
 
 class HGDBClient:
-    def __init__(self, uri, filename):
+    def __init__(self, uri, filename, src_mapping=None):
         self.filename = filename
         self.uri = uri
         self.ws = None
+        self.src_mapping = src_mapping
 
     async def recv(self, timeout=0):
         if timeout == 0:
@@ -32,7 +33,16 @@ class HGDBClient:
             payload = {"request": True, "type": "connection", "payload": {
                 "db_filename": self.filename,
             }}
+            if self.src_mapping is not None:
+                payload["payload"]["path-mapping"] = self.src_mapping
             return await self.__send_check(payload, True)
+
+    async def set_src_mapping(self, mapping):
+        self.src_mapping = mapping
+        payload = {"request": True, "type": "path-mapping", "payload": {
+            "path-mapping": mapping,
+        }}
+        await self.__send_check(payload, True)
 
     async def __send_check(self, payload, check_error=False):
         await self.send(payload)

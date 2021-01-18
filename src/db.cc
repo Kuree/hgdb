@@ -187,8 +187,7 @@ std::vector<std::string> DebugDatabaseClient::get_annotation_values(const std::s
 
 DebugDatabaseClient::~DebugDatabaseClient() { close(); }
 
-void DebugDatabaseClient::set_src_mapping(
-    const std::unordered_map<std::string, std::string> &mapping) {
+void DebugDatabaseClient::set_src_mapping(const std::map<std::string, std::string> &mapping) {
     src_remap_ = mapping;
 }
 

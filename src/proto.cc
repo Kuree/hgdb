@@ -49,7 +49,7 @@ namespace hgdb {
  * type: connection
  * payload:
  *     db_filename: [required] - string
- *     path_mapping: [optional] - map<string, string>
+ *     path-mapping: [optional] - map<string, string>
  *
  *
  * Breakpoint Location Request
@@ -68,6 +68,11 @@ namespace hgdb {
  * type: debugger-info
  * payload:
  *     command: [enum] - string
+ *
+ * Path Mapping Request
+ * type: path-mapping
+ * payload:
+ *     path:mapping: [required] - map<string, string>
  *
  * Generic Response
  * type: generic
@@ -176,6 +181,8 @@ std::string to_string(RequestType type) noexcept {
             return "command";
         case RequestType::debugger_info:
             return "debugger-info";
+        case RequestType::path_mapping:
+            return "path-mapping";
     }
     return "error";
 }
@@ -412,6 +419,8 @@ std::unique_ptr<Request> Request::parse_request(const std::string &str) {
         result = std::make_unique<CommandRequest>();
     } else if (type_str == "debugger-info") {
         result = std::make_unique<DebuggerInformationRequest>();
+    } else if (type_str == "path-mapping") {
+        result = std::make_unique<PathMappingRequest>();
     } else {
         result = std::make_unique<ErrorRequest>("Unknown request");
     }
@@ -530,7 +539,7 @@ void ConnectionRequest::parse_payload(const std::string &payload) {
     db_filename_ = *db;
 
     // get optional mapping
-    auto mapping = get_member<std::map<std::string, std::string>>(document, "path_mapping",
+    auto mapping = get_member<std::map<std::string, std::string>>(document, "path-mapping",
                                                                   error_reason_, false);
     if (mapping) {
         path_mapping_ = *mapping;
@@ -599,6 +608,22 @@ void DebuggerInformationRequest::parse_payload(const std::string &payload) {
         status_code_ = status_code::error;
         error_reason_ = "Unknown command type " + command;
     }
+}
+
+void PathMappingRequest::parse_payload(const std::string &payload) {
+    using namespace rapidjson;
+    Document document;
+    document.Parse(payload.c_str());
+    if (!check_json(document, status_code_, error_reason_)) return;
+
+    auto mapping =
+        get_member<std::map<std::string, std::string>>(document, "path-mapping", error_reason_);
+    if (!mapping) {
+        status_code_ = status_code::error;
+        return;
+    }
+
+    path_mapping_ = *mapping;
 }
 
 }  // namespace hgdb

@@ -127,7 +127,7 @@ TEST(proto, request_parse_connection) {  // NOLINT
     "type": "connection",
     "payload": {
         "db_filename": "/tmp/abc.db",
-        "path_mapping": {
+        "path-mapping": {
             "a": "/tmp/a",
             "b": "/tmp/b"
         }
@@ -196,6 +196,28 @@ TEST(proto, request_parse_debugger) {  // NOLINT
     auto *bp = dynamic_cast<hgdb::DebuggerInformationRequest *>(r.get());
     EXPECT_NE(bp, nullptr);
     EXPECT_EQ(bp->command_type(), hgdb::DebuggerInformationRequest::CommandType::breakpoints);
+}
+
+TEST(proto, request_parse_path_mapping) {   // NOLINT
+    const auto *req = R"(
+{
+    "request": true,
+    "type": "path-mapping",
+    "payload": {
+        "path-mapping": {
+            "/tmp/a": "/workspace/a",
+            "/tmp/b": "/workspace/b"
+        }
+    }
+}
+)";
+    auto r = hgdb::Request::parse_request(req);
+    EXPECT_EQ(r->status(), hgdb::status_code::success);
+    auto const *bp = dynamic_cast<hgdb::PathMappingRequest*>(r.get());
+    auto const &mapping = bp->path_mapping();
+    EXPECT_EQ(mapping.size(), 2);
+    EXPECT_EQ(mapping.at("/tmp/a"), "/workspace/a");
+    EXPECT_EQ(mapping.at("/tmp/b"), "/workspace/b");
 }
 
 TEST(proto, generic_response) {  // NOLINT
