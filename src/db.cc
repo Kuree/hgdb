@@ -181,6 +181,32 @@ void DebugDatabaseClient::set_src_mapping(
     src_remap_ = mapping;
 }
 
+std::string DebugDatabaseClient::resolve_filename_to_db(const std::string &filename) const {
+    namespace fs = std::filesystem;
+    // optimize for local use case
+    if (src_remap_.empty()) [[likely]]
+        return filename;
+    for (auto const &[src_path, dst_path] : src_remap_) {
+        if (filename.starts_with(src_path)) {
+            return resolve(src_path, dst_path, filename);
+        }
+    }
+    return filename;
+}
+
+std::string DebugDatabaseClient::resolve_filename_to_client(const std::string &filename) const {
+    namespace fs = std::filesystem;
+    // optimize for local use case
+    if (src_remap_.empty()) [[likely]]
+        return filename;
+    for (auto const &[dst_path, src_path] : src_remap_) {
+        if (filename.starts_with(src_path)) {
+            return resolve(src_path, dst_path, filename);
+        }
+    }
+    return filename;
+}
+
 void DebugDatabaseClient::setup_execution_order() {
     auto scopes = db_->get_all<Scope>();
     if (scopes.empty()) {
@@ -213,21 +239,20 @@ void DebugDatabaseClient::build_execution_order_from_bp() {
     }
 }
 
-std::string DebugDatabaseClient::resolve_filename(const std::string &filename) const {
+std::string DebugDatabaseClient::resolve(const std::string &src_path, const std::string &dst_path,
+                                         const std::string &target) {
     namespace fs = std::filesystem;
-    for (auto const &[src_path, dst_path] : src_remap_) {
-        if (filename.starts_with(src_path)) {
-            // need to do a remap
-            std::error_code ec;
-            auto path = fs::relative(filename, src_path, ec);
-            // failed to resolve
-            if (ec.value()) continue;
-            fs::path start = dst_path;
-            auto r = start / path;
-            return r;
-        }
+    if (target.starts_with(src_path)) [[likely]] {
+        std::error_code ec;
+        auto path = fs::relative(target, src_path, ec);
+        if (ec.value()) [[unlikely]]
+            return target;
+        fs::path start = dst_path;
+        auto r = start / path;
+        return r;
+    } else {
+        return target;
     }
-    return filename;
 }
 
 }  // namespace hgdb

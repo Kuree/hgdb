@@ -190,12 +190,21 @@ TEST_F(DBTest, resolve_path) {  // NOLINT
 
     client.set_src_mapping(remap);
 
-    auto result1 = client.resolve_filename("/abc/1");
+    constexpr auto target1 = "/abc/1";
+    auto result1 = client.resolve_filename_to_db(target1);
     EXPECT_EQ(result1, "/tmp/abc/1");
+    result1 = client.resolve_filename_to_client(result1);
+    EXPECT_EQ(result1, target1);
 
-    auto result2 = client.resolve_filename("/a/1");
+    constexpr auto target2 = "/a/1";
+    auto result2 = client.resolve_filename_to_db(target2);
     EXPECT_EQ(result2, "/a/abc/1");
+    result2 = client.resolve_filename_to_client(result2);
+    EXPECT_EQ(result2, target2);
 
-    auto result3 = client.resolve_filename("/tmp/abc");
-    EXPECT_EQ(result3, "/tmp/abc");
+    constexpr auto target3 = "/usr/abc";
+    auto result3 = client.resolve_filename_to_db(target3);
+    EXPECT_EQ(result3, "/usr/abc");
+    result3 = client.resolve_filename_to_client(result3);
+    EXPECT_EQ(result3, target3);
 }
