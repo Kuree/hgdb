@@ -32,18 +32,26 @@ std::vector<BreakPoint> DebugDatabaseClient::get_breakpoints(const std::string &
                                                              uint32_t line_num, uint32_t col_num) {
     using namespace sqlite_orm;
     std::vector<BreakPoint> bps;
+    auto resolved_filename = resolve_filename_to_db(filename);
     std::lock_guard guard(db_lock_);
     if (col_num != 0) {
-        bps = db_->get_all<BreakPoint>(where(c(&BreakPoint::filename) == filename &&
+        bps = db_->get_all<BreakPoint>(where(c(&BreakPoint::filename) == resolved_filename &&
                                              c(&BreakPoint::line_num) == line_num &&
                                              c(&BreakPoint::column_num) == col_num));
     } else if (line_num != 0) {
-        bps = db_->get_all<BreakPoint>(
-            where(c(&BreakPoint::filename) == filename && c(&BreakPoint::line_num) == line_num));
+        bps = db_->get_all<BreakPoint>(where(c(&BreakPoint::filename) == resolved_filename &&
+                                             c(&BreakPoint::line_num) == line_num));
     } else {
-        bps = db_->get_all<BreakPoint>(where(c(&BreakPoint::filename) == filename));
+        bps = db_->get_all<BreakPoint>(where(c(&BreakPoint::filename) == resolved_filename));
     }
 
+    // need to change the breakpoint filename back to client
+    // optimized for locally run
+    if (has_src_remap()) [[unlikely]] {
+        for (auto &bp : bps) {
+            bp.filename = resolve_filename_to_client(bp.filename);
+        }
+    }
     return bps;
 }
 
@@ -55,7 +63,10 @@ std::optional<BreakPoint> DebugDatabaseClient::get_breakpoint(uint32_t breakpoin
     std::lock_guard guard(db_lock_);
     auto ptr = db_->get_pointer<BreakPoint>(breakpoint_id);  // NOLINT
     if (ptr) {
-        // notice that BreakPoint has a unique_ptr, so we can't just copy them over
+        if (has_src_remap()) [[unlikely]] {
+            ptr->filename = resolve_filename_to_client(ptr->filename);
+        }
+        // notice that BreakPoint has a unique_ptr, so we can't just return the de-referenced value
         return BreakPoint{.id = ptr->id,
                           .instance_id = std::make_unique<uint32_t>(*ptr->instance_id),
                           .filename = ptr->filename,

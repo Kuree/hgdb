@@ -60,6 +60,7 @@ private:
 
     static std::string resolve(const std::string &src_path, const std::string &dst_path,
                                const std::string &target);
+    [[nodiscard]] bool has_src_remap() const { return !src_remap_.empty(); }
 };
 }  // namespace hgdb
 
