@@ -1,5 +1,7 @@
 #include "db.hh"
 
+#include <filesystem>
+
 #include "fmt/format.h"
 #include "util.hh"
 
@@ -174,6 +176,11 @@ std::vector<std::string> DebugDatabaseClient::get_annotation_values(const std::s
 
 DebugDatabaseClient::~DebugDatabaseClient() { close(); }
 
+void DebugDatabaseClient::set_src_mapping(
+    const std::unordered_map<std::string, std::string> &mapping) {
+    src_remap_ = mapping;
+}
+
 void DebugDatabaseClient::setup_execution_order() {
     auto scopes = db_->get_all<Scope>();
     if (scopes.empty()) {
@@ -204,6 +211,23 @@ void DebugDatabaseClient::build_execution_order_from_bp() {
             for (auto const bp : iter_.second) execution_bp_orders_.emplace_back(bp);
         }
     }
+}
+
+std::string DebugDatabaseClient::resolve_filename(const std::string &filename) const {
+    namespace fs = std::filesystem;
+    for (auto const &[src_path, dst_path] : src_remap_) {
+        if (filename.starts_with(src_path)) {
+            // need to do a remap
+            std::error_code ec;
+            auto path = fs::relative(filename, src_path, ec);
+            // failed to resolve
+            if (ec.value()) continue;
+            fs::path start = dst_path;
+            auto r = start / path;
+            return r;
+        }
+    }
+    return filename;
 }
 
 }  // namespace hgdb

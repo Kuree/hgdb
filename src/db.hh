@@ -34,6 +34,9 @@ public:
 
     ~DebugDatabaseClient();
 
+    void set_src_mapping(const std::unordered_map<std::string, std::string> &mapping);
+    [[nodiscard]] std::string resolve_filename(const std::string &filename) const;
+
     // accessors
     [[nodiscard]] const std::vector<uint32_t> &execution_bp_orders() const {
         return execution_bp_orders_;
@@ -46,6 +49,9 @@ private:
 
     // we compute the execution order as we initialize the client, which is defined by the scope
     std::vector<uint32_t> execution_bp_orders_;
+
+    // we handle the source remap here
+    std::unordered_map<std::string, std::string> src_remap_;
 
     void setup_execution_order();
     // scope table not provided - build from heuristics

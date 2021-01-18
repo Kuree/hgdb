@@ -1,7 +1,8 @@
+#include <array>
+
 #include "../src/db.hh"
 #include "gtest/gtest.h"
 #include "util.hh"
-#include <array>
 
 class DBTest : public DBTestHelper {};
 
@@ -127,10 +128,10 @@ TEST_F(DBTest, test_get_generator_variable) {  // NOLINT
     }
 }
 
-TEST_F(DBTest, test_get_annotation_values) {    // NOLINT
+TEST_F(DBTest, test_get_annotation_values) {  // NOLINT
     constexpr auto name = "name";
     constexpr std::array values{"1", "2", "3"};
-    for (auto const &value: values) {
+    for (auto const &value : values) {
         hgdb::store_annotation(*db, name, value);
     }
 
@@ -138,11 +139,10 @@ TEST_F(DBTest, test_get_annotation_values) {    // NOLINT
     hgdb::DebugDatabaseClient client(std::move(db));
 
     auto a_values = client.get_annotation_values(name);
-    for (auto const &value: values) {
+    for (auto const &value : values) {
         EXPECT_NE(std::find(a_values.begin(), a_values.end(), value), a_values.end());
     }
 }
-
 
 TEST_F(DBTest, test_get_variable_prefix) {  // NOLINT
     // test out automatic full name computation
@@ -182,4 +182,20 @@ TEST_F(DBTest, test_get_variable_prefix) {  // NOLINT
         EXPECT_EQ(context_v.name, "name" + std::to_string(i));
         EXPECT_EQ(v.value, std::to_string(i));
     }
+}
+
+TEST_F(DBTest, resolve_path) {  // NOLINT
+    std::unordered_map<std::string, std::string> remap = {{"/abc", "/tmp/abc"}, {"/a/", "/a/abc"}};
+    hgdb::DebugDatabaseClient client(std::move(db));
+
+    client.set_src_mapping(remap);
+
+    auto result1 = client.resolve_filename("/abc/1");
+    EXPECT_EQ(result1, "/tmp/abc/1");
+
+    auto result2 = client.resolve_filename("/a/1");
+    EXPECT_EQ(result2, "/a/abc/1");
+
+    auto result3 = client.resolve_filename("/tmp/abc");
+    EXPECT_EQ(result3, "/tmp/abc");
 }
