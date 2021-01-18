@@ -608,7 +608,7 @@ Debugger::DebugBreakPoint *Debugger::next_step_over_breakpoint() {
     // need to get the actual ordering table
     auto const &orders = db_->execution_bp_orders();
     std::optional<uint32_t> next_breakpoint_id;
-    if (!current_breakpoint_id_) [[unlikely]] {  // NOLINT
+    if (!current_breakpoint_id_) [[unlikely]] {
         // need to grab the first one, doesn't matter which one
         if (!orders.empty()) next_breakpoint_id = orders[0];
     } else {

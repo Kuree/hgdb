@@ -261,7 +261,7 @@ std::string GenericResponse::str(bool pretty_print) const {
     Value payload(kObjectType);
     set_member(payload, allocator, "request-type", request_type_);
 
-    if (status_ == status_code::error) [[unlikely]] {  // NOLINT
+    if (status_ == status_code::error) [[unlikely]] {
         set_member(payload, allocator, "reason", reason_);
     }
     set_member(document, "payload", payload);
@@ -575,7 +575,7 @@ void CommandRequest::parse_payload(const std::string &payload) {
         return;
     }
     auto const &command = *command_str;
-    if (command == "continue") [[likely]] {  // NOLINT
+    if (command == "continue") [[likely]] {
         command_type_ = CommandType::continue_;
     } else if (command == "step_over") {
         command_type_ = CommandType::step_over;

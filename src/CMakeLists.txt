@@ -48,5 +48,5 @@ target_compile_options(hgdb PRIVATE -Wall -Werror -Wpedantic ${EXTRA_FLAGS})
 # clang-tidy
 if (${USE_CLANG_TIDY})
     MESSAGE("-- Running clang-tidy")
-    set_target_properties(hgdb PROPERTIES CXX_CLANG_TIDY "clang-tidy")
+    set_target_properties(hgdb PROPERTIES CXX_CLANG_TIDY "clang-tidy;-extra-arg=-Wno-unknown-attributes")
 endif ()

@@ -124,13 +124,13 @@ vpiHandle RTLSimulatorClient::get_handle(const std::string &name) {
     auto full_name = get_full_name(name);
     // if we already queried this handle before
     std::lock_guard guard(handle_map_lock_);
-    if (handle_map_.find(full_name) != handle_map_.end()) [[likely]] {  // NOLINT
+    if (handle_map_.find(full_name) != handle_map_.end()) [[likely]] {
         return handle_map_.at(full_name);
     } else {
         // need to query via VPI
         auto *handle = const_cast<char *>(full_name.c_str());
         auto *ptr = vpi_->vpi_handle_by_name(handle, nullptr);
-        if (ptr) [[likely]] {  // NOLINT
+        if (ptr) [[likely]] {
             // if we actually found the handle, need to store it
             handle_map_.emplace(full_name, ptr);
         } else {
@@ -145,7 +145,7 @@ vpiHandle RTLSimulatorClient::get_handle(const std::string &name) {
 }
 
 vpiHandle RTLSimulatorClient::get_handle(const std::vector<std::string> &tokens) {
-    if (tokens.empty()) [[unlikely]] {  // NOLINT
+    if (tokens.empty()) [[unlikely]] {
         return nullptr;
     } else {
         // notice that this will be called inside the normal get_handle

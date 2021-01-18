@@ -22,7 +22,7 @@ DebugDatabaseClient::DebugDatabaseClient(std::unique_ptr<DebugDatabase> db) {
 }
 
 void DebugDatabaseClient::close() {
-    if (!is_closed_) [[likely]] {  // NOLINT
+    if (!is_closed_) [[likely]] {
         db_.reset();
         is_closed_ = true;
     }
@@ -39,9 +39,11 @@ std::vector<BreakPoint> DebugDatabaseClient::get_breakpoints(const std::string &
                                              c(&BreakPoint::line_num) == line_num &&
                                              c(&BreakPoint::column_num) == col_num));
     } else if (line_num != 0) {
+        // NOLINTNEXTLINE
         bps = db_->get_all<BreakPoint>(where(c(&BreakPoint::filename) == resolved_filename &&
                                              c(&BreakPoint::line_num) == line_num));
     } else {
+        // NOLINTNEXTLINE
         bps = db_->get_all<BreakPoint>(where(c(&BreakPoint::filename) == resolved_filename));
     }
 
@@ -56,6 +58,7 @@ std::vector<BreakPoint> DebugDatabaseClient::get_breakpoints(const std::string &
 }
 
 std::vector<BreakPoint> DebugDatabaseClient::get_breakpoints(const std::string &filename) {
+    // NOLINTNEXTLINE
     return get_breakpoints(filename, 0, 0);
 }
 
