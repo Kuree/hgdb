@@ -154,7 +154,69 @@ value.b.d[3] -> signal6
 For tagged union, you can generated different representation that points to the same signal. Since scope information is linked to each breakpoint, you can even switch to different representation in different lines!
 
 ## Interact with hgdb symbol table
-TODO
+The symbol table is implemented in SQLite3, which is the most efficient standalone relational database and has language bindings from all popular programming languages. The relational aspect of the database makes querying the symbol table much easier.
+
+Below shows the schema of the database. It's highly recommended to read the [schema documentation](https://github.com/Kuree/hgdb/blob/master/include/schema.hh) if you want to interact with the symbol table.
+
+```SQL
+CREATE TABLE IF NOT EXISTS 'annotation' ( 'name' TEXT NOT NULL , 'value' TEXT NOT NULL );
+
+CREATE TABLE IF NOT EXISTS 'generator_variable' ( 'name' TEXT NOT NULL , 'instance_id' INTEGER , 'variable_id' INTEGER , FOREIGN KEY( instance_id ) REFERENCES instance ( id ) , FOREIGN KEY( variable_id ) REFERENCES variable ( id ) );
+
+CREATE TABLE IF NOT EXISTS 'context_variable' ( 'name' TEXT NOT NULL , 'breakpoint_id' INTEGER , 'variable_id' INTEGER , FOREIGN KEY( breakpoint_id ) REFERENCES breakpoint ( id ) , FOREIGN KEY( variable_id ) REFERENCES variable ( id ) );
+
+CREATE TABLE IF NOT EXISTS 'variable' ( 'id' INTEGER PRIMARY KEY NOT NULL , 'value' TEXT NOT NULL , 'is_rtl' INTEGER NOT NULL );
+
+CREATE TABLE IF NOT EXISTS 'scope' ( 'scope' INTEGER PRIMARY KEY NOT NULL , 'breakpoints' TEXT NOT NULL );
+
+CREATE TABLE IF NOT EXISTS 'instance' ( 'id' INTEGER PRIMARY KEY NOT NULL , 'name' TEXT NOT NULL );
+
+CREATE TABLE IF NOT EXISTS 'breakpoint' ( 'id' INTEGER PRIMARY KEY NOT NULL , 'instance_id' INTEGER , 'filename' TEXT NOT NULL , 'line_num' INTEGER NOT NULL , 'column_num' INTEGER NOT NULL , 'condition' TEXT NOT NULL , 'trigger' TEXT NOT NULL , FOREIGN KEY( instance_id ) REFERENCES instance ( id ) );
+```
+
+hgdb offers C++ and Python bindings to interact with the symbol table. Feel free to contribute to bindings from other languages.
 
 ## Breakpoint emulation loop
-TODO
+hgdb is designed to emulate breakpoints as fast as possible. By design, if there is no breakpoints inserted, there should not be any noticeable performance slow down. The only overhead would be taking control of the simulator at the `posedge` of the clock then exit immediately.
+
+Once breakpoints are inserted, hgdb schedules a batch of breakpoints to evaluate. It only schedules breakpoints with the same source code location to the same batch to emulate hardware threads. To speed up evaluation computation, multiple threads are used. If there is any breakpoint hit, hgdb pauses the simulation and send the breakpoint information to the client. If nothings hits, hgdb proceeds to schedule and evaluate the next batch of breakpoints. Once there is no breakpoints to schedule, hgdb exists the breakpoint emulation loop and wait for the next `posedge` of the clock.
+
+Below shows the diagram of the emulation flow:
+
+```
+                                  +----------------+
+                                  |                |
+                                  | @(posedge clk) |
+                                  |                |
+                                  +-------+--------+
+                                          |
+                                          v
+                           +--------------+--------------+            +------------------------+
+                           |                             |            |                        |
+                           |  Schedule next breakpoints  |            | wait for next posedge  |
++------------------------->|         to evaluate         |----------->|                        |
+|                          |                             |            +------------------------+
+|                          +--------------+--------------+
+|                                         |
+|                                         |
+|                                         |
+|                  v-------------------+--+---------------+---------------|
+|         +----------------+  +--------v------+  +--------v-------+  +----v---+
+|         |                |  |               |  |                |  |        |
+|         |  Evaluate BP1  |  |  Evaluate BP2 |  |  Evaluate BP3  |  |  ...   |
+|         |                |  |               |  |                |  |        |
+|         +----------------+--+------------+--+--+----------------+  +--------+
+|                 |                   |                  |                |
+|                 +-------------------+---- +------------+----------------+
+|                                           |
+|                              +------------v------------+          +-------------------------+
+|                              |                         |          |                         |
+|                              | Collect hit information +--------->+ Send to debugger client |
+|                              |                         |          |                         |
+|                              +------------+------------+          +-------------------------+
+|                                           |
+|                                           |
+|                                           |
+|                                           |
++-------------------------------------------+
+```
