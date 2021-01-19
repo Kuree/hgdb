@@ -22,9 +22,9 @@
 [submodule "extern/vlstd"]
 	path = extern/vlstd
 	url = https://github.com/Kuree/vlstd.git
-[submodule "extern/exprtk"]
-	path = extern/exprtk
-	url = https://github.com/Kuree/exprtk.git
 [submodule "bindings/python/pybind11"]
 	path = bindings/python/extern/pybind11
 	url = https://github.com/pybind/pybind11
+[submodule "extern/PEGTL"]
+	path = extern/PEGTL
+	url = https://github.com/taocpp/PEGTL

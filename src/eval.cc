@@ -1,68 +1,68 @@
 #include "eval.hh"
 
+#include <tao/pegtl.hpp>
+
 namespace hgdb {
 
-std::unique_ptr<exprtk::expression<ExpressionHelper::ExpressionType>>
-ExpressionHelper::get_expression(const std::string &expression,
-                                 exprtk::symbol_table<ExpressionHelper::ExpressionType> &table) {
-    exprtk::parser<ExpressionHelper::ExpressionType> parser;
-    auto expr = std::make_unique<exprtk::expression<ExpressionHelper::ExpressionType>>();
-    expr->register_symbol_table(table);
-    int r = parser.compile(expression, *expr);
-    if (r) {
-        return expr;
-    } else {
-        return nullptr;
-    }
-}
+// construct peg grammar
 
-std::unordered_set<std::string> ExpressionHelper::get_expr_symbols(const std::string &expression) {
-    std::unordered_set<std::string> result;
-    exprtk::lexer::generator generator;
-    generator.process(expression);
-    // copied from exprtk implementation
-    const static std::unordered_set<std::string> predefined_symbols = {
-        "and",  "nand",  "or", "nor", "xor", "xnor", "in",
-        "like", "ilike", "&",  "|",   "not", "~",    "!"};
+namespace pegtl = TAO_PEGTL_NAMESPACE;
 
-    auto size = generator.size();
-    for (auto i = 0u; i < size; i++) {
-        auto token = generator[i];
-        if (token.type == exprtk::lexer::token::token_type::e_symbol) {
-            auto val = token.value;
-            if (predefined_symbols.find(val) == predefined_symbols.end())
-                result.emplace(token.value);
-        }
-    }
-    return result;
-}
+using namespace pegtl;
 
-DebugExpression::DebugExpression(const std::string &expression) : expression_(expression) {
-    symbols_ = ExpressionHelper::get_expr_symbols(expression_);
-    for (auto const &name : symbols_) {
-        symbol_table_.emplace(name, 0);
-        exprtk_table_.add_variable(name, symbol_table_.at(name));
-    }
-    // notice that we actually lex the expression twice here
-    expr_ = ExpressionHelper::get_expression(expression, exprtk_table_);
-}
+struct integer : plus<digit> {};
+struct variable_head1 : plus<sor<alpha, one<'_'>, one<'$'>>> {};
+struct variable_head2 : seq<variable_head1, star<sor<variable_head1, digit>>> {};
+struct variable_tail : if_must<one<'['>, plus<digit>, one<']'>> {};
+struct variable2 : seq<variable_head2, star<variable_tail>> {};
+struct variable : list<variable2, one<'.'>> {};
 
-int64_t DebugExpression::eval(const std::unordered_map<std::string, int64_t> &values) {
-    if (!correct()) return 0;
-    uint64_t hit = 0;
-    for (auto const &[name, value] : values) {
-        if (symbols_.find(name) != symbols_.end()) [[likely]] {
-            hit++;
-            symbol_table_[name] = value;
-        }
+struct plus : pad<one<'+'>, space> {};
+struct minus : pad<one<'-'>, space> {};
+struct multiply : pad<one<'*'>, space> {};
+struct divide : pad<one<'/'>, space> {};
+struct eq : pad<two<'='>, space> {};
+struct neq : pad<seq<one<'!'>, one<'='>>, space> {};
+struct not_ : pad<one<'!'>, space> {};
+struct flip : pad<one<'~'>, space> {};
+struct b_and : pad<one<'&'>, space> {};
+struct b_or : pad<one<'|'>, space> {};
+struct xor_ : pad<one<'^'>, space> {};
+struct and_ : pad<two<'&'>, space> {};
+struct or_ : pad<two<'|'>, space> {};
+
+struct binary_op : sor<multiply, divide, b_and, b_or, xor_, and_, or_, plus, minus, eq, neq> {};
+struct unary_op : sor<not_, flip> {};
+
+struct open_bracket : seq<one<'('>, star<space>> {};
+struct close_bracket : seq<star<space>, one<')'>> {};
+
+struct expression;
+struct bracketed : seq<open_bracket, expression, close_bracket> {};
+struct value : sor<integer, variable, bracketed> {};
+struct expression3 : seq<unary_op, expression> {};
+struct expression2 : sor<expression3, value> {};
+struct expression : list<expression2, binary_op> {};
+
+struct grammar : pegtl::seq<expression, pegtl::eof> {};
+
+template <typename Rule>
+struct action {};
+
+template <>
+struct action<variable> {
+    template <typename ActionInput>
+    [[maybe_unused]] static void apply(const ActionInput& in,
+                                       std::unordered_set<std::string>& symbols) {
+        auto name = in.string();
+        symbols.emplace(name);
     }
-    if (hit != symbols_.size()) {
-        // some values are missing
-        return 0;
-    } else {
-        auto result = expr_->value();
-        return static_cast<int64_t>(result);
-    }
+};
+
+bool parse(const std::string& value, std::unordered_set<std::string>& symbols) {
+    memory_input in(value, "");
+    auto r = pegtl::parse<grammar, action>(in, symbols);
+    return r;
 }
 
 }  // namespace hgdb

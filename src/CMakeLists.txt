@@ -12,7 +12,8 @@ target_include_directories(hgdb PUBLIC
         ../extern/asio/asio/include/
         ../extern/websocketpp
         ../extern/vlstd
-        ../extern/exprtk)
+        ../extern/exprtk
+        ../extern/PEGTL/include)
 
 # check if the compiler support static lib gcc
 # we need this because most
@@ -25,7 +26,7 @@ if (${COMPILER_STATIC_LIBCXX})
     set(STATIC_CXX_FLAG "-static-libstdc++")
 endif ()
 
-target_link_libraries(hgdb fmt sqlite3 Threads::Threads ${STATIC_GCC_FLAG} ${STATIC_CXX_FLAG})
+target_link_libraries(hgdb fmt sqlite3 Threads::Threads ${STATIC_GCC_FLAG} ${STATIC_CXX_FLAG} taocpp::pegtl)
 
 # check if the compiler support attributes like [[likely]]
 set(CMAKE_REQUIRED_FLAGS "-Wall -Werror")

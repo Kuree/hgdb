@@ -1,27 +1,31 @@
 #include "../src/eval.hh"
 #include "gtest/gtest.h"
 
-TEST(eval, get_tokens) {    // NOLINT
-    const auto *expr = "a + b - c";
-    auto tokens = hgdb::ExpressionHelper::get_expr_symbols(expr);
-    EXPECT_EQ(tokens.size(), 3);
-    for (auto const &s: {"a", "b", "c"}) {
-        EXPECT_NE(tokens.find(s), tokens.end());
-    }
-}
+TEST(expr, symbol_parse) {  // NOLINT
+    bool r;
+    std::unordered_set<std::string> symbols;
 
-TEST(eval, eval_expr) { // NOLINT
-    const auto *expr_str = "a == 5 and b == 6";
-    auto expr = hgdb::DebugExpression(expr_str);
-    EXPECT_EQ(expr.symbols().size(), 2);
-    std::unordered_map<std::string, int64_t> values{{"a", 5}, {"b", 6}};
-    auto v = expr.eval(values);
-    EXPECT_EQ(v, 1);
-    values["a"] = 4;
-    v = expr.eval(values);
-    EXPECT_EQ(v, 0);
-    // missing args
-    values.erase("a");
-    v = expr.eval(values);
-    EXPECT_EQ(v, 0);
+    auto legal_symbols = {"a[0]", "a[0][0]", "__a", "$a", "a.b", "a0", "a[0].b", "a.b[0]", "a0$b0"};
+    for (auto const *expr : legal_symbols) {
+        r = hgdb::parse(expr, symbols);
+        EXPECT_TRUE(r);
+        EXPECT_EQ(symbols.size(), 1);
+        EXPECT_NE(symbols.find(expr), symbols.end());
+        symbols.clear();
+    }
+    // test illegal legal_symbols
+    auto illegal_symbols = {"0a", "="};
+    for (auto const *expr : illegal_symbols) {
+        r = hgdb::parse(expr, symbols);
+        EXPECT_FALSE(r);
+        EXPECT_TRUE(symbols.empty());
+        symbols.clear();
+    }
+
+    // test (symbol)
+    r = hgdb::parse("(a)", symbols);
+    EXPECT_TRUE(r);
+    EXPECT_EQ(symbols.size(), 1);
+    EXPECT_NE(symbols.find("a"), symbols.end());
+    symbols.clear();
 }

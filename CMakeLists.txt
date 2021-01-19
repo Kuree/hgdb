@@ -13,6 +13,7 @@ include(CheckCXXCompilerFlag)
 # extern dependencies
 add_subdirectory(extern/fmt)
 add_subdirectory(extern/sqlite)
+add_subdirectory(extern/PEGTL)
 
 # system dependencies
 set(THREADS_PREFER_PTHREAD_FLAG ON)
