@@ -103,6 +103,10 @@ class HGDBClient:
         payload = {"request": True, "type": "debugger-info", "payload": {"command": status_command}}
         return await self.__send_check(payload, check_error)
 
+    async def evaluate(self, scope, expression, check_error=True):
+        payload = {"request": True, "type": "evaluation", "payload": {"scope": scope, "expression": expression}}
+        return await self.__send_check(payload, check_error=check_error)
+
     async def close(self):
         await self.ws.close()
 

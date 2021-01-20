@@ -531,6 +531,8 @@ void Debugger::handle_path_mapping(const PathMappingRequest &req) {
     }
 }
 
+// can't seem to simplify the function logic
+// NOLINTNEXTLINE
 void Debugger::handle_evaluation(const EvaluationRequest &req) {
     std::string error_reason = req.error_reason();
     // linux kernel style error handling
@@ -548,19 +550,30 @@ void Debugger::handle_evaluation(const EvaluationRequest &req) {
         if (instance) {
             // this is instance scope
             auto generator_values = db_->get_generator_variable(*instance);
-            if (get_symbol_values(values, symbol_names, generator_values, error_reason)) {
+            if (!get_symbol_values(values, symbol_names, scope, generator_values, error_reason)) {
+                goto send_error;
+            }
+        } else if (scope.empty()) {
+            if (!get_symbol_values<ContextVariable>(values, symbol_names, scope, {},
+                                                    error_reason)) {
                 goto send_error;
             }
         } else {
             // maybe it's a breakpoint id
             auto breakpoint_id = util::stoul(scope);
             if (!breakpoint_id) {
-                error_reason = "Invalid scope";
+                error_reason = "Invalid scope " + scope;
+                goto send_error;
+            }
+            auto instance_name = db_->get_instance_name_from_bp(*breakpoint_id);
+            if (!instance_name) {
+                error_reason = "Invalid scope " + scope;
                 goto send_error;
             }
             // only have access to the scope values
             auto context_values = db_->get_context_variables(*breakpoint_id);
-            if (get_symbol_values(values, symbol_names, context_values, error_reason)) {
+            if (!get_symbol_values(values, symbol_names, *instance_name, context_values,
+                                   error_reason)) {
                 goto send_error;
             }
         }

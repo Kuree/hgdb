@@ -137,6 +137,7 @@ private:
     template <typename T>
     bool get_symbol_values(std::unordered_map<std::string, ExpressionType> &values,
                            const std::unordered_set<std::string> &symbol_names,
+                           const std::string &scope,
                            const std::vector<std::pair<T, Variable>> &variables, std::string &ec) {
         for (auto const &[front_var, var] : variables) {
             if (symbol_names.find(front_var.name) != symbol_names.end()) {
@@ -147,6 +148,17 @@ private:
                 }
                 values.emplace(front_var.name, *v);
             }
+        }
+        // some values can be under some scope
+        for (auto const &name : symbol_names) {
+            if (values.find(name) != values.end()) continue;
+            // has to be RTL signal
+            auto v = get_value(scope.empty() ? name : scope + "." + name);
+            if (!v) {
+                ec = "Unable to get value for " + name;
+                return false;
+            }
+            values.emplace(name, *v);
         }
         return true;
     }
