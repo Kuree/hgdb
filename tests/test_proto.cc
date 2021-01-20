@@ -198,7 +198,7 @@ TEST(proto, request_parse_debugger) {  // NOLINT
     EXPECT_EQ(bp->command_type(), hgdb::DebuggerInformationRequest::CommandType::breakpoints);
 }
 
-TEST(proto, request_parse_path_mapping) {   // NOLINT
+TEST(proto, request_parse_path_mapping) {  // NOLINT
     const auto *req = R"(
 {
     "request": true,
@@ -213,11 +213,28 @@ TEST(proto, request_parse_path_mapping) {   // NOLINT
 )";
     auto r = hgdb::Request::parse_request(req);
     EXPECT_EQ(r->status(), hgdb::status_code::success);
-    auto const *bp = dynamic_cast<hgdb::PathMappingRequest*>(r.get());
+    auto const *bp = dynamic_cast<hgdb::PathMappingRequest *>(r.get());
     auto const &mapping = bp->path_mapping();
     EXPECT_EQ(mapping.size(), 2);
     EXPECT_EQ(mapping.at("/tmp/a"), "/workspace/a");
     EXPECT_EQ(mapping.at("/tmp/b"), "/workspace/b");
+}
+
+TEST(proto, request_parse_evaluation) {  // NOLINT
+    const auto *req = R"({
+    "request": true,
+    "type": "evaluation",
+    "payload": {
+        "scope": "test.scope",
+        "expression": "a + 1"
+    }
+}
+)";
+    auto r = hgdb::Request::parse_request(req);
+    EXPECT_EQ(r->status(), hgdb::status_code::success);
+    auto const *eval = dynamic_cast<hgdb::EvaluationRequest *>(r.get());
+    EXPECT_EQ(eval->scope(), "test.scope");
+    EXPECT_EQ(eval->expression(), "a + 1");
 }
 
 TEST(proto, generic_response) {  // NOLINT
@@ -320,6 +337,21 @@ TEST(proto, debugger_info_response) {  // NOLINT
                 "column_num": 1
             }
         ]
+    }
+})";
+    EXPECT_EQ(s, expected_value);
+}
+
+TEST(proto, evaluation_response) {  // NOLINT
+    auto res = hgdb::EvaluationResponse("test.scope", "42");
+    auto s = res.str(true);
+    constexpr auto expected_value = R"({
+    "request": false,
+    "type": "evaluation",
+    "status": "success",
+    "payload": {
+        "scope": "test.scope",
+        "result": "42"
     }
 })";
     EXPECT_EQ(s, expected_value);
