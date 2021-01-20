@@ -6,7 +6,6 @@
 
 #include "fmt/format.h"
 #include "log.hh"
-#include "util.hh"
 
 namespace fs = std::filesystem;
 
@@ -160,6 +159,11 @@ void Debugger::on_message(const std::string &message) {
         case RequestType::path_mapping: {
             auto *r = reinterpret_cast<PathMappingRequest *>(req.get());
             handle_path_mapping(*r);
+            break;
+        }
+        case RequestType::evaluation: {
+            auto *r = reinterpret_cast<EvaluationRequest *>(req.get());
+            handle_evaluation(*r);
             break;
         }
         case RequestType::error: {
@@ -525,6 +529,54 @@ void Debugger::handle_path_mapping(const PathMappingRequest &req) {
         auto resp = GenericResponse(status_code::error, req, req.error_reason());
         send_message(resp.str(log_enabled_));
     }
+}
+
+void Debugger::handle_evaluation(const EvaluationRequest &req) {
+    std::string error_reason = req.error_reason();
+    // linux kernel style error handling
+    if (db_ && req.status() == status_code::success) [[likely]] {
+        // need to figure out if it is a valid instance name or just filename + line number
+        auto const &scope = req.scope();
+        DebugExpression expr(req.expression());
+        std::unordered_map<std::string, int64_t> values;
+        if (!expr.correct()) {
+            error_reason = "Invalid expression";
+            goto send_error;
+        }
+        auto const &symbol_names = expr.symbols();
+        auto instance = db_->get_instance_id(scope);
+        if (instance) {
+            // this is instance scope
+            auto generator_values = db_->get_generator_variable(*instance);
+            if (get_symbol_values(values, symbol_names, generator_values, error_reason)) {
+                goto send_error;
+            }
+        } else {
+            // maybe it's a breakpoint id
+            auto breakpoint_id = util::stoul(scope);
+            if (!breakpoint_id) {
+                error_reason = "Invalid scope";
+                goto send_error;
+            }
+            // only have access to the scope values
+            auto context_values = db_->get_context_variables(*breakpoint_id);
+            if (get_symbol_values(values, symbol_names, context_values, error_reason)) {
+                goto send_error;
+            }
+        }
+        if (values.size() != symbol_names.size()) {
+            error_reason = "Cannot find all required symbols";
+            goto send_error;
+        }
+        auto value = expr.eval(values);
+        EvaluationResponse eval_resp(scope, std::to_string(value));
+        req.set_token(eval_resp);
+        send_message(eval_resp.str(log_enabled_));
+        return;
+    }
+send_error:
+    auto resp = GenericResponse(status_code::error, req, error_reason);
+    send_message(resp.str(log_enabled_));
 }
 
 void Debugger::handle_error(const ErrorRequest &req) {}

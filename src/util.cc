@@ -20,4 +20,21 @@ std::vector<std::string> get_tokens(const std::string &line, const std::string &
         if (!t.empty()) result.emplace_back(t);
     return result;
 }
+
+std::optional<int64_t> stol(const std::string &value) {
+    try {
+        return std::stol(value);
+    } catch (std::exception &) {
+        return {};
+    }
+}
+
+std::optional<uint64_t> stoul(const std::string &value) {
+    try {
+        return std::stol(value);
+    } catch (std::exception &) {
+        return {};
+    }
+}
+
 }  // namespace hgdb::util

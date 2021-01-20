@@ -6,6 +6,7 @@
 #include "rtl.hh"
 #include "server.hh"
 #include "thread.hh"
+#include "util.hh"
 
 namespace hgdb {
 
@@ -111,6 +112,7 @@ private:
     void handle_command(const CommandRequest &req);
     void handle_debug_info(const DebuggerInformationRequest &req);
     void handle_path_mapping(const PathMappingRequest &req);
+    void handle_evaluation(const EvaluationRequest &req);
     void handle_error(const ErrorRequest &req);
 
     // send functions
@@ -130,6 +132,24 @@ private:
     // cached wrapper
     std::optional<int64_t> get_value(const std::string &signal_name);
     std::string get_full_name(uint64_t instance_id, const std::string &var_name);
+
+    // templated helpers
+    template <typename T>
+    bool get_symbol_values(std::unordered_map<std::string, ExpressionType> &values,
+                           const std::unordered_set<std::string> &symbol_names,
+                           const std::vector<std::pair<T, Variable>> &variables, std::string &ec) {
+        for (auto const &[front_var, var] : variables) {
+            if (symbol_names.find(front_var.name) != symbol_names.end()) {
+                auto v = var.is_rtl ? get_value(var.value) : util::stol(var.value);
+                if (!v) {
+                    ec = "Unable get value for " + front_var.name;
+                    return false;
+                }
+                values.emplace(front_var.name, *v);
+            }
+        }
+        return true;
+    }
 };
 
 }  // namespace hgdb

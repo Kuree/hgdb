@@ -106,6 +106,19 @@ std::optional<std::string> DebugDatabaseClient::get_instance_name(uint32_t id) {
     }
 }
 
+std::optional<uint64_t> DebugDatabaseClient::get_instance_id(const std::string &instance_name) {
+    using namespace sqlite_orm;
+    std::lock_guard guard(db_lock_);
+    // although instance_name is not indexed, it will be only used when the simulator
+    // is paused, hence performance is not the primary concern
+    auto value = db_->select(columns(&Instance::id), where(c(&Instance::name) == instance_name));
+    if (!value.empty()) {
+        return std::get<0>(value[0]);
+    } else {
+        return {};
+    }
+}
+
 std::string get_var_value(bool is_rtl, const std::string &value, const std::string &instance_name) {
     std::string fullname;
     if (is_rtl && value.find(instance_name) == std::string::npos) {

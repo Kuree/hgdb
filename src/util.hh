@@ -1,6 +1,7 @@
 #ifndef HGDB_UTIL_HH
 #define HGDB_UTIL_HH
 
+#include <optional>
 #include <sstream>
 #include <string>
 #include <vector>
@@ -24,6 +25,9 @@ std::string join(T begin, T end, const std::string &sep) {
     }
     return stream.str();
 }
+
+std::optional<int64_t> stol(const std::string &value);
+std::optional<uint64_t> stoul(const std::string &value);
 
 }  // namespace hgdb::util
 

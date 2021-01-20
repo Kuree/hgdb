@@ -74,6 +74,12 @@ namespace hgdb {
  * payload:
  *     path:mapping: [required] - map<string, string>
  *
+ * Evaluation Request
+ * type: evaluation
+ * payload:
+ *     scope: [required] - string
+ *     expression: [required] - string
+ *
  * Generic Response
  * type: generic
  * payload:
@@ -113,6 +119,12 @@ namespace hgdb {
  *     command: [enum] string
  *     # depends on the type, only one field will be available
  *     breakpoints: Array<string, uint, uint> ->
+ *
+ * Evaluation Response
+ * type: evaluation
+ * payload:
+ *     scope: string
+ *     result: string
  */
 
 static bool check_member(rapidjson::Document &document, const char *member_name, std::string &error,
@@ -183,6 +195,8 @@ std::string to_string(RequestType type) noexcept {
             return "debugger-info";
         case RequestType::path_mapping:
             return "path-mapping";
+        case RequestType::evaluation:
+            return "evaluation";
     }
     return "error";
 }
@@ -386,6 +400,25 @@ std::string DebuggerInformationResponse::get_command_str() const {
     }
 }
 
+EvaluationResponse::EvaluationResponse(std::string scope, std::string result)
+    : scope_(std::move(scope)), result_(std::move(result)) {}
+
+std::string EvaluationResponse::str(bool pretty_print) const {
+    using namespace rapidjson;
+    Document document(rapidjson::kObjectType);  // NOLINT
+    auto &allocator = document.GetAllocator();
+    set_response_header(document, this);
+    set_status(document, status_);
+
+    Value payload(kObjectType);
+    set_member(payload, allocator, "scope", scope_);
+    set_member(payload, allocator, "result", result_);
+
+    set_member(document, "payload", payload);
+
+    return to_string(document, pretty_print);
+}
+
 std::unique_ptr<Request> Request::parse_request(const std::string &str) {
     using namespace rapidjson;
     Document document;
@@ -421,6 +454,8 @@ std::unique_ptr<Request> Request::parse_request(const std::string &str) {
         result = std::make_unique<DebuggerInformationRequest>();
     } else if (type_str == "path-mapping") {
         result = std::make_unique<PathMappingRequest>();
+    } else if (type_str == "evaluation") {
+        result = std::make_unique<EvaluationRequest>();
     } else {
         result = std::make_unique<ErrorRequest>("Unknown request");
     }
@@ -624,6 +659,22 @@ void PathMappingRequest::parse_payload(const std::string &payload) {
     }
 
     path_mapping_ = *mapping;
+}
+
+void EvaluationRequest::parse_payload(const std::string &payload) {
+    using namespace rapidjson;
+    Document document;
+    document.Parse(payload.c_str());
+    if (!check_json(document, status_code_, error_reason_)) return;
+
+    auto scope = get_member<std::string>(document, "scope", error_reason_);
+    auto expression = get_member<std::string>(document, "expression", error_reason_);
+    if (!scope || !expression) {
+        status_code_ = status_code::error;
+        return;
+    }
+    scope_ = *scope;
+    expression_ = *expression;
 }
 
 }  // namespace hgdb

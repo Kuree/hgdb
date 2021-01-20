@@ -20,7 +20,8 @@ enum class RequestType {
     bp_location,
     command,
     debugger_info,
-    path_mapping
+    path_mapping,
+    evaluation
 };
 
 [[nodiscard]] std::string to_string(RequestType type) noexcept;
@@ -214,6 +215,20 @@ private:
     std::map<std::string, std::string> path_mapping_;
 };
 
+class EvaluationRequest : public Request {
+public:
+    EvaluationRequest() = default;
+    void parse_payload(const std::string &payload) override;
+    [[nodiscard]] RequestType type() const override { return RequestType::evaluation; }
+
+    [[nodiscard]] const std::string &scope() const { return scope_; }
+    [[nodiscard]] const std::string &expression() const { return expression_; }
+
+private:
+    std::string scope_;
+    std::string expression_;
+};
+
 class DebuggerInformationResponse : public Response {
 public:
     explicit DebuggerInformationResponse(std::vector<BreakPoint *> bps);
@@ -226,6 +241,17 @@ private:
     DebuggerInformationRequest::CommandType command_type_;
     std::vector<BreakPoint *> bps_;
     [[nodiscard]] std::string get_command_str() const;
+};
+
+class EvaluationResponse : public Response {
+public:
+    EvaluationResponse(std::string scope, std::string result);
+    [[nodiscard]] std::string str(bool pretty_print) const override;
+    [[nodiscard]] std::string type() const override { return to_string(RequestType::evaluation); }
+
+private:
+    std::string scope_;
+    std::string result_;
 };
 
 }  // namespace hgdb
