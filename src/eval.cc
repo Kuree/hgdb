@@ -100,7 +100,15 @@ public:
                 auto* exp = exprs_.top();
                 exprs_.pop();
                 auto* expr = debug.add_expression(op);
-                expr->unary = exp;
+                if (exp->left) {
+                    expr->unary = exp->left;
+                    exp->left = expr;
+                } else if (exp->unary) {
+                    expr->unary = exp->unary;
+                    exp->unary = expr;
+                } else {
+                    expr->unary = exp;
+                }
                 exprs_.emplace(expr);
             } else {
                 auto* expr = debug.add_expression(op);
@@ -126,9 +134,10 @@ public:
 
                 // put it back in
                 exprs_.emplace(expr);
-            }
-            if (!root) {
-                root = exprs_.top();
+
+                if (!root) {
+                    root = exprs_.top();
+                }
             }
         }
         if (!root) root = exprs_.top();
@@ -253,6 +262,15 @@ struct action<integer> {
 
 template <>
 struct action<binary_op> {
+    template <typename ActionInput>
+    [[maybe_unused]] [[maybe_unused]] static void apply(const ActionInput& in, ParserState& state) {
+        auto s = in.string();
+        state.push(s);
+    }
+};
+
+template <>
+struct action<unary_op> {
     template <typename ActionInput>
     [[maybe_unused]] [[maybe_unused]] static void apply(const ActionInput& in, ParserState& state) {
         auto s = in.string();

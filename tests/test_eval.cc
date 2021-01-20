@@ -37,6 +37,18 @@ TEST(expr, expr_parse) {  // NOLINT
     EXPECT_TRUE(debug_expr2.correct());
     expr = debug_expr2.root();
     EXPECT_EQ(expr->op, hgdb::expr::Operator::Multiply);
+
+    auto const *expr3 = "!a";
+    hgdb::DebugExpression debug_expr3(expr3);
+    EXPECT_TRUE(debug_expr3.correct());
+    expr = debug_expr3.root();
+    EXPECT_EQ(expr->op, hgdb::expr::Operator::Not);
+
+    auto const *expr4 = "!a == 1";
+    hgdb::DebugExpression debug_expr4(expr4);
+    EXPECT_TRUE(debug_expr4.correct());
+    expr = debug_expr4.root();
+    EXPECT_EQ(expr->op, hgdb::expr::Operator::Eq);
 }
 
 TEST(expr, expr_eval) {  // NOLINT
@@ -79,4 +91,16 @@ TEST(expr, expr_eval) {  // NOLINT
     EXPECT_TRUE(debug_expr6.correct());
     result = debug_expr6.eval({{"a", 1}, {"b", 2}, {"c", 4}, {"d", 5}, {"e", 3}});
     EXPECT_EQ(result, (1 + 2) * (4 - 5) % 3);
+
+    auto const *expr7 = "!a && b && ~c";
+    hgdb::DebugExpression debug_expr7(expr7);
+    EXPECT_TRUE(debug_expr7.correct());
+    result = debug_expr7.eval({{"a", 0}, {"b", 1}, {"c", 0}});
+    EXPECT_EQ(result, 1);
+
+    auto const *expr8 = "!!a && (~~a)";
+    hgdb::DebugExpression debug_expr8(expr8);
+    EXPECT_TRUE(debug_expr8.correct());
+    result = debug_expr8.eval({{"a", 1}});
+    EXPECT_EQ(result, 1);
 }
