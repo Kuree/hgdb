@@ -263,10 +263,27 @@ def test_evaluate(start_server, find_free_port):
     kill_server(s)
 
 
+def test_options(start_server, find_free_port):
+    port = find_free_port()
+    s = start_server(port, "test_debug_server", ["+DEBUG_LOG"])
+    assert s.poll() is None
+    uri = "ws://localhost:{0}".format(port)
+
+    async def test_logic():
+        client = hgdb.HGDBClient(uri, None)
+        await client.connect()
+        resp = await client.get_info("options")
+        assert resp["payload"]["options"]["log_enabled"]
+        assert not resp["payload"]["options"]["single_thread_mode"]
+
+    asyncio.get_event_loop().run_until_complete(test_logic())
+    kill_server(s)
+
+
 if __name__ == "__main__":
     import sys
 
     sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
     from conftest import start_server_fn, find_free_port_fn
 
-    test_evaluate(start_server_fn, find_free_port_fn)
+    test_options(start_server_fn, find_free_port_fn)

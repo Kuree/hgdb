@@ -190,7 +190,7 @@ private:
 
 class DebuggerInformationRequest : public Request {
 public:
-    enum class CommandType { breakpoints, status };
+    enum class CommandType { breakpoints, status, options };
     DebuggerInformationRequest() = default;
     void parse_payload(const std::string &payload) override;
     [[nodiscard]] RequestType type() const override { return RequestType::debugger_info; }
@@ -232,6 +232,7 @@ private:
 class DebuggerInformationResponse : public Response {
 public:
     explicit DebuggerInformationResponse(std::vector<BreakPoint *> bps);
+    explicit DebuggerInformationResponse(std::map<std::string, std::string> options);
     [[nodiscard]] std::string str(bool pretty_print) const override;
     [[nodiscard]] std::string type() const override {
         return to_string(RequestType::debugger_info);
@@ -240,6 +241,7 @@ public:
 private:
     DebuggerInformationRequest::CommandType command_type_;
     std::vector<BreakPoint *> bps_;
+    std::map<std::string, std::string> options_;
     [[nodiscard]] std::string get_command_str() const;
 };
 

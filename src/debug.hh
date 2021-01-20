@@ -9,6 +9,10 @@
 
 namespace hgdb {
 
+namespace util {
+class Options;
+}
+
 class Debugger {
 public:
     Debugger();
@@ -77,6 +81,8 @@ private:
     DebugBreakPoint step_over_breakpoint_;
 
     // used for scheduler
+    // if in single thread mode, instances with the same fn/ln won't be evalauted as a batch
+    bool single_thread_mode_ = false;
     enum class EvaluationMode { BreakPointOnly, StepOver };
     EvaluationMode evaluation_mode_ = EvaluationMode::BreakPointOnly;
     std::unordered_set<uint32_t> evaluated_ids_;
@@ -117,6 +123,9 @@ private:
     // send functions
     void send_breakpoint_hit(const std::vector<const DebugBreakPoint *> &bps);
 
+    // options
+    [[nodiscard]] util::Options get_options();
+
     // common checker
     bool check_send_db_error(RequestType type);
 
@@ -131,7 +140,6 @@ private:
     // cached wrapper
     std::optional<int64_t> get_value(const std::string &signal_name);
     std::string get_full_name(uint64_t instance_id, const std::string &var_name);
-
 };
 
 }  // namespace hgdb

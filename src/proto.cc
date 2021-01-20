@@ -361,6 +361,10 @@ void BreakPointResponse::Scope::add_generator_value(const std::string &name,
 DebuggerInformationResponse::DebuggerInformationResponse(std::vector<BreakPoint *> bps)
     : command_type_(DebuggerInformationRequest::CommandType::breakpoints), bps_(std::move(bps)) {}
 
+DebuggerInformationResponse::DebuggerInformationResponse(std::map<std::string, std::string> options)
+    : command_type_(DebuggerInformationRequest::CommandType::options),
+      options_(std::move(options)) {}
+
 std::string DebuggerInformationResponse::str(bool pretty_print) const {
     using namespace rapidjson;
     Document document(rapidjson::kObjectType);  // NOLINT
@@ -371,6 +375,7 @@ std::string DebuggerInformationResponse::str(bool pretty_print) const {
     Value payload(kObjectType);
     set_member(payload, allocator, "command", get_command_str());
 
+    // TODO: once the feature is fully implemented, change it to a switch statement
     if (command_type_ == DebuggerInformationRequest::CommandType::breakpoints) {
         Value array(kArrayType);
         for (auto *bp : bps_) {
@@ -381,7 +386,21 @@ std::string DebuggerInformationResponse::str(bool pretty_print) const {
             array.PushBack(entry, allocator);
         }
         set_member(payload, allocator, "breakpoints", array);
+    } else if (command_type_ == DebuggerInformationRequest::CommandType::options) {
+        Value v(kObjectType);
+        for (auto const &[key, value] : options_) {
+            if (value == "true" || value == "false") {
+                set_member(v, allocator, key.c_str(), value == "true");
+            } else if (std::all_of(value.begin(), value.end(), isdigit)) {
+                int64_t i = std::stoll(value);
+                set_member(v, allocator, key.c_str(), i);
+            } else {
+                set_member(v, allocator, key.c_str(), value);
+            }
+        }
+        set_member(payload, allocator, "options", v);
     }
+
     set_member(document, "payload", payload);
 
     return to_string(document, pretty_print);
@@ -395,9 +414,11 @@ std::string DebuggerInformationResponse::get_command_str() const {
         case DebuggerInformationRequest::CommandType::status: {
             return "status";
         }
-        default:
-            return "";
+        case DebuggerInformationRequest::CommandType::options: {
+            return "options";
+        }
     }
+    return "";
 }
 
 EvaluationResponse::EvaluationResponse(std::string scope, std::string result)
@@ -639,6 +660,8 @@ void DebuggerInformationRequest::parse_payload(const std::string &payload) {
         command_type_ = CommandType::breakpoints;
     } else if (command == "status") {
         command_type_ = CommandType::status;
+    } else if (command == "options") {
+        command_type_ = CommandType::options;
     } else {
         status_code_ = status_code::error;
         error_reason_ = "Unknown command type " + command;

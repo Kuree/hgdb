@@ -514,6 +514,15 @@ void Debugger::handle_debug_info(const DebuggerInformationRequest &req) {
             send_message(resp.str(log_enabled_));
             return;
         }
+        case DebuggerInformationRequest::CommandType::options: {
+            // race conditions?
+            auto options = get_options();
+            auto options_map = options.get_options();
+            auto resp = DebuggerInformationResponse(options_map);
+            req.set_token(resp);
+            send_message(resp.str(log_enabled_));
+            return;
+        }
         default: {
             auto resp = GenericResponse(status_code::error, req, "Unknown debugger info command");
             send_message(resp.str(log_enabled_));
@@ -677,6 +686,13 @@ void Debugger::send_breakpoint_hit(const std::vector<const DebugBreakPoint *> &b
 
     auto str = resp.str(log_enabled_);
     send_message(str);
+}
+
+util::Options Debugger::get_options() {
+    util::Options options;
+    options.add_option("single_thread_mode", &single_thread_mode_);
+    options.add_option("log_enabled", &log_enabled_);
+    return options;
 }
 
 bool Debugger::check_send_db_error(RequestType type) {

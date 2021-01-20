@@ -319,7 +319,7 @@ TEST(proto, breakpoint_response) {  // NOLINT
     EXPECT_EQ(s, expected_value);
 }
 
-TEST(proto, debugger_info_response) {  // NOLINT
+TEST(proto, debugger_info_response_breakpoint) {  // NOLINT
     auto bp = hgdb::BreakPoint{.filename = "/tmp/a", .line_num = 1, .column_num = 1};
     std::vector<hgdb::BreakPoint *> bps = {&bp};
     auto res = hgdb::DebuggerInformationResponse(bps);
@@ -337,6 +337,26 @@ TEST(proto, debugger_info_response) {  // NOLINT
                 "column_num": 1
             }
         ]
+    }
+})";
+    EXPECT_EQ(s, expected_value);
+}
+
+TEST(proto, debugger_info_response_options) {  // NOLINT
+    std::map<std::string, std::string> options = {{"a", "true"}, {"b", "1"}, {"c", "d"}};
+    auto res = hgdb::DebuggerInformationResponse(options);
+    auto s = res.str(true);
+    constexpr auto expected_value = R"({
+    "request": false,
+    "type": "debugger-info",
+    "status": "success",
+    "payload": {
+        "command": "options",
+        "options": {
+            "a": true,
+            "b": 1,
+            "c": "d"
+        }
     }
 })";
     EXPECT_EQ(s, expected_value);
