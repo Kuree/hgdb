@@ -105,7 +105,7 @@ auto setup_db_vpi(MockVPIProvider &vpi) {
         store_breakpoint(*db, 0 + base_id, dut_id, filename, 2, 0, "a");
         store_context_variable(*db, "a", 0 + base_id, variable_ids.at("a"));
         // assign c_1 = 0;  // a = a  en: ~a          -> c = 0
-        store_breakpoint(*db, 1 + base_id, dut_id, filename, 4, 0, "~a");
+        store_breakpoint(*db, 1 + base_id, dut_id, filename, 4, 0, "!a");
         store_context_variable(*db, "a", 1 + base_id, variable_ids.at("a"));
         // assign c_2 = a? c_0: c_1; // a = a en: 1   -> if (a)
         store_breakpoint(*db, 2 + base_id, dut_id, filename, 1, 0, "1");
