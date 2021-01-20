@@ -107,6 +107,12 @@ class HGDBClient:
         payload = {"request": True, "type": "evaluation", "payload": {"scope": scope, "expression": expression}}
         return await self.__send_check(payload, check_error=check_error)
 
+    async def change_option(self, check_error=True, **kwargs):
+        payload = {"request": True, "type": "option-change", "payload": {}}
+        for name, value in kwargs.items():
+            payload["payload"][name] = value
+        return await self.__send_check(payload, check_error=check_error)
+
     async def close(self):
         await self.ws.close()
 

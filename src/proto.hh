@@ -21,7 +21,8 @@ enum class RequestType {
     command,
     debugger_info,
     path_mapping,
-    evaluation
+    evaluation,
+    option_change
 };
 
 [[nodiscard]] std::string to_string(RequestType type) noexcept;
@@ -227,6 +228,24 @@ public:
 private:
     std::string scope_;
     std::string expression_;
+};
+
+class OptionChangeRequest : public Request {
+public:
+    OptionChangeRequest() = default;
+    void parse_payload(const std::string &payload) override;
+    [[nodiscard]] RequestType type() const override { return RequestType::option_change; }
+
+    [[nodiscard]] const std::map<std::string, bool> &bool_values() const { return bool_values_; }
+    [[nodiscard]] const std::map<std::string, int64_t> &int_values() const { return int_values_; }
+    [[nodiscard]] const std::map<std::string, std::string> &str_values() const {
+        return str_values_;
+    }
+
+private:
+    std::map<std::string, bool> bool_values_;
+    std::map<std::string, int64_t> int_values_;
+    std::map<std::string, std::string> str_values_;
 };
 
 class DebuggerInformationResponse : public Response {

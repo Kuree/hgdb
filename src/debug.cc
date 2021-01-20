@@ -167,6 +167,11 @@ void Debugger::on_message(const std::string &message) {
             handle_evaluation(*r);
             break;
         }
+        case RequestType::option_change: {
+            auto *r = reinterpret_cast<OptionChangeRequest *>(req.get());
+            handle_option_change(*r);
+            break;
+        }
         case RequestType::error: {
             auto *r = reinterpret_cast<ErrorRequest *>(req.get());
             handle_error(*r);
@@ -634,6 +639,26 @@ void Debugger::handle_evaluation(const EvaluationRequest &req) {
 send_error:
     auto resp = GenericResponse(status_code::error, req, error_reason);
     send_message(resp.str(log_enabled_));
+}
+
+void Debugger::handle_option_change(const OptionChangeRequest &req) {
+    if (req.status() == status_code::success) {
+        auto options = get_options();
+        for (auto const &[name, value] : req.bool_values()) {
+            options.set_option(name, value);
+        }
+        for (auto const &[name, value] : req.int_values()) {
+            options.set_option(name, value);
+        }
+        for (auto const &[name, value] : req.str_values()) {
+            options.set_option(name, value);
+        }
+        auto resp = GenericResponse(status_code::success, req);
+        send_message(resp.str(log_enabled_));
+    } else {
+        auto resp = GenericResponse(status_code::error, req, req.error_reason());
+        send_message(resp.str(log_enabled_));
+    }
 }
 
 void Debugger::handle_error(const ErrorRequest &req) {}

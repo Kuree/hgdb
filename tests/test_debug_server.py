@@ -275,6 +275,11 @@ def test_options(start_server, find_free_port):
         resp = await client.get_info("options")
         assert resp["payload"]["options"]["log_enabled"]
         assert not resp["payload"]["options"]["single_thread_mode"]
+        # change it as well
+        await client.change_option(log_enabled=False, single_thread_mode=True)
+        resp = await client.get_info("options")
+        assert not resp["payload"]["options"]["log_enabled"]
+        assert resp["payload"]["options"]["single_thread_mode"]
 
     asyncio.get_event_loop().run_until_complete(test_logic())
     kill_server(s)

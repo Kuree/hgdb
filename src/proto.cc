@@ -72,13 +72,18 @@ namespace hgdb {
  * Path Mapping Request
  * type: path-mapping
  * payload:
- *     path:mapping: [required] - map<string, string>
+ *     path-mapping: [required] - map<string, string>
  *
  * Evaluation Request
  * type: evaluation
  * payload:
  *     scope: [required] - string
  *     expression: [required] - string
+ *
+ * OptionChange Request
+ * type: option-change
+ * payload:
+ *       Mar<string, value>
  *
  * Generic Response
  * type: generic
@@ -197,6 +202,8 @@ std::string to_string(RequestType type) noexcept {
             return "path-mapping";
         case RequestType::evaluation:
             return "evaluation";
+        case RequestType::option_change:
+            return "option-change";
     }
     return "error";
 }
@@ -477,6 +484,8 @@ std::unique_ptr<Request> Request::parse_request(const std::string &str) {
         result = std::make_unique<PathMappingRequest>();
     } else if (type_str == "evaluation") {
         result = std::make_unique<EvaluationRequest>();
+    } else if (type_str == "option-change") {
+        result = std::make_unique<OptionChangeRequest>();
     } else {
         result = std::make_unique<ErrorRequest>("Unknown request");
     }
@@ -698,6 +707,30 @@ void EvaluationRequest::parse_payload(const std::string &payload) {
     }
     scope_ = *scope;
     expression_ = *expression;
+}
+
+void OptionChangeRequest::parse_payload(const std::string &payload) {
+    using namespace rapidjson;
+    Document document;
+    document.Parse(payload.c_str());
+    if (!check_json(document, status_code_, error_reason_)) return;
+
+    // need to loop through the map by hand
+    for (auto const &option : document.GetObject()) {
+        std::string name = option.name.GetString();
+        auto const &json_value = option.value;
+        if (json_value.IsBool()) {
+            bool_values_.emplace(name, json_value.GetBool());
+        } else if (json_value.IsInt64()) {
+            int_values_.emplace(name, json_value.GetInt64());
+        } else if (json_value.IsString()) {
+            str_values_.emplace(name, json_value.GetString());
+        } else {
+            error_reason_ = "Unsupported data type for " + name;
+            status_code_ = status_code::error;
+            break;
+        }
+    }
 }
 
 }  // namespace hgdb

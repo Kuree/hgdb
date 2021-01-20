@@ -118,6 +118,7 @@ private:
     void handle_debug_info(const DebuggerInformationRequest &req);
     void handle_path_mapping(const PathMappingRequest &req);
     void handle_evaluation(const EvaluationRequest &req);
+    void handle_option_change(const OptionChangeRequest &req);
     void handle_error(const ErrorRequest &req);
 
     // send functions

@@ -237,6 +237,25 @@ TEST(proto, request_parse_evaluation) {  // NOLINT
     EXPECT_EQ(eval->expression(), "a + 1");
 }
 
+TEST(proto, request_parse_option_change) {  // NOLINT
+    const auto *req = R"({
+    "request": true,
+    "type": "option-change",
+    "payload": {
+        "a": true,
+        "b": 42,
+        "c": "d"
+    }
+}
+)";
+    auto r = hgdb::Request::parse_request(req);
+    EXPECT_EQ(r->status(), hgdb::status_code::success);
+    auto const *options = dynamic_cast<hgdb::OptionChangeRequest *>(r.get());
+    EXPECT_EQ(options->bool_values().at("a"), true);
+    EXPECT_EQ(options->int_values().at("b"), 42);
+    EXPECT_EQ(options->str_values().at("c"), "d");
+}
+
 TEST(proto, generic_response) {  // NOLINT
     auto res =
         hgdb::GenericResponse(hgdb::status_code::error, hgdb::RequestType::error, "TEST_ERROR");
