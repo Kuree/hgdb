@@ -21,7 +21,7 @@ enum class Operator {
     Eq,
     Neq,
     Not,
-    Flip,
+    Invert,
     And,
     Xor,
     Or,
@@ -39,6 +39,7 @@ public:
     Operator op = Operator::None;
 
     [[nodiscard]] ExpressionType eval() const;
+    void set_holder_value(ExpressionType value) { holder_value_ = value; }
 
 private:
     ExpressionType &value_;
@@ -64,10 +65,11 @@ public:
     auto end() const { return symbols_str_.end(); }
     [[nodiscard]] bool empty() const { return symbols_str_.empty(); }
     int64_t eval(const std::unordered_map<std::string, int64_t> &) { return 0; }
-    [[nodiscard]] bool correct() const { return correct_; }
+    [[nodiscard]] bool correct() const { return correct_ && root_ != nullptr; }
+    void set_error() { correct_ = false; }
 
     expr::Expr *add_expression(expr::Operator op);
-    void add_symbol(const std::string &name);
+    expr::Symbol *add_symbol(const std::string &name);
 
     // no copy construction
     DebugExpression(const DebugExpression &) = delete;
@@ -83,7 +85,7 @@ private:
 
     std::vector<std::unique_ptr<expr::Expr>> expressions_;
 
-    bool correct_;
+    bool correct_ = true;
     expr::Expr *root_ = nullptr;
 };
 

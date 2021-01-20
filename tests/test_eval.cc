@@ -23,3 +23,9 @@ TEST(expr, symbol_parse) {  // NOLINT
     EXPECT_EQ(debug_expr_.size(), 1);
     EXPECT_NE(debug_expr_.find("a"), debug_expr_.end());
 }
+
+TEST(expr, expr_parse) {    // NOLINT
+    auto const *expr = "1 + 2 * 3";
+    hgdb::DebugExpression debug_expr(expr);
+    EXPECT_TRUE(debug_expr.correct());
+}
