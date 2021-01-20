@@ -4,24 +4,70 @@
 #include <memory>
 #include <unordered_map>
 #include <unordered_set>
+#include <vector>
 
 namespace hgdb {
 
-bool parse(const std::string &value, std::unordered_set<std::string> &symbols);
+using ExpressionType = int64_t;
 
-class ExpressionHelper {
-public:
-    // exprtk requires to use floats
-    using ExpressionType = double;
-    static std::unordered_set<std::string> get_expr_symbols(const std::string &) { return {}; }
+namespace expr {
+enum class Operator {
+    None,
+    Add,
+    Minus,
+    Multiply,
+    Divide,
+    Mod,
+    Eq,
+    Neq,
+    Not,
+    Flip,
+    And,
+    Xor,
+    Or,
+    BAnd,
+    BOr
 };
+class Expr {
+public:
+    Expr(Operator op) : op(op), value_(holder_value_) {}
+    void set_value(ExpressionType &value) { value_ = value; }
+
+    Expr *left = nullptr;
+    Expr *right = nullptr;
+
+    Operator op = Operator::None;
+
+    [[nodiscard]] ExpressionType eval() const;
+
+private:
+    ExpressionType &value_;
+
+    ExpressionType holder_value_;
+};
+
+class Symbol : public Expr {
+public:
+    Symbol(std::string name) : Expr(Operator::None), name(std::move(name)) {}
+    std::string name;
+};
+}  // namespace expr
 
 class DebugExpression {
 public:
-    explicit DebugExpression(const std::string &expression) {}
-    [[nodiscard]] const std::unordered_set<std::string> &symbols() const { return symbols_; }
+    explicit DebugExpression(const std::string &expression);
+
+    // symbol table related functions
+    [[nodiscard]] const std::unordered_set<std::string> &symbols() const { return symbols_str_; }
+    [[nodiscard]] uint64_t size() const { return symbols_str_.size(); }
+    auto find(const std::string &value) const { return symbols_str_.find(value); }
+    auto end() const { return symbols_str_.end(); }
+    [[nodiscard]] bool empty() const { return symbols_str_.empty(); }
     int64_t eval(const std::unordered_map<std::string, int64_t> &) { return 0; }
-    [[nodiscard]] bool correct() const { return true; }
+    [[nodiscard]] bool correct() const { return correct_; }
+
+    expr::Expr *add_expression(expr::Operator op);
+    void add_symbol(const std::string &name);
 
     // no copy construction
     DebugExpression(const DebugExpression &) = delete;
@@ -30,8 +76,15 @@ public:
 
 private:
     std::string expression_;
-    std::unordered_set<std::string> symbols_;
-    std::unordered_map<std::string, ExpressionHelper::ExpressionType> symbol_table_;
+    // only for strings for fast access during evaluation
+    std::unordered_set<std::string> symbols_str_;
+    std::unordered_map<std::string, ExpressionType> symbol_values_;
+    std::unordered_map<std::string, expr::Symbol *> symbols_;
+
+    std::vector<std::unique_ptr<expr::Expr>> expressions_;
+
+    bool correct_;
+    expr::Expr *root_ = nullptr;
 };
 
 }  // namespace hgdb

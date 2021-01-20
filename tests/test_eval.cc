@@ -2,30 +2,24 @@
 #include "gtest/gtest.h"
 
 TEST(expr, symbol_parse) {  // NOLINT
-    bool r;
-    std::unordered_set<std::string> symbols;
-
     auto legal_symbols = {"a[0]", "a[0][0]", "__a", "$a", "a.b", "a0", "a[0].b", "a.b[0]", "a0$b0"};
     for (auto const *expr : legal_symbols) {
-        r = hgdb::parse(expr, symbols);
-        EXPECT_TRUE(r);
-        EXPECT_EQ(symbols.size(), 1);
-        EXPECT_NE(symbols.find(expr), symbols.end());
-        symbols.clear();
+        hgdb::DebugExpression debug_expr(expr);
+        EXPECT_TRUE(debug_expr.correct());
+        EXPECT_EQ(debug_expr.size(), 1);
+        EXPECT_NE(debug_expr.find(expr), debug_expr.end());
     }
     // test illegal legal_symbols
     auto illegal_symbols = {"0a", "="};
     for (auto const *expr : illegal_symbols) {
-        r = hgdb::parse(expr, symbols);
-        EXPECT_FALSE(r);
-        EXPECT_TRUE(symbols.empty());
-        symbols.clear();
+        hgdb::DebugExpression debug_expr(expr);
+        EXPECT_FALSE(debug_expr.correct());
+        EXPECT_TRUE(debug_expr.empty());
     }
 
     // test (symbol)
-    r = hgdb::parse("(a)", symbols);
-    EXPECT_TRUE(r);
-    EXPECT_EQ(symbols.size(), 1);
-    EXPECT_NE(symbols.find("a"), symbols.end());
-    symbols.clear();
+    hgdb::DebugExpression debug_expr_("(a)");
+    EXPECT_TRUE(debug_expr_.correct());
+    EXPECT_EQ(debug_expr_.size(), 1);
+    EXPECT_NE(debug_expr_.find("a"), debug_expr_.end());
 }
