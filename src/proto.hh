@@ -197,7 +197,7 @@ public:
     [[nodiscard]] auto const &command_type() const { return command_type_; }
 
 private:
-    CommandType command_type_;
+    CommandType command_type_ = CommandType::breakpoints;
 };
 
 class PathMappingRequest : public Request {
@@ -225,7 +225,7 @@ public:
 private:
     DebuggerInformationRequest::CommandType command_type_;
     std::vector<BreakPoint *> bps_;
-    std::string get_command_str() const;
+    [[nodiscard]] std::string get_command_str() const;
 };
 
 }  // namespace hgdb
