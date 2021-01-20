@@ -24,7 +24,7 @@ TEST(expr, symbol_parse) {  // NOLINT
     EXPECT_NE(debug_expr_.find("a"), debug_expr_.end());
 }
 
-TEST(expr, expr_parse) {    // NOLINT
+TEST(expr, expr_parse) {  // NOLINT
     const hgdb::expr::Expr *expr;
     auto const *expr1 = "1 + 2 * 3";
     hgdb::DebugExpression debug_expr1(expr1);
@@ -39,7 +39,7 @@ TEST(expr, expr_parse) {    // NOLINT
     EXPECT_EQ(expr->op, hgdb::expr::Operator::Multiply);
 }
 
-TEST(expr, expr_eval) { // NOLINT
+TEST(expr, expr_eval) {  // NOLINT
     hgdb::ExpressionType result;
 
     auto const *expr1 = "1";
@@ -53,4 +53,30 @@ TEST(expr, expr_eval) { // NOLINT
     EXPECT_TRUE(debug_expr2.correct());
     result = debug_expr2.eval({{"a", 41}});
     EXPECT_EQ(result, 42);
+
+    auto const *expr3 = "a == 42";
+    hgdb::DebugExpression debug_expr3(expr3);
+    EXPECT_TRUE(debug_expr3.correct());
+    result = debug_expr3.eval({{"a", 42}});
+    EXPECT_EQ(result, 1);
+
+    auto const *expr4 = "a==42&&b==1";  // no space
+    hgdb::DebugExpression debug_expr4(expr4);
+    EXPECT_TRUE(debug_expr4.correct());
+    result = debug_expr4.eval({{"a", 42}, {"b", 1}});
+    EXPECT_EQ(result, 1);
+    result = debug_expr4.eval({{"a", 42}, {"b", 2}});
+    EXPECT_EQ(result, 0);
+
+    auto const *expr5 = "a + b * c - d % e";  // test tree rotate
+    hgdb::DebugExpression debug_expr5(expr5);
+    EXPECT_TRUE(debug_expr5.correct());
+    result = debug_expr5.eval({{"a", 1}, {"b", 2}, {"c", 4}, {"d", 5}, {"e", 3}});
+    EXPECT_EQ(result, 1 + 2 * 4 - 5 % 3);
+
+    auto const *expr6 = "(a + b) * (c - d) % e";  // with brackets
+    hgdb::DebugExpression debug_expr6(expr6);
+    EXPECT_TRUE(debug_expr6.correct());
+    result = debug_expr6.eval({{"a", 1}, {"b", 2}, {"c", 4}, {"d", 5}, {"e", 3}});
+    EXPECT_EQ(result, (1 + 2) * (4 - 5) % 3);
 }

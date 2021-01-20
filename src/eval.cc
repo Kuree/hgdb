@@ -46,7 +46,7 @@ struct xor_ : one<'^'> {};
 struct and_ : two<'&'> {};
 struct or_ : two<'|'> {};
 
-struct binary_op : sor<multiply, divide, b_and, b_or, xor_, and_, or_, plus_, minus, mod, eq, neq> {
+struct binary_op : sor<multiply, divide, xor_, and_, or_, plus_, minus, mod, eq, neq, b_and, b_or> {
 };
 struct binary_op_space : pad<binary_op, space> {};
 struct unary_op : sor<not_, flip> {};
@@ -246,6 +246,7 @@ struct action<binary_op> {
     template <typename ActionInput>
     [[maybe_unused]] [[maybe_unused]] static void apply(const ActionInput& in, ParserState& state) {
         auto s = in.string();
+        printf("%s\n", s.c_str());
         state.push(s);
     }
 };
