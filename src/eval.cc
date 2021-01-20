@@ -139,7 +139,7 @@ private:
             // do a tree rotation
             if (precedence.find(current_op) != precedence.end() &&
                 precedence.find(next_op) != precedence.end() &&
-                precedence.at(current_op) < precedence.at(next_op)) {
+                precedence.at(current_op) < precedence.at(next_op) && !next->bracketed) {
                 /*
                  * before:
                  *     \
@@ -198,6 +198,7 @@ public:
     void close() {
         auto& stack = stacks.top();
         auto* expr = stack.reduce(debug_);
+        expr->bracketed = true;
         stacks.pop();
         stacks.top().push(expr);
     }
@@ -220,7 +221,7 @@ struct action {};
 template <>
 struct action<variable> {
     template <typename ActionInput>
-    [[maybe_unused]] static void apply(const ActionInput& in, ParserState& state) {
+    [[maybe_unused]] [[maybe_unused]] static void apply(const ActionInput& in, ParserState& state) {
         auto name = in.string();
         auto* symbol = state.add_symbol(name);
         state.push(symbol);
@@ -230,12 +231,12 @@ struct action<variable> {
 template <>
 struct action<integer> {
     template <typename ActionInput>
-    [[maybe_unused]] static void apply(const ActionInput& in, ParserState& state) {
+    [[maybe_unused]] [[maybe_unused]] static void apply(const ActionInput& in, ParserState& state) {
         auto* expr = state.add_expression(expr::Operator::None);
         std::stringstream ss(in.string());
         ExpressionType v;
         ss >> v;
-        expr->set_holder_value(v);
+        expr->set_value(v);
         state.push(expr);
     }
 };
@@ -243,9 +244,25 @@ struct action<integer> {
 template <>
 struct action<binary_op> {
     template <typename ActionInput>
-    [[maybe_unused]] static void apply(const ActionInput& in, ParserState& state) {
+    [[maybe_unused]] [[maybe_unused]] static void apply(const ActionInput& in, ParserState& state) {
         auto s = in.string();
         state.push(s);
+    }
+};
+
+template <>
+struct action<open_bracket> {
+    template <typename ActionInput>
+    [[maybe_unused]] static void apply(const ActionInput&, ParserState& state) {
+        state.open();
+    }
+};
+
+template <>
+struct action<close_bracket> {
+    template <typename ActionInput>
+    [[maybe_unused]] static void apply(const ActionInput&, ParserState& state) {
+        state.close();
     }
 };
 
@@ -313,13 +330,22 @@ expr::Symbol* DebugExpression::add_symbol(const std::string& name) {
     if (symbols_str_.find(name) == symbols_str_.end()) {
         symbols_str_.emplace(name);
         expressions_.emplace_back(std::make_unique<expr::Symbol>(name));
-        symbol_values_.emplace(name, 0);
         auto* ptr = reinterpret_cast<expr::Symbol*>(expressions_.back().get());
         symbols_.emplace(name, ptr);
-        ptr->set_value(symbol_values_.at(name));
     }
 
     return symbols_.at(name);
+}
+
+int64_t DebugExpression::eval(const std::unordered_map<std::string, int64_t>& symbol_value) {
+    if (!root_) [[unlikely]]
+        return 0;
+    for (auto const& [name, value] : symbol_value) {
+        if (symbols_.find(name) != symbols_.end()) [[likely]] {
+            symbols_.at(name)->set_value(value);
+        }
+    }
+    return root_->eval();
 }
 
 }  // namespace hgdb

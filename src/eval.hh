@@ -30,21 +30,19 @@ enum class Operator {
 };
 class Expr {
 public:
-    Expr(Operator op) : op(op), value_(holder_value_) {}
-    void set_value(ExpressionType &value) { value_ = value; }
+    Expr(Operator op) : op(op), value_(0) {}
+    void set_value(ExpressionType value) { value_ = value; }
 
     Expr *left = nullptr;
     Expr *right = nullptr;
 
     Operator op = Operator::None;
+    bool bracketed = false;
 
     [[nodiscard]] ExpressionType eval() const;
-    void set_holder_value(ExpressionType value) { holder_value_ = value; }
 
 private:
-    ExpressionType &value_;
-
-    ExpressionType holder_value_;
+    ExpressionType value_;
 };
 
 class Symbol : public Expr {
@@ -64,9 +62,10 @@ public:
     auto find(const std::string &value) const { return symbols_str_.find(value); }
     auto end() const { return symbols_str_.end(); }
     [[nodiscard]] bool empty() const { return symbols_str_.empty(); }
-    int64_t eval(const std::unordered_map<std::string, int64_t> &) { return 0; }
+    int64_t eval(const std::unordered_map<std::string, int64_t> &symbol_value);
     [[nodiscard]] bool correct() const { return correct_ && root_ != nullptr; }
     void set_error() { correct_ = false; }
+    [[nodiscard]] const expr::Expr *root() const { return root_; }
 
     expr::Expr *add_expression(expr::Operator op);
     expr::Symbol *add_symbol(const std::string &name);
@@ -80,7 +79,6 @@ private:
     std::string expression_;
     // only for strings for fast access during evaluation
     std::unordered_set<std::string> symbols_str_;
-    std::unordered_map<std::string, ExpressionType> symbol_values_;
     std::unordered_map<std::string, expr::Symbol *> symbols_;
 
     std::vector<std::unique_ptr<expr::Expr>> expressions_;
