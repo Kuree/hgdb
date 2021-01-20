@@ -2,7 +2,7 @@
 
 #include "../src/db.hh"
 #include "gtest/gtest.h"
-#include "util.hh"
+#include "test_util.hh"
 
 class DBTest : public DBTestHelper {};
 

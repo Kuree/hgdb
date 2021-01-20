@@ -8,7 +8,7 @@
 #include "../src/sim.hh"
 #include "../src/thread.hh"
 #include "gtest/gtest.h"
-#include "util.hh"
+#include "test_util.hh"
 
 uint16_t get_free_port() {
     int fd;

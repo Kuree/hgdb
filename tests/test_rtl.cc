@@ -2,7 +2,7 @@
 
 #include "../src/rtl.hh"
 #include "gtest/gtest.h"
-#include "util.hh"
+#include "test_util.hh"
 
 /*
  * module child_mod;

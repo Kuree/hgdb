@@ -1,7 +1,7 @@
 #include "../src/debug.hh"
 #include "fmt/format.h"
 #include "schema.hh"
-#include "util.hh"
+#include "test_util.hh"
 
 /*
  * module top;

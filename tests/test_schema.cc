@@ -1,6 +1,6 @@
 #include <random>
 
-#include "util.hh"
+#include "test_util.hh"
 
 class SchemaTest : public DBTestHelper {};
 

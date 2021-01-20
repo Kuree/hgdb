@@ -1,5 +1,5 @@
-#ifndef HGDB_UTIL_HH
-#define HGDB_UTIL_HH
+#ifndef HGDB_TEST_UTIL_HH
+#define HGDB_TEST_UTIL_HH
 
 #include <unordered_map>
 
@@ -294,4 +294,4 @@ public:
     const std::string version = "0.1";
 };
 
-#endif  // HGDB_UTIL_HH
+#endif  // HGDB_TEST_UTIL_HH
