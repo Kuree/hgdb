@@ -247,7 +247,7 @@ void Debugger::add_breakpoint(const BreakPoint &bp_info, const BreakPoint &db_bp
     // add them to the eval vector
     std::string cond = "1";
     if (!db_bp.condition.empty()) cond = db_bp.condition;
-    if (!bp_info.condition.empty()) cond.append(" and " + bp_info.condition);
+    if (!bp_info.condition.empty()) cond.append(" && " + bp_info.condition);
     log_info(fmt::format("Breakpoint inserted into {0}:{1}", db_bp.filename, db_bp.line_num));
     std::lock_guard guard(breakpoint_lock_);
     if (inserted_breakpoints_.find(db_bp.id) == inserted_breakpoints_.end()) {

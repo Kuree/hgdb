@@ -95,7 +95,7 @@ def test_kratos_single_instance(find_free_port, simulator):
                 await client.recv()
                 # remove the current breakpoint
                 await client.remove_breakpoint(py_filename, py_line_num)
-                await client.set_breakpoint(py_filename, py_line_num, cond="out == 6 and i == 3")
+                await client.set_breakpoint(py_filename, py_line_num, cond="out == 6 && i == 3")
                 await client.continue_()
                 bp = await client.recv()
                 assert bp["payload"]["instances"][0]["local"]["out"] == "6"
