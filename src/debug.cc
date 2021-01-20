@@ -6,6 +6,7 @@
 
 #include "fmt/format.h"
 #include "log.hh"
+#include "util.hh"
 
 namespace fs = std::filesystem;
 
@@ -531,6 +532,38 @@ void Debugger::handle_path_mapping(const PathMappingRequest &req) {
     }
 }
 
+// templated helpers
+template <typename T>
+bool get_symbol_values(std::unordered_map<std::string, ExpressionType> &values,
+                       const std::unordered_set<std::string> &symbol_names,
+                       const std::string &scope,
+                       const std::vector<std::pair<T, Variable>> &variables,
+                       const std::function<std::optional<int64_t>(const std::string &)> &get_value,
+                       std::string &ec) {
+    for (auto const &[front_var, var] : variables) {
+        if (symbol_names.find(front_var.name) != symbol_names.end()) {
+            auto v = var.is_rtl ? get_value(var.value) : util::stol(var.value);
+            if (!v) {
+                ec = "Unable get value for " + front_var.name;
+                return false;
+            }
+            values.emplace(front_var.name, *v);
+        }
+    }
+    // some values can be under some scope
+    for (auto const &name : symbol_names) {
+        if (values.find(name) != values.end()) continue;
+        // has to be RTL signal
+        auto v = get_value(scope.empty() ? name : fmt::format("{0}.{1}", scope, name));
+        if (!v) {
+            ec = "Unable to get value for " + name;
+            return false;
+        }
+        values.emplace(name, *v);
+    }
+    return true;
+}
+
 // can't seem to simplify the function logic
 // NOLINTNEXTLINE
 void Debugger::handle_evaluation(const EvaluationRequest &req) {
@@ -547,14 +580,16 @@ void Debugger::handle_evaluation(const EvaluationRequest &req) {
         }
         auto const &symbol_names = expr.symbols();
         auto instance = db_->get_instance_id(scope);
+        auto get_value_fn = [this](const std::string &name) { return get_value(name); };
         if (instance) {
             // this is instance scope
             auto generator_values = db_->get_generator_variable(*instance);
-            if (!get_symbol_values(values, symbol_names, scope, generator_values, error_reason)) {
+            if (!get_symbol_values(values, symbol_names, scope, generator_values, get_value_fn,
+                                   error_reason)) {
                 goto send_error;
             }
         } else if (scope.empty()) {
-            if (!get_symbol_values<ContextVariable>(values, symbol_names, scope, {},
+            if (!get_symbol_values<ContextVariable>(values, symbol_names, scope, {}, get_value_fn,
                                                     error_reason)) {
                 goto send_error;
             }
@@ -573,7 +608,7 @@ void Debugger::handle_evaluation(const EvaluationRequest &req) {
             // only have access to the scope values
             auto context_values = db_->get_context_variables(*breakpoint_id);
             if (!get_symbol_values(values, symbol_names, *instance_name, context_values,
-                                   error_reason)) {
+                                   get_value_fn, error_reason)) {
                 goto send_error;
             }
         }
