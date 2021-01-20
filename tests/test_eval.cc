@@ -49,6 +49,12 @@ TEST(expr, expr_parse) {  // NOLINT
     EXPECT_TRUE(debug_expr4.correct());
     expr = debug_expr4.root();
     EXPECT_EQ(expr->op, hgdb::expr::Operator::Eq);
+
+    auto const *expr5 = "(a > 5) <= 1";
+    hgdb::DebugExpression debug_expr5(expr5);
+    EXPECT_TRUE(debug_expr5.correct());
+    expr = debug_expr5.root();
+    EXPECT_EQ(expr->op, hgdb::expr::Operator::LE);
 }
 
 TEST(expr, expr_eval) {  // NOLINT
@@ -103,4 +109,12 @@ TEST(expr, expr_eval) {  // NOLINT
     EXPECT_TRUE(debug_expr8.correct());
     result = debug_expr8.eval({{"a", 1}});
     EXPECT_EQ(result, 1);
+
+    auto const *expr9 = "a < 10 && a > 5";
+    hgdb::DebugExpression debug_expr9(expr9);
+    EXPECT_TRUE(debug_expr9.correct());
+    result = debug_expr9.eval({{"a", 6}});
+    EXPECT_EQ(result, 1);
+    result = debug_expr9.eval({{"a", 4}});
+    EXPECT_EQ(result, 0);
 }

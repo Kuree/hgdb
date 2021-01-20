@@ -45,9 +45,13 @@ struct b_or : one<'|'> {};
 struct xor_ : one<'^'> {};
 struct and_ : two<'&'> {};
 struct or_ : two<'|'> {};
+struct lt : one<'<'> {};
+struct gt : one<'>'> {};
+struct le : seq<one<'<'>, one<'='>> {};
+struct ge : seq<one<'>'>, one<'='>> {};
 
-struct binary_op : sor<multiply, divide, xor_, and_, or_, plus_, minus, mod, eq, neq, b_and, b_or> {
-};
+struct binary_op : sor<multiply, divide, xor_, and_, or_, plus_, minus, mod, eq, neq, b_and, b_or,
+                       le, ge, lt, gt> {};
 struct binary_op_space : pad<binary_op, space> {};
 struct unary_op : sor<not_, flip> {};
 
@@ -72,7 +76,8 @@ public:
             {"/", Operator::Divide}, {"%", Operator::Mod},   {"==", Operator::Eq},
             {"!=", Operator::Neq},   {"!", Operator::Not},   {"~", Operator::Invert},
             {"&&", Operator::And},   {"^", Operator::Xor},   {"||", Operator::Or},
-            {"&", Operator::BAnd},   {"|", Operator::BOr}};
+            {"&", Operator::BAnd},   {"|", Operator::BOr},   {"<", Operator::LT},
+            {">", Operator::GT},     {"<=", Operator::LE},   {">=", Operator::GE}};
         if (op_mapping.find(op_str) != op_mapping.end()) {
             auto op = op_mapping.at(op_str);
             ops_.emplace(op);
@@ -84,7 +89,6 @@ public:
     void push(Expr* expr) { exprs_.emplace(expr); }
 
     Expr* reduce(DebugExpression& debug) {
-        // TODO implement expresion rotation to account for op priority
         if (ops_.empty()) [[unlikely]] {
             if (exprs_.empty()) {
                 return nullptr;
@@ -153,9 +157,11 @@ private:
         // the map is from https://en.cppreference.com/w/c/language/operator_precedence
         static const std::unordered_map<Operator, uint32_t> precedence{
             {Operator::Multiply, 3}, {Operator::Divide, 3}, {Operator::Mod, 3},
-            {Operator::Add, 4},      {Operator::Minus, 4},  {Operator::Eq, 7},
-            {Operator::Neq, 7},      {Operator::BAnd, 8},   {Operator::Xor, 9},
-            {Operator::BOr, 10},     {Operator::And, 11},   {Operator::Or, 12}};
+            {Operator::Add, 4},      {Operator::Minus, 4},  {Operator::LT, 6},
+            {Operator::GT, 6},       {Operator::LE, 6},     {Operator::GE, 6},
+            {Operator::Eq, 7},       {Operator::Neq, 7},    {Operator::BAnd, 8},
+            {Operator::Xor, 9},      {Operator::BOr, 10},   {Operator::And, 11},
+            {Operator::Or, 12}};
         Expr* node = expr;
         while (true) {
             auto* next = node->left;
@@ -338,6 +344,14 @@ ExpressionType Expr::eval() const {
             return left->eval() & right->eval();
         case Operator::BOr:
             return left->eval() | right->eval();
+        case Operator::LT:
+            return left->eval() < right->eval();
+        case Operator::GT:
+            return left->eval() > right->eval();
+        case Operator::LE:
+            return left->eval() <= right->eval();
+        case Operator::GE:
+            return left->eval() >= right->eval();
     }
     return 0;
 }

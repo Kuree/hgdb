@@ -26,7 +26,11 @@ enum class Operator {
     Xor,
     Or,
     BAnd,
-    BOr
+    BOr,
+    LT,
+    GT,
+    LE,
+    GE
 };
 class Expr {
 public:
