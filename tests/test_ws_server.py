@@ -10,7 +10,7 @@ import websockets
 
 def test_echo(start_server, find_free_port):
     port = find_free_port()
-    s = start_server(port, "test_ws_server")
+    s = start_server(port, "test_ws_server", wait=0.05)
 
     async def send_msg():
         uri = "ws://localhost:{0}".format(port)
@@ -29,7 +29,7 @@ def test_echo(start_server, find_free_port):
 
 def test_shutdown(start_server, find_free_port):
     port = find_free_port()
-    s = start_server(port, "test_ws_server")
+    s = start_server(port, "test_ws_server", wait=0.05)
 
     async def send_msg():
         uri = "ws://localhost:{0}".format(port)

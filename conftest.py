@@ -1,12 +1,13 @@
 import pytest
 import os
 import subprocess
+import sys
 import time
 import socket
 from contextlib import closing
 
 
-def start_server_fn(port_num, program_name, args=None, gdbserver_port=None):
+def start_server_fn(port_num, program_name, args=None, gdbserver_port=None, stdout=True, wait=0):
     root = os.path.dirname(os.path.realpath(__file__))
     # find build folder
     dirs = [d for d in os.listdir(root) if os.path.isdir(d) and "build" in d]
@@ -21,9 +22,8 @@ def start_server_fn(port_num, program_name, args=None, gdbserver_port=None):
     args = [server_path] + args
     if gdbserver_port is not None:
         args = ["gdbserver", "localhost:{0}".format(gdbserver_port)] + args
-    p = subprocess.Popen(args, stdout=subprocess.PIPE)
-    # sleep a little bit so that the server will setup properly
-    time.sleep(0.05)
+    p = subprocess.Popen(args, stdout=sys.stdout if stdout else subprocess.PIPE)
+    time.sleep(wait)
     return p
 
 

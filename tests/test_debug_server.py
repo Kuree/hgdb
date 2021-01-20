@@ -27,7 +27,7 @@ def is_killed(s):
 
 def test_continue_stop(start_server, find_free_port):
     port = find_free_port()
-    s = start_server(port, "test_debug_server", ["+DEBUG_LOG", "+NO_EVAL"])
+    s = start_server(port, "test_debug_server", ["+DEBUG_LOG", "+NO_EVAL"], stdout=False)
     assert s.poll() is None
     uri = "ws://localhost:{0}".format(port)
 
