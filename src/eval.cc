@@ -114,12 +114,73 @@ public:
             }
         }
         auto* root = exprs_.top();
+        fix_precedence(root);
         return root;
     }
 
 private:
     std::stack<Operator> ops_;
     std::stack<Expr*> exprs_;
+
+    static void fix_precedence(Expr* expr) {
+        // the map is from https://en.cppreference.com/w/c/language/operator_precedence
+        static const std::unordered_map<Operator, uint32_t> precedence{
+            {Operator::Multiply, 3}, {Operator::Divide, 3}, {Operator::Mod, 3},
+            {Operator::Add, 4},      {Operator::Minus, 4},  {Operator::Eq, 7},
+            {Operator::Neq, 7},      {Operator::BAnd, 8},   {Operator::Xor, 9},
+            {Operator::BOr, 10},     {Operator::And, 11},   {Operator::Or, 12}};
+        Expr* node = expr;
+        while (true) {
+            auto* next = node->right;
+            if (!next) break;
+            auto current_op = node->op;
+            auto next_op = next->op;
+            // if both ops exist in the map and we have low precedence before high precedence
+            // do a tree rotation
+            if (precedence.find(current_op) != precedence.end() &&
+                precedence.find(next_op) != precedence.end() &&
+                precedence.at(current_op) < precedence.at(next_op)) {
+                /*
+                 * before:
+                 *     \
+                 *      A
+                 *     / \
+                 *    B   C
+                 *       / \
+                 *      D   E
+                 *
+                 * after
+                 *      \
+                 *       C
+                 *      / \
+                 *     A   E
+                 *    / \
+                 *   B   D
+                 */
+                // We do everything in place
+                // first swap op
+                auto temp_op = next_op;
+                next->op = node->op;
+                node->op = temp_op;
+
+                auto* b = node->left;
+                auto* d = next->left;
+                auto* e = next->right;
+
+                // node is C now
+                // and next is A
+                auto* c = node;
+                auto* a = next;
+                c->left = a;
+                c->right = e;
+                a->left = b;
+                a->right = d;
+            }
+
+            // scan the next expression node
+            node = next;
+        }
+    }
 };
 
 class ParserState {
