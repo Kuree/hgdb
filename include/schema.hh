@@ -227,6 +227,13 @@ struct GeneratorVariable {
      * Variable ID associated with the generator variable
      */
     std::unique_ptr<uint32_t> variable_id;
+    /**
+     * Annotation on the generator variable. Useful if the compiler wants to pass information
+     * to other tools that consuming the information. Leave it as an empty string if not used.
+     * hgdb will not read/use this field, so how this annotation is formatted depends on the
+     * agreement between the compiler and tools that consume this information
+     */
+    std::string annotation;
 };
 
 /**
@@ -278,6 +285,7 @@ auto inline init_debug_db(const std::string &filename) {
         make_table("generator_variable", make_column("name", &GeneratorVariable::name),
                    make_column("instance_id", &GeneratorVariable::instance_id),
                    make_column("variable_id", &GeneratorVariable::variable_id),
+                   make_column("annotation", &GeneratorVariable::annotation),
                    foreign_key(&GeneratorVariable::instance_id).references(&Instance::id),
                    foreign_key(&GeneratorVariable::variable_id).references(&Variable::id)),
         make_table("annotation", make_column("name", &Annotation::name),
@@ -342,10 +350,12 @@ inline void store_context_variable(DebugDatabase &db, const std::string &name,
 }
 
 inline void store_generator_variable(DebugDatabase &db, const std::string &name,
-                                     uint32_t instance_id, uint32_t variable_id) {
+                                     uint32_t instance_id, uint32_t variable_id,
+                                     const std::string &annotation = "") {
     db.replace(GeneratorVariable{.name = name,
                                  .instance_id = std::make_unique<uint32_t>(instance_id),
-                                 .variable_id = std::make_unique<uint32_t>(variable_id)});
+                                 .variable_id = std::make_unique<uint32_t>(variable_id),
+                                 .annotation = annotation});
     // NOLINTNEXTLINE
 }
 

@@ -37,12 +37,12 @@ class DebugSymbolTable:
             raise DebugSymbolTableException(f"Variable {variable_id} does not exist!")
         _hgdb.store_context_variable(self.db, name, breakpoint_id, variable_id)
 
-    def store_generator_variable(self, name: str, instance_id: int, variable_id: int):
+    def store_generator_variable(self, name: str, instance_id: int, variable_id: int, annotation: str = ""):
         if not self.has_instance_id(instance_id):
             raise DebugSymbolTableException(f"Instance {instance_id} does not exist!")
         if not self.has_variable_id(variable_id):
             raise DebugSymbolTableException(f"Variable {variable_id} does not exist!")
-        _hgdb.store_generator_variable(self.db, name, instance_id, variable_id)
+        _hgdb.store_generator_variable(self.db, name, instance_id, variable_id, annotation)
 
     # checkers
     def has_instance_id(self, id_):
