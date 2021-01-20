@@ -90,6 +90,7 @@ public:
                 return nullptr;
             }
         }
+        Expr* root = nullptr;
         while (!ops_.empty()) {
             auto op = ops_.top();
             ops_.pop();
@@ -99,21 +100,38 @@ public:
                 auto* exp = exprs_.top();
                 exprs_.pop();
                 auto* expr = debug.add_expression(op);
-                expr->left = exp;
+                expr->unary = exp;
                 exprs_.emplace(expr);
             } else {
-                auto* right = exprs_.top();
-                exprs_.pop();
-                auto* left = exprs_.top();
-                exprs_.pop();
                 auto* expr = debug.add_expression(op);
-                expr->left = left;
-                expr->right = right;
+                if (!root) {
+                    auto* right = exprs_.top();
+                    exprs_.pop();
+                    auto* left = exprs_.top();
+                    exprs_.pop();
+
+                    expr->left = left;
+                    expr->right = right;
+                } else {
+                    auto* top = exprs_.top();
+                    exprs_.pop();
+                    auto* leaf = top->left;
+                    auto* left = exprs_.top();
+                    exprs_.pop();
+
+                    top->left = expr;
+                    expr->right = leaf;
+                    expr->left = left;
+                }
+
                 // put it back in
                 exprs_.emplace(expr);
             }
+            if (!root) {
+                root = exprs_.top();
+            }
         }
-        auto* root = exprs_.top();
+        if (!root) root = exprs_.top();
         fix_precedence(root);
         return root;
     }
@@ -131,7 +149,7 @@ private:
             {Operator::BOr, 10},     {Operator::And, 11},   {Operator::Or, 12}};
         Expr* node = expr;
         while (true) {
-            auto* next = node->right;
+            auto* next = node->left;
             if (!next) break;
             auto current_op = node->op;
             auto next_op = next->op;
@@ -141,21 +159,14 @@ private:
                 precedence.find(next_op) != precedence.end() &&
                 precedence.at(current_op) < precedence.at(next_op) && !next->bracketed) {
                 /*
-                 * before:
-                 *     \
-                 *      A
-                 *     / \
-                 *    B   C
-                 *       / \
-                 *      D   E
+                 * before:                   after:
+                 *        /                             /
+                 *       A                             B
+                 *      / \                           / \
+                 *     B   C                         D   A
+                 *    / \                               / \
+                 *   D   E                             E   C
                  *
-                 * after
-                 *      \
-                 *       C
-                 *      / \
-                 *     A   E
-                 *    / \
-                 *   B   D
                  */
                 // We do everything in place
                 // first swap op
@@ -163,18 +174,17 @@ private:
                 next->op = node->op;
                 node->op = temp_op;
 
-                auto* b = node->left;
+                auto* c = node->right;
                 auto* d = next->left;
                 auto* e = next->right;
-
-                // node is C now
+                // node is B now
                 // and next is A
-                auto* c = node;
-                auto* a = next;
-                c->left = a;
-                c->right = e;
-                a->left = b;
-                a->right = d;
+                node->left = d;
+                next->left = e;
+                next->right = c;
+                node->right = next;
+
+                next = d;
             }
 
             // scan the next expression node
@@ -246,7 +256,6 @@ struct action<binary_op> {
     template <typename ActionInput>
     [[maybe_unused]] [[maybe_unused]] static void apply(const ActionInput& in, ParserState& state) {
         auto s = in.string();
-        printf("%s\n", s.c_str());
         state.push(s);
     }
 };
@@ -298,9 +307,9 @@ ExpressionType Expr::eval() const {
         case Operator::Neq:
             return left->eval() != right->eval();
         case Operator::Not:
-            return !left->eval();
+            return !unary->eval();
         case Operator::Invert:
-            return ~left->eval();
+            return ~unary->eval();
         case Operator::And:
             return left->eval() && right->eval();
         case Operator::Xor:

@@ -35,6 +35,7 @@ public:
 
     Expr *left = nullptr;
     Expr *right = nullptr;
+    Expr *unary = nullptr;
 
     Operator op = Operator::None;
     bool bracketed = false;
