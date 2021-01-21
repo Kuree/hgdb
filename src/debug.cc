@@ -83,21 +83,31 @@ void Debugger::eval() {
         if (bps.empty()) break;
         std::vector<bool> hits(bps.size());
         std::fill(hits.begin(), hits.end(), false);
-        // multi-threading for the win
-        std::vector<std::thread> threads;
-        threads.reserve(bps.size());
-        for (auto i = 0u; i < bps.size(); i++) {
-            auto *bp = bps[i];
-            // lock-free map
-            threads.emplace_back(
-                std::thread([bp, i, &hits, this]() { this->eval_breakpoint(bp, hits, i); }));
+        // to avoid multithreading overhead, only if there is more than 1 breakpoint
+        if (bps.size() > 1) {
+            // multi-threading for the win
+            std::vector<std::thread> threads;
+            threads.reserve(bps.size());
+            for (auto i = 0u; i < bps.size(); i++) {
+                auto *bp = bps[i];
+                // lock-free map
+                threads.emplace_back(
+                    std::thread([bp, i, &hits, this]() { this->eval_breakpoint(bp, hits, i); }));
+            }
+            for (auto &t : threads) t.join();
+
+        } else {
+            // directly evaluate it in the current thread to avoid creating threads
+            // overhead
+            this->eval_breakpoint(bps[0], hits, 0);
         }
-        for (auto &t : threads) t.join();
+
         std::vector<const DebugBreakPoint *> result;
         result.reserve(bps.size());
         for (auto i = 0u; i < bps.size(); i++) {
             if (hits[i]) result.emplace_back(bps[i]);
         }
+
         if (!result.empty()) {
             // send the breakpoint hit information
             send_breakpoint_hit(result);
@@ -805,28 +815,35 @@ std::vector<Debugger::DebugBreakPoint *> Debugger::next_normal_breakpoints() {
             return {};
         }
     }
-    // once we have a hit index, scanning down the list to see if we have more
-    // hits if it shares the same fn/ln/cn tuple
-    // matching criteria:
-    // - same enable condition
-    // - different
-    auto const &ref_bp = breakpoints_[index];
-    auto const &target_expr = ref_bp.enable_expr->expression();
+
     std::vector<Debugger::DebugBreakPoint *> result{&breakpoints_[index]};
-    for (uint64_t i = index + 1; i < breakpoints_.size(); i++) {
-        auto &next_bp = breakpoints_[i];
-        // if fn/ln/cn tuple doesn't match, stop
-        // reorder the comparison in a way that exploits short circuit
-        if (next_bp.line_num != ref_bp.line_num || next_bp.filename != ref_bp.filename ||
-            next_bp.column_num != ref_bp.column_num) {
-            break;
-        }
-        // same enable expression but different instance id
-        if (next_bp.instance_id != ref_bp.instance_id &&
-            next_bp.enable_expr->expression() == target_expr) {
-            result.emplace_back(&next_bp);
+
+    // by default we generates as many breakpoints as possible to evaluate
+    // this can be turned of by client's request (changed via option-change request)
+    if (!single_thread_mode_) {
+        // once we have a hit index, scanning down the list to see if we have more
+        // hits if it shares the same fn/ln/cn tuple
+        // matching criteria:
+        // - same enable condition
+        // - different instance id
+        auto const &ref_bp = breakpoints_[index];
+        auto const &target_expr = ref_bp.enable_expr->expression();
+        for (uint64_t i = index + 1; i < breakpoints_.size(); i++) {
+            auto &next_bp = breakpoints_[i];
+            // if fn/ln/cn tuple doesn't match, stop
+            // reorder the comparison in a way that exploits short circuit
+            if (next_bp.line_num != ref_bp.line_num || next_bp.filename != ref_bp.filename ||
+                next_bp.column_num != ref_bp.column_num) {
+                break;
+            }
+            // same enable expression but different instance id
+            if (next_bp.instance_id != ref_bp.instance_id &&
+                next_bp.enable_expr->expression() == target_expr) {
+                result.emplace_back(&next_bp);
+            }
         }
     }
+
     // the first will be current breakpoint id since we might skip some of them
     // in the middle
     current_breakpoint_id_ = result.front()->id;
