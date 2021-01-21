@@ -53,3 +53,7 @@ class DebugSymbolTable:
 
     def has_variable_id(self, id_):
         return _hgdb.has_variable_id(self.db, id_)
+
+    # get other information
+    def get_filenames(self):
+        return _hgdb.get_filenames(self.db)
