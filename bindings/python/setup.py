@@ -74,14 +74,7 @@ class CMakeBuild(build_ext):
                 ]
                 build_args += ["--config", cfg]
 
-        # Set CMAKE_BUILD_PARALLEL_LEVEL to control the parallel build level
-        # across all generators.
-        if "CMAKE_BUILD_PARALLEL_LEVEL" not in os.environ:
-            # self.parallel is a Python 3 only way to set parallel jobs by hand
-            # using -j in the build_ext call, not supported by pip or PyPA-build.
-            if hasattr(self, "parallel") and self.parallel:
-                # CMake 3.12+ only.
-                build_args += ["-j{}".format(self.parallel)]
+        build_args += ["-j2"]
 
         if not os.path.exists(self.build_temp):
             os.makedirs(self.build_temp)
@@ -97,10 +90,13 @@ class CMakeBuild(build_ext):
 current_directory = os.path.abspath(os.path.dirname(__file__))
 with open(os.path.join(current_directory, 'README.rst')) as f:
     long_description = f.read()
+root = os.path.dirname(os.path.dirname(current_directory))
+with open(os.path.join(root, "VERSION")) as f:
+    version = f.read().strip()
 
 setup(
     name='hgdb',
-    version='0.0.1',
+    version=version,
     author='Keyi Zhang',
     author_email='keyi@cs.stanford.edu',
     long_description=long_description,
