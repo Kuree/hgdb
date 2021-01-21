@@ -398,6 +398,7 @@ std::string DebuggerInformationResponse::str(bool pretty_print) const {
                 array.PushBack(entry, allocator);
             }
             set_member(payload, allocator, "breakpoints", array);
+            break;
         }
         case DebuggerInformationRequest::CommandType::options: {
             Value v(kObjectType);
@@ -412,9 +413,11 @@ std::string DebuggerInformationResponse::str(bool pretty_print) const {
                 }
             }
             set_member(payload, allocator, "options", v);
+            break;
         }
         case DebuggerInformationRequest::CommandType::status: {
             set_member(payload, allocator, "status", status_str_);
+            break;
         }
     }
 
