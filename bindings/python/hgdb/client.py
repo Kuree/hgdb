@@ -13,10 +13,13 @@ class HGDBClient:
         self.src_mapping = src_mapping
 
     async def recv(self, timeout=0):
-        if timeout == 0:
-            return json.loads(await self.ws.recv())
-        else:
-            return json.loads(await asyncio.wait_for(self.ws.recv(), timeout))
+        try:
+            if timeout == 0:
+                return json.loads(await self.ws.recv())
+            else:
+                return json.loads(await asyncio.wait_for(self.ws.recv(), timeout))
+        except (asyncio.exceptions.IncompleteReadError, websockets.exceptions.ConnectionClosedError):
+            return None
 
     async def send(self, payload):
         await self.ws.send(json.dumps(payload))

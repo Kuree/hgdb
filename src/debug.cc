@@ -516,7 +516,8 @@ void Debugger::handle_debug_info(const DebuggerInformationRequest &req) {
                     auto bp_id = bp.id;
                     auto bp_info = db_->get_breakpoint(bp_id);
                     if (bp_info) {
-                        bps.emplace_back(BreakPoint{.filename = bp_info->filename,
+                        bps.emplace_back(BreakPoint{.id = bp_info->id,
+                                                    .filename = bp_info->filename,
                                                     .line_num = bp_info->line_num,
                                                     .column_num = bp_info->column_num});
                         bps_.emplace_back(&bps.back());

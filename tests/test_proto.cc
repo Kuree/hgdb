@@ -339,7 +339,7 @@ TEST(proto, breakpoint_response) {  // NOLINT
 }
 
 TEST(proto, debugger_info_response_breakpoint) {  // NOLINT
-    auto bp = hgdb::BreakPoint{.filename = "/tmp/a", .line_num = 1, .column_num = 1};
+    auto bp = hgdb::BreakPoint{.id=42, .filename = "/tmp/a", .line_num = 1, .column_num = 1};
     std::vector<hgdb::BreakPoint *> bps = {&bp};
     auto res = hgdb::DebuggerInformationResponse(bps);
     auto s = res.str(true);
@@ -351,6 +351,7 @@ TEST(proto, debugger_info_response_breakpoint) {  // NOLINT
         "command": "breakpoints",
         "breakpoints": [
             {
+                "id": 42,
                 "filename": "/tmp/a",
                 "line_num": 1,
                 "column_num": 1

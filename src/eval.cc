@@ -303,7 +303,12 @@ struct action<close_bracket> {
 Expr* parse(const std::string& value, DebugExpression& debug_expression) {
     tao::pegtl::memory_input in(value, "");
     ParserState state(debug_expression);
-    auto r = tao::pegtl::parse<grammar, action>(in, state);
+    bool r = false;
+    try {
+        r = tao::pegtl::parse<grammar, action>(in, state);
+    } catch (tao::pegtl::parse_error&) {
+        // maybe disable exceptions in the compiler?
+    }
     if (!r) {
         debug_expression.set_error();
         return nullptr;

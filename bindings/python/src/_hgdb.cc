@@ -1,4 +1,5 @@
 #include <pybind11/pybind11.h>
+#include <pybind11/stl.h>
 
 #include "schema.hh"
 
@@ -49,5 +50,6 @@ PYBIND11_MODULE(_hgdb, m) {
         for (auto const &bp: breakpoints) {
             filenames.emplace(bp.filename);
         }
+        return filenames;
     });
 }

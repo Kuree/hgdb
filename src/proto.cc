@@ -387,6 +387,7 @@ std::string DebuggerInformationResponse::str(bool pretty_print) const {
         Value array(kArrayType);
         for (auto *bp : bps_) {
             Value entry(kObjectType);
+            set_member(entry, allocator, "id", bp->id);
             set_member(entry, allocator, "filename", bp->filename);
             set_member(entry, allocator, "line_num", bp->line_num);
             set_member(entry, allocator, "column_num", bp->column_num);
