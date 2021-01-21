@@ -40,3 +40,9 @@ env
 
 # Simulator files
 xrun*
+
+# some python build dirs
+wheelhouse
+wheels
+dist
+*.egg-info
