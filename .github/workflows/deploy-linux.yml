@@ -1,12 +1,14 @@
 name: Deployment Linux
 
-on: [push]
+on:
+  push:
+    tags:
+      - '*'
 
 jobs:
   build:
 
     runs-on: ubuntu-latest
-    if: "!contains(github.event.head_commit.message, 'skip ci')"
 
     steps:
     - uses: actions/checkout@v2
@@ -30,3 +32,10 @@ jobs:
       with:
         name: Python Wheels
         path: wheelhouse
+    - name: Publish distribution 📦 to PyPI
+      uses: pypa/gh-action-pypi-publish@master
+      with:
+        user: keyi
+        password: ${{ secrets.PYPI_PASSWORD }}
+        skip_existing: true
+        packages_dir: wheelhouse/
