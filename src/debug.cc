@@ -539,9 +539,19 @@ void Debugger::handle_debug_info(const DebuggerInformationRequest &req) {
             send_message(resp.str(log_enabled_));
             return;
         }
-        default: {
-            auto resp = GenericResponse(status_code::error, req, "Unknown debugger info command");
+        case DebuggerInformationRequest::CommandType::status: {
+            // race conditions?
+            std::stringstream ss;
+            ss << "Simulator: " << rtl_->get_simulator_name() << " "
+               << rtl_->get_simulator_version() << std::endl;
+            ss << "Command line arguments: ";
+            auto const &argv = rtl_->get_argv();
+            ss << util::join(argv.begin(), argv.end(), " ") << std::endl;
+            ss << "Simulation paused: " << (is_running_.load() ? "true" : "false") << std::endl;
+            auto resp = DebuggerInformationResponse(ss.str());
+            req.set_token(resp);
             send_message(resp.str(log_enabled_));
+            return;
         }
     }
 }

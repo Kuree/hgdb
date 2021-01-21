@@ -339,7 +339,7 @@ TEST(proto, breakpoint_response) {  // NOLINT
 }
 
 TEST(proto, debugger_info_response_breakpoint) {  // NOLINT
-    auto bp = hgdb::BreakPoint{.id=42, .filename = "/tmp/a", .line_num = 1, .column_num = 1};
+    auto bp = hgdb::BreakPoint{.id = 42, .filename = "/tmp/a", .line_num = 1, .column_num = 1};
     std::vector<hgdb::BreakPoint *> bps = {&bp};
     auto res = hgdb::DebuggerInformationResponse(bps);
     auto s = res.str(true);
@@ -377,6 +377,21 @@ TEST(proto, debugger_info_response_options) {  // NOLINT
             "b": 1,
             "c": "d"
         }
+    }
+})";
+    EXPECT_EQ(s, expected_value);
+}
+
+TEST(proto, debugger_info_response_status) {  // NOLINT
+    auto res = hgdb::DebuggerInformationResponse("With great power comes great responsibility");
+    auto s = res.str(true);
+    constexpr auto expected_value = R"({
+    "request": false,
+    "type": "debugger-info",
+    "status": "success",
+    "payload": {
+        "command": "status",
+        "status": "With great power comes great responsibility"
     }
 })";
     EXPECT_EQ(s, expected_value);

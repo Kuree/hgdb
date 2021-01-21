@@ -80,6 +80,13 @@ protected:
     std::unique_ptr<hgdb::RTLSimulatorClient> client;
 };
 
+TEST_F(RTLModuleTest, get_sim_info) {  // NOLINT
+    auto const &name = client->get_simulator_name();
+    auto const &version = client->get_simulator_version();
+    EXPECT_EQ(name, MockVPIProvider::product);
+    EXPECT_EQ(version, MockVPIProvider::version);
+}
+
 TEST_F(RTLModuleTest, get_full_name) {  // NOLINT
     auto name = client->get_full_name("parent_mod");
     EXPECT_EQ(name, "top.dut");
@@ -215,7 +222,7 @@ TEST_F(RTLModuleTest, test_cb_value_change) {  // NOLINT
     EXPECT_EQ(value2, 42);
 }
 
-TEST_F(RTLModuleTest, test_array_access) {   // NOLINT
+TEST_F(RTLModuleTest, test_array_access) {  // NOLINT
     auto *handle1 = client->get_handle("parent_mod.inst1.array.0");
     auto *handle2 = client->get_handle("parent_mod.inst1.array[0]");
     EXPECT_NE(handle1, nullptr);

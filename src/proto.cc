@@ -368,6 +368,10 @@ void BreakPointResponse::Scope::add_generator_value(const std::string &name,
 DebuggerInformationResponse::DebuggerInformationResponse(std::vector<BreakPoint *> bps)
     : command_type_(DebuggerInformationRequest::CommandType::breakpoints), bps_(std::move(bps)) {}
 
+DebuggerInformationResponse::DebuggerInformationResponse(std::string status)
+    : command_type_(DebuggerInformationRequest::CommandType::status),
+      status_str_(std::move(status)) {}
+
 DebuggerInformationResponse::DebuggerInformationResponse(std::map<std::string, std::string> options)
     : command_type_(DebuggerInformationRequest::CommandType::options),
       options_(std::move(options)) {}
@@ -382,31 +386,36 @@ std::string DebuggerInformationResponse::str(bool pretty_print) const {
     Value payload(kObjectType);
     set_member(payload, allocator, "command", get_command_str());
 
-    // TODO: once the feature is fully implemented, change it to a switch statement
-    if (command_type_ == DebuggerInformationRequest::CommandType::breakpoints) {
-        Value array(kArrayType);
-        for (auto *bp : bps_) {
-            Value entry(kObjectType);
-            set_member(entry, allocator, "id", bp->id);
-            set_member(entry, allocator, "filename", bp->filename);
-            set_member(entry, allocator, "line_num", bp->line_num);
-            set_member(entry, allocator, "column_num", bp->column_num);
-            array.PushBack(entry, allocator);
-        }
-        set_member(payload, allocator, "breakpoints", array);
-    } else if (command_type_ == DebuggerInformationRequest::CommandType::options) {
-        Value v(kObjectType);
-        for (auto const &[key, value] : options_) {
-            if (value == "true" || value == "false") {
-                set_member(v, allocator, key.c_str(), value == "true");
-            } else if (std::all_of(value.begin(), value.end(), isdigit)) {
-                int64_t i = std::stoll(value);
-                set_member(v, allocator, key.c_str(), i);
-            } else {
-                set_member(v, allocator, key.c_str(), value);
+    switch (command_type_) {
+        case DebuggerInformationRequest::CommandType::breakpoints: {
+            Value array(kArrayType);
+            for (auto *bp : bps_) {
+                Value entry(kObjectType);
+                set_member(entry, allocator, "id", bp->id);
+                set_member(entry, allocator, "filename", bp->filename);
+                set_member(entry, allocator, "line_num", bp->line_num);
+                set_member(entry, allocator, "column_num", bp->column_num);
+                array.PushBack(entry, allocator);
             }
+            set_member(payload, allocator, "breakpoints", array);
         }
-        set_member(payload, allocator, "options", v);
+        case DebuggerInformationRequest::CommandType::options: {
+            Value v(kObjectType);
+            for (auto const &[key, value] : options_) {
+                if (value == "true" || value == "false") {
+                    set_member(v, allocator, key.c_str(), value == "true");
+                } else if (std::all_of(value.begin(), value.end(), isdigit)) {
+                    int64_t i = std::stoll(value);
+                    set_member(v, allocator, key.c_str(), i);
+                } else {
+                    set_member(v, allocator, key.c_str(), value);
+                }
+            }
+            set_member(payload, allocator, "options", v);
+        }
+        case DebuggerInformationRequest::CommandType::status: {
+            set_member(payload, allocator, "status", status_str_);
+        }
     }
 
     set_member(document, "payload", payload);

@@ -262,6 +262,11 @@ const std::string &RTLSimulatorClient::get_simulator_name() {
     return sim_info_->name;
 }
 
+const std::string &RTLSimulatorClient::get_simulator_version() {
+    get_simulator_info();
+    return sim_info_->version;
+}
+
 uint64_t RTLSimulatorClient::get_simulation_time() const {
     // we use sim time
     s_vpi_time current_time{};
@@ -376,6 +381,7 @@ void RTLSimulatorClient::get_simulator_info() {
         if (vpi_->vpi_get_vlog_info(&info)) {
             SimulatorInfo sim_info;
             sim_info.name = info.product;
+            sim_info.version = info.version;
             sim_info.args.reserve(info.argc);
             for (int i = 0; i < info.argc; i++) {
                 std::string argv = info.argv[i];

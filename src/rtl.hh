@@ -71,6 +71,7 @@ public:
     [[nodiscard]] std::string get_full_name(const std::string &name) const;
     [[nodiscard]] const std::vector<std::string> &get_argv();
     [[nodiscard]] const std::string &get_simulator_name();
+    [[nodiscard]] const std::string &get_simulator_version();
     [[nodiscard]] uint64_t get_simulation_time() const;
     // can't use std::function due to C interface
     vpiHandle add_call_back(const std::string &cb_name, int cb_type, int(cb_func)(p_cb_data),
@@ -115,6 +116,7 @@ private:
     // simulator info
     struct SimulatorInfo {
         std::string name;
+        std::string version;
         std::vector<std::string> args;
     };
     std::optional<SimulatorInfo> sim_info_;

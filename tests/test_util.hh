@@ -130,8 +130,8 @@ public:
     PLI_INT32 vpi_get_vlog_info(p_vpi_vlog_info vlog_info_p) override {
         vlog_info_p->argc = static_cast<int>(argv_.size());
         vlog_info_p->argv = argv_.data();
-        vlog_info_p->product = const_cast<char *>(product.c_str());
-        vlog_info_p->version = const_cast<char *>(version.c_str());
+        vlog_info_p->product = const_cast<char *>(product);
+        vlog_info_p->version = const_cast<char *>(version);
         return 1;
     }
 
@@ -290,8 +290,8 @@ private:
     vpiHandle top_ = nullptr;
 
 public:
-    const std::string product = "RTLMock";
-    const std::string version = "0.1";
+    constexpr static auto product = "RTLMock";
+    constexpr static auto version = "0.1";
 };
 
 #endif  // HGDB_TEST_UTIL_HH

@@ -250,6 +250,7 @@ private:
 
 class DebuggerInformationResponse : public Response {
 public:
+    explicit DebuggerInformationResponse(std::string status);
     explicit DebuggerInformationResponse(std::vector<BreakPoint *> bps);
     explicit DebuggerInformationResponse(std::map<std::string, std::string> options);
     [[nodiscard]] std::string str(bool pretty_print) const override;
@@ -259,6 +260,7 @@ public:
 
 private:
     DebuggerInformationRequest::CommandType command_type_;
+    std::string status_str_;
     std::vector<BreakPoint *> bps_;
     std::map<std::string, std::string> options_;
     [[nodiscard]] std::string get_command_str() const;
