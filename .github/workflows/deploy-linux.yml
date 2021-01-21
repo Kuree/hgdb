@@ -1,13 +1,11 @@
-name: Deployment MacOS
+name: Deployment Linux
 
 on: [push]
 
 jobs:
   build:
-    strategy:
-      matrix:
-        python-version: [ 3.6, 3.7, 3.8 ]
-    runs-on: macos-latest
+
+    runs-on: ubuntu-latest
     if: "!contains(github.event.head_commit.message, 'skip ci')"
 
     steps:
@@ -18,13 +16,17 @@ jobs:
         auth_header="$(git config --local --get http.https://github.com/.extraheader)"
         git submodule sync --recursive
         git -c "http.extraheader=$auth_header" -c protocol.version=2 submodule update --init --force --recursive --depth=1
-    - name: Setup Python environment 🐍
-      uses: actions/setup-python@v2
-      with:
-        python-version: ${{ matrix.python-version }}
-    - name: Build Python wheel 🎡
+    - name: Build libhgdb 🎡
       shell: bash
-      run: |
-        pip3 install wheel
-        cd bindings/python
-        python3 setup.py bdist_wheel
+      run: bash scripts/deploy.sh
+    - name: Build Python hgdb 🎡
+      shell: bash
+      run: bash bindings/python/scripts/deploy.sh
+    - name: Copy wheels to the same place 📋
+      shell: bash
+      run: sudo cp bindings/python/wheelhouse/* wheelhouse/
+    - name: Upload artifact 🛖
+      uses: actions/upload-artifact@v2
+      with:
+        name: Python Wheels
+        path: wheelhouse
