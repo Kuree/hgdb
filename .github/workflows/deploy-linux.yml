@@ -1,11 +1,13 @@
-name: CI Test
+name: Deployment MacOS
 
-on: [push, pull_request]
+on: [push]
 
 jobs:
   build:
-
-    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: [ 3.6, 3.7, 3.8 ]
+    runs-on: macos-latest
     if: "!contains(github.event.head_commit.message, 'skip ci')"
 
     steps:
@@ -16,11 +18,13 @@ jobs:
         auth_header="$(git config --local --get http.https://github.com/.extraheader)"
         git submodule sync --recursive
         git -c "http.extraheader=$auth_header" -c protocol.version=2 submodule update --init --force --recursive --depth=1
-    - name: Run tests ⚙️
-      shell: bash
-      run: bash scripts/ci.sh
-    - name: Upload debug build
-      uses: actions/upload-artifact@v2
+    - name: Setup Python environment 🐍
+      uses: actions/setup-python@v2
       with:
-        name: libhgdb
-        path: build/src/libhgdb.so
+        python-version: ${{ matrix.python-version }}
+    - name: Build Python wheel 🎡
+      shell: bash
+      run: |
+        pip3 install wheel
+        cd bindings/python
+        python3 setup.py bdist_wheel
