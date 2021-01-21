@@ -165,7 +165,7 @@ vpiHandle RTLSimulatorClient::get_handle(const std::vector<std::string> &tokens)
                 }
             }
             if (ptr) {
-                auto type = vpi_->vpi_get(vpiType, ptr);
+                auto type = get_vpi_type(ptr);
                 if (type != vpiModule) {
                     // best effort
                     // notice that we only support array indexing, since struct
@@ -195,7 +195,11 @@ vpiHandle RTLSimulatorClient::access_arrays(StringIterator begin, StringIterator
 }
 
 std::optional<int64_t> RTLSimulatorClient::get_value(vpiHandle handle) {
-    if (!handle) {
+    if (!handle) [[unlikely]] {
+        return std::nullopt;
+    }
+    auto type = get_vpi_type(handle);
+    if (type == vpiModule) [[unlikely]] {
         return std::nullopt;
     }
     s_vpi_value v;
@@ -218,7 +222,7 @@ std::unordered_map<std::string, vpiHandle> RTLSimulatorClient::get_module_signal
     auto *module_handle = get_handle(name);
     if (!module_handle) return {};
     // need to make sure it is module type
-    auto module_handle_type = vpi_->vpi_get(vpiType, module_handle);
+    auto module_handle_type = get_vpi_type(module_handle);
     if (module_handle_type != vpiModule) return {};
 
     std::unordered_map<std::string, vpiHandle> result;
@@ -459,6 +463,17 @@ bool RTLSimulatorClient::monitor_signals(const std::vector<std::string> &signals
         }
     }
     return true;
+}
+
+PLI_INT32 RTLSimulatorClient::get_vpi_type(vpiHandle handle) {
+    std::lock_guard guard(cached_vpi_types_lock_);
+    if (cached_vpi_types_.find(handle) != cached_vpi_types_.end()) [[likely]] {
+        return cached_vpi_types_.at(handle);
+    } else {
+        auto t = vpi_->vpi_get(vpiType, handle);
+        cached_vpi_types_.emplace(handle, t);
+        return t;
+    }
 }
 
 RTLSimulatorClient::~RTLSimulatorClient() {

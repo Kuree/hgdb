@@ -108,6 +108,8 @@ private:
     uint32_t vpi_net_target_ = vpiNet;
     // callbacks
     std::unordered_map<std::string, vpiHandle> cb_handles_;
+    std::unordered_map<vpiHandle, PLI_INT32> cached_vpi_types_;
+    std::mutex cached_vpi_types_lock_;
 
     // cached module signals
     // this is to avoid to loop through instances repeatedly
@@ -135,6 +137,9 @@ private:
     // brute-force to deal with verilator array indexing stuff
     using StringIterator = typename std::vector<std::string>::const_iterator;
     vpiHandle access_arrays(StringIterator begin, StringIterator end, vpiHandle var_handle);
+
+    // cached helper methods
+    PLI_INT32 get_vpi_type(vpiHandle handle);
 };
 }  // namespace hgdb
 
