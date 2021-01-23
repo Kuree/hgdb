@@ -97,6 +97,7 @@ private:
     // message handler
     void on_message(const std::string &message, uint64_t conn_id);
     void send_message(const std::string &message);
+    void send_message(const std::string &message, uint64_t conn_id);
 
     // helper functions
     uint16_t get_port();
@@ -128,7 +129,7 @@ private:
     [[nodiscard]] util::Options get_options();
 
     // common checker
-    bool check_send_db_error(RequestType type);
+    bool check_send_db_error(RequestType type, uint64_t conn_id);
 
     // scheduler
     std::vector<Debugger::DebugBreakPoint *> next_breakpoints();

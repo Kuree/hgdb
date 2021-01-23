@@ -22,6 +22,7 @@ public:
     void stop();
     void send(const std::string &payload);
     void send(const std::string &payload, const std::string &topic);
+    void send(const std::string &payload, uint64_t conn_id);
     void set_on_message(const std::function<void(const std::string &, uint64_t conn_id)> &callback);
     void add_to_topic(const std::string &topic, uint64_t conn_id);
 

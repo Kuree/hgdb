@@ -132,7 +132,7 @@ void Debugger::on_message(const std::string &message, uint64_t conn_id) {
     if (req->status() != status_code::success) {
         // send back error message
         auto resp = GenericResponse(status_code::error, *req, req->error_reason());
-        send_message(resp.str(log_enabled_));
+        send_message(resp.str(log_enabled_), conn_id);
         return;
     }
     switch (req->type()) {
@@ -193,6 +193,12 @@ void Debugger::on_message(const std::string &message, uint64_t conn_id) {
 void Debugger::send_message(const std::string &message) {
     if (server_) {
         server_->send(message);
+    }
+}
+
+void Debugger::send_message(const std::string &message, uint64_t conn_id) {
+    if (server_) {
+        server_->send(message, conn_id);
     }
 }
 
@@ -355,7 +361,7 @@ PLI_INT32 eval_hgdb_on_clk(p_cb_data cb_data) {
     return 0;
 }
 
-void Debugger::handle_connection(const ConnectionRequest &req, uint64_t) {
+void Debugger::handle_connection(const ConnectionRequest &req, uint64_t conn_id) {
     // if we have a debug cli flag, don't load the db
     bool success = true;
     std::string db_filename = "debug symbol table";
@@ -379,18 +385,18 @@ void Debugger::handle_connection(const ConnectionRequest &req, uint64_t) {
 
     if (success) {
         auto resp = GenericResponse(status_code::success, req);
-        send_message(resp.str(log_enabled_));
+        send_message(resp.str(log_enabled_), conn_id);
     } else {
         auto resp = GenericResponse(status_code::error, req,
                                     fmt::format("Unable to find {0}", db_filename));
-        send_message(resp.str(log_enabled_));
+        send_message(resp.str(log_enabled_), conn_id);
     }
 
     log_info("handle_connection finished");
 }
 
-void Debugger::handle_breakpoint(const BreakPointRequest &req, uint64_t) {
-    if (!check_send_db_error(req.type())) return;
+void Debugger::handle_breakpoint(const BreakPointRequest &req, uint64_t conn_id) {
+    if (!check_send_db_error(req.type(), conn_id)) return;
 
     // depends on whether it is add or remove
     auto const &bp_info = req.breakpoint();
@@ -407,7 +413,7 @@ void Debugger::handle_breakpoint(const BreakPointRequest &req, uint64_t) {
             auto error_response = GenericResponse(status_code::error, req,
                                                   fmt::format("{0}:{1} is not a valid breakpoint",
                                                               bp_info.filename, bp_info.line_num));
-            send_message(error_response.str(log_enabled_));
+            send_message(error_response.str(log_enabled_), conn_id);
             return;
         }
 
@@ -427,11 +433,11 @@ void Debugger::handle_breakpoint(const BreakPointRequest &req, uint64_t) {
     }
     // tell client we're good
     auto success_resp = GenericResponse(status_code::success, req);
-    send_message(success_resp.str(log_enabled_));
+    send_message(success_resp.str(log_enabled_), conn_id);
 }
 
-void Debugger::handle_breakpoint_id(const BreakPointIDRequest &req, uint64_t) {
-    if (!check_send_db_error(req.type())) return;
+void Debugger::handle_breakpoint_id(const BreakPointIDRequest &req, uint64_t conn_id) {
+    if (!check_send_db_error(req.type(), conn_id)) return;
     // depends on whether it is add or remove
     auto const &bp_info = req.breakpoint();
     if (req.bp_action() == BreakPointRequest::action::add) {
@@ -441,7 +447,7 @@ void Debugger::handle_breakpoint_id(const BreakPointIDRequest &req, uint64_t) {
             auto error_response =
                 GenericResponse(status_code::error, req,
                                 fmt::format("BP ({0}) is not a valid breakpoint", bp_info.id));
-            send_message(error_response.str(log_enabled_));
+            send_message(error_response.str(log_enabled_), conn_id);
             return;
         }
         add_breakpoint(bp_info, *bp);
@@ -450,12 +456,12 @@ void Debugger::handle_breakpoint_id(const BreakPointIDRequest &req, uint64_t) {
     }
     // tell client we're good
     auto success_resp = GenericResponse(status_code::success, req);
-    send_message(success_resp.str(log_enabled_));
+    send_message(success_resp.str(log_enabled_), conn_id);
 }
 
-void Debugger::handle_bp_location(const BreakPointLocationRequest &req, uint64_t) {
+void Debugger::handle_bp_location(const BreakPointLocationRequest &req, uint64_t conn_id) {
     // if db is not connected correctly, abort
-    if (!check_send_db_error(req.type())) return;
+    if (!check_send_db_error(req.type(), conn_id)) return;
 
     auto const &filename = req.filename();
     auto const &line_num = req.line_num();
@@ -475,7 +481,7 @@ void Debugger::handle_bp_location(const BreakPointLocationRequest &req, uint64_t
     auto resp = BreakPointLocationResponse(bps_);
     req.set_token(resp);
     // we don't do pretty print if log is not enabled
-    send_message(resp.str(log_enabled_));
+    send_message(resp.str(log_enabled_), conn_id);
 }
 
 void Debugger::handle_command(const CommandRequest &req, uint64_t) {
@@ -502,7 +508,7 @@ void Debugger::handle_command(const CommandRequest &req, uint64_t) {
     }
 }
 
-void Debugger::handle_debug_info(const DebuggerInformationRequest &req, uint64_t) {
+void Debugger::handle_debug_info(const DebuggerInformationRequest &req, uint64_t conn_id) {
     switch (req.command_type()) {
         case DebuggerInformationRequest::CommandType::breakpoints: {
             std::vector<BreakPoint> bps;
@@ -527,7 +533,7 @@ void Debugger::handle_debug_info(const DebuggerInformationRequest &req, uint64_t
 
             auto resp = DebuggerInformationResponse(bps_);
             req.set_token(resp);
-            send_message(resp.str(log_enabled_));
+            send_message(resp.str(log_enabled_), conn_id);
             return;
         }
         case DebuggerInformationRequest::CommandType::options: {
@@ -536,7 +542,7 @@ void Debugger::handle_debug_info(const DebuggerInformationRequest &req, uint64_t
             auto options_map = options.get_options();
             auto resp = DebuggerInformationResponse(options_map);
             req.set_token(resp);
-            send_message(resp.str(log_enabled_));
+            send_message(resp.str(log_enabled_), conn_id);
             return;
         }
         case DebuggerInformationRequest::CommandType::status: {
@@ -550,20 +556,20 @@ void Debugger::handle_debug_info(const DebuggerInformationRequest &req, uint64_t
             ss << "Simulation paused: " << (is_running_.load() ? "true" : "false") << std::endl;
             auto resp = DebuggerInformationResponse(ss.str());
             req.set_token(resp);
-            send_message(resp.str(log_enabled_));
+            send_message(resp.str(log_enabled_), conn_id);
             return;
         }
     }
 }
 
-void Debugger::handle_path_mapping(const PathMappingRequest &req, uint64_t) {
+void Debugger::handle_path_mapping(const PathMappingRequest &req, uint64_t conn_id) {
     if (db_ && req.status() == status_code::success) [[likely]] {
         db_->set_src_mapping(req.path_mapping());
         auto resp = GenericResponse(status_code::success, req);
-        send_message(resp.str(log_enabled_));
+        send_message(resp.str(log_enabled_), conn_id);
     } else {
         auto resp = GenericResponse(status_code::error, req, req.error_reason());
-        send_message(resp.str(log_enabled_));
+        send_message(resp.str(log_enabled_), conn_id);
     }
 }
 
@@ -741,12 +747,12 @@ util::Options Debugger::get_options() {
     return options;
 }
 
-bool Debugger::check_send_db_error(RequestType type) {
+bool Debugger::check_send_db_error(RequestType type, uint64_t conn_id) {
     if (!db_) {
         // need to send error response
         auto resp = GenericResponse(status_code::error, type,
                                     "Database is not initialized or is initialized incorrectly");
-        send_message(resp.str(log_enabled_));
+        send_message(resp.str(log_enabled_), conn_id);
         return false;
     }
     return true;

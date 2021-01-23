@@ -86,6 +86,12 @@ void DebugServer::send(const std::string &payload, const std::string &topic) {
     }
 }
 
+void DebugServer::send(const std::string &payload, uint64_t conn_id) {
+    if (connections_.find(conn_id) != connections_.end()) [[likely]] {
+        connections_.at(conn_id)->send(payload);
+    }
+}
+
 void DebugServer::set_on_message(
     const std::function<void(const std::string &, uint64_t conn_id)> &callback) {
     auto on_message = [this, callback](const websocketpp::connection_hdl &hdl,
