@@ -693,10 +693,7 @@ void Debugger::handle_option_change(const OptionChangeRequest &req, uint64_t) {
     }
 }
 
-void Debugger::handle_monitor(const MonitorRequest &req, uint64_t conn_id) {
-    (void)(req);
-    (void)(conn_id);
-}
+void Debugger::handle_monitor(const MonitorRequest &, uint64_t) {}
 
 void Debugger::handle_error(const ErrorRequest &req, uint64_t) {}
 
