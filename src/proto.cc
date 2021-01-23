@@ -469,6 +469,25 @@ std::string EvaluationResponse::str(bool pretty_print) const {
     return to_string(document, pretty_print);
 }
 
+MonitorResponse::MonitorResponse(std::string scoped_name, std::string value)
+    : scoped_name_(std::move(scoped_name)), value_(std::move(value)) {}
+
+std::string MonitorResponse::str(bool pretty_print) const {
+    using namespace rapidjson;
+    Document document(rapidjson::kObjectType);  // NOLINT
+    auto &allocator = document.GetAllocator();
+    set_response_header(document, this);
+    set_status(document, status_);
+
+    Value payload(kObjectType);
+    set_member(payload, allocator, "scoped_name", scoped_name_);
+    set_member(payload, allocator, "value", value_);
+
+    set_member(document, "payload", payload);
+
+    return to_string(document, pretty_print);
+}
+
 std::unique_ptr<Request> Request::parse_request(const std::string &str) {
     using namespace rapidjson;
     Document document;

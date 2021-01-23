@@ -294,6 +294,17 @@ private:
     std::string result_;
 };
 
+class MonitorResponse : public Response {
+public:
+    MonitorResponse(std::string scoped_name, std::string value);
+    [[nodiscard]] std::string str(bool pretty_print) const override;
+    [[nodiscard]] std::string type() const override { return to_string(RequestType::monitor); }
+
+private:
+    std::string scoped_name_;
+    std::string value_;
+};
+
 }  // namespace hgdb
 
 #endif  // HGDB_PROTO_HH

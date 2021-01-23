@@ -469,3 +469,18 @@ TEST(proto, evaluation_response) {  // NOLINT
 })";
     EXPECT_EQ(s, expected_value);
 }
+
+TEST(proto, monitor_response) {  // NOLINT
+    auto res = hgdb::MonitorResponse("test", "42");
+    auto s = res.str(true);
+    constexpr auto expected_value = R"({
+    "request": false,
+    "type": "monitor",
+    "status": "success",
+    "payload": {
+        "scoped_name": "test",
+        "value": "42"
+    }
+})";
+    EXPECT_EQ(s, expected_value);
+}
