@@ -251,15 +251,18 @@ private:
 
 class MonitorRequest : public Request {
 public:
+    enum class MonitorType { breakpoint, clock_edge };
     MonitorRequest() = default;
     void parse_payload(const std::string &payload) override;
     [[nodiscard]] RequestType type() const override { return RequestType::monitor; }
 
+    [[nodiscard]] MonitorType monitor_type() const { return monitor_type_; }
     [[nodiscard]] const std::string &scope_name() const { return scoped_name_; }
     [[nodiscard]] const std::optional<uint64_t> &breakpoint_id() const { return breakpoint_id_; };
     [[nodiscard]] const std::optional<uint64_t> &instance_id() const { return instance_id_; }
 
 private:
+    MonitorType monitor_type_ = MonitorType::breakpoint;
     std::string scoped_name_;
     std::optional<uint64_t> breakpoint_id_;
     std::optional<uint64_t> instance_id_;

@@ -261,6 +261,7 @@ TEST(proto, request_parse_monitor) {  // NOLINT
     "request": true,
     "type": "monitor",
     "payload": {
+        "monitor_type": "breakpoint",
         "scoped_name": "hgdb",
         "breakpoint_id": 42
     }
@@ -276,6 +277,7 @@ TEST(proto, request_parse_monitor) {  // NOLINT
     "request": true,
     "type": "monitor",
     "payload": {
+        "monitor_type": "clock_edge",
         "scoped_name": "hgdb",
         "instance_id": 42
     }
@@ -292,6 +294,7 @@ TEST(proto, request_parse_monitor) {  // NOLINT
     "request": true,
     "type": "monitor",
     "payload": {
+        "monitor_type": "breakpoint",
         "scoped_name": "hgdb",
         "breakpoint_id": 42,
         "instance_id": 42
@@ -305,6 +308,7 @@ TEST(proto, request_parse_monitor) {  // NOLINT
     "request": true,
     "type": "monitor",
     "payload": {
+        "monitor_type": "breakpoint",
         "scoped_name": "hgdb"
     }
 }

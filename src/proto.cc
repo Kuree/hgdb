@@ -88,6 +88,7 @@ namespace hgdb {
  * Monitor Request
  * type: monitor
  * payload:
+ *      monitor_type: [required] - [enum] string
  *      scoped_name_: [required] - string
  *      instance_id: [required, cannot co-exists with breakpoint_id] - uint64_t
  *      breakpoint_id: [required, cannot co-exists with instance_id] - uint64_t
@@ -781,6 +782,20 @@ void MonitorRequest::parse_payload(const std::string &payload) {
     Document document;
     document.Parse(payload.c_str());
     if (!check_json(document, status_code_, error_reason_)) return;
+
+    auto monitor_type = get_member<std::string>(document, "monitor_type", error_reason_);
+    if (!monitor_type) {
+        status_code_ = status_code::error;
+        return;
+    }
+    if (*monitor_type == "breakpoint") {
+        monitor_type_ = MonitorType::breakpoint;
+    } else if (*monitor_type == "clock_edge") {
+        monitor_type_ = MonitorType::clock_edge;
+    } else {
+        status_code_ = status_code::error;
+        return;
+    }
 
     auto name_ = get_member<std::string>(document, "scoped_name", error_reason_);
     if (!name_) {
