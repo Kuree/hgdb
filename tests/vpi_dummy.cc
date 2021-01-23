@@ -1,3 +1,4 @@
+#include <cstdint>
 #include "vpi_user.h"
 
 // dummy VPI files to allow tests that uses VPI to compile properly

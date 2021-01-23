@@ -21,7 +21,8 @@ jobs:
           mkdir build
           cd build
           cmake ..
-          make hgdb -j2
+          make -j2
+          make test
         env:
           CC: gcc-10
           CXX: g++-10
