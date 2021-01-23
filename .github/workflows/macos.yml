@@ -1,0 +1,30 @@
+name: MacOS Test
+
+on: [push, pull_request]
+
+jobs:
+  build:
+
+    runs-on: macos-latest
+    if: "!contains(github.event.head_commit.message, 'skip ci')"
+
+    steps:
+      - uses: actions/checkout@v2
+      - name: Checkout submodules 🖥️
+        shell: bash
+        run: |
+          auth_header="$(git config --local --get http.https://github.com/.extraheader)"
+          git submodule sync --recursive
+          git -c "http.extraheader=$auth_header" -c protocol.version=2 submodule update --init --force --recursive --depth=1
+      - name: Run tests ⚙️
+        shell: bash
+        run: |
+          mkdir build
+          cd build
+          cmake ..
+          make hgdb -j2
+      - name: Upload debug build
+        uses: actions/upload-artifact@v2
+        with:
+          name: libhgdb
+          path: build/src/libhgdb.so

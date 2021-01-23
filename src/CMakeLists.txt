@@ -46,6 +46,11 @@ endif ()
 # turn on as many warning flags as possible
 target_compile_options(hgdb PRIVATE -Wall -Werror -Wpedantic ${EXTRA_FLAGS})
 
+# okay here is the part that's always painful for me to debug since I don't have access to macos
+if (APPLE)
+    set(CMAKE_SHARED_LINKER_FLAGS -undefined dynamic_lookup)
+endif ()
+
 # clang-tidy
 if (${USE_CLANG_TIDY})
     MESSAGE("-- Running clang-tidy")
