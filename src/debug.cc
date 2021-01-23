@@ -182,6 +182,11 @@ void Debugger::on_message(const std::string &message, uint64_t conn_id) {
             handle_option_change(*r, conn_id);
             break;
         }
+        case RequestType::monitor: {
+            auto *r = reinterpret_cast<MonitorRequest *>(req.get());
+            handle_monitor(*r, conn_id);
+            break;
+        }
         case RequestType::error: {
             auto *r = reinterpret_cast<ErrorRequest *>(req.get());
             handle_error(*r, conn_id);
@@ -686,6 +691,11 @@ void Debugger::handle_option_change(const OptionChangeRequest &req, uint64_t) {
         auto resp = GenericResponse(status_code::error, req, req.error_reason());
         send_message(resp.str(log_enabled_));
     }
+}
+
+void Debugger::handle_monitor(const MonitorRequest &req, uint64_t conn_id) {
+    (void)(req);
+    (void)(conn_id);
 }
 
 void Debugger::handle_error(const ErrorRequest &req, uint64_t) {}

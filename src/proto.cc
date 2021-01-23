@@ -85,6 +85,13 @@ namespace hgdb {
  * payload:
  *       Mar<string, value>
  *
+ * Monitor Request
+ * type: monitor
+ * payload:
+ *      scoped_name_: [required] - string
+ *      instance_id: [required, cannot co-exists with breakpoint_id] - uint64_t
+ *      breakpoint_id: [required, cannot co-exists with instance_id] - uint64_t
+ *
  * Generic Response
  * type: generic
  * payload:
@@ -204,6 +211,8 @@ std::string to_string(RequestType type) noexcept {
             return "evaluation";
         case RequestType::option_change:
             return "option-change";
+        case RequestType::monitor:
+            return "monitor";
     }
     return "error";
 }
@@ -499,6 +508,8 @@ std::unique_ptr<Request> Request::parse_request(const std::string &str) {
         result = std::make_unique<EvaluationRequest>();
     } else if (type_str == "option-change") {
         result = std::make_unique<OptionChangeRequest>();
+    } else if (type_str == "monitor") {
+        result = std::make_unique<MonitorRequest>();
     } else {
         result = std::make_unique<ErrorRequest>("Unknown request");
     }
@@ -744,6 +755,35 @@ void OptionChangeRequest::parse_payload(const std::string &payload) {
             break;
         }
     }
+}
+
+void MonitorRequest::parse_payload(const std::string &payload) {
+    using namespace rapidjson;
+    Document document;
+    document.Parse(payload.c_str());
+    if (!check_json(document, status_code_, error_reason_)) return;
+
+    auto name_ = get_member<std::string>(document, "scoped_name", error_reason_);
+    if (!name_) {
+        status_code_ = status_code::error;
+        return;
+    }
+    scoped_name_ = *name_;
+
+    auto instance_id = get_member<uint64_t>(document, "instance_id", error_reason_, false);
+    auto breakpoint_id = get_member<uint64_t>(document, "breakpoint_id", error_reason_, false);
+
+    if (instance_id && breakpoint_id) {
+        error_reason_ = "Instance id and breakpoint id cannot be in the request at the same time";
+        status_code_ = status_code::error;
+        return;
+    } else if (!instance_id && !breakpoint_id) {
+        error_reason_ = "Either Instance id or breakpoint id has to be in the request";
+        status_code_ = status_code::error;
+    }
+
+    instance_id_ = instance_id;
+    breakpoint_id_ = breakpoint_id;
 }
 
 }  // namespace hgdb

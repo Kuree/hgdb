@@ -22,7 +22,8 @@ enum class RequestType {
     debugger_info,
     path_mapping,
     evaluation,
-    option_change
+    option_change,
+    monitor
 };
 
 [[nodiscard]] std::string to_string(RequestType type) noexcept;
@@ -246,6 +247,22 @@ private:
     std::map<std::string, bool> bool_values_;
     std::map<std::string, int64_t> int_values_;
     std::map<std::string, std::string> str_values_;
+};
+
+class MonitorRequest : public Request {
+public:
+    MonitorRequest() = default;
+    void parse_payload(const std::string &payload) override;
+    [[nodiscard]] RequestType type() const override { return RequestType::monitor; }
+
+    [[nodiscard]] const std::string &scope_name() const { return scoped_name_; }
+    [[nodiscard]] const std::optional<uint64_t> &breakpoint_id() const { return breakpoint_id_; };
+    [[nodiscard]] const std::optional<uint64_t> &instance_id() const { return instance_id_; }
+
+private:
+    std::string scoped_name_;
+    std::optional<uint64_t> breakpoint_id_;
+    std::optional<uint64_t> instance_id_;
 };
 
 class DebuggerInformationResponse : public Response {

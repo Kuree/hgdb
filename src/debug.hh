@@ -120,6 +120,7 @@ private:
     void handle_path_mapping(const PathMappingRequest &req, uint64_t conn_id);
     void handle_evaluation(const EvaluationRequest &req, uint64_t conn_id);
     void handle_option_change(const OptionChangeRequest &req, uint64_t conn_id);
+    void handle_monitor(const MonitorRequest &req, uint64_t conn_id);
     void handle_error(const ErrorRequest &req, uint64_t conn_id);
 
     // send functions
