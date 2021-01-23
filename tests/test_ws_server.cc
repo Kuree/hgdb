@@ -27,7 +27,7 @@ int main(int argc, char* argv[]) {
     // need to defer the shutdown using a thread
     std::thread t;
     // make it an echo server
-    auto echo = [&server, &t](const std::string& msg) {
+    auto echo = [&server, &t](const std::string& msg, uint64_t) {
         server.send(msg);
         // if the message is stop, we stop the server
         if (msg == stop_msg) {

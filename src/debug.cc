@@ -53,7 +53,7 @@ void Debugger::initialize_db(std::unique_ptr<DebugDatabaseClient> db) {
 }
 
 void Debugger::run() {
-    auto on_ = [this](const std::string &msg) { on_message(msg); };
+    auto on_ = [this](const std::string &msg, uint64_t conn_id) { on_message(msg, conn_id); };
     server_thread_ = std::thread([on_, this]() {
         server_->set_on_message(on_);
         is_running_ = true;
@@ -126,7 +126,7 @@ void Debugger::eval() {
 
 Debugger::~Debugger() { server_thread_.join(); }
 
-void Debugger::on_message(const std::string &message) {
+void Debugger::on_message(const std::string &message, uint64_t conn_id) {
     // server can only receives request
     auto req = Request::parse_request(message);
     if (req->status() != status_code::success) {
@@ -139,52 +139,52 @@ void Debugger::on_message(const std::string &message) {
         case RequestType::connection: {
             // this is a connection request
             auto *r = reinterpret_cast<ConnectionRequest *>(req.get());
-            handle_connection(*r);
+            handle_connection(*r, conn_id);
             break;
         }
         case RequestType::breakpoint: {
             auto *r = reinterpret_cast<BreakPointRequest *>(req.get());
-            handle_breakpoint(*r);
+            handle_breakpoint(*r, conn_id);
             break;
         }
         case RequestType::breakpoint_id: {
             auto *r = reinterpret_cast<BreakPointIDRequest *>(req.get());
-            handle_breakpoint_id(*r);
+            handle_breakpoint_id(*r, conn_id);
             break;
         }
         case RequestType::bp_location: {
             auto *r = reinterpret_cast<BreakPointLocationRequest *>(req.get());
-            handle_bp_location(*r);
+            handle_bp_location(*r, conn_id);
             break;
         }
         case RequestType::command: {
             auto *r = reinterpret_cast<CommandRequest *>(req.get());
-            handle_command(*r);
+            handle_command(*r, conn_id);
             break;
         }
         case RequestType::debugger_info: {
             auto *r = reinterpret_cast<DebuggerInformationRequest *>(req.get());
-            handle_debug_info(*r);
+            handle_debug_info(*r, conn_id);
             break;
         }
         case RequestType::path_mapping: {
             auto *r = reinterpret_cast<PathMappingRequest *>(req.get());
-            handle_path_mapping(*r);
+            handle_path_mapping(*r, conn_id);
             break;
         }
         case RequestType::evaluation: {
             auto *r = reinterpret_cast<EvaluationRequest *>(req.get());
-            handle_evaluation(*r);
+            handle_evaluation(*r, conn_id);
             break;
         }
         case RequestType::option_change: {
             auto *r = reinterpret_cast<OptionChangeRequest *>(req.get());
-            handle_option_change(*r);
+            handle_option_change(*r, conn_id);
             break;
         }
         case RequestType::error: {
             auto *r = reinterpret_cast<ErrorRequest *>(req.get());
-            handle_error(*r);
+            handle_error(*r, conn_id);
             break;
         }
     }
@@ -355,7 +355,7 @@ PLI_INT32 eval_hgdb_on_clk(p_cb_data cb_data) {
     return 0;
 }
 
-void Debugger::handle_connection(const ConnectionRequest &req) {
+void Debugger::handle_connection(const ConnectionRequest &req, uint64_t) {
     // if we have a debug cli flag, don't load the db
     bool success = true;
     std::string db_filename = "debug symbol table";
@@ -389,7 +389,7 @@ void Debugger::handle_connection(const ConnectionRequest &req) {
     log_info("handle_connection finished");
 }
 
-void Debugger::handle_breakpoint(const BreakPointRequest &req) {
+void Debugger::handle_breakpoint(const BreakPointRequest &req, uint64_t) {
     if (!check_send_db_error(req.type())) return;
 
     // depends on whether it is add or remove
@@ -430,7 +430,7 @@ void Debugger::handle_breakpoint(const BreakPointRequest &req) {
     send_message(success_resp.str(log_enabled_));
 }
 
-void Debugger::handle_breakpoint_id(const BreakPointIDRequest &req) {
+void Debugger::handle_breakpoint_id(const BreakPointIDRequest &req, uint64_t) {
     if (!check_send_db_error(req.type())) return;
     // depends on whether it is add or remove
     auto const &bp_info = req.breakpoint();
@@ -453,7 +453,7 @@ void Debugger::handle_breakpoint_id(const BreakPointIDRequest &req) {
     send_message(success_resp.str(log_enabled_));
 }
 
-void Debugger::handle_bp_location(const BreakPointLocationRequest &req) {
+void Debugger::handle_bp_location(const BreakPointLocationRequest &req, uint64_t) {
     // if db is not connected correctly, abort
     if (!check_send_db_error(req.type())) return;
 
@@ -478,7 +478,7 @@ void Debugger::handle_bp_location(const BreakPointLocationRequest &req) {
     send_message(resp.str(log_enabled_));
 }
 
-void Debugger::handle_command(const CommandRequest &req) {
+void Debugger::handle_command(const CommandRequest &req, uint64_t) {
     switch (req.command_type()) {
         case CommandRequest::CommandType::continue_: {
             log_info("handle_command: continue_");
@@ -502,7 +502,7 @@ void Debugger::handle_command(const CommandRequest &req) {
     }
 }
 
-void Debugger::handle_debug_info(const DebuggerInformationRequest &req) {
+void Debugger::handle_debug_info(const DebuggerInformationRequest &req, uint64_t) {
     switch (req.command_type()) {
         case DebuggerInformationRequest::CommandType::breakpoints: {
             std::vector<BreakPoint> bps;
@@ -556,7 +556,7 @@ void Debugger::handle_debug_info(const DebuggerInformationRequest &req) {
     }
 }
 
-void Debugger::handle_path_mapping(const PathMappingRequest &req) {
+void Debugger::handle_path_mapping(const PathMappingRequest &req, uint64_t) {
     if (db_ && req.status() == status_code::success) [[likely]] {
         db_->set_src_mapping(req.path_mapping());
         auto resp = GenericResponse(status_code::success, req);
@@ -601,7 +601,7 @@ bool get_symbol_values(std::unordered_map<std::string, ExpressionType> &values,
 
 // can't seem to simplify the function logic
 // NOLINTNEXTLINE
-void Debugger::handle_evaluation(const EvaluationRequest &req) {
+void Debugger::handle_evaluation(const EvaluationRequest &req, uint64_t) {
     std::string error_reason = req.error_reason();
     // linux kernel style error handling
     if (db_ && req.status() == status_code::success) [[likely]] {
@@ -662,7 +662,7 @@ send_error:
     send_message(resp.str(log_enabled_));
 }
 
-void Debugger::handle_option_change(const OptionChangeRequest &req) {
+void Debugger::handle_option_change(const OptionChangeRequest &req, uint64_t) {
     if (req.status() == status_code::success) {
         auto options = get_options();
         for (auto const &[name, value] : req.bool_values()) {
@@ -682,7 +682,7 @@ void Debugger::handle_option_change(const OptionChangeRequest &req) {
     }
 }
 
-void Debugger::handle_error(const ErrorRequest &req) {}
+void Debugger::handle_error(const ErrorRequest &req, uint64_t) {}
 
 void Debugger::send_breakpoint_hit(const std::vector<const DebugBreakPoint *> &bps) {
     // we send it here to avoid a round trip of client asking for context and send send it

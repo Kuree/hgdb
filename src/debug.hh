@@ -95,7 +95,7 @@ private:
     std::mutex cached_instance_name_lock_;
 
     // message handler
-    void on_message(const std::string &message);
+    void on_message(const std::string &message, uint64_t conn_id);
     void send_message(const std::string &message);
 
     // helper functions
@@ -110,16 +110,16 @@ private:
     bool has_cli_flag(const std::string &flag);
 
     // request handler
-    void handle_connection(const ConnectionRequest &req);
-    void handle_breakpoint(const BreakPointRequest &req);
-    void handle_breakpoint_id(const BreakPointIDRequest &req);
-    void handle_bp_location(const BreakPointLocationRequest &req);
-    void handle_command(const CommandRequest &req);
-    void handle_debug_info(const DebuggerInformationRequest &req);
-    void handle_path_mapping(const PathMappingRequest &req);
-    void handle_evaluation(const EvaluationRequest &req);
-    void handle_option_change(const OptionChangeRequest &req);
-    void handle_error(const ErrorRequest &req);
+    void handle_connection(const ConnectionRequest &req, uint64_t conn_id);
+    void handle_breakpoint(const BreakPointRequest &req, uint64_t conn_id);
+    void handle_breakpoint_id(const BreakPointIDRequest &req, uint64_t conn_id);
+    void handle_bp_location(const BreakPointLocationRequest &req, uint64_t conn_id);
+    void handle_command(const CommandRequest &req, uint64_t conn_id);
+    void handle_debug_info(const DebuggerInformationRequest &req, uint64_t conn_id);
+    void handle_path_mapping(const PathMappingRequest &req, uint64_t conn_id);
+    void handle_evaluation(const EvaluationRequest &req, uint64_t conn_id);
+    void handle_option_change(const OptionChangeRequest &req, uint64_t conn_id);
+    void handle_error(const ErrorRequest &req, uint64_t conn_id);
 
     // send functions
     void send_breakpoint_hit(const std::vector<const DebugBreakPoint *> &bps);
