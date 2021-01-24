@@ -493,6 +493,7 @@ void Debugger::handle_command(const CommandRequest &req, uint64_t) {
     switch (req.command_type()) {
         case CommandRequest::CommandType::continue_: {
             log_info("handle_command: continue_");
+            evaluation_mode_ = EvaluationMode::BreakPointOnly;
             lock_.ready();
             break;
         }

@@ -163,21 +163,21 @@ def test_breakpoint_step_over(start_server, find_free_port):
         client = hgdb.HGDBClient(uri, None)
         await client.connect()
         await client.step_over()
-        await client.continue_()
+        await client.step_over()
         bp1 = await client.recv()
-        await client.continue_()
+        await client.step_over()
         await client.recv()  # second instance
-        await client.continue_()  # second instance
+        await client.step_over()  # second instance
         bp2 = await client.recv()
-        await client.continue_()
+        await client.step_over()
         await client.recv()  # second instance
-        await client.continue_()  # second instance
+        await client.step_over()  # second instance
         bp3 = await client.recv()
         bp4 = None
         for i in range(2):  # skip the 6
-            await client.continue_()
+            await client.step_over()
             await client.recv()  # second instance
-            await client.continue_()  # second instance
+            await client.step_over()  # second instance
             bp4 = await client.recv()
         # the sequence should be 1, 2, 5, 6, 1, ...
         assert bp1["payload"]["line_num"] == 1 and bp4["payload"]["line_num"] == 1
