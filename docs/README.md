@@ -8,7 +8,7 @@ There are several core features offered by hgdb:
 - A framework to interact with RTL simulators.
 
 hgdb cannot do:
-- IDE debugger. See supported debugger [here](https://github.com/Kuree/hgdb-debugger). Unless you want to debug with `curl` command, it's highly recommend to use an IDE-based debugger.
+- An actual debugger. Although the naming is a little bit misleading, hgdb offers a unified debugger interface. See supported debugger [here](https://github.com/Kuree/hgdb-debugger). Unless you want to debug with `curl` command, it's highly recommend to use an actual debugger.
 - Help you maintain symbol table in your hardware compiler. hgdb only offers means to create and query symbol table.
 
 ## How to target your hardware generator framework to hgdb
