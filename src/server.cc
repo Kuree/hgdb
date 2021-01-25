@@ -4,9 +4,9 @@ namespace hgdb {
 
 using raw_message = WSServer::message_ptr;
 
-DebugServer::DebugServer(uint16_t port) : DebugServer(port, false) {}
+DebugServer::DebugServer() : DebugServer(false) {}
 
-DebugServer::DebugServer(uint16_t port, bool enable_logging) {
+DebugServer::DebugServer(bool enable_logging) {
     using websocketpp::lib::bind;
     // set logging settings
     if (enable_logging) {
@@ -44,11 +44,10 @@ DebugServer::DebugServer(uint16_t port, bool enable_logging) {
 
     // initialize Asio
     server_.init_asio();
-
-    server_.listen(port);
 }
 
-void DebugServer::run() {
+void DebugServer::run(uint16_t port) {
+    server_.listen(port);
     server_.start_accept();
     server_.run();
 }
@@ -93,7 +92,7 @@ void DebugServer::send(const std::string &payload, uint64_t conn_id) {
 }
 
 void DebugServer::set_on_message(
-    const std::function<void(const std::string &, uint64_t conn_id)> &callback) {
+    const std::function<void(const std::string &, uint64_t)> &callback) {
     auto on_message = [this, callback](const websocketpp::connection_hdl &hdl,
                                        const raw_message &msg) {
         auto str = msg->get_payload();

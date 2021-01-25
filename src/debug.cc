@@ -18,11 +18,8 @@ Debugger::Debugger(std::unique_ptr<AVPIProvider> vpi) {
     // using the default implementation
     rtl_ = std::make_unique<RTLSimulatorClient>(std::move(vpi));
     // initialize the webserver here
-    // need to get information about the port number
-    auto port = get_port();
-    server_ = std::make_unique<DebugServer>(port);
+    server_ = std::make_unique<DebugServer>();
     log_enabled_ = get_logging();
-    log_info(fmt::format("Debugging server started at :{0}", port));
 }
 
 bool Debugger::initialize_db(const std::string &filename) {
@@ -56,8 +53,11 @@ void Debugger::run() {
     auto on_ = [this](const std::string &msg, uint64_t conn_id) { on_message(msg, conn_id); };
     server_thread_ = std::thread([on_, this]() {
         server_->set_on_message(on_);
+        // need to get information about the port number
+        auto port = get_port();
         is_running_ = true;
-        server_->run();
+        server_->run(port);
+        log_info(fmt::format("Debugging server started at :{0}", port));
     });
     // block this thread until we receive the continue from user
     lock_.wait();

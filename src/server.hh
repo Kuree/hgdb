@@ -16,9 +16,9 @@ using Connection = WSServer::connection_ptr;
 // wrapper for thee websocket
 class DebugServer {
 public:
-    explicit DebugServer(uint16_t port);
-    DebugServer(uint16_t port, bool enable_logging);
-    void run();
+    explicit DebugServer();
+    DebugServer(bool enable_logging);
+    void run(uint16_t port);
     void stop();
     void send(const std::string &payload);
     void send(const std::string &payload, const std::string &topic);

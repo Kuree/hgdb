@@ -24,7 +24,7 @@ int main(int argc, char* argv[]) {
     uint16_t port = std::stoul(port_str);
     std::cout << "Using port " << port << std::endl;
     // enable logging for testing/debugging
-    hgdb::DebugServer server(port, true);
+    hgdb::DebugServer server(true);
     // need to defer the shutdown using a thread
     std::thread t;
     // make it an echo server
@@ -49,7 +49,7 @@ int main(int argc, char* argv[]) {
         }
     };
     server.set_on_message(echo);
-    server.run();
+    server.run(port);
     t.join();
 
     return EXIT_SUCCESS;
