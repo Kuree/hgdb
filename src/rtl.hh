@@ -77,7 +77,6 @@ public:
     vpiHandle add_call_back(const std::string &cb_name, int cb_type, int(cb_func)(p_cb_data),
                             vpiHandle obj = nullptr, void *user_data = nullptr);
     void remove_call_back(const std::string &cb_name);
-    void remove_call_back(vpiHandle cb_handle);
     enum class finish_value { nothing = 0, time_location = 1, all = 2 };
     void finish_sim(finish_value value = finish_value::nothing);
     void stop_sim(finish_value value = finish_value::nothing);
@@ -108,6 +107,7 @@ private:
     uint32_t vpi_net_target_ = vpiNet;
     // callbacks
     std::unordered_map<std::string, vpiHandle> cb_handles_;
+    std::mutex cb_handles_lock_;
     std::unordered_map<vpiHandle, PLI_INT32> cached_vpi_types_;
     std::mutex cached_vpi_types_lock_;
 
@@ -140,6 +140,9 @@ private:
 
     // cached helper methods
     PLI_INT32 get_vpi_type(vpiHandle handle);
+
+    // other helper functions
+    void remove_call_back(vpiHandle cb_handle);
 };
 }  // namespace hgdb
 

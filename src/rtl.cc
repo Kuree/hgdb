@@ -287,6 +287,10 @@ uint64_t RTLSimulatorClient::get_simulation_time() const {
 vpiHandle RTLSimulatorClient::add_call_back(const std::string &cb_name, int cb_type,
                                             int (*cb_func)(p_cb_data), vpiHandle obj,  // NOLINT
                                             void *user_data) {
+    std::lock_guard guard(cb_handles_lock_);
+    if (cb_handles_.find(cb_name) != cb_handles_.end()) [[unlikely]] {
+        return cb_handles_.at(cb_name);
+    }
     static s_vpi_time time{vpiSimTime};
     static s_vpi_value value{vpiIntVal};
     s_cb_data cb_data{.reason = cb_type,
@@ -310,6 +314,7 @@ vpiHandle RTLSimulatorClient::add_call_back(const std::string &cb_name, int cb_t
 }
 
 void RTLSimulatorClient::remove_call_back(const std::string &cb_name) {
+    std::lock_guard guard(cb_handles_lock_);
     if (cb_handles_.find(cb_name) != cb_handles_.end()) {
         auto *handle = cb_handles_.at(cb_name);
         remove_call_back(handle);
@@ -317,6 +322,7 @@ void RTLSimulatorClient::remove_call_back(const std::string &cb_name) {
 }
 
 void RTLSimulatorClient::remove_call_back(vpiHandle cb_handle) {
+    // notice that this is not locked!
     // remove it from the cb_handles if any
     for (auto const &iter : cb_handles_) {
         if (iter.second == cb_handle) {
