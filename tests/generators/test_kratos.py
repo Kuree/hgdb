@@ -7,12 +7,12 @@ import hgdb
 import pytest
 
 from util import (VerilatorTester, get_vector_file, get_uri, get_root, get_line_num,
-                  XceliumTester)
+                  XceliumTester, VCSTester)
 
 py_filename = os.path.abspath(__file__)
 
 
-@pytest.mark.parametrize("simulator", [VerilatorTester, XceliumTester])
+@pytest.mark.parametrize("simulator", [VerilatorTester, XceliumTester, VCSTester])
 def test_kratos_single_instance(find_free_port, simulator):
     if not simulator.available():
         pytest.skip(simulator.__name__ + " not available")

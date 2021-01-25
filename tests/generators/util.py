@@ -1,7 +1,7 @@
-import subprocess
 import abc
 import os
 import shutil
+import subprocess
 import sys
 
 
@@ -197,4 +197,8 @@ class VCSTester(Tester):
         self._run(["./simv"] + flags, self.cwd, env, blocking)
 
     def __get_flag(self):
-        return ["-sv_lib", self.lib_path, "-sverilog"]
+        return ["-debug_acc+all", "-sverilog", "-load", os.path.basename(self.lib_path)]
+
+    @staticmethod
+    def available():
+        return shutil.which("vcs") is not None
