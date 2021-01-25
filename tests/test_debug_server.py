@@ -3,8 +3,8 @@
 # that talks to the debug server via ws
 
 import asyncio
-import time
 import os
+import time
 
 import hgdb
 
@@ -25,11 +25,17 @@ def is_killed(s):
     return killed
 
 
-def test_continue_stop(start_server, find_free_port):
+def setup_server(start_server, find_free_port, no_eval=False):
     port = find_free_port()
-    s = start_server(port, "test_debug_server", ["+DEBUG_LOG", "+NO_EVAL"], stdout=False)
+    args = ["+DEBUG_LOG", "+NO_EVAL"] if no_eval else ["+DEBUG_LOG"]
+    s = start_server(port, "test_debug_server", args, stdout=False)
     assert s.poll() is None
     uri = "ws://localhost:{0}".format(port)
+    return s, uri
+
+
+def test_continue_stop(start_server, find_free_port):
+    s, uri = setup_server(start_server, find_free_port, True)
 
     async def test_logic():
         client = hgdb.HGDBClient(uri, None)
@@ -49,10 +55,7 @@ def test_continue_stop(start_server, find_free_port):
 
 
 def test_bp_location_request(start_server, find_free_port):
-    port = find_free_port()
-    s = start_server(port, "test_debug_server", ["+DEBUG_LOG"])
-    assert s.poll() is None
-    uri = "ws://localhost:{0}".format(port)
+    s, uri = setup_server(start_server, find_free_port)
     num_instances = 2
 
     async def test_logic():
@@ -86,10 +89,7 @@ def test_bp_location_request(start_server, find_free_port):
 
 
 def test_breakpoint_request(start_server, find_free_port):
-    port = find_free_port()
-    s = start_server(port, "test_debug_server", ["+DEBUG_LOG"])
-    assert s.poll() is None
-    uri = "ws://localhost:{0}".format(port)
+    s, uri = setup_server(start_server, find_free_port)
     num_instances = 2
 
     async def test_logic():
@@ -124,10 +124,7 @@ def test_breakpoint_request(start_server, find_free_port):
 
 
 def test_breakpoint_hit_continue(start_server, find_free_port):
-    port = find_free_port()
-    s = start_server(port, "test_debug_server", ["+DEBUG_LOG"])
-    assert s.poll() is None
-    uri = "ws://localhost:{0}".format(port)
+    s, uri = setup_server(start_server, find_free_port)
 
     async def test_logic():
         client = hgdb.HGDBClient(uri, None)
@@ -154,10 +151,7 @@ def test_breakpoint_hit_continue(start_server, find_free_port):
 
 
 def test_breakpoint_step_over(start_server, find_free_port):
-    port = find_free_port()
-    s = start_server(port, "test_debug_server", ["+DEBUG_LOG"])
-    assert s.poll() is None
-    uri = "ws://localhost:{0}".format(port)
+    s, uri = setup_server(start_server, find_free_port)
 
     async def test_logic():
         client = hgdb.HGDBClient(uri, None)
@@ -189,10 +183,7 @@ def test_breakpoint_step_over(start_server, find_free_port):
 
 
 def test_trigger(start_server, find_free_port):
-    port = find_free_port()
-    s = start_server(port, "test_debug_server", ["+DEBUG_LOG"])
-    assert s.poll() is None
-    uri = "ws://localhost:{0}".format(port)
+    s, uri = setup_server(start_server, find_free_port)
 
     async def test_logic():
         client = hgdb.HGDBClient(uri, None)
@@ -205,6 +196,7 @@ def test_trigger(start_server, find_free_port):
         await client.continue_()
         # set with timeout
         await client.recv(0.5)
+
     # should not trigger any more since things are stable
     # as a result the simulation should finish
 
@@ -218,10 +210,7 @@ def test_trigger(start_server, find_free_port):
 
 
 def test_src_mapping(start_server, find_free_port):
-    port = find_free_port()
-    s = start_server(port, "test_debug_server", ["+DEBUG_LOG"])
-    assert s.poll() is None
-    uri = "ws://localhost:{0}".format(port)
+    s, uri = setup_server(start_server, find_free_port)
     dirname = "/workspace/test"
     mapping = {dirname: "/tmp/"}
     filename = os.path.join(dirname, "test.py")
@@ -240,10 +229,7 @@ def test_src_mapping(start_server, find_free_port):
 
 
 def test_evaluate(start_server, find_free_port):
-    port = find_free_port()
-    s = start_server(port, "test_debug_server", ["+DEBUG_LOG"])
-    assert s.poll() is None
-    uri = "ws://localhost:{0}".format(port)
+    s, uri = setup_server(start_server, find_free_port)
 
     async def test_logic():
         client = hgdb.HGDBClient(uri, None)
@@ -264,10 +250,7 @@ def test_evaluate(start_server, find_free_port):
 
 
 def test_options(start_server, find_free_port):
-    port = find_free_port()
-    s = start_server(port, "test_debug_server", ["+DEBUG_LOG"])
-    assert s.poll() is None
-    uri = "ws://localhost:{0}".format(port)
+    s, uri = setup_server(start_server, find_free_port)
 
     async def test_logic():
         client = hgdb.HGDBClient(uri, None)
@@ -285,10 +268,39 @@ def test_options(start_server, find_free_port):
     kill_server(s)
 
 
+def test_watch(start_server, find_free_port):
+    s, uri = setup_server(start_server, find_free_port)
+
+    async def test_logic():
+        client = hgdb.HGDBClient(uri, None)
+        await client.connect()
+        id1 = await client.add_monitor("a", 1)
+        id2 = await client.add_monitor("b", 1, monitor_type="clock_edge")
+        await client.set_breakpoint("/tmp/test.py", 1)
+        await client.continue_()
+        await client.recv()  # breakpoint
+        watch1 = await client.recv()
+        assert watch1["payload"]["track_id"] == id1
+        await client.continue_()
+        watch2 = await client.recv()
+        assert watch2["payload"]["track_id"] == id2
+        await client.recv()  # breakpoint
+        watch3 = await client.recv()
+        assert watch3["payload"]["track_id"] == id1
+        # remove id2
+        await client.remove_monitor(id2)
+        await client.continue_()
+        bp = await client.recv()
+        assert bp["type"] == "breakpoint"
+
+    asyncio.get_event_loop().run_until_complete(test_logic())
+    kill_server(s)
+
+
 if __name__ == "__main__":
     import sys
 
     sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
     from conftest import start_server_fn, find_free_port_fn
 
-    test_options(start_server_fn, find_free_port_fn)
+    test_watch(start_server_fn, find_free_port_fn)

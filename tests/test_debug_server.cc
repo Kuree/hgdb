@@ -1,3 +1,6 @@
+#include <chrono>
+#include <thread>
+
 #include "../src/debug.hh"
 #include "fmt/format.h"
 #include "schema.hh"
@@ -184,6 +187,7 @@ int main(int argc, char *argv[]) {
     // evaluate the inserted breakpoint
     int time = 0;
     constexpr const char *mod1_e = "top.dut.e";
+    using namespace std::chrono_literals;
     while (debug.is_running().load()) {
         // eval loop
         if (!no_eval) {
@@ -194,6 +198,8 @@ int main(int argc, char *argv[]) {
             raw_vpi->set_signal_value(
                 raw_vpi->vpi_handle_by_name(const_cast<char *>(mod1_e), nullptr),
                 time > 1 ? 1 : time);
+            // sleep a little bit to avoid high CPU load
+            std::this_thread::sleep_for(10ms);
         }
     }
 

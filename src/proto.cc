@@ -307,6 +307,16 @@ std::string GenericResponse::str(bool pretty_print) const {
     if (status_ == status_code::error) [[unlikely]] {
         set_member(payload, allocator, "reason", reason_);
     }
+    for (auto const &[name, value] : bool_values_) {
+        set_member(payload, allocator, name.c_str(), value);
+    }
+    for (auto const &[name, value] : int_values_) {
+        set_member(payload, allocator, name.c_str(), value);
+    }
+    for (auto const &[name, value] : string_values_) {
+        set_member(payload, allocator, name.c_str(), value);
+    }
+
     set_member(document, "payload", payload);
 
     return to_string(document, pretty_print);

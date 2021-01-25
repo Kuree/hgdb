@@ -15,7 +15,7 @@ uint64_t Monitor::add_monitor_variable(const std::string& full_name, WatchType w
     // we assume full name is checked already
     // need to search if we have the same name already
     for (auto const& [id, var] : watched_variables_) {
-        if (var.full_name == full_name) [[unlikely]] {
+        if (var.full_name == full_name && var.type == watch_type) [[unlikely]] {
             // reuse the existing ID
             return id;
         }
@@ -53,16 +53,30 @@ std::vector<std::pair<uint64_t, std::string>> Monitor::get_watched_values(bool h
                 break;
             }
             case WatchType::clock_edge: {
-                auto value = get_value(watch_var.full_name);
-                std::string str_value;
-                if (value) {
-                    str_value = std::to_string(*value);
-                } else {
-                    str_value = Debugger::error_value_str;
+                // only if we are not in a breakpoint
+                if (!has_breakpoint) {
+                    auto value = get_value(watch_var.full_name);
+                    std::string str_value;
+                    if (value) {
+                        str_value = std::to_string(*value);
+                    } else {
+                        str_value = Debugger::error_value_str;
+                    }
+                    result.emplace_back(std::make_pair(watch_id, str_value));
+                    break;
                 }
-                result.emplace_back(std::make_pair(watch_id, str_value));
-                break;
             }
+        }
+    }
+
+    return result;
+}
+
+uint64_t Monitor::num_watches(const std::string& name, WatchType type) const {
+    uint64_t result = 0;
+    for (auto const& iter : watched_variables_) {
+        if (iter.second.full_name == name && iter.second.type == type) {
+            result++;
         }
     }
 

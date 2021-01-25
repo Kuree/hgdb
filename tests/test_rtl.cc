@@ -237,3 +237,9 @@ TEST_F(RTLModuleTest, test_array_access) {  // NOLINT
     auto value = client->get_value("parent_mod.inst1.array.0.0");
     EXPECT_EQ(value, 42);
 }
+
+TEST_F(RTLModuleTest, test_valid_signal) {    // NOLINT
+    EXPECT_TRUE(client->is_valid_signal("parent_mod.a"));
+    EXPECT_FALSE(client->is_valid_signal("parent_mod"));
+    EXPECT_FALSE(client->is_valid_signal("parent_mod.x"));
+}

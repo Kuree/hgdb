@@ -348,6 +348,24 @@ TEST(proto, generic_response) {  // NOLINT
     s = res.str(false);
     EXPECT_EQ(s, R"({"request":false,"type":"generic","status":"success",)"
                  R"("payload":{"request-type":"breakpoint"}})");
+    // fields
+    res = hgdb::GenericResponse(hgdb::status_code::success, hgdb::RequestType::monitor);
+    res.set_value("a", false);
+    res.set_value("b", 42);
+    res.set_value("c", "42");
+    s = res.str(true);
+    constexpr auto expected_value = R"({
+    "request": false,
+    "type": "generic",
+    "status": "success",
+    "payload": {
+        "request-type": "monitor",
+        "a": false,
+        "b": 42,
+        "c": "42"
+    }
+})";
+    EXPECT_EQ(s, expected_value);
 }
 
 TEST(proto, bp_location_response) {  // NOLINT

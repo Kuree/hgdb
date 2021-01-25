@@ -58,7 +58,8 @@ public:
         } else if constexpr (std::is_arithmetic<T>::value) {
             int_values_.emplace(name, static_cast<int64_t>(value));
         } else if constexpr (std::is_same<T, const std::string &>::value ||
-                             std::is_same<T, std::string>::value) {
+                             std::is_same<T, std::string>::value ||
+                             std::is_same<T, const char *>::value) {
             string_values_.emplace(name, value);
         } else {
             static_assert(always_false_v<T>, "Unknown type");
@@ -283,7 +284,7 @@ public:
     [[nodiscard]] const std::string &scope_name() const { return scoped_name_; }
     [[nodiscard]] const std::optional<uint64_t> &breakpoint_id() const { return breakpoint_id_; };
     [[nodiscard]] const std::optional<uint64_t> &instance_id() const { return instance_id_; }
-    [[nodiscard]] const uint64_t track_id() const { return track_id_; }
+    [[nodiscard]] uint64_t track_id() const { return track_id_; }
 
 private:
     ActionType action_type_ = ActionType::add;

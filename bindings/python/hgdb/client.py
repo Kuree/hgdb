@@ -116,6 +116,22 @@ class HGDBClient:
             payload["payload"][name] = value
         return await self.__send_check(payload, check_error=check_error)
 
+    async def add_monitor(self, name, instance_id=None, breakpoint_id=None, monitor_type="breakpoint"):
+        assert (instance_id is not None) or (breakpoint_id is None)
+        assert monitor_type in {"breakpoint", "clock_edge"}
+        payload = {"request": True, "type": "monitor",
+                   "payload": {"action_type": "add", "monitor_type": monitor_type, "scoped_name": name}}
+        if breakpoint_id is not None:
+            payload["payload"]["breakpoint_id"] = breakpoint_id
+        else:
+            payload["payload"]["instance_id"] = instance_id
+        resp = await self.__send_check(payload, True)
+        return resp["payload"]["track_id"]
+
+    async def remove_monitor(self, track_id):
+        payload = {"request": True, "type": "monitor", "payload": {"action_type": "remove", "track_id": track_id}}
+        await self.__send_check(payload, True)
+
     async def close(self):
         await self.ws.close()
 

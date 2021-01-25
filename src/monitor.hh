@@ -20,6 +20,7 @@ public:
     std::vector<std::pair<uint64_t, std::string>> get_watched_values(bool has_breakpoint);
 
     [[nodiscard]] bool empty() const { return watched_variables_.empty(); }
+    [[nodiscard]] uint64_t num_watches(const std::string& name, WatchType type) const;
 
 private:
     // notice that monitor itself doesn't care how to get values
