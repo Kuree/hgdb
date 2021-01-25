@@ -50,6 +50,21 @@ void initialize_hgdb_runtime_vpi(std::unique_ptr<AVPIProvider> vpi) {
 }
 
 void initialize_hgdb_runtime_vpi(std::unique_ptr<AVPIProvider> vpi, bool start_server) {
+    // some hacks to detect VCS
+    // when it's producing the simv executable, VCS will run this function
+    // then when you run ./simv, it runs this function again
+    // why would VCS do this?
+    // using Q-2020.03-SP2_Full64 at the time of testing
+    {
+        t_vpi_vlog_info info{};
+        // luckily during that stage, vpi_get_vlog_info will report error
+        // we will use that as an indication of VCS compilation stage
+        if (!start_server && !vpi_get_vlog_info(&info)) {
+            // we are inside VCS command
+            return;
+        }
+    }
+
     // use raw pointer here since we're dealing with ancient C stuff
     Debugger *debugger;
     if (vpi) {
