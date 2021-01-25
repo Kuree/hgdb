@@ -134,6 +134,7 @@ std::vector<DebugDatabaseClient::ContextVariableInfo> DebugDatabaseClient::get_c
     using namespace sqlite_orm;
     std::vector<DebugDatabaseClient::ContextVariableInfo> result;
     std::lock_guard guard(db_lock_);
+    // NOLINTNEXTLINE
     auto values = db_->select(
         columns(&ContextVariable::variable_id, &ContextVariable::name, &Variable::value,
                 &Variable::is_rtl, &Instance::name),
@@ -246,6 +247,7 @@ std::optional<std::string> DebugDatabaseClient::resolve_scoped_name_instance(
 
 std::optional<std::string> DebugDatabaseClient::resolve_scoped_name_breakpoint(
     const std::string &scoped_name, uint64_t breakpoint_id) {
+    // NOLINTNEXTLINE
     auto context_vars = get_context_variables(breakpoint_id);
     for (auto const &[gen_var, var] : context_vars) {
         if (scoped_name == gen_var.name) {
