@@ -107,6 +107,12 @@ void DebugServer::add_to_topic(const std::string &topic, uint64_t conn_id) {
     topics_[topic].emplace(conn_id);
 }
 
+void DebugServer::remove_from_topic(const std::string &topic, uint64_t conn_id) {
+    if (topics_[topic].find(conn_id) != topics_[topic].end()) {
+        topics_[topic].erase(conn_id);
+    }
+}
+
 uint64_t DebugServer::get_new_channel_id() {
     // assume we are under lock guard's protection
     return channel_count_++;

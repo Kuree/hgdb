@@ -20,6 +20,8 @@ Debugger::Debugger(std::unique_ptr<AVPIProvider> vpi) {
     // initialize the webserver here
     server_ = std::make_unique<DebugServer>();
     log_enabled_ = get_logging();
+    // initialize the monitor
+    monitor_ = Monitor([this](const std::string &name) { return this->get_value(name); });
 }
 
 bool Debugger::initialize_db(const std::string &filename) {
@@ -111,10 +113,13 @@ void Debugger::eval() {
         if (!result.empty()) {
             // send the breakpoint hit information
             send_breakpoint_hit(result);
+            // also send any breakpoint values
+            send_monitor_values(true);
             // then pause the execution
             lock_.wait();
         }
     }
+    send_monitor_values(false);
 }
 
 [[maybe_unused]] bool Debugger::is_verilator() {
@@ -334,6 +339,10 @@ bool Debugger::has_cli_flag(const std::string &flag) {
     if (!rtl_) return false;
     const auto &argv = rtl_->get_argv();
     return std::any_of(argv.begin(), argv.end(), [&flag](const auto &v) { return v == flag; });
+}
+
+std::string Debugger::get_monitor_topic(uint64_t watch_id) {
+    return fmt::format("watch-{0}", watch_id);
 }
 
 std::vector<std::string> Debugger::get_clock_signals() {
@@ -694,7 +703,52 @@ void Debugger::handle_option_change(const OptionChangeRequest &req, uint64_t) {
     }
 }
 
-void Debugger::handle_monitor(const MonitorRequest &, uint64_t) {}
+void Debugger::handle_monitor(const MonitorRequest &req, uint64_t conn_id) {
+    if (req.status() == status_code::success) {
+        // depends on whether it is an add or remove action
+        if (req.action_type() == MonitorRequest::ActionType::add) {
+            std::optional<std::string> full_name;
+            if (req.breakpoint_id()) {
+                auto bp = *req.breakpoint_id();
+                full_name = db_->resolve_scoped_name_breakpoint(req.scope_name(), bp);
+
+            } else {
+                // instance id
+                auto id = *req.instance_id();
+                full_name = db_->resolve_scoped_name_instance(req.scope_name(), id);
+            }
+            if (!full_name || !rtl_->is_valid_signal(*full_name)) {
+                auto resp = GenericResponse(status_code::error, req,
+                                            "Unable to resolve " + req.scope_name());
+                send_message(resp.str(log_enabled_));
+                return;
+            }
+            auto track_id = monitor_.add_monitor_variable(*full_name, req.monitor_type());
+            auto resp = GenericResponse(status_code::success, req);
+            resp.set_value("track_id", track_id);
+            // add topics
+            auto topic = get_monitor_topic(track_id);
+            this->server_->add_to_topic(topic, conn_id);
+
+            send_message(resp.str(log_enabled_));
+        } else {
+            // it's remove
+            auto track_id = req.track_id();
+            monitor_.remove_monitor_variable(track_id);
+
+            // remove topics
+            auto topic = get_monitor_topic(track_id);
+            this->server_->remove_from_topic(topic, conn_id);
+
+            auto resp = GenericResponse(status_code::success, req);
+            send_message(resp.str(log_enabled_));
+        }
+
+    } else {
+        auto resp = GenericResponse(status_code::error, req, req.error_reason());
+        send_message(resp.str(log_enabled_));
+    }
+}
 
 void Debugger::handle_error(const ErrorRequest &req, uint64_t) {}
 
@@ -746,6 +800,18 @@ void Debugger::send_breakpoint_hit(const std::vector<const DebugBreakPoint *> &b
 
     auto str = resp.str(log_enabled_);
     send_message(str);
+}
+
+void Debugger::send_monitor_values(bool has_breakpoint) {
+    //  optimize for no monitored value
+    if (monitor_.empty()) [[likely]]
+        return;
+    auto values = monitor_.get_watched_values(has_breakpoint);
+    for (auto const &[id, value] : values) {
+        auto topic = get_monitor_topic(id);
+        auto resp = MonitorResponse(id, value);
+        send_message(resp.str(log_enabled_));
+    }
 }
 
 util::Options Debugger::get_options() {

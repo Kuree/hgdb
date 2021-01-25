@@ -64,6 +64,7 @@ public:
     void initialize_vpi(std::unique_ptr<AVPIProvider> vpi);
     vpiHandle get_handle(const std::string &name);
     vpiHandle get_handle(const std::vector<std::string> &tokens);
+    bool is_valid_signal(const std::string &name);
     std::optional<int64_t> get_value(const std::string &name);
     std::optional<int64_t> get_value(vpiHandle handle);
     using ModuleSignals = std::unordered_map<std::string, vpiHandle>;

@@ -51,9 +51,30 @@ public:
     [[nodiscard]] std::string str(bool pretty_print) const override;
     [[nodiscard]] std::string type() const override { return "generic"; }
 
+    template <typename T>
+    void set_value(const std::string &name, T value) {
+        if constexpr (std::is_same<T, bool>::value) {
+            bool_values_.emplace(name, value);
+        } else if constexpr (std::is_arithmetic<T>::value) {
+            int_values_.emplace(name, static_cast<int64_t>(value));
+        } else if constexpr (std::is_same<T, const std::string &>::value ||
+                             std::is_same<T, std::string>::value) {
+            string_values_.emplace(name, value);
+        } else {
+            static_assert(always_false_v<T>, "Unknown type");
+        }
+    }
+
 private:
     std::string request_type_;
     std::string reason_;
+
+    std::map<std::string, bool> bool_values_;
+    std::map<std::string, int64_t> int_values_;
+    std::map<std::string, std::string> string_values_;
+
+    template <typename T>
+    inline static constexpr bool always_false_v = false;
 };
 
 class BreakPointLocationResponse : public Response {
@@ -251,21 +272,26 @@ private:
 
 class MonitorRequest : public Request {
 public:
+    enum class ActionType { add, remove };
     enum class MonitorType { breakpoint, clock_edge };
     MonitorRequest() = default;
     void parse_payload(const std::string &payload) override;
     [[nodiscard]] RequestType type() const override { return RequestType::monitor; }
 
+    [[nodiscard]] ActionType action_type() const { return action_type_; }
     [[nodiscard]] MonitorType monitor_type() const { return monitor_type_; }
     [[nodiscard]] const std::string &scope_name() const { return scoped_name_; }
     [[nodiscard]] const std::optional<uint64_t> &breakpoint_id() const { return breakpoint_id_; };
     [[nodiscard]] const std::optional<uint64_t> &instance_id() const { return instance_id_; }
+    [[nodiscard]] const uint64_t track_id() const { return track_id_; }
 
 private:
+    ActionType action_type_ = ActionType::add;
     MonitorType monitor_type_ = MonitorType::breakpoint;
     std::string scoped_name_;
     std::optional<uint64_t> breakpoint_id_;
     std::optional<uint64_t> instance_id_;
+    uint64_t track_id_ = 0;
 };
 
 class DebuggerInformationResponse : public Response {
@@ -299,12 +325,12 @@ private:
 
 class MonitorResponse : public Response {
 public:
-    MonitorResponse(std::string scoped_name, std::string value);
+    MonitorResponse(uint64_t track_id, std::string value);
     [[nodiscard]] std::string str(bool pretty_print) const override;
     [[nodiscard]] std::string type() const override { return to_string(RequestType::monitor); }
 
 private:
-    std::string scoped_name_;
+    uint64_t track_id_;
     std::string value_;
 };
 

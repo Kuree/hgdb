@@ -38,6 +38,10 @@ public:
     void set_src_mapping(const std::map<std::string, std::string> &mapping);
     [[nodiscard]] std::string resolve_filename_to_db(const std::string &filename) const;
     [[nodiscard]] std::string resolve_filename_to_client(const std::string &filename) const;
+    [[nodiscard]] std::optional<std::string> resolve_scoped_name_breakpoint(
+        const std::string &scoped_name, uint64_t breakpoint_id);
+    [[nodiscard]] std::optional<std::string> resolve_scoped_name_instance(
+        const std::string &scoped_name, uint64_t instance_id);
 
     // accessors
     [[nodiscard]] const std::vector<uint32_t> &execution_bp_orders() const {

@@ -25,6 +25,7 @@ public:
     void send(const std::string &payload, uint64_t conn_id);
     void set_on_message(const std::function<void(const std::string &, uint64_t conn_id)> &callback);
     void add_to_topic(const std::string &topic, uint64_t conn_id);
+    void remove_from_topic(const std::string &topic, uint64_t conn_id);
 
 private:
     using ConnectionPtr = websocketpp::connection<websocketpp::config::asio> *;

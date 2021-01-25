@@ -11,12 +11,17 @@ Monitor::Monitor() {
 Monitor::Monitor(std::function<std::optional<int64_t>(const std::string&)> get_value)
     : get_value(std::move(get_value)) {}
 
-uint64_t Monitor::add_monitor_variable(const std::string& name, const std::string& full_name,
-                                       WatchType watch_type) {
+uint64_t Monitor::add_monitor_variable(const std::string& full_name, WatchType watch_type) {
     // we assume full name is checked already
+    // need to search if we have the same name already
+    for (auto const& [id, var] : watched_variables_) {
+        if (var.full_name == full_name) [[unlikely]] {
+            // reuse the existing ID
+            return id;
+        }
+    }
     watched_variables_.emplace(
-        watch_id_count_,
-        WatchVariable{.type = watch_type, .name = name, .full_name = full_name, .value = 0});
+        watch_id_count_, WatchVariable{.type = watch_type, .full_name = full_name, .value = 0});
     return watch_id_count_++;
 }
 

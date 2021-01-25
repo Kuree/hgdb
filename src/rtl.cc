@@ -178,6 +178,15 @@ vpiHandle RTLSimulatorClient::get_handle(const std::vector<std::string> &tokens)
     }
 }
 
+bool RTLSimulatorClient::is_valid_signal(const std::string &name) {
+    auto full_name = get_full_name(name);
+    auto *handle = get_handle(full_name);
+    if (!handle) return false;
+    auto type = get_vpi_type(handle);
+    return type == vpiReg || type == vpiNet || type == vpiRegArray || type == vpiRegBit ||
+           type == vpiNetArray || type == vpiNetBit;
+}
+
 vpiHandle RTLSimulatorClient::access_arrays(StringIterator begin, StringIterator end,
                                             vpiHandle var_handle) {
     auto it = begin;

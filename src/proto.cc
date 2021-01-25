@@ -88,16 +88,21 @@ namespace hgdb {
  * Monitor Request
  * type: monitor
  * payload:
- *      monitor_type: [required] - [enum] string
- *      scoped_name_: [required] - string
- *      instance_id: [required, cannot co-exists with breakpoint_id] - uint64_t
- *      breakpoint_id: [required, cannot co-exists with instance_id] - uint64_t
+ *      action: [required] - [enum] string (add/remove)
+ *      monitor_type: [required for add] - [enum] string
+ *      scoped_name_: [required for add] - string
+ *      instance_id: [required for add, cannot co-exists with breakpoint_id] - uint64_t
+ *      breakpoint_id: [required for add, cannot co-exists with instance_id] - uint64_t
+ *      track_id: [required for remove] - uint64_t
+ * # notice that add request will get track_id in the generic response. clients are required
+ * # to parse the value and use that as tracking id
  *
  * Generic Response
  * type: generic
  * payload:
  *     request-type: string
  *     reason: string [only exists if error]
+ *     ... other information depends on the request
  *
  * Breakpoint Location Response
  * type: bp-location
@@ -138,6 +143,13 @@ namespace hgdb {
  * payload:
  *     scope: string
  *     result: string
+ *
+ * Monitor Response
+ * type: monitor
+ * payload:
+ *     track_id: uint64_t
+ *     value: uint64_t
+ *
  */
 
 static bool check_member(rapidjson::Document &document, const char *member_name, std::string &error,
@@ -470,8 +482,8 @@ std::string EvaluationResponse::str(bool pretty_print) const {
     return to_string(document, pretty_print);
 }
 
-MonitorResponse::MonitorResponse(std::string scoped_name, std::string value)
-    : scoped_name_(std::move(scoped_name)), value_(std::move(value)) {}
+MonitorResponse::MonitorResponse(uint64_t track_id, std::string value)
+    : track_id_(track_id), value_(std::move(value)) {}
 
 std::string MonitorResponse::str(bool pretty_print) const {
     using namespace rapidjson;
@@ -481,7 +493,7 @@ std::string MonitorResponse::str(bool pretty_print) const {
     set_status(document, status_);
 
     Value payload(kObjectType);
-    set_member(payload, allocator, "scoped_name", scoped_name_);
+    set_member(payload, allocator, "track_id", track_id_);
     set_member(payload, allocator, "value", value_);
 
     set_member(document, "payload", payload);
@@ -783,41 +795,68 @@ void MonitorRequest::parse_payload(const std::string &payload) {
     document.Parse(payload.c_str());
     if (!check_json(document, status_code_, error_reason_)) return;
 
-    auto monitor_type = get_member<std::string>(document, "monitor_type", error_reason_);
-    if (!monitor_type) {
+    auto action_type = get_member<std::string>(document, "action_type", error_reason_);
+    if (!action_type) {
         status_code_ = status_code::error;
         return;
     }
-    if (*monitor_type == "breakpoint") {
-        monitor_type_ = MonitorType::breakpoint;
-    } else if (*monitor_type == "clock_edge") {
-        monitor_type_ = MonitorType::clock_edge;
+
+    if (*action_type == "add") {
+        action_type_ = ActionType::add;
+    } else if (*action_type == "remove") {
+        action_type_ = ActionType::remove;
     } else {
-        status_code_ = status_code::error;
+        error_reason_ = "Unknown action type " + *action_type;
         return;
     }
 
-    auto name_ = get_member<std::string>(document, "scoped_name", error_reason_);
-    if (!name_) {
-        status_code_ = status_code::error;
-        return;
+    if (action_type_ == ActionType::add) {
+        auto monitor_type = get_member<std::string>(document, "monitor_type", error_reason_);
+        if (!monitor_type) {
+            status_code_ = status_code::error;
+            return;
+        }
+
+        if (*monitor_type == "breakpoint") {
+            monitor_type_ = MonitorType::breakpoint;
+        } else if (*monitor_type == "clock_edge") {
+            monitor_type_ = MonitorType::clock_edge;
+        } else {
+            status_code_ = status_code::error;
+            return;
+        }
+
+        auto name_ = get_member<std::string>(document, "scoped_name", error_reason_);
+        if (!name_) {
+            status_code_ = status_code::error;
+            return;
+        }
+        scoped_name_ = *name_;
+
+        auto instance_id = get_member<uint64_t>(document, "instance_id", error_reason_, false);
+        auto breakpoint_id = get_member<uint64_t>(document, "breakpoint_id", error_reason_, false);
+
+        if (instance_id && breakpoint_id) {
+            error_reason_ =
+                "Instance id and breakpoint id cannot be in the request at the same time";
+            status_code_ = status_code::error;
+            return;
+        } else if (!instance_id && !breakpoint_id) {
+            error_reason_ = "Either Instance id or breakpoint id has to be in the request";
+            status_code_ = status_code::error;
+        }
+
+        instance_id_ = instance_id;
+        breakpoint_id_ = breakpoint_id;
+    } else {
+        // only track_id is required
+        auto track_id = get_member<uint64_t>(document, "track_id", error_reason_);
+        if (!track_id) {
+            status_code_ = status_code::error;
+            return;
+        }
+        track_id_ = *track_id;
     }
-    scoped_name_ = *name_;
-
-    auto instance_id = get_member<uint64_t>(document, "instance_id", error_reason_, false);
-    auto breakpoint_id = get_member<uint64_t>(document, "breakpoint_id", error_reason_, false);
-
-    if (instance_id && breakpoint_id) {
-        error_reason_ = "Instance id and breakpoint id cannot be in the request at the same time";
-        status_code_ = status_code::error;
-        return;
-    } else if (!instance_id && !breakpoint_id) {
-        error_reason_ = "Either Instance id or breakpoint id has to be in the request";
-        status_code_ = status_code::error;
-    }
-
-    instance_id_ = instance_id;
-    breakpoint_id_ = breakpoint_id;
 }
 
 }  // namespace hgdb

@@ -261,6 +261,7 @@ TEST(proto, request_parse_monitor) {  // NOLINT
     "request": true,
     "type": "monitor",
     "payload": {
+        "action_type": "add",
         "monitor_type": "breakpoint",
         "scoped_name": "hgdb",
         "breakpoint_id": 42
@@ -272,11 +273,13 @@ TEST(proto, request_parse_monitor) {  // NOLINT
     auto const *req = dynamic_cast<hgdb::MonitorRequest *>(r.get());
     EXPECT_EQ(req->scope_name(), "hgdb");
     EXPECT_EQ(*req->breakpoint_id(), 42);
+    EXPECT_EQ(req->monitor_type(), hgdb::MonitorRequest::MonitorType::breakpoint);
 
     const auto *req2 = R"({
     "request": true,
     "type": "monitor",
     "payload": {
+        "action_type": "add",
         "monitor_type": "clock_edge",
         "scoped_name": "hgdb",
         "instance_id": 42
@@ -289,11 +292,28 @@ TEST(proto, request_parse_monitor) {  // NOLINT
     EXPECT_EQ(req->scope_name(), "hgdb");
     EXPECT_EQ(*req->instance_id(), 42);
 
-    // test out malformed requests
+    // test remove
     const auto *req3 = R"({
     "request": true,
     "type": "monitor",
     "payload": {
+        "action_type": "remove",
+        "track_id": 42
+    }
+}
+)";
+    r = hgdb::Request::parse_request(req3);
+    EXPECT_EQ(r->status(), hgdb::status_code::success);
+    req = dynamic_cast<hgdb::MonitorRequest *>(r.get());
+    EXPECT_EQ(req->action_type(), hgdb::MonitorRequest::ActionType::remove);
+    EXPECT_EQ(req->track_id(), 42);
+
+    // test out malformed requests
+    const auto *req4 = R"({
+    "request": true,
+    "type": "monitor",
+    "payload": {
+        "action_type": "add",
         "monitor_type": "breakpoint",
         "scoped_name": "hgdb",
         "breakpoint_id": 42,
@@ -301,21 +321,21 @@ TEST(proto, request_parse_monitor) {  // NOLINT
     }
 }
 )";
-    r = hgdb::Request::parse_request(req3);
+    r = hgdb::Request::parse_request(req4);
     EXPECT_EQ(r->status(), hgdb::status_code::error);
 
-    const auto *req4 = R"({
+    const auto *req5 = R"({
     "request": true,
     "type": "monitor",
     "payload": {
+        "action_type": "add",
         "monitor_type": "breakpoint",
         "scoped_name": "hgdb"
     }
 }
 )";
-    r = hgdb::Request::parse_request(req4);
+    r = hgdb::Request::parse_request(req5);
     EXPECT_EQ(r->status(), hgdb::status_code::error);
-
 }
 
 TEST(proto, generic_response) {  // NOLINT
@@ -475,14 +495,14 @@ TEST(proto, evaluation_response) {  // NOLINT
 }
 
 TEST(proto, monitor_response) {  // NOLINT
-    auto res = hgdb::MonitorResponse("test", "42");
+    auto res = hgdb::MonitorResponse(42, "42");
     auto s = res.str(true);
     constexpr auto expected_value = R"({
     "request": false,
     "type": "monitor",
     "status": "success",
     "payload": {
-        "scoped_name": "test",
+        "track_id": 42,
         "value": "42"
     }
 })";

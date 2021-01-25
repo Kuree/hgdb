@@ -13,12 +13,13 @@ public:
 
     Monitor();
     explicit Monitor(std::function<std::optional<int64_t>(const std::string&)> get_value);
-    uint64_t add_monitor_variable(const std::string& name, const std::string& full_name,
-                                  WatchType watch_type);
+    uint64_t add_monitor_variable(const std::string& full_name, WatchType watch_type);
     void remove_monitor_variable(uint64_t watch_id);
     // called every cycle
     // compute a list of signals that need to be sent
     std::vector<std::pair<uint64_t, std::string>> get_watched_values(bool has_breakpoint);
+
+    [[nodiscard]] bool empty() const { return watched_variables_.empty(); }
 
 private:
     // notice that monitor itself doesn't care how to get values
@@ -28,7 +29,6 @@ private:
 
     struct WatchVariable {
         WatchType type;
-        std::string name;
         std::string full_name;  // RTL name
         int64_t value;          // actual value
     };

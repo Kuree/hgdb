@@ -2,6 +2,7 @@
 #define HGDB_DEBUG_HH
 #include "db.hh"
 #include "eval.hh"
+#include "monitor.hh"
 #include "proto.hh"
 #include "rtl.hh"
 #include "server.hh"
@@ -94,6 +95,9 @@ private:
     std::unordered_map<uint64_t, std::string> cached_instance_name_;
     std::mutex cached_instance_name_lock_;
 
+    // monitor logic
+    Monitor monitor_;
+
     // message handler
     void on_message(const std::string &message, uint64_t conn_id);
     void send_message(const std::string &message);
@@ -109,6 +113,7 @@ private:
     void reorder_breakpoints();
     void remove_breakpoint(const BreakPoint &bp);
     bool has_cli_flag(const std::string &flag);
+    [[nodiscard]] static std::string get_monitor_topic(uint64_t watch_id);
 
     // request handler
     void handle_connection(const ConnectionRequest &req, uint64_t conn_id);
@@ -125,6 +130,7 @@ private:
 
     // send functions
     void send_breakpoint_hit(const std::vector<const DebugBreakPoint *> &bps);
+    void send_monitor_values(bool has_breakpoint);
 
     // options
     [[nodiscard]] util::Options get_options();

@@ -233,6 +233,28 @@ std::string DebugDatabaseClient::resolve_filename_to_client(const std::string &f
     return filename;
 }
 
+std::optional<std::string> DebugDatabaseClient::resolve_scoped_name_instance(
+    const std::string &scoped_name, uint64_t instance_id) {
+    auto gen_vars = get_generator_variable(instance_id);
+    for (auto const &[gen_var, var] : gen_vars) {
+        if (scoped_name == gen_var.name) {
+            return var.value;
+        }
+    }
+    return std::nullopt;
+}
+
+std::optional<std::string> DebugDatabaseClient::resolve_scoped_name_breakpoint(
+    const std::string &scoped_name, uint64_t breakpoint_id) {
+    auto context_vars = get_context_variables(breakpoint_id);
+    for (auto const &[gen_var, var] : context_vars) {
+        if (scoped_name == gen_var.name) {
+            return var.value;
+        }
+    }
+    return std::nullopt;
+}
+
 void DebugDatabaseClient::setup_execution_order() {
     auto scopes = db_->get_all<Scope>();
     if (scopes.empty()) {
