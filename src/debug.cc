@@ -298,11 +298,23 @@ void Debugger::add_breakpoint(const BreakPoint &bp_info, const BreakPoint &db_bp
             .column_num = db_bp.column_num,
             .trigger_symbols = compute_trigger_symbol(db_bp)});
         inserted_breakpoints_.emplace(db_bp.id);
+        validate_expr(breakpoints_.back().expr.get(), db_bp.id, *db_bp.instance_id);
+        if (!breakpoints_.back().expr->correct()) [[unlikely]] {
+            log_error("Unable to valid breakpoint expression: " + cond);
+        }
+        validate_expr(breakpoints_.back().enable_expr.get(), db_bp.id, *db_bp.instance_id);
+        if (!breakpoints_.back().enable_expr->correct()) [[unlikely]] {
+            log_error("Unable to valid breakpoint expression: " + cond);
+        }
     } else {
         // update breakpoint entry
         for (auto &b : breakpoints_) {
             if (db_bp.id == b.id) {
                 b.expr = std::make_unique<DebugExpression>(cond);
+                validate_expr(b.expr.get(), db_bp.id, *db_bp.instance_id);
+                if (!b.expr->correct()) [[unlikely]] {
+                    log_error("Unable to valid breakpoint expression: " + cond);
+                }
                 return;
             }
         }
@@ -876,6 +888,8 @@ Debugger::DebugBreakPoint *Debugger::next_step_over_breakpoint() {
     step_over_breakpoint_.filename = bp_info->filename;
     step_over_breakpoint_.line_num = bp_info->line_num;
     step_over_breakpoint_.column_num = bp_info->column_num;
+    validate_expr(step_over_breakpoint_.enable_expr.get(), step_over_breakpoint_.id,
+                  step_over_breakpoint_.instance_id);
     return &step_over_breakpoint_;
 }
 
@@ -1016,36 +1030,19 @@ std::optional<int64_t> Debugger::get_value(const std::string &signal_name) {
 void Debugger::eval_breakpoint(DebugBreakPoint *bp, std::vector<bool> &result, uint32_t index) {
     const auto &bp_expr =
         evaluation_mode_ == EvaluationMode::BreakPointOnly ? bp->expr : bp->enable_expr;
-    // get table values
-    auto const &symbols = bp_expr->symbols();
-    auto const bp_id = bp->id;
+    // if not correct just always enable
+    if (!bp_expr->correct()) return;
+    // since at this point we have checked everything, just used the resolved name
+    auto const &symbol_full_names = bp_expr->resolved_symbol_names();
     std::unordered_map<std::string, int64_t> values;
-    // just in case there are some context values need to pull in
-    auto context_values = get_context_static_values(bp_id);
-    // need to query through all its symbols
-    for (auto const &symbol_name : symbols) {
-        // if it is an context symbol
-        if (context_values.find(symbol_name) != context_values.end()) {
-            values.emplace(symbol_name, context_values.at(symbol_name));
-        } else {
-            // need to map these symbol names into the actual hierarchy
-            // name
-            auto name = db_->resolve_scoped_name_breakpoint(symbol_name, bp->id);
-            std::string full_name;
-            if (name) [[likely]] {
-                full_name = rtl_->get_full_name(*name);
-            } else {
-                // best effort
-                full_name = rtl_->get_full_name(symbol_name);
-            }
-            auto v = rtl_->get_value(full_name);
-            if (!v) break;
-            values.emplace(symbol_name, *v);
-        }
+    for (auto const &[symbol_name, full_name] : symbol_full_names) {
+        auto v = rtl_->get_value(full_name);
+        if (!v) break;
+        values.emplace(symbol_name, *v);
     }
-    if (values.size() != symbols.size()) {
+    if (values.size() != symbol_full_names.size()) {
         // something went wrong with the querying symbol
-        log_error(fmt::format("Unable to evaluate breakpoint {0}", bp_id));
+        log_error(fmt::format("Unable to evaluate breakpoint {0}", bp->id));
     } else {
         auto eval_result = bp_expr->eval(values);
         auto trigger_result = should_trigger(bp);
@@ -1053,6 +1050,29 @@ void Debugger::eval_breakpoint(DebugBreakPoint *bp, std::vector<bool> &result, u
             // trigger a breakpoint!
             result[index] = true;
         }
+    }
+}
+
+void Debugger::validate_expr(DebugExpression *expr, uint32_t breakpoint_id, uint32_t instance_id) {
+    auto context_static_values = get_context_static_values(breakpoint_id);
+    expr->set_static_values(context_static_values);
+    auto required_symbols = expr->get_required_symbols();
+    for (auto const &symbol : required_symbols) {
+        auto name = db_->resolve_scoped_name_breakpoint(symbol, instance_id);
+        std::string full_name;
+        if (name) [[likely]] {
+            full_name = rtl_->get_full_name(*name);
+        } else {
+            // best effort
+            full_name = rtl_->get_full_name(symbol);
+        }
+        // see if it's a valid signal
+        bool valid = rtl_->is_valid_signal(full_name);
+        if (!valid) {
+            expr->set_error();
+            return;
+        }
+        expr->set_resolved_symbol_name(symbol, full_name);
     }
 }
 

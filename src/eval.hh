@@ -34,7 +34,7 @@ enum class Operator {
 };
 class Expr {
 public:
-    Expr(Operator op) : op(op), value_(0) {}
+    explicit Expr(Operator op) : op(op), value_(0) {}
     void set_value(ExpressionType value) { value_ = value; }
 
     Expr *left = nullptr;
@@ -52,7 +52,7 @@ private:
 
 class Symbol : public Expr {
 public:
-    Symbol(std::string name) : Expr(Operator::None), name(std::move(name)) {}
+    explicit Symbol(std::string name) : Expr(Operator::None), name(std::move(name)) {}
     std::string name;
 };
 }  // namespace expr
@@ -75,6 +75,13 @@ public:
     expr::Expr *add_expression(expr::Operator op);
     expr::Symbol *add_symbol(const std::string &name);
 
+    // compute the required symbols. used to speed up runtime evaluation to avoid
+    // querying db
+    [[nodiscard]] std::unordered_set<std::string> get_required_symbols() const;
+    void set_static_values(const std::unordered_map<std::string, int64_t> &static_values);
+    void set_resolved_symbol_name(const std::string &name, const std::string &value);
+    [[nodiscard]] auto const &resolved_symbol_names() const { return resolved_symbol_names_; }
+
     // no copy construction
     DebugExpression(const DebugExpression &) = delete;
 
@@ -85,6 +92,9 @@ private:
     // only for strings for fast access during evaluation
     std::unordered_set<std::string> symbols_str_;
     std::unordered_map<std::string, expr::Symbol *> symbols_;
+    // used for holding static values
+    std::unordered_set<std::string> static_values_;
+    std::unordered_map<std::string, std::string> resolved_symbol_names_;
 
     std::vector<std::unique_ptr<expr::Expr>> expressions_;
 

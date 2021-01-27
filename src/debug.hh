@@ -149,6 +149,9 @@ private:
     // cached wrapper
     std::optional<int64_t> get_value(const std::string &signal_name);
     std::string get_full_name(uint64_t instance_id, const std::string &var_name);
+
+    // validate the expression
+    void validate_expr(DebugExpression *expr, uint32_t breakpoint_id, uint32_t instance_id);
 };
 
 }  // namespace hgdb

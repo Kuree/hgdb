@@ -395,4 +395,31 @@ int64_t DebugExpression::eval(const std::unordered_map<std::string, int64_t>& sy
     return root_->eval();
 }
 
+void DebugExpression::set_static_values(
+    const std::unordered_map<std::string, int64_t>& static_values) {
+    for (auto const& [name, value] : static_values) {
+        if (symbols_.find(name) != symbols_.end()) {
+            symbols_.at(name)->set_value(value);
+            static_values_.emplace(name);
+        }
+    }
+}
+
+std::unordered_set<std::string> DebugExpression::get_required_symbols() const {
+    std::unordered_set<std::string> result;
+    for (auto const& name : symbols_str_) {
+        // only if we can't find the static value
+        if (static_values_.find(name) == static_values_.end()) {
+            result.emplace(name);
+        }
+    }
+    return result;
+}
+
+void DebugExpression::set_resolved_symbol_name(const std::string& name, const std::string& value) {
+    if (symbols_str_.find(name) != symbols_str_.end()) {
+        resolved_symbol_names_.emplace(name, value);
+    }
+}
+
 }  // namespace hgdb
