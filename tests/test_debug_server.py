@@ -242,7 +242,10 @@ def test_evaluate(start_server, find_free_port):
         assert resp["payload"]["result"] == "42"
         resp = await client.evaluate("1", "a + 41")
         assert resp["payload"]["result"] == "42"
-        resp = await client.evaluate("test", "1", check_error=False)
+        # as long as it's a valid expression, even if the scope is wrong it is fine
+        resp = await client.evaluate("test", "1")
+        assert resp["payload"]["result"] == "1"
+        resp = await client.evaluate("", "test.a", check_error=False)
         assert resp["status"] == "error"
 
     asyncio.get_event_loop().run_until_complete(test_logic())

@@ -21,7 +21,7 @@ std::vector<std::string> get_tokens(const std::string &line, const std::string &
     return result;
 }
 
-std::optional<int64_t> stol(const std::string &value) {
+[[maybe_unused]] std::optional<int64_t> stol(const std::string &value) {
     try {
         return std::stol(value);
     } catch (std::exception &) {

@@ -27,7 +27,7 @@ std::string join(T begin, T end, const std::string &sep) {
     return stream.str();
 }
 
-std::optional<int64_t> stol(const std::string &value);
+[[maybe_unused]] std::optional<int64_t> stol(const std::string &value);
 std::optional<uint64_t> stoul(const std::string &value);
 
 class Options {

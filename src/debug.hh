@@ -151,7 +151,8 @@ private:
     std::string get_full_name(uint64_t instance_id, const std::string &var_name);
 
     // validate the expression
-    void validate_expr(DebugExpression *expr, uint32_t breakpoint_id, uint32_t instance_id);
+    void validate_expr(DebugExpression *expr, std::optional<uint32_t> breakpoint_id,
+                       std::optional<uint32_t> instance_id);
 };
 
 }  // namespace hgdb

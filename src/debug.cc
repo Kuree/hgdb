@@ -600,99 +600,53 @@ void Debugger::handle_path_mapping(const PathMappingRequest &req, uint64_t conn_
     }
 }
 
-// templated helpers
-template <typename T>
-bool get_symbol_values(std::unordered_map<std::string, ExpressionType> &values,
-                       const std::unordered_set<std::string> &symbol_names,
-                       const std::string &scope,
-                       const std::vector<std::pair<T, Variable>> &variables,
-                       const std::function<std::optional<int64_t>(const std::string &)> &get_value,
-                       std::string &ec) {
-    for (auto const &[front_var, var] : variables) {
-        if (symbol_names.find(front_var.name) != symbol_names.end()) {
-            auto v = var.is_rtl ? get_value(var.value) : util::stol(var.value);
-            if (!v) {
-                ec = "Unable get value for " + front_var.name;
-                return false;
-            }
-            values.emplace(front_var.name, *v);
-        }
-    }
-    // some values can be under some scope
-    for (auto const &name : symbol_names) {
-        if (values.find(name) != values.end()) continue;
-        // has to be RTL signal
-        auto v = get_value(scope.empty() ? name : fmt::format("{0}.{1}", scope, name));
-        if (!v) {
-            ec = "Unable to get value for " + name;
-            return false;
-        }
-        values.emplace(name, *v);
-    }
-    return true;
-}
-
-// can't seem to simplify the function logic
-// NOLINTNEXTLINE
 void Debugger::handle_evaluation(const EvaluationRequest &req, uint64_t) {
     std::string error_reason = req.error_reason();
     // linux kernel style error handling
+    auto send_error = [&error_reason, this, &req]() {
+        auto resp = GenericResponse(status_code::error, req, error_reason);
+        send_message(resp.str(log_enabled_));
+    };
+
     if (db_ && req.status() == status_code::success) [[likely]] {
         // need to figure out if it is a valid instance name or just filename + line number
         auto const &scope = req.scope();
         DebugExpression expr(req.expression());
-        std::unordered_map<std::string, int64_t> values;
         if (!expr.correct()) {
             error_reason = "Invalid expression";
-            goto send_error;
+            send_error();
+            return;
         }
-        auto const &symbol_names = expr.symbols();
-        auto instance = db_->get_instance_id(scope);
-        auto get_value_fn = [this](const std::string &name) { return get_value(name); };
-        if (instance) {
-            // this is instance scope
-            auto generator_values = db_->get_generator_variable(*instance);
-            if (!get_symbol_values(values, symbol_names, scope, generator_values, get_value_fn,
-                                   error_reason)) {
-                goto send_error;
-            }
-        } else if (scope.empty()) {
-            if (!get_symbol_values<ContextVariable>(values, symbol_names, scope, {}, get_value_fn,
-                                                    error_reason)) {
-                goto send_error;
-            }
-        } else {
-            // maybe it's a breakpoint id
-            auto breakpoint_id = util::stoul(scope);
-            if (!breakpoint_id) {
-                error_reason = "Invalid scope " + scope;
-                goto send_error;
-            }
-            auto instance_name = db_->get_instance_name_from_bp(*breakpoint_id);
-            if (!instance_name) {
-                error_reason = "Invalid scope " + scope;
-                goto send_error;
-            }
-            // only have access to the scope values
-            auto context_values = db_->get_context_variables(*breakpoint_id);
-            if (!get_symbol_values(values, symbol_names, *instance_name, context_values,
-                                   get_value_fn, error_reason)) {
-                goto send_error;
-            }
+        auto instance_id = db_->get_instance_id(scope);
+        auto breakpoint_id = util::stoul(scope);
+        validate_expr(&expr, breakpoint_id, instance_id);
+        if (!expr.correct()) {
+            error_reason = "Unable to resolve symbols";
+            send_error();
+            return;
         }
-        if (values.size() != symbol_names.size()) {
-            error_reason = "Cannot find all required symbols";
-            goto send_error;
+
+        std::unordered_map<std::string, int64_t> values;
+        auto const &names = expr.resolved_symbol_names();
+        for (auto const &[name, full_name] : names) {
+            auto v = get_value(full_name);
+            if (v) values.emplace(name, *v);
         }
+
+        if (values.size() != names.size()) {
+            error_reason = "Unable to get symbol values";
+            send_error();
+            return;
+        }
+
         auto value = expr.eval(values);
         EvaluationResponse eval_resp(scope, std::to_string(value));
         req.set_token(eval_resp);
         send_message(eval_resp.str(log_enabled_));
         return;
+    } else {
+        send_error();
     }
-send_error:
-    auto resp = GenericResponse(status_code::error, req, error_reason);
-    send_message(resp.str(log_enabled_));
 }
 
 void Debugger::handle_option_change(const OptionChangeRequest &req, uint64_t) {
@@ -1053,12 +1007,19 @@ void Debugger::eval_breakpoint(DebugBreakPoint *bp, std::vector<bool> &result, u
     }
 }
 
-void Debugger::validate_expr(DebugExpression *expr, uint32_t breakpoint_id, uint32_t instance_id) {
-    auto context_static_values = get_context_static_values(breakpoint_id);
+void Debugger::validate_expr(DebugExpression *expr, std::optional<uint32_t> breakpoint_id,
+                             std::optional<uint32_t> instance_id) {
+    auto context_static_values = breakpoint_id ? get_context_static_values(*breakpoint_id)
+                                               : std::unordered_map<std::string, int64_t>{};
     expr->set_static_values(context_static_values);
     auto required_symbols = expr->get_required_symbols();
     for (auto const &symbol : required_symbols) {
-        auto name = db_->resolve_scoped_name_breakpoint(symbol, instance_id);
+        std::optional<std::string> name;
+        if (breakpoint_id) {
+            name = db_->resolve_scoped_name_breakpoint(symbol, *breakpoint_id);
+        } else if (instance_id) {
+            name = db_->resolve_scoped_name_instance(symbol, *instance_id);
+        }
         std::string full_name;
         if (name) [[likely]] {
             full_name = rtl_->get_full_name(*name);
