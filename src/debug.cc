@@ -1030,7 +1030,14 @@ void Debugger::eval_breakpoint(DebugBreakPoint *bp, std::vector<bool> &result, u
         } else {
             // need to map these symbol names into the actual hierarchy
             // name
-            auto full_name = get_full_name(bp->instance_id, symbol_name);
+            auto name = db_->resolve_scoped_name_breakpoint(symbol_name, bp->id);
+            std::string full_name;
+            if (name) [[likely]] {
+                full_name = rtl_->get_full_name(*name);
+            } else {
+                // best effort
+                full_name = rtl_->get_full_name(symbol_name);
+            }
             auto v = rtl_->get_value(full_name);
             if (!v) break;
             values.emplace(symbol_name, *v);

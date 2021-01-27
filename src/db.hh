@@ -27,9 +27,11 @@ public:
     std::optional<std::string> get_instance_name(uint32_t id);
     std::optional<uint64_t> get_instance_id(const std::string &instance_name);
     using ContextVariableInfo = std::pair<ContextVariable, Variable>;
-    [[nodiscard]] std::vector<ContextVariableInfo> get_context_variables(uint32_t breakpoint_id);
+    [[nodiscard]] std::vector<ContextVariableInfo> get_context_variables(
+        uint32_t breakpoint_id, bool resolve_hierarchy_value = true);
     using GeneratorVariableInfo = std::pair<GeneratorVariable, Variable>;
-    [[nodiscard]] std::vector<GeneratorVariableInfo> get_generator_variable(uint32_t instance_id);
+    [[nodiscard]] std::vector<GeneratorVariableInfo> get_generator_variable(
+        uint32_t instance_id, bool resolve_hierarchy_value = true);
     [[nodiscard]] std::vector<std::string> get_instance_names();
     [[nodiscard]] std::vector<std::string> get_annotation_values(const std::string &name);
 

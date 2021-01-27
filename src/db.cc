@@ -130,7 +130,7 @@ std::string get_var_value(bool is_rtl, const std::string &value, const std::stri
 }
 
 std::vector<DebugDatabaseClient::ContextVariableInfo> DebugDatabaseClient::get_context_variables(
-    uint32_t breakpoint_id) {
+    uint32_t breakpoint_id, bool resolve_hierarchy_value) {
     using namespace sqlite_orm;
     std::vector<DebugDatabaseClient::ContextVariableInfo> result;
     std::lock_guard guard(db_lock_);
@@ -144,7 +144,8 @@ std::vector<DebugDatabaseClient::ContextVariableInfo> DebugDatabaseClient::get_c
     result.reserve(values.size());
     for (auto const &[variable_id, name, value, is_rtl, instance_name] : values) {
         auto id = *variable_id;
-        auto actual_value = get_var_value(is_rtl, value, instance_name);
+        auto actual_value =
+            resolve_hierarchy_value ? get_var_value(is_rtl, value, instance_name) : value;
         result.emplace_back(std::make_pair(
             ContextVariable{.name = name,
                             .breakpoint_id = std::make_unique<uint32_t>(breakpoint_id),
@@ -155,7 +156,7 @@ std::vector<DebugDatabaseClient::ContextVariableInfo> DebugDatabaseClient::get_c
 }
 
 std::vector<DebugDatabaseClient::GeneratorVariableInfo> DebugDatabaseClient::get_generator_variable(
-    uint32_t instance_id) {
+    uint32_t instance_id, bool resolve_hierarchy_value) {
     using namespace sqlite_orm;
     std::vector<DebugDatabaseClient::GeneratorVariableInfo> result;
     std::lock_guard guard(db_lock_);
@@ -168,7 +169,8 @@ std::vector<DebugDatabaseClient::GeneratorVariableInfo> DebugDatabaseClient::get
     result.reserve(values.size());
     for (auto const &[variable_id, name, value, is_rtl, instance_name] : values) {
         auto id = *variable_id;
-        auto actual_value = get_var_value(is_rtl, value, instance_name);
+        auto actual_value =
+            resolve_hierarchy_value ? get_var_value(is_rtl, value, instance_name) : value;
         result.emplace_back(
             std::make_pair(GeneratorVariable{.name = name,
                                              .instance_id = std::make_unique<uint32_t>(instance_id),
@@ -249,8 +251,8 @@ std::optional<std::string> DebugDatabaseClient::resolve_scoped_name_breakpoint(
     const std::string &scoped_name, uint64_t breakpoint_id) {
     // NOLINTNEXTLINE
     auto context_vars = get_context_variables(breakpoint_id);
-    for (auto const &[gen_var, var] : context_vars) {
-        if (scoped_name == gen_var.name) {
+    for (auto const &[context_var, var] : context_vars) {
+        if (scoped_name == context_var.name) {
             return var.value;
         }
     }
