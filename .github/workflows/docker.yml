@@ -7,6 +7,7 @@ on:
     paths:
       - docker/test/Dockerfile
       - docker/lint/Dockerfile
+      - docker/tcl/Dockerfile
 
 jobs:
   build:
@@ -21,6 +22,7 @@ jobs:
         cd docker
         cd test && docker build . -t keyiz/hgdb:test && cd ../
         cd lint && docker build . -t keyiz/hgdb:lint && cd ../
+        cd tcl && docker build . -t keyiz/hgdb:tcl && cd ../
         docker login -u $DOCKER_USERNAME -p $DOCKER_PASSWORD
         docker push keyiz/hgdb:test
         docker push keyiz/hgdb:lint
