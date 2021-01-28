@@ -9,7 +9,7 @@ namespace hgdb {
 
 DebugDatabaseClient::DebugDatabaseClient(const std::string &filename) {
     db_ = std::make_unique<DebugDatabase>(init_debug_db(filename));
-    db_->sync_schema(true);
+    db_->sync_schema();
 
     setup_execution_order();
 }

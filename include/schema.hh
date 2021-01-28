@@ -298,7 +298,7 @@ auto inline init_debug_db(const std::string &filename) {
                    foreign_key(&GeneratorVariable::variable_id).references(&Variable::id)),
         make_table("annotation", make_column("name", &Annotation::name),
                    make_column("value", &Annotation::value)));
-    storage.sync_schema(true);
+    storage.sync_schema();
     return storage;
 }
 
