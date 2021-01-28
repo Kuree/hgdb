@@ -2,20 +2,30 @@
 
 package require sqlite3
 
-
-proc get_singals {filename anno} {
-    sqlite3 opendb $filename
-    set query "SELECT instance.name, variable.value FROM instance, variable, generator_variable \
-    WHERE instance.id = generator_variable.instance_id \
-          AND generator_variable.annotation = $anno \
-          AND variable.id = generator_variable.variable_id"
-    puts $query
-    opendb eval $query values {
-        puts values
-    }
-    
+proc open_symbol_table {filename} {
+    sqlite3 db $filename;
+    return db;
 }
 
-set filename "debug.db"
-set anno ""
-get_singals "debug.db" "a"
+proc get_singles_with_anno {symbol_table anno} {
+    set query "SELECT instance.name, variable.value FROM instance, variable, generator_variable \
+    WHERE instance.id = generator_variable.instance_id \
+          AND generator_variable.annotation = \"$anno\" \
+          AND variable.id = generator_variable.variable_id"
+    puts $query
+    set result {}
+    $symbol_table eval $query values {
+        set column_names $values(*)
+        set row_list {}
+        foreach column $column_names {
+            lappend row_list $values($column)
+        }
+        set signal_name [join $row_list "."]
+        puts $signal_name
+        lappend result $signal_name
+    }
+    return result;
+}
+
+#set db [open_symbol_table "debug.db"]
+#set signals [get_singles_with_anno db ""]
