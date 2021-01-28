@@ -44,6 +44,3 @@ proc remap_name {hierarchy_prefix name} {
     set result $hierarchy_prefix.$top_name
     return $result
 }
-
-#set a [remap_name "a" "b.c.c.a"]
-#puts $a
