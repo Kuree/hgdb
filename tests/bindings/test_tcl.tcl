@@ -7,7 +7,9 @@ proc test_open_db {filename} {
 proc test_get_singles_with_anno {filename} {
     set db [open_symbol_table $filename]
     set result [get_singles_with_anno db "test"]
-    assert $result == "mod.clk"
+    if {$result != "mod.clk"} {
+        error
+    }
 }
 
 proc test_remap_name {filename} {

@@ -7,46 +7,49 @@ except ImportError:
 import os
 import tempfile
 import pytest
+import re
 
 
-def find_hgdb_tcl():
-    path = os.path.abspath(__file__)
-    for i in range(3):
-        path = os.path.dirname(path)
-    tcl = os.path.join(path, "bindings", "tcl", "hgdb.tcl")
+def find_test_tcl():
+    path = os.path.dirname(os.path.abspath(__file__))
+    tcl = os.path.join(path, "test_tcl.tcl")
     return tcl
 
 
-def write_db(dirname):
-    filename = os.path.join(dirname, "debug.db")
-    db = hgdb.DebugSymbolTable(filename)
-    db.store_instance(0, "mod")
-    db.store_variable(0, "clk")
-    db.store_generator_variable("clk", 0, 0, "test")
-    return filename
+@pytest.fixture()
+def symbol_table():
+    with tempfile.TemporaryDirectory() as temp:
+        filename = os.path.join(temp, "debug.db")
+        db = hgdb.DebugSymbolTable(filename)
+        db.store_instance(0, "mod")
+        db.store_variable(0, "clk")
+        db.store_generator_variable("clk", 0, 0, "test")
+        yield filename
+
+
+@pytest.fixture(scope="function")
+def initialize():
+    cwd = os.getcwd()
+    dirname = os.path.dirname(os.path.abspath(__file__))
+    os.chdir(dirname)
+    yield dirname
+    os.chdir(cwd)
+
+
+# search for all available tests
+with open(find_test_tcl()) as f:
+    file_context = f.read()
+matches = re.finditer(r"proc\s+(test_.*)\s{filename", file_context, re.MULTILINE)
+test_list = []
+for _, match in enumerate(matches, start=1):
+    name = match.group(1)
+    test_list.append(name)
 
 
 @pytest.mark.skipif(not tcl_available, reason="tcl not available")
-def test_open_db():
-    with tempfile.TemporaryDirectory() as temp:
-        db_filename = write_db(temp)
-        hgdb_tcl = find_hgdb_tcl()
-        tcl = tkinter.Tcl()
-        tcl.eval("source {0}".format(hgdb_tcl))
-        tcl.eval("open_symbol_table {0}".format(db_filename))
-
-
-@pytest.mark.skipif(not tcl_available, reason="tcl not available")
-def test_read_signals():
-    with tempfile.TemporaryDirectory() as temp:
-        db_filename = write_db(temp)
-        hgdb_tcl = find_hgdb_tcl()
-        tcl = tkinter.Tcl()
-        tcl.eval("source {0}".format(hgdb_tcl))
-        tcl.eval("set db [open_symbol_table {0}]".format(db_filename))
-        result = tcl.eval('get_singles_with_anno db "test"')
-        assert result == "mod.clk"
-
-
-if __name__ == "__main__":
-    test_read_signals()
+@pytest.mark.parametrize("test_name", test_list)
+def test_tcl_function(symbol_table, test_name, initialize):
+    test_tcl = find_test_tcl()
+    tcl = tkinter.Tcl()
+    tcl.eval("source {0}".format(test_tcl))
+    tcl.eval("{0} {1}".format(test_name, symbol_table))
