@@ -12,7 +12,6 @@ proc get_singles_with_anno {symbol_table anno} {
     WHERE instance.id = generator_variable.instance_id \
           AND generator_variable.annotation = \"$anno\" \
           AND variable.id = generator_variable.variable_id"
-    puts $query
     set result {}
     $symbol_table eval $query values {
         set column_names $values(*)
@@ -21,11 +20,7 @@ proc get_singles_with_anno {symbol_table anno} {
             lappend row_list $values($column)
         }
         set signal_name [join $row_list "."]
-        puts $signal_name
         lappend result $signal_name
     }
-    return result;
+    return $result;
 }
-
-#set db [open_symbol_table "debug.db"]
-#set signals [get_singles_with_anno db ""]
