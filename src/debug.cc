@@ -22,6 +22,11 @@ Debugger::Debugger(std::unique_ptr<AVPIProvider> vpi) {
     log_enabled_ = get_logging();
     // initialize the monitor
     monitor_ = Monitor([this](const std::string &name) { return this->get_value(name); });
+
+    // set up some call backs
+    server_->set_on_call_client_disconnect([this]() {
+        if (detach_after_disconnect_) detach();
+    });
 }
 
 bool Debugger::initialize_db(const std::string &filename) {
@@ -130,6 +135,19 @@ void Debugger::eval() {
 }
 
 Debugger::~Debugger() { server_thread_.join(); }
+
+void Debugger::detach() {
+    // clear out inserted breakpoints
+    inserted_breakpoints_.clear();
+    breakpoints_.clear();
+    // set evaluation mode to normal
+    evaluation_mode_ = EvaluationMode::BreakPointOnly;
+    if (is_running_.load()) {
+        is_running_ = false;
+        lock_.ready();
+    }
+    log_info("Debugger runtime detached since all clients have disconnected");
+}
 
 void Debugger::on_message(const std::string &message, uint64_t conn_id) {
     // server can only receives request
@@ -653,12 +671,15 @@ void Debugger::handle_option_change(const OptionChangeRequest &req, uint64_t) {
     if (req.status() == status_code::success) {
         auto options = get_options();
         for (auto const &[name, value] : req.bool_values()) {
+            log_info(fmt::format("option[{0}] set to {1}", name, value));
             options.set_option(name, value);
         }
         for (auto const &[name, value] : req.int_values()) {
+            log_info(fmt::format("option[{0}] set to {1}", name, value));
             options.set_option(name, value);
         }
         for (auto const &[name, value] : req.str_values()) {
+            log_info(fmt::format("option[{0}] set to {1}", name, value));
             options.set_option(name, value);
         }
         auto resp = GenericResponse(status_code::success, req);
@@ -784,6 +805,7 @@ util::Options Debugger::get_options() {
     util::Options options;
     options.add_option("single_thread_mode", &single_thread_mode_);
     options.add_option("log_enabled", &log_enabled_);
+    options.add_option("detach_after_disconnect", &detach_after_disconnect_);
     return options;
 }
 

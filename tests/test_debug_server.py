@@ -25,10 +25,10 @@ def is_killed(s):
     return killed
 
 
-def setup_server(start_server, find_free_port, no_eval=False):
+def setup_server(start_server, find_free_port, no_eval=False, stdout=False):
     port = find_free_port()
     args = ["+DEBUG_LOG", "+NO_EVAL"] if no_eval else ["+DEBUG_LOG"]
-    s = start_server(port, "test_debug_server", args, stdout=False)
+    s = start_server(port, "test_debug_server", args, stdout=stdout)
     assert s.poll() is None
     uri = "ws://localhost:{0}".format(port)
     return s, uri
@@ -300,10 +300,31 @@ def test_watch(start_server, find_free_port):
     kill_server(s)
 
 
+def test_detach(start_server, find_free_port):
+    s, uri = setup_server(start_server, find_free_port)
+
+    async def test_logic1():
+        async with hgdb.HGDBClient(uri, None) as client:
+            await client.connect()
+            await client.change_option(detach_after_disconnect=True)
+            await client.set_breakpoint("/tmp/test.py", 1)
+            await client.continue_()
+
+    async def test_logic2():
+        client = hgdb.HGDBClient(uri, None)
+        await client.connect()
+        info = await client.get_info("status")
+        assert "Simulation paused: false" in info["payload"]["status"]
+
+    asyncio.get_event_loop().run_until_complete(test_logic1())
+    asyncio.get_event_loop().run_until_complete(test_logic2())
+    kill_server(s)
+
+
 if __name__ == "__main__":
     import sys
 
     sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
     from conftest import start_server_fn, find_free_port_fn
 
-    test_watch(start_server_fn, find_free_port_fn)
+    test_detach(start_server_fn, find_free_port_fn)

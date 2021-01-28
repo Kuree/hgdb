@@ -82,7 +82,7 @@ private:
     DebugBreakPoint step_over_breakpoint_;
 
     // used for scheduler
-    // if in single thread mode, instances with the same fn/ln won't be evalauted as a batch
+    // if in single thread mode, instances with the same fn/ln won't be evaluated as a batch
     bool single_thread_mode_ = false;
     enum class EvaluationMode { BreakPointOnly, StepOver };
     EvaluationMode evaluation_mode_ = EvaluationMode::BreakPointOnly;
@@ -97,6 +97,10 @@ private:
 
     // monitor logic
     Monitor monitor_;
+
+    // handle client disconnect logic
+    bool detach_after_disconnect_ = false;
+    void detach();
 
     // message handler
     void on_message(const std::string &message, uint64_t conn_id);

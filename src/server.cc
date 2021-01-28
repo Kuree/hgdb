@@ -36,6 +36,9 @@ DebugServer::DebugServer(bool enable_logging) {
                 break;
             }
         }
+        if (connections_.empty() && on_all_client_disconnect_) {
+            (*on_all_client_disconnect_)();
+        }
     };
 
     // bind some methods to keep track of connections
@@ -101,6 +104,10 @@ void DebugServer::set_on_message(
         callback(str, id);
     };
     server_.set_message_handler(on_message);
+}
+
+void DebugServer::set_on_call_client_disconnect(const std::function<void()> &func) {
+    on_all_client_disconnect_ = func;
 }
 
 void DebugServer::add_to_topic(const std::string &topic, uint64_t conn_id) {

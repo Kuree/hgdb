@@ -17,13 +17,14 @@ using Connection = WSServer::connection_ptr;
 class DebugServer {
 public:
     explicit DebugServer();
-    DebugServer(bool enable_logging);
+    explicit DebugServer(bool enable_logging);
     void run(uint16_t port);
     void stop();
     void send(const std::string &payload);
     void send(const std::string &payload, const std::string &topic);
     void send(const std::string &payload, uint64_t conn_id);
     void set_on_message(const std::function<void(const std::string &, uint64_t conn_id)> &callback);
+    void set_on_call_client_disconnect(const std::function<void(void)> &func);
     void add_to_topic(const std::string &topic, uint64_t conn_id);
     void remove_from_topic(const std::string &topic, uint64_t conn_id);
 
@@ -42,6 +43,9 @@ private:
     std::unordered_map<std::string, std::unordered_set<uint64_t>> topics_;
 
     uint64_t get_new_channel_id();
+
+    // call back on a connection closed
+    std::optional<std::function<void(void)>> on_all_client_disconnect_;
 };
 
 }  // namespace hgdb

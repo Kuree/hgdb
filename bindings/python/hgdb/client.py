@@ -135,6 +135,14 @@ class HGDBClient:
     async def close(self):
         await self.ws.close()
 
+    async def __aenter__(self):
+        return self
+
+    async def __aexit__(self, exc_type, exc_val, exc_tb):
+        if self.ws is not None:
+            await self.ws.close()
+            del self.ws
+
     @staticmethod
     def __check_status(res):
         if res["status"] != "success":
