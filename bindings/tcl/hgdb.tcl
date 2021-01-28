@@ -62,5 +62,15 @@ proc get_design_instances_with_anno {symbol_table anno} {
         set c "name"
         lappend result $values($c)
     }
-    return $result;
+    return $result
+}
+
+proc get_instances_with_anno {symbol_table hierarchy_prefix anno} {
+    set instances [get_design_instances_with_anno $symbol_table $anno]
+    set result {}
+    foreach instance $instances {
+        set instance [remap_name $hierarchy_prefix $instance]
+        lappend result $instance
+    }
+    return $result
 }

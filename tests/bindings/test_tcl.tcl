@@ -35,7 +35,13 @@ proc test_get_signals_with_anno {filename} {
 proc test_get_design_instances_with_anno {filename} {
     set db [open_symbol_table $filename]
     set result [get_design_instances_with_anno $db "test"]
-    assert_str_eq $result "mod"
+    assert_str_eq $result "mod.inst0"
 }
 
-# test_get_design_instances_with_anno debug.db
+proc test_get_instances_with_anno {filename} {
+    set db [open_symbol_table $filename]
+    set result [get_instances_with_anno $db "top.a" "test"]
+    assert_str_eq $result "top.a.inst0"
+}
+
+#test_get_instances_with_anno debug.db
