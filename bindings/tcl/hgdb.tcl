@@ -24,3 +24,26 @@ proc get_singles_with_anno {symbol_table anno} {
     }
     return $result;
 }
+
+proc printlist { inlist } {
+    foreach item $inlist {
+        puts $item
+    }
+}
+
+proc remap_name {hierarchy_prefix name} {
+    # need to remove the top hierarchy name in the name
+    set tokens [split $name .]
+    set token_size [llength $tokens]
+    if {$token_size > 1} {
+        set top_tokens [lrange $tokens 1 end]
+        set top_name [join $top_tokens "."]
+    } else {
+        set top_name $name
+    }
+    set result $hierarchy_prefix.$top_name
+    return $result
+}
+
+#set a [remap_name "a" "b.c.c.a"]
+#puts $a
