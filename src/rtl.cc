@@ -116,6 +116,9 @@ void RTLSimulatorClient::initialize_vpi(std::unique_ptr<AVPIProvider> vpi) {
         // we take the ownership
         vpi_ = std::move(vpi);
     }
+    // set simulator information
+    set_simulator_info();
+
     // compute the vpiNet target. this is a special case for Verilator
     vpi_net_target_ = is_verilator() ? vpiReg : vpiNet;
 }
@@ -265,20 +268,11 @@ std::string RTLSimulatorClient::get_full_name(const std::string &name) const {
     }
 }
 
-const std::vector<std::string> &RTLSimulatorClient::get_argv() {
-    get_simulator_info();
-    return sim_info_->args;
-}
+const std::vector<std::string> &RTLSimulatorClient::get_argv() const { return sim_info_.args; }
 
-const std::string &RTLSimulatorClient::get_simulator_name() {
-    get_simulator_info();
-    return sim_info_->name;
-}
+const std::string &RTLSimulatorClient::get_simulator_name() const { return sim_info_.name; }
 
-const std::string &RTLSimulatorClient::get_simulator_version() {
-    get_simulator_info();
-    return sim_info_->version;
-}
+const std::string &RTLSimulatorClient::get_simulator_version() const { return sim_info_.version; }
 
 uint64_t RTLSimulatorClient::get_simulation_time() const {
     // we use sim time
@@ -394,24 +388,30 @@ void RTLSimulatorClient::compute_hierarchy_name_prefix(std::unordered_set<std::s
     }
 }
 
-void RTLSimulatorClient::get_simulator_info() {
-    if (!sim_info_) {
-        t_vpi_vlog_info info{};
-        if (vpi_->vpi_get_vlog_info(&info)) {
-            SimulatorInfo sim_info;
-            sim_info.name = info.product;
-            sim_info.version = info.version;
-            sim_info.args.reserve(info.argc);
-            for (int i = 0; i < info.argc; i++) {
-                std::string argv = info.argv[i];
-                sim_info.args.emplace_back(argv);
-            }
-            sim_info_ = sim_info;
-        } else {
-            // can't get simulator info
-            sim_info_ = SimulatorInfo{};
+void RTLSimulatorClient::set_simulator_info() {
+    t_vpi_vlog_info info{};
+    if (vpi_->vpi_get_vlog_info(&info)) {
+        SimulatorInfo sim_info;
+        sim_info.name = info.product;
+        sim_info.version = info.version;
+        sim_info.args.reserve(info.argc);
+        for (int i = 0; i < info.argc; i++) {
+            std::string argv = info.argv[i];
+            sim_info.args.emplace_back(argv);
         }
+        sim_info_ = sim_info;
+    } else {
+        // can't get simulator info
+        sim_info_ = SimulatorInfo{};
     }
+
+    is_verilator_ = sim_info_.name == "Verilator";
+    is_xcelium_ = sim_info_.name.find("xmsim") != std::string::npos;
+    // don't ask me why there is an extra space at the end
+    // "Chronologic Simulation VCS Release "
+    // to be safe all the matching is done by string find, instead of exact match, except
+    // verilator
+    is_vcs_ = sim_info_.name.find("VCS") != std::string::npos;
 }
 
 void RTLSimulatorClient::compute_verilator_name_prefix(std::unordered_set<std::string> &top_names) {
@@ -419,16 +419,6 @@ void RTLSimulatorClient::compute_verilator_name_prefix(std::unordered_set<std::s
     for (auto const &def_name : top_names) {
         auto name = fmt::format("TOP.{0}.", def_name);
         hierarchy_name_prefix_map_.emplace(def_name, name);
-    }
-}
-
-bool RTLSimulatorClient::is_verilator() {
-    if (is_verilator_) {
-        return *is_verilator_;
-    } else {
-        auto simulator_name = get_simulator_name();
-        is_verilator_ = simulator_name == "Verilator";
-        return *is_verilator_;
     }
 }
 

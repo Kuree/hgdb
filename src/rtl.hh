@@ -70,9 +70,9 @@ public:
     using ModuleSignals = std::unordered_map<std::string, vpiHandle>;
     ModuleSignals get_module_signals(const std::string &name);
     [[nodiscard]] std::string get_full_name(const std::string &name) const;
-    [[nodiscard]] const std::vector<std::string> &get_argv();
-    [[nodiscard]] const std::string &get_simulator_name();
-    [[nodiscard]] const std::string &get_simulator_version();
+    [[nodiscard]] const std::vector<std::string> &get_argv() const;
+    [[nodiscard]] const std::string &get_simulator_name() const;
+    [[nodiscard]] const std::string &get_simulator_version() const;
     [[nodiscard]] uint64_t get_simulation_time() const;
     // can't use std::function due to C interface
     vpiHandle add_call_back(const std::string &cb_name, int cb_type, int(cb_func)(p_cb_data),
@@ -86,7 +86,9 @@ public:
     AVPIProvider &vpi() { return *vpi_; }
 
     // indicate if the simulator is verilator
-    bool is_verilator();
+    [[nodiscard]] bool is_verilator() const { return is_verilator_; }
+    [[nodiscard]] bool is_vcs() const { return is_vcs_; }
+    [[nodiscard]] bool is_xcelium() const { return is_xcelium_; }
 
     // search for clock signals
     [[nodiscard]] std::vector<std::string> get_clocks_from_design();
@@ -122,14 +124,16 @@ private:
         std::string version;
         std::vector<std::string> args;
     };
-    std::optional<SimulatorInfo> sim_info_;
+    SimulatorInfo sim_info_;
 
     // only used for verilator
-    std::optional<bool> is_verilator_;
+    bool is_verilator_ = false;
+    bool is_xcelium_ = false;
+    bool is_vcs_ = false;
 
     static std::pair<std::string, std::string> get_path(const std::string &name);
     void compute_hierarchy_name_prefix(std::unordered_set<std::string> &top_names);
-    void get_simulator_info();
+    void set_simulator_info();
     void compute_verilator_name_prefix(std::unordered_set<std::string> &top_names);
 
     // used for compute potential clock signals if user doesn't provide proper annotation
