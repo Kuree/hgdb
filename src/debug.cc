@@ -27,6 +27,9 @@ Debugger::Debugger(std::unique_ptr<AVPIProvider> vpi) {
     server_->set_on_call_client_disconnect([this]() {
         if (detach_after_disconnect_) detach();
     });
+
+    // set vendor specific options
+    set_vendor_initial_options();
 }
 
 bool Debugger::initialize_db(const std::string &filename) {
@@ -807,6 +810,18 @@ util::Options Debugger::get_options() {
     options.add_option("log_enabled", &log_enabled_);
     options.add_option("detach_after_disconnect", &detach_after_disconnect_);
     return options;
+}
+
+void Debugger::set_vendor_initial_options() {
+    // all the options already have initial values
+    // this function is used to set
+    if (rtl_) {
+        if (rtl_->is_vcs()) {
+            // we can't ctrl-c/d out of simv once it's paused
+            // need to continue to simulation if client disconnected
+            detach_after_disconnect_ = true;
+        }
+    }
 }
 
 bool Debugger::check_send_db_error(RequestType type, uint64_t conn_id) {

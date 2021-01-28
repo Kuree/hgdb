@@ -138,6 +138,8 @@ private:
 
     // options
     [[nodiscard]] util::Options get_options();
+    // used to set initial options
+    void set_vendor_initial_options();
 
     // common checker
     bool check_send_db_error(RequestType type, uint64_t conn_id);
