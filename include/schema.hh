@@ -79,6 +79,13 @@ struct Instance {
      * and then get the proper full path name
      */
     std::string name;
+    /**
+     * Annotation on the generator instance. Useful if the compiler wants to pass information
+     * to other tools that consuming the information. Leave it as an empty string if not used.
+     * hgdb will not read/use this field, so how this annotation is formatted depends on the
+     * agreement between the compiler and tools that consume this information
+     */
+    std::string annotation;
 };
 
 /**
@@ -271,7 +278,8 @@ auto inline init_debug_db(const std::string &filename) {
                    make_column("trigger", &BreakPoint::trigger),
                    foreign_key(&BreakPoint::instance_id).references(&Instance::id)),
         make_table("instance", make_column("id", &Instance::id, primary_key()),
-                   make_column("name", &Instance::name)),
+                   make_column("name", &Instance::name),
+                   make_column("annotation", &Instance::annotation)),
         make_table("scope", make_column("scope", &Scope::id, primary_key()),
                    make_column("breakpoints", &Scope::breakpoints)),
         make_table("variable", make_column("id", &Variable::id, primary_key()),
@@ -290,7 +298,7 @@ auto inline init_debug_db(const std::string &filename) {
                    foreign_key(&GeneratorVariable::variable_id).references(&Variable::id)),
         make_table("annotation", make_column("name", &Annotation::name),
                    make_column("value", &Annotation::value)));
-    storage.sync_schema();
+    storage.sync_schema(true);
     return storage;
 }
 
@@ -312,8 +320,9 @@ inline void store_breakpoint(DebugDatabase &db, uint32_t id, uint32_t instance_i
     // NOLINTNEXTLINE
 }
 
-inline void store_instance(DebugDatabase &db, uint32_t id, const std::string &name) {
-    db.replace(Instance{.id = id, .name = name});
+inline void store_instance(DebugDatabase &db, uint32_t id, const std::string &name,
+                           const std::string &annotation = "") {
+    db.replace(Instance{.id = id, .name = name, .annotation = annotation});
 }
 
 inline void store_scope(DebugDatabase &db, uint32_t id, const std::string &breakpoints) {

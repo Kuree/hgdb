@@ -21,8 +21,8 @@ class DebugSymbolTable:
             raise DebugSymbolTableException(f"Instance {instance_id} does not exist!")
         _hgdb.store_breakpoint(self.db, id_, instance_id, filename, line_num, column_num, condition, trigger)
 
-    def store_instance(self, id_: int, full_name: str):
-        _hgdb.store_instance(self.db, id_, full_name)
+    def store_instance(self, id_: int, full_name: str, annotation: str = ""):
+        _hgdb.store_instance(self.db, id_, full_name, annotation)
 
     def store_scope(self, id_: int, *args: int):
         for breakpoint_id in args:
