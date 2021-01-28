@@ -32,4 +32,10 @@ proc test_get_signals_with_anno {filename} {
     assert_str_eq $result "top.a.clk"
 }
 
-# test_get_signals_with_anno debug.db
+proc test_get_design_instances_with_anno {filename} {
+    set db [open_symbol_table $filename]
+    set result [get_design_instances_with_anno $db "test"]
+    assert_str_eq $result "mod"
+}
+
+# test_get_design_instances_with_anno debug.db

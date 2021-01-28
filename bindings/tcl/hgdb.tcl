@@ -54,3 +54,13 @@ proc get_signals_with_anno {symbol_table hierarchy_prefix anno} {
     }
     return $result
 }
+
+proc get_design_instances_with_anno {symbol_table anno} {
+    set query "SELECT instance.name FROM instance WHERE instance.annotation = \"$anno\""
+    set result {}
+    $symbol_table eval $query values {
+        set c "name"
+        lappend result $values($c)
+    }
+    return $result;
+}

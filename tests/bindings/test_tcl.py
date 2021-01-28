@@ -21,7 +21,7 @@ def symbol_table():
     with tempfile.TemporaryDirectory() as temp:
         filename = os.path.join(temp, "debug.db")
         db = hgdb.DebugSymbolTable(filename)
-        db.store_instance(0, "mod")
+        db.store_instance(0, "mod", "test")
         db.store_variable(0, "clk")
         db.store_generator_variable("clk", 0, 0, "test")
         yield filename
@@ -48,7 +48,7 @@ for _, match in enumerate(matches, start=1):
 
 @pytest.mark.skipif(not tcl_available, reason="tcl not available")
 @pytest.mark.parametrize("test_name", test_list)
-def test_tcl_function(symbol_table, test_name, initialize):
+def test_tcl_function(symbol_table, test_name):
     test_tcl = find_test_tcl()
     tcl = tkinter.Tcl()
     tcl.eval("source {0}".format(test_tcl))
