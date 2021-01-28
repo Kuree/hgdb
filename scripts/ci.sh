@@ -15,3 +15,7 @@ docker exec -i ci-test bash -c "bash /hgdb/bindings/python/scripts/install.sh"
 docker exec -i ci-test bash -c "pip install kratos"
 docker exec -i ci-test bash -c "cd /hgdb && pytest tests/ build/tests -v"
 docker stop ci-test
+# test other bindings
+docker run -d --name ci-test --rm -it --mount type=bind,source=${ROOT},target=/hgdb keyiz/hgdb:tcl bash
+docker exec -i ci-test bash -c "pip install /hgdb/bindings/python/dist/*.whl"
+docker exec -i ci-test bash -c "cd /hgdb/ && pytest tests/bindings/test_tcl.py"
