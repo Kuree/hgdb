@@ -1,7 +1,12 @@
-import hgdb
-import tkinter
+try:
+    import hgdb
+    import tkinter
+    tcl_available = True
+except ImportError:
+    tcl_available = False
 import os
 import tempfile
+import pytest
 
 
 def find_hgdb_tcl():
@@ -21,6 +26,7 @@ def write_db(dirname):
     return filename
 
 
+@pytest.mark.skipif(not tcl_available, reason="tcl not available")
 def test_open_db():
     with tempfile.TemporaryDirectory() as temp:
         db_filename = write_db(temp)
@@ -30,6 +36,7 @@ def test_open_db():
         tcl.eval("open_symbol_table {0}".format(db_filename))
 
 
+@pytest.mark.skipif(not tcl_available, reason="tcl not available")
 def test_read_signals():
     with tempfile.TemporaryDirectory() as temp:
         db_filename = write_db(temp)
