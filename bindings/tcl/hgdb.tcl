@@ -7,7 +7,7 @@ proc open_symbol_table {filename} {
     return db;
 }
 
-proc get_singles_with_anno {symbol_table anno} {
+proc get_design_signals_with_anno {symbol_table anno} {
     set query "SELECT instance.name, variable.value FROM instance, variable, generator_variable \
     WHERE instance.id = generator_variable.instance_id \
           AND generator_variable.annotation = \"$anno\" \
@@ -42,5 +42,15 @@ proc remap_name {hierarchy_prefix name} {
         set top_name $name
     }
     set result $hierarchy_prefix.$top_name
+    return $result
+}
+
+proc get_signals_with_anno {symbol_table hierarchy_prefix anno} {
+    set signals [get_design_signals_with_anno $symbol_table $anno]
+    set result {}
+    foreach signal $signals {
+        set signal [remap_name $hierarchy_prefix $signal]
+        lappend result $signal
+    }
     return $result
 }

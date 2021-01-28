@@ -1,15 +1,19 @@
 source ../../bindings/tcl/hgdb.tcl
 
+proc assert_str_eq {str1 str2} {
+    if {$str1 != $str2} {
+        error "$str1 != $str2"
+    }
+}
+
 proc test_open_db {filename} {
     set db [open_symbol_table $filename]
 }
 
-proc test_get_singles_with_anno {filename} {
+proc test_get_design_signals_with_anno {filename} {
     set db [open_symbol_table $filename]
-    set result [get_singles_with_anno db "test"]
-    if {$result != "mod.clk"} {
-        error
-    }
+    set result [get_design_signals_with_anno db "test"]
+    assert_str_eq $result "mod.clk"
 }
 
 proc test_remap_name {filename} {
@@ -17,10 +21,15 @@ proc test_remap_name {filename} {
     if {$r1 != "a.c.c.a"} {
         error
     }
+    assert_str_eq $r1 "a.c.c.a"
     set r2 [remap_name "a" "b"]
-    if {$r2 != "a.b"} {
-        error
-    }
+    assert_str_eq $r2 "a.b"
 }
 
-# test_remap_name "a"
+proc test_get_signals_with_anno {filename} {
+    set db [open_symbol_table $filename]
+    set result [get_signals_with_anno $db "top.a" "test"]
+    assert_str_eq $result "top.a.clk"
+}
+
+# test_get_signals_with_anno debug.db
