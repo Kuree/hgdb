@@ -71,11 +71,12 @@ auto setup_db_vpi(MockVPIProvider &vpi) {
             store_instance(*db, instance_id, def_name);
         }
     }
+
+    uint32_t var_id = 0;
     for (auto dut_id = 1; dut_id <= 2; dut_id++) {
         // we are only interested in dut and dut2
         std::map<std::string, uint32_t> variable_ids;
         std::map<std::string, vpiHandle> variable_handles;
-        uint32_t var_id = 0;
         auto const &[dut_instance_name, dut_instance_full_name] = instance_names[dut_id];
         auto *dut_instance_handle = instance_handles[dut_id];
         for (const auto &name : variables) {
