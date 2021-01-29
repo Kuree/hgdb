@@ -236,7 +236,7 @@ def test_evaluate(start_server, find_free_port):
         await client.connect()
         resp = await client.evaluate("", "42")
         assert resp["payload"]["result"] == "42"
-        resp = await client.evaluate("mod", "a + 41")
+        resp = await client.evaluate("mod", "a + 41", is_context=False)
         assert resp["payload"]["result"] == "42"
         resp = await client.evaluate("", "mod.a + 41")
         assert resp["payload"]["result"] == "42"

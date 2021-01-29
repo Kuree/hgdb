@@ -106,8 +106,9 @@ class HGDBClient:
         payload = {"request": True, "type": "debugger-info", "payload": {"command": status_command}}
         return await self.__send_check(payload, check_error)
 
-    async def evaluate(self, scope, expression, check_error=True):
-        payload = {"request": True, "type": "evaluation", "payload": {"scope": scope, "expression": expression}}
+    async def evaluate(self, scope, expression, is_context=True, check_error=True):
+        payload = {"request": True, "type": "evaluation",
+                   "payload": {"scope": scope, "expression": expression, "is_context": is_context}}
         return await self.__send_check(payload, check_error=check_error)
 
     async def change_option(self, check_error=True, **kwargs):

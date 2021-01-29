@@ -638,8 +638,16 @@ void Debugger::handle_evaluation(const EvaluationRequest &req, uint64_t) {
             send_error();
             return;
         }
-        auto instance_id = db_->get_instance_id(scope);
-        auto breakpoint_id = util::stoul(scope);
+        std::optional<uint32_t> instance_id;
+        if (!req.is_context()) {
+            if (std::all_of(scope.begin(), scope.end(), ::isdigit)) {
+                instance_id = util::stoul(scope);
+            } else {
+                instance_id = db_->get_instance_id(scope);
+            }
+        }
+
+        auto breakpoint_id = req.is_context() ? util::stoul(scope) : std::nullopt;
         validate_expr(&expr, breakpoint_id, instance_id);
         if (!expr.correct()) {
             error_reason = "Unable to resolve symbols";

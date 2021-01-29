@@ -226,7 +226,8 @@ TEST(proto, request_parse_evaluation) {  // NOLINT
     "type": "evaluation",
     "payload": {
         "scope": "test.scope",
-        "expression": "a + 1"
+        "expression": "a + 1",
+        "is_context": true
     }
 }
 )";
@@ -235,6 +236,7 @@ TEST(proto, request_parse_evaluation) {  // NOLINT
     auto const *eval = dynamic_cast<hgdb::EvaluationRequest *>(r.get());
     EXPECT_EQ(eval->scope(), "test.scope");
     EXPECT_EQ(eval->expression(), "a + 1");
+    EXPECT_TRUE(eval->is_context());
 }
 
 TEST(proto, request_parse_option_change) {  // NOLINT

@@ -79,6 +79,7 @@ namespace hgdb {
  * payload:
  *     scope: [required] - string
  *     expression: [required] - string
+ *     is_context: [required] - bool
  *
  * OptionChange Request
  * type: option-change
@@ -767,12 +768,14 @@ void EvaluationRequest::parse_payload(const std::string &payload) {
 
     auto scope = get_member<std::string>(document, "scope", error_reason_);
     auto expression = get_member<std::string>(document, "expression", error_reason_);
-    if (!scope || !expression) {
+    auto is_context = get_member<bool>(document, "is_context", error_reason_);
+    if (!scope || !expression || !is_context) {
         status_code_ = status_code::error;
         return;
     }
     scope_ = *scope;
     expression_ = *expression;
+    is_context_ = *is_context;
 }
 
 void OptionChangeRequest::parse_payload(const std::string &payload) {
