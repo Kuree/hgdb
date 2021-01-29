@@ -96,6 +96,12 @@ public:
     [[nodiscard]] bool monitor_signals(const std::vector<std::string> &signals,
                                        int(cb_func)(p_cb_data), void *user_data);
 
+    // reverse simulation supported
+    // this will be queried from vendor names
+    [[maybe_unused]] [[nodiscard]] bool can_reverse_simulation() { return false; }
+    // given a list of clock handles, reverse the execution
+    [[maybe_unused]] void reverse_last_posedge(const std::vector<vpiHandle> &) {}
+
     // destructor to avoid memory leak in the simulator
     ~RTLSimulatorClient();
 
