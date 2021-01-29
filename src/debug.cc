@@ -428,7 +428,7 @@ void Debugger::handle_connection(const ConnectionRequest &req, uint64_t conn_id)
     }
 
     // need to set the remap
-    db_->set_src_mapping(req.path_mapping());
+    if (db_) db_->set_src_mapping(req.path_mapping());
 
     if (success) {
         auto resp = GenericResponse(status_code::success, req);
