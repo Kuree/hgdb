@@ -553,6 +553,13 @@ void Debugger::handle_command(const CommandRequest &req, uint64_t) {
             lock_.ready();
             break;
         }
+        case CommandRequest::CommandType::step_back: {
+            log_info("handle_command: step_back");
+            // change the mode into step through
+            evaluation_mode_ = EvaluationMode::StepBack;
+            lock_.ready();
+            break;
+        }
     }
 }
 
@@ -844,17 +851,26 @@ bool Debugger::check_send_db_error(RequestType type, uint64_t conn_id) {
 }
 
 std::vector<Debugger::DebugBreakPoint *> Debugger::next_breakpoints() {
-    if (evaluation_mode_ == EvaluationMode::BreakPointOnly) {
-        return next_normal_breakpoints();
-    } else if (evaluation_mode_ == EvaluationMode::StepOver) {
-        auto *bp = next_step_over_breakpoint();
-        if (bp)
-            return {bp};
-        else
-            return {};
-    } else {
-        return {};
+    switch (evaluation_mode_) {
+        case EvaluationMode::BreakPointOnly: {
+            return next_normal_breakpoints();
+        }
+        case EvaluationMode::StepOver: {
+            auto *bp = next_step_over_breakpoint();
+            if (bp)
+                return {bp};
+            else
+                return {};
+        }
+        case EvaluationMode::StepBack: {
+            auto *bp = next_step_back_breakpoint();
+            if (bp)
+                return {bp};
+            else
+                return {};
+        }
     }
+    return {};
 }
 
 Debugger::DebugBreakPoint *Debugger::next_step_over_breakpoint() {
@@ -879,17 +895,7 @@ Debugger::DebugBreakPoint *Debugger::next_step_over_breakpoint() {
     evaluated_ids_.emplace(*current_breakpoint_id_);
     // need to get a new breakpoint
     auto bp_info = db_->get_breakpoint(*current_breakpoint_id_);
-    if (!bp_info) return nullptr;
-    std::string cond = bp_info->condition.empty() ? "1" : bp_info->condition;
-    step_over_breakpoint_.id = *current_breakpoint_id_;
-    step_over_breakpoint_.instance_id = *bp_info->instance_id;
-    step_over_breakpoint_.enable_expr = std::make_unique<DebugExpression>(cond);
-    step_over_breakpoint_.filename = bp_info->filename;
-    step_over_breakpoint_.line_num = bp_info->line_num;
-    step_over_breakpoint_.column_num = bp_info->column_num;
-    validate_expr(step_over_breakpoint_.enable_expr.get(), step_over_breakpoint_.id,
-                  step_over_breakpoint_.instance_id);
-    return &step_over_breakpoint_;
+    return create_next_breakpoint(bp_info);
 }
 
 std::vector<Debugger::DebugBreakPoint *> Debugger::next_normal_breakpoints() {
@@ -955,6 +961,46 @@ std::vector<Debugger::DebugBreakPoint *> Debugger::next_normal_breakpoints() {
         evaluated_ids_.emplace(bp->id);
     }
     return result;
+}
+
+Debugger::DebugBreakPoint *Debugger::next_step_back_breakpoint() {
+    // need to get the actual ordering table
+    auto const &orders = db_->execution_bp_orders();
+    std::optional<uint32_t> next_breakpoint_id;
+    if (!current_breakpoint_id_) [[unlikely]] {
+        // can't roll back if the current breakpoint id is not set
+        return nullptr;
+    } else {
+        auto current_id = *current_breakpoint_id_;
+        auto pos = std::find(orders.begin(), orders.end(), current_id);
+        if (pos != orders.begin()) {
+            auto index = static_cast<uint64_t>(std::distance(orders.begin(), pos));
+            if (index != 0) {
+                next_breakpoint_id = orders[index - 1];
+            }
+        }
+    }
+    if (!next_breakpoint_id) return nullptr;
+
+    current_breakpoint_id_ = next_breakpoint_id;
+    evaluated_ids_.emplace(*current_breakpoint_id_);
+    // need to get a new breakpoint
+    auto bp_info = db_->get_breakpoint(*current_breakpoint_id_);
+    return create_next_breakpoint(bp_info);
+}
+Debugger::DebugBreakPoint *Debugger::create_next_breakpoint(
+    const std::optional<BreakPoint> &bp_info) {
+    if (!bp_info) return nullptr;
+    std::string cond = bp_info->condition.empty() ? "1" : bp_info->condition;
+    next_temp_breakpoint_.id = *current_breakpoint_id_;
+    next_temp_breakpoint_.instance_id = *bp_info->instance_id;
+    next_temp_breakpoint_.enable_expr = std::make_unique<DebugExpression>(cond);
+    next_temp_breakpoint_.filename = bp_info->filename;
+    next_temp_breakpoint_.line_num = bp_info->line_num;
+    next_temp_breakpoint_.column_num = bp_info->column_num;
+    validate_expr(next_temp_breakpoint_.enable_expr.get(), next_temp_breakpoint_.id,
+                  next_temp_breakpoint_.instance_id);
+    return &next_temp_breakpoint_;
 }
 
 void Debugger::start_breakpoint_evaluation() {

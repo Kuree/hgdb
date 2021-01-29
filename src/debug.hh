@@ -79,12 +79,12 @@ private:
     // need to ensure there is no concurrent modification
     std::mutex breakpoint_lock_;
     // holder for step over breakpoint, not used for normal purpose
-    DebugBreakPoint step_over_breakpoint_;
+    DebugBreakPoint next_temp_breakpoint_;
 
     // used for scheduler
     // if in single thread mode, instances with the same fn/ln won't be evaluated as a batch
     bool single_thread_mode_ = false;
-    enum class EvaluationMode { BreakPointOnly, StepOver };
+    enum class EvaluationMode { BreakPointOnly, StepOver, StepBack };
     EvaluationMode evaluation_mode_ = EvaluationMode::BreakPointOnly;
     std::unordered_set<uint32_t> evaluated_ids_;
     std::optional<uint32_t> current_breakpoint_id_;
@@ -148,6 +148,7 @@ private:
     std::vector<Debugger::DebugBreakPoint *> next_breakpoints();
     Debugger::DebugBreakPoint *next_step_over_breakpoint();
     std::vector<Debugger::DebugBreakPoint *> next_normal_breakpoints();
+    Debugger::DebugBreakPoint *next_step_back_breakpoint();
     void start_breakpoint_evaluation();
     bool should_trigger(DebugBreakPoint *bp);
     void eval_breakpoint(DebugBreakPoint *bp, std::vector<bool> &result, uint32_t index);
@@ -159,6 +160,7 @@ private:
     // validate the expression
     void validate_expr(DebugExpression *expr, std::optional<uint32_t> breakpoint_id,
                        std::optional<uint32_t> instance_id);
+    DebugBreakPoint *create_next_breakpoint(const std::optional<BreakPoint> &bp_info);
 };
 
 }  // namespace hgdb

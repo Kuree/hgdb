@@ -713,6 +713,8 @@ void CommandRequest::parse_payload(const std::string &payload) {
         command_type_ = CommandType::step_over;
     } else if (command == "stop") {
         command_type_ = CommandType::stop;
+    } else if (command == "step_back") {
+        command_type_ = CommandType::step_back;
     } else {
         status_code_ = status_code::error;
         error_reason_ = "Unknown command type " + command;
