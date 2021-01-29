@@ -973,11 +973,16 @@ Debugger::DebugBreakPoint *Debugger::next_step_back_breakpoint() {
     } else {
         auto current_id = *current_breakpoint_id_;
         auto pos = std::find(orders.begin(), orders.end(), current_id);
-        if (pos != orders.begin()) {
-            auto index = static_cast<uint64_t>(std::distance(orders.begin(), pos));
-            if (index != 0) {
-                next_breakpoint_id = orders[index - 1];
-            }
+        auto index = static_cast<uint64_t>(std::distance(orders.begin(), pos));
+        if (index != 0) {
+            next_breakpoint_id = orders[index - 1];
+        } else {
+            // you get stuck at this breakpoint since we can't technically go back any
+            // more
+            // unless the simulator supported
+            // need to extend RTL client capability to actually reverse timestamp
+            // in the future.
+            next_breakpoint_id = orders[0];
         }
     }
     if (!next_breakpoint_id) return nullptr;
