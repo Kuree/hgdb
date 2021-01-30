@@ -1,0 +1,251 @@
+$date
+    Jan 30, 2021  14:47:57
+$end
+$version
+    TOOL:	xmsim(64)	19.03-s003
+$end
+$timescale
+    1 ns
+$end
+
+$scope module top $end
+$var parameter 32 !    num_cycles $end
+$var reg       1 "    clk $end
+$var reg       1 #    a $end
+$var reg       2 $    b [1:0] $end
+$var reg       2 %    result[9] [1:0] $end
+$var reg       2 &    result[8] [1:0] $end
+$var reg       2 '    result[7] [1:0] $end
+$var reg       2 (    result[6] [1:0] $end
+$var reg       2 )    result[5] [1:0] $end
+$var reg       2 *    result[4] [1:0] $end
+$var reg       2 +    result[3] [1:0] $end
+$var reg       2 ,    result[2] [1:0] $end
+$var reg       2 -    result[1] [1:0] $end
+$var reg       2 .    result[0] [1:0] $end
+
+$scope module inst $end
+$var wire      1 /    clk  $end
+$var wire      1 0    a  $end
+$var reg       2 1    b [1:0] $end
+$upscope $end
+
+$upscope $end
+
+$enddefinitions $end
+$dumpvars
+b1010 !
+0"
+0#
+bx $
+bx %
+bx &
+bx '
+bx (
+bx )
+bx *
+bx +
+bx ,
+bx -
+bx .
+0/
+00
+bx 1
+$end
+#10
+1"
+1/
+b1 1
+b1 $
+#20
+0"
+bx %
+bx &
+bx '
+bx (
+bx )
+bx *
+bx +
+bx ,
+bx -
+b1 .
+1#
+10
+0/
+#30
+1"
+1/
+b10 1
+b10 $
+#40
+0"
+bx %
+bx &
+bx '
+bx (
+bx )
+bx *
+bx +
+bx ,
+b10 -
+b1 .
+0#
+00
+0/
+#50
+1"
+1/
+b1 1
+b1 $
+#60
+0"
+bx %
+bx &
+bx '
+bx (
+bx )
+bx *
+bx +
+b1 ,
+b10 -
+b1 .
+1#
+10
+0/
+#70
+1"
+1/
+b10 1
+b10 $
+#80
+0"
+bx %
+bx &
+bx '
+bx (
+bx )
+bx *
+b10 +
+b1 ,
+b10 -
+b1 .
+0#
+00
+0/
+#90
+1"
+1/
+b1 1
+b1 $
+#100
+0"
+bx %
+bx &
+bx '
+bx (
+bx )
+b1 *
+b10 +
+b1 ,
+b10 -
+b1 .
+1#
+10
+0/
+#110
+1"
+1/
+b10 1
+b10 $
+#120
+0"
+bx %
+bx &
+bx '
+bx (
+b10 )
+b1 *
+b10 +
+b1 ,
+b10 -
+b1 .
+0#
+00
+0/
+#130
+1"
+1/
+b1 1
+b1 $
+#140
+0"
+bx %
+bx &
+bx '
+b1 (
+b10 )
+b1 *
+b10 +
+b1 ,
+b10 -
+b1 .
+1#
+10
+0/
+#150
+1"
+1/
+b10 1
+b10 $
+#160
+0"
+bx %
+bx &
+b10 '
+b1 (
+b10 )
+b1 *
+b10 +
+b1 ,
+b10 -
+b1 .
+0#
+00
+0/
+#170
+1"
+1/
+b1 1
+b1 $
+#180
+0"
+bx %
+b1 &
+b10 '
+b1 (
+b10 )
+b1 *
+b10 +
+b1 ,
+b10 -
+b1 .
+1#
+10
+0/
+#190
+1"
+1/
+b10 1
+b10 $
+#200
+0"
+b10 %
+b1 &
+b10 '
+b1 (
+b10 )
+b1 *
+b10 +
+b1 ,
+b10 -
+b1 .
