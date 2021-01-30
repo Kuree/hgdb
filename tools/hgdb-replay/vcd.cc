@@ -8,6 +8,7 @@
 #include <unordered_map>
 
 #include "log.hh"
+#include "util.hh"
 
 enum class sv { Date, Version, Timescale, Comment, Scope, Upscope, Var, Enddefinitions };
 
@@ -26,11 +27,83 @@ namespace hgdb::vcd {
 
 VCDDatabase::VCDDatabase(const std::string &filename) {
     vcd_table_ = std::make_unique<VCDTable>(initial_vcd_db(""));
+    vcd_table_->sync_schema();
     // if not exists, don't do anything
     if (!std::filesystem::exists(filename)) return;
     std::ifstream stream(filename);
     if (stream.bad()) return;
     parse_vcd(stream);
+}
+
+std::optional<uint64_t> VCDDatabase::get_module_id(const std::string &full_name) {
+    using namespace sqlite_orm;
+    // notice that SQLite doesn't support recursive query
+    auto tokens = util::get_tokens(full_name, ".");
+    // find the top level first
+    auto tops = vcd_table_->select(&VCDModule::id, where(c(&VCDModule::name) == tokens[0]));
+    if (tops.empty()) return std::nullopt;
+    auto parent_id = tops[0];
+    for (uint64_t i = 1; i < tokens.size(); i++) {
+        auto child_name = tokens[i];
+        auto ins = vcd_table_->select(&VCDModule::id,
+                                      where(c(&VCDModuleHierarchy::parent_id) == parent_id &&
+                                            c(&VCDModuleHierarchy::child_id) == &VCDModule::id) &&
+                                          c(&VCDModule::name) == child_name);
+        if (ins.size() != 1) return std::nullopt;
+        parent_id = ins[0];
+    }
+    return parent_id;
+}
+
+std::optional<uint64_t> VCDDatabase::get_signal_id(const std::string &full_name) {
+    // notice that this does not work with packed struct, which is fine since packed struct
+    // are merged into a single bus anyway. in this case, we can't read out the individual
+    // data anyway
+    using namespace sqlite_orm;
+    auto tokens = util::get_tokens(full_name, ".");
+    if (tokens.size() < 2) return std::nullopt;
+    // the last one is the signal name
+    auto module_name = util::join(tokens.begin(), tokens.begin() + tokens.size() - 1, ".");
+    auto module_id = get_module_id(module_name);
+    if (!module_id) return std::nullopt;
+    auto vars = vcd_table_->select(&VCDSignal::id, where(c(&VCDSignal::module_id) == *module_id &&
+                                                         c(&VCDSignal::name) == tokens.back()));
+    if (vars.size() != 1) return std::nullopt;
+    return vars[0];
+}
+
+std::vector<VCDSignal> VCDDatabase::get_module_signals(uint64_t instance_id) {
+    using namespace sqlite_orm;
+    auto vars = vcd_table_->get_all<VCDSignal>(where(c(&VCDSignal::module_id) == instance_id));
+    return vars;
+}
+
+std::vector<VCDModule> VCDDatabase::get_child_instances(uint64_t instance_id) {
+    using namespace sqlite_orm;
+    auto vars =
+        vcd_table_->get_all<VCDModule>(where(c(&VCDModuleHierarchy::parent_id) == instance_id &&
+                                             c(&VCDModule::id) == &VCDModuleHierarchy::child_id));
+    return vars;
+}
+
+std::unique_ptr<VCDSignal> VCDDatabase::get_signal(uint64_t signal_id) {
+    return std::move(vcd_table_->get_pointer<VCDSignal>(signal_id));
+}
+
+std::unique_ptr<VCDModule> VCDDatabase::get_instance(uint64_t instance_id) {
+    return std::move(vcd_table_->get_pointer<VCDModule>(instance_id));
+}
+
+std::optional<std::string> VCDDatabase::get_signal_value(uint64_t id, uint64_t timestamp) {
+    // sort timestamp and use the maximum timestamp that's < timestamp
+    using namespace sqlite_orm;
+    auto results = vcd_table_->get_all<VCDValue>(
+        order_by(&VCDValue::time).desc(),
+        where(c(&VCDValue::id) == id && c(&VCDValue::time) <= timestamp), limit(1));
+    if (results.empty())
+        return std::nullopt;
+    else
+        return results[0].value;
 }
 
 void VCDDatabase::parse_vcd(std::istream &stream) {
@@ -92,7 +165,7 @@ void VCDDatabase::parse_var_def(std::istream &stream, std::stack<uint64_t> &scop
         assert(next_token(stream) == "$end");
     }
     auto module_id = scope.top();
-    var_mapping.emplace(name, var_id_count);
+    var_mapping.emplace(ident, var_id_count);
     store_signal(name, var_id_count, module_id);
     var_id_count++;
 }
@@ -171,11 +244,18 @@ void VCDDatabase::parse_vcd_values(std::istream &stream,
 
 std::string VCDDatabase::next_token(std::istream &stream) {
     std::stringstream result;
+    uint64_t length = 0;
     while (!stream.eof()) {
         char c;
         stream.get(c);
-        if (c == ' ' || c == '\t' || c == '\r' || c == '\n' || c == '\f') continue;
+        if (c == ' ' || c == '\t' || c == '\r' || c == '\n' || c == '\f') {
+            if (length == 0)
+                continue;
+            else
+                break;
+        }
         result << c;
+        length++;
     }
 
     return result.str();
@@ -183,23 +263,23 @@ std::string VCDDatabase::next_token(std::istream &stream) {
 
 void VCDDatabase::store_signal(const std::string &name, uint64_t id, uint64_t parent_id) {
     VCDSignal signal{.id = id, .name = name, .module_id = std::make_unique<uint64_t>(parent_id)};
-    vcd_table_->insert(signal);
+    vcd_table_->replace(signal);
 }
 
 void VCDDatabase::store_hierarchy(uint64_t parent_id, uint64_t child_id) {
     VCDModuleHierarchy h{.parent_id = std::make_unique<uint64_t>(parent_id),
                          .child_id = std::make_unique<uint64_t>(child_id)};
-    vcd_table_->insert(h);
+    vcd_table_->replace(h);
 }
 
 void VCDDatabase::store_module(const std::string &name, uint64_t id) {
     VCDModule m{.id = id, .name = name};
-    vcd_table_->insert(m);
+    vcd_table_->replace(m);
 }
 
 void VCDDatabase::store_value(uint64_t id, uint64_t time, const std::string &value) {
     VCDValue v{.id = std::make_unique<uint64_t>(id), .time = time, .value = value};
-    vcd_table_->insert(v);
+    vcd_table_->replace(v);
 }
 
 }  // namespace hgdb::vcd

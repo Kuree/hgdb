@@ -36,11 +36,11 @@ auto inline initial_vcd_db(const std::string &filename) {
     using namespace sqlite_orm;
     auto storage = make_storage(
         filename,
-        make_table("signal", make_column("id", &VCDSignal::id, primary_key()),
-                   make_column("name", &VCDSignal::name), make_column("module_id", &VCDSignal::id),
-                   foreign_key(&VCDSignal::module_id).references(&VCDModule::id)),
         make_table("module", make_column("id", &VCDModule::id, primary_key()),
                    make_column("name", &VCDModule::name)),
+        make_table("signal", make_column("id", &VCDSignal::id, primary_key()),
+                   make_column("name", &VCDSignal::name), make_column("module_id", &VCDSignal::module_id),
+                   foreign_key(&VCDSignal::module_id).references(&VCDModule::id)),
         make_table("value", make_column("id", &VCDValue::id), make_column("time", &VCDValue::time),
                    make_column("value", &VCDValue::value),
                    foreign_key(&VCDValue::id).references(&VCDSignal::id)),
@@ -55,6 +55,13 @@ auto inline initial_vcd_db(const std::string &filename) {
 class VCDDatabase {
 public:
     explicit VCDDatabase(const std::string &filename);
+    std::optional<uint64_t> get_module_id(const std::string &full_name);
+    std::optional<uint64_t> get_signal_id(const std::string &full_name);
+    std::vector<VCDSignal> get_module_signals(uint64_t instance_id);
+    std::vector<VCDModule> get_child_instances(uint64_t instance_id);
+    std::unique_ptr<VCDSignal> get_signal(uint64_t signal_id);
+    std::unique_ptr<VCDModule> get_instance(uint64_t instance_id);
+    std::optional<std::string> get_signal_value(uint64_t id, uint64_t timestamp);
 
 private:
     void parse_vcd(std::istream &stream);

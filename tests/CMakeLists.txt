@@ -37,3 +37,6 @@ add_test(test_proto)
 add_test(test_thread)
 add_test(test_sim)
 add_test(test_monitor)
+
+# other tests
+add_subdirectory(tools)
