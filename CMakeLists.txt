@@ -19,7 +19,10 @@ add_subdirectory(extern/PEGTL)
 set(THREADS_PREFER_PTHREAD_FLAG ON)
 find_package(Threads REQUIRED)
 
+# main library
 add_subdirectory(src)
+# tools
+add_subdirectory(tools)
 
 # tests
 add_subdirectory(extern/googletest)
