@@ -144,7 +144,7 @@ void Debugger::detach() {
     inserted_breakpoints_.clear();
     breakpoints_.clear();
     // set evaluation mode to normal
-    evaluation_mode_ = EvaluationMode::BreakPointOnly;
+    evaluation_mode_ = EvaluationMode::None;
 
     // need to put this here to avoid compiler/cpu to reorder the code
     // such that lock is released before the breakpoints is cleared
@@ -874,6 +874,9 @@ std::vector<Debugger::DebugBreakPoint *> Debugger::next_breakpoints() {
                 return {bp};
             else
                 return {};
+        }
+        case EvaluationMode::None: {
+            return {};
         }
     }
     return {};

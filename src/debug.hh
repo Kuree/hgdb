@@ -84,7 +84,7 @@ private:
     // used for scheduler
     // if in single thread mode, instances with the same fn/ln won't be evaluated as a batch
     bool single_thread_mode_ = false;
-    enum class EvaluationMode { BreakPointOnly, StepOver, StepBack };
+    enum class EvaluationMode { BreakPointOnly, StepOver, StepBack, None };
     EvaluationMode evaluation_mode_ = EvaluationMode::BreakPointOnly;
     std::unordered_set<uint32_t> evaluated_ids_;
     std::optional<uint32_t> current_breakpoint_id_;
