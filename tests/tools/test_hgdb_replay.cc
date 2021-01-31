@@ -16,16 +16,16 @@ TEST(vcd, vcd_parse) {  // NOLINT
     hgdb::vcd::VCDDatabase db("waveform1.vcd");
 
     // module resolution
-    auto module_id = db.get_module_id("top");
+    auto module_id = db.get_instance_id("top");
     EXPECT_TRUE(module_id);
     EXPECT_EQ(*module_id, 0);
-    module_id = db.get_module_id("top.inst");
+    module_id = db.get_instance_id("top.inst");
     EXPECT_TRUE(module_id);
     EXPECT_EQ(*module_id, 1);
     // invalid module name
-    module_id = db.get_module_id("top2");
+    module_id = db.get_instance_id("top2");
     EXPECT_FALSE(module_id);
-    module_id = db.get_module_id("top.inst2");
+    module_id = db.get_instance_id("top.inst2");
     EXPECT_FALSE(module_id);
 
     // signal resolution
@@ -43,10 +43,10 @@ TEST(vcd, vcd_parse) {  // NOLINT
     EXPECT_FALSE(signal_id);
 
     // query signal names
-    auto signals = db.get_instance_signals(*db.get_module_id("top"));
+    auto signals = db.get_instance_signals(*db.get_instance_id("top"));
     // result -> 10, a, b, clk, num_cycles
     EXPECT_EQ(signals.size(), 10 + 4);
-    signals = db.get_instance_signals(*db.get_module_id("top.inst"));
+    signals = db.get_instance_signals(*db.get_instance_id("top.inst"));
     // a, clk, b
     EXPECT_EQ(signals.size(), 3);
     // invalid module handles
@@ -54,10 +54,10 @@ TEST(vcd, vcd_parse) {  // NOLINT
     EXPECT_TRUE(signals.empty());
 
     // child instances
-    auto instances = db.get_child_instances(*db.get_module_id("top"));
+    auto instances = db.get_child_instances(*db.get_instance_id("top"));
     EXPECT_EQ(instances.size(), 1);
     EXPECT_EQ(instances[0].name, "inst");
-    instances = db.get_child_instances(*db.get_module_id("top.inst"));
+    instances = db.get_child_instances(*db.get_instance_id("top.inst"));
     EXPECT_TRUE(instances.empty());
     // illegal query
     instances = db.get_child_instances(42);

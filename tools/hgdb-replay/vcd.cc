@@ -7,6 +7,7 @@
 #include <string>
 #include <unordered_map>
 
+#include "fmt/format.h"
 #include "log.hh"
 #include "util.hh"
 
@@ -35,7 +36,7 @@ VCDDatabase::VCDDatabase(const std::string &filename) {
     parse_vcd(stream);
 }
 
-std::optional<uint64_t> VCDDatabase::get_module_id(const std::string &full_name) {
+std::optional<uint64_t> VCDDatabase::get_instance_id(const std::string &full_name) {
     using namespace sqlite_orm;
     // notice that SQLite doesn't support recursive query
     auto tokens = util::get_tokens(full_name, ".");
@@ -64,9 +65,9 @@ std::optional<uint64_t> VCDDatabase::get_signal_id(const std::string &full_name)
     if (tokens.size() < 2) return std::nullopt;
     // the last one is the signal name
     auto module_name = util::join(tokens.begin(), tokens.begin() + tokens.size() - 1, ".");
-    auto module_id = get_module_id(module_name);
+    auto module_id = get_instance_id(module_name);
     if (!module_id) return std::nullopt;
-    auto vars = vcd_table_->select(&VCDSignal::id, where(c(&VCDSignal::module_id) == *module_id &&
+    auto vars = vcd_table_->select(&VCDSignal::id, where(c(&VCDSignal::instance_id) == *module_id &&
                                                          c(&VCDSignal::name) == tokens.back()));
     if (vars.size() != 1) return std::nullopt;
     return vars[0];
@@ -74,7 +75,7 @@ std::optional<uint64_t> VCDDatabase::get_signal_id(const std::string &full_name)
 
 std::vector<VCDSignal> VCDDatabase::get_instance_signals(uint64_t instance_id) {
     using namespace sqlite_orm;
-    auto vars = vcd_table_->get_all<VCDSignal>(where(c(&VCDSignal::module_id) == instance_id));
+    auto vars = vcd_table_->get_all<VCDSignal>(where(c(&VCDSignal::instance_id) == instance_id));
     return vars;
 }
 
@@ -110,6 +111,33 @@ std::optional<std::string> VCDDatabase::get_signal_value(uint64_t id, uint64_t t
         return std::nullopt;
     else
         return results[0].value;
+}
+
+std::string VCDDatabase::get_full_signal_name(uint64_t signal_id) {
+    using namespace sqlite_orm;
+    auto ptr = get_signal(signal_id);
+    if (!ptr) return "";
+    std::string name = ptr->name;
+    uint64_t instance_id = *ptr->instance_id;
+    name = fmt::format("{0}.{1}", get_full_instance_name(instance_id), name);
+    return name;
+}
+
+std::string VCDDatabase::get_full_instance_name(uint64_t instance_id) {
+    using namespace sqlite_orm;
+    auto ptr = get_instance(instance_id);
+    if (!ptr) return "";
+    std::string name = ptr->name;
+    while (true) {
+        auto parents = vcd_table_->get_all<VCDModuleHierarchy>(
+            where(c(&VCDModuleHierarchy::child_id) == instance_id));
+        if (parents.empty()) break;
+        instance_id = *(parents[0].parent_id);
+        ptr = get_instance(instance_id);
+        if (!ptr) break;
+        name = fmt::format("{0}.{1}", ptr->name, name);
+    }
+    return name;
 }
 
 void VCDDatabase::parse_vcd(std::istream &stream) {
@@ -268,7 +296,7 @@ std::string VCDDatabase::next_token(std::istream &stream) {
 }
 
 void VCDDatabase::store_signal(const std::string &name, uint64_t id, uint64_t parent_id) {
-    VCDSignal signal{.id = id, .name = name, .module_id = std::make_unique<uint64_t>(parent_id)};
+    VCDSignal signal{.id = id, .name = name, .instance_id = std::make_unique<uint64_t>(parent_id)};
     vcd_table_->replace(signal);
 }
 

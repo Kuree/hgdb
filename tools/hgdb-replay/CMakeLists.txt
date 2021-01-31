@@ -1,4 +1,4 @@
-add_library(hgdb-replay vcd.cc)
+add_library(hgdb-replay vcd.cc vpi.cc)
 target_link_libraries(hgdb-replay hgdb)
 target_include_directories(hgdb-replay PRIVATE ../../src)
 
