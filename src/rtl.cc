@@ -470,6 +470,20 @@ bool RTLSimulatorClient::monitor_signals(const std::vector<std::string> &signals
     return true;
 }
 
+bool RTLSimulatorClient::reverse_last_posedge(const std::vector<vpiHandle> &clk_handles) {
+    std::vector<std::pair<bool, vpiHandle>> handles;
+    handles.reserve(clk_handles.size());
+    for (auto *const handle : clk_handles) {
+        handles.emplace_back(std::make_pair(true, handle));
+    }
+
+    auto time = get_simulation_time();
+
+    AVPIProvider::reverse_data data{.time = time, .clock_signals = handles};
+
+    return vpi_->vpi_reverse(&data);
+}
+
 PLI_INT32 RTLSimulatorClient::get_vpi_type(vpiHandle handle) {
     std::lock_guard guard(cached_vpi_types_lock_);
     if (cached_vpi_types_.find(handle) != cached_vpi_types_.end()) [[likely]] {

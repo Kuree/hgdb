@@ -31,6 +31,15 @@ public:
     virtual PLI_INT32 vpi_release_handle(vpiHandle object) = 0;
     virtual PLI_INT32 vpi_control(PLI_INT32 operation, ...) = 0;
     virtual ~AVPIProvider() = default;
+
+    // extended vpi controls, not present in the spec
+    struct reverse_data {
+        // current time
+        uint64_t time;
+        // <is_posedge, clock_handle>
+        std::vector<std::pair<bool, vpiHandle>> clock_signals;
+    };
+    virtual bool vpi_reverse(reverse_data *reverse_data) { return false; }
 };
 
 class VPIProvider : public AVPIProvider {
@@ -97,10 +106,8 @@ public:
                                        int(cb_func)(p_cb_data), void *user_data);
 
     // reverse simulation supported
-    // this will be queried from vendor names
-    [[maybe_unused]] [[nodiscard]] bool can_reverse_simulation() { return false; }
     // given a list of clock handles, reverse the execution
-    [[maybe_unused]] void reverse_last_posedge(const std::vector<vpiHandle> &) {}
+    [[maybe_unused]] bool reverse_last_posedge(const std::vector<vpiHandle> &clk_handles);
 
     // destructor to avoid memory leak in the simulator
     ~RTLSimulatorClient();

@@ -988,7 +988,20 @@ Debugger::DebugBreakPoint *Debugger::next_step_back_breakpoint() {
             // unless the simulator supported
             // need to extend RTL client capability to actually reverse timestamp
             // in the future.
-            next_breakpoint_id = orders[0];
+            auto clk_names = get_clock_signals();
+            std::vector<vpiHandle> handles;
+            handles.reserve(clk_names.size());
+            for (auto const &clk_name : clk_names) {
+                auto *handle = rtl_->get_handle(clk_name);
+                handles.emplace_back(handle);
+            }
+            if (rtl_->reverse_last_posedge(handles)) {
+                // we successfully reverse the time
+                next_breakpoint_id = orders.back();
+            } else {
+                // fail to reverse time, use the first one
+                next_breakpoint_id = orders[0];
+            }
         }
     }
     if (!next_breakpoint_id) return nullptr;
