@@ -12,9 +12,20 @@ function(setup_target target)
     gtest_discover_tests(${target})
 endfunction()
 
+function(setup_target_cwd target cwd)
+    target_link_libraries(${target} gtest hgdb gtest_main)
+    add_include(${target})
+    gtest_discover_tests(${target} WORKING_DIRECTORY ${cwd})
+endfunction()
+
 function(add_test target)
     add_executable(${target} ${target}.cc $<TARGET_OBJECTS:vpi_dummy>)
     setup_target(${target})
+endfunction()
+
+function(add_test_cwd target cwd)
+    add_executable(${target} ${target}.cc $<TARGET_OBJECTS:vpi_dummy>)
+    setup_target_cwd(${target} ${cwd})
 endfunction()
 
 function(add_mock target)

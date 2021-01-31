@@ -1,7 +1,18 @@
+#include <filesystem>
+
 #include "../../tools/hgdb-replay/vcd.hh"
 #include "gtest/gtest.h"
 
+void change_cwd() {
+    namespace fs = std::filesystem;
+    fs::path filename = __FILE__;
+    auto dirname = filename.parent_path() / "vectors";
+    fs::current_path(dirname);
+}
+
 TEST(vcd, vcd_parse) {  // NOLINT
+    change_cwd();
+
     hgdb::vcd::VCDDatabase db("waveform1.vcd");
 
     // module resolution
