@@ -145,10 +145,16 @@ void Debugger::detach() {
     breakpoints_.clear();
     // set evaluation mode to normal
     evaluation_mode_ = EvaluationMode::BreakPointOnly;
+
+    // need to put this here to avoid compiler/cpu to reorder the code
+    // such that lock is released before the breakpoints is cleared
+    __sync_synchronize();
+
     if (is_running_.load()) {
         is_running_ = false;
         lock_.ready();
     }
+
     log_info("Debugger runtime detached since all clients have disconnected");
 }
 
