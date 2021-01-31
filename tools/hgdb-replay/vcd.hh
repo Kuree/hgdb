@@ -57,7 +57,7 @@ public:
     explicit VCDDatabase(const std::string &filename);
     std::optional<uint64_t> get_module_id(const std::string &full_name);
     std::optional<uint64_t> get_signal_id(const std::string &full_name);
-    std::vector<VCDSignal> get_module_signals(uint64_t instance_id);
+    std::vector<VCDSignal> get_instance_signals(uint64_t instance_id);
     std::vector<VCDModule> get_child_instances(uint64_t instance_id);
     std::unique_ptr<VCDSignal> get_signal(uint64_t signal_id);
     std::unique_ptr<VCDModule> get_instance(uint64_t instance_id);

@@ -47,8 +47,8 @@ std::optional<uint64_t> VCDDatabase::get_module_id(const std::string &full_name)
         auto child_name = tokens[i];
         auto ins = vcd_table_->select(&VCDModule::id,
                                       where(c(&VCDModuleHierarchy::parent_id) == parent_id &&
-                                            c(&VCDModuleHierarchy::child_id) == &VCDModule::id) &&
-                                          c(&VCDModule::name) == child_name);
+                                            c(&VCDModuleHierarchy::child_id) == &VCDModule::id &&
+                                            c(&VCDModule::name) == child_name));
         if (ins.size() != 1) return std::nullopt;
         parent_id = ins[0];
     }
@@ -72,7 +72,7 @@ std::optional<uint64_t> VCDDatabase::get_signal_id(const std::string &full_name)
     return vars[0];
 }
 
-std::vector<VCDSignal> VCDDatabase::get_module_signals(uint64_t instance_id) {
+std::vector<VCDSignal> VCDDatabase::get_instance_signals(uint64_t instance_id) {
     using namespace sqlite_orm;
     auto vars = vcd_table_->get_all<VCDSignal>(where(c(&VCDSignal::module_id) == instance_id));
     return vars;
@@ -80,10 +80,15 @@ std::vector<VCDSignal> VCDDatabase::get_module_signals(uint64_t instance_id) {
 
 std::vector<VCDModule> VCDDatabase::get_child_instances(uint64_t instance_id) {
     using namespace sqlite_orm;
-    auto vars =
-        vcd_table_->get_all<VCDModule>(where(c(&VCDModuleHierarchy::parent_id) == instance_id &&
-                                             c(&VCDModule::id) == &VCDModuleHierarchy::child_id));
-    return vars;
+    auto vars = vcd_table_->select(columns(&VCDModule::name, &VCDModule::id),
+                                   where(c(&VCDModuleHierarchy::parent_id) == instance_id &&
+                                         c(&VCDModuleHierarchy::child_id) == &VCDModule::id));
+    std::vector<VCDModule> result;
+    result.reserve(vars.size());
+    for (auto const &[name, id] : vars) {
+        result.emplace_back(VCDModule{.id = id, .name = name});
+    }
+    return result;
 }
 
 std::unique_ptr<VCDSignal> VCDDatabase::get_signal(uint64_t signal_id) {
@@ -96,10 +101,11 @@ std::unique_ptr<VCDModule> VCDDatabase::get_instance(uint64_t instance_id) {
 
 std::optional<std::string> VCDDatabase::get_signal_value(uint64_t id, uint64_t timestamp) {
     // sort timestamp and use the maximum timestamp that's < timestamp
+    // this utilize some nice SQL language features. It will be as fast as sqlite can process
     using namespace sqlite_orm;
     auto results = vcd_table_->get_all<VCDValue>(
-        order_by(&VCDValue::time).desc(),
-        where(c(&VCDValue::id) == id && c(&VCDValue::time) <= timestamp), limit(1));
+        where(c(&VCDValue::id) == id && c(&VCDValue::time) <= timestamp),
+        order_by(&VCDValue::time).desc(), limit(1));
     if (results.empty())
         return std::nullopt;
     else
