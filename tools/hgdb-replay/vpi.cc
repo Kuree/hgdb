@@ -272,6 +272,7 @@ bool ReplayVPIProvider::is_valid_handle(const vpiHandle handle) const {
 void ReplayVPIProvider::trigger_cb(uint32_t reason, vpiHandle handle, int64_t value) {  // NOLINT
     for (auto const &iter : callbacks_) {
         auto cb_data = iter.second;
+        s_vpi_value vpi_value;
         if (cb_data.reason == reason) {
             if (reason == cbValueChange) {
                 // only value change cares about the obj for now
@@ -279,12 +280,17 @@ void ReplayVPIProvider::trigger_cb(uint32_t reason, vpiHandle handle, int64_t va
                     // not the target
                     continue;
                 } else {
+                    cb_data.value = &vpi_value;
                     cb_data.value->value.integer = value;
                 }
             }
 
             auto func = cb_data.cb_rtn;
+            // vpi_value will be valid for this callback
+            // after that it won't,
             func(&cb_data);
+            // so set this to null
+            cb_data.value = nullptr;
         }
     }
 }

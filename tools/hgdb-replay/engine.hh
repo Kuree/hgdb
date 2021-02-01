@@ -8,13 +8,14 @@
 namespace hgdb::replay {
 
 class EmulationEngine {
+public:
     // emulates the simulator from vcd
-    // we take ownership of the vpi
-    explicit EmulationEngine(std::unique_ptr<ReplayVPIProvider> vcd);
+    // we don't take ownership of the vpi
+    explicit EmulationEngine(ReplayVPIProvider* vcd);
     void run();
 
 private:
-    std::unique_ptr<ReplayVPIProvider> vpi_;
+    ReplayVPIProvider* vpi_;
     std::atomic<uint64_t> timestamp_ = 0;
     std::map<vpiHandle, std::optional<int64_t>> watched_values_;
 

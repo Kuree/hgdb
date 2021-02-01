@@ -4,7 +4,7 @@ namespace hgdb::replay {
 
 using reverse_data = hgdb::AVPIProvider::reverse_data;
 
-EmulationEngine::EmulationEngine(std::unique_ptr<ReplayVPIProvider> vcd) : vpi_(std::move(vcd)) {
+EmulationEngine::EmulationEngine(ReplayVPIProvider* vcd) : vpi_(vcd) {
     // set callbacks
     vpi_->set_on_cb_added([this](p_cb_data cb_data) { on_cb_added(cb_data); });
     vpi_->set_on_cb_removed([this](const s_cb_data& cb_data) { on_cb_removed(cb_data); });

@@ -144,7 +144,7 @@ std::optional<uint64_t> VCDDatabase::get_next_value_change_time(uint64_t signal_
                                                                 uint64_t base_time) {
     using namespace sqlite_orm;
     auto results = vcd_table_->get_all<VCDValue>(
-        where(c(&VCDValue::id) == signal_id && c(&VCDValue::time) >= base_time),
+        where(c(&VCDValue::id) == signal_id && c(&VCDValue::time) > base_time),
         order_by(&VCDValue::time).asc(), limit(1));
     if (results.empty()) return std::nullopt;
     return results[0].time;

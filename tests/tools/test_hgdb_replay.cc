@@ -1,7 +1,8 @@
 #include <filesystem>
 
-#include "../../tools/hgdb-replay/vcd.hh"
+#include "../../tools/hgdb-replay/engine.hh"
 #include "gtest/gtest.h"
+#include "vpi_user.h"
 
 void change_cwd() {
     namespace fs = std::filesystem;
@@ -79,4 +80,39 @@ TEST(vcd, vcd_parse) {  // NOLINT
     EXPECT_EQ(*value, "x");
     value = db.get_signal_value(*db.get_signal_id("top.result[2]"), 61);
     EXPECT_EQ(*value, "1");
+}
+
+int cycle_count(p_cb_data cb_data) {
+    auto *user_data = cb_data->user_data;
+    auto *int_value = reinterpret_cast<int *>(user_data);
+    (*int_value)++;
+    return 0;
+}
+
+TEST(replay, clk_callback) { // NOLINT
+    change_cwd();
+
+    auto db = std::make_unique<hgdb::vcd::VCDDatabase>("waveform1.vcd");
+    auto vpi = std::make_unique<hgdb::replay::ReplayVPIProvider>(std::move(db));
+
+    // need to add some callbacks before hand it over to the engine
+    constexpr auto clk_name = "top.clk";
+    auto *clk = vpi->vpi_handle_by_name(const_cast<char*>(clk_name), nullptr);
+    EXPECT_NE(clk, nullptr);
+    int cycle_count_int = 0;
+    s_cb_data cb {
+        .reason=cbValueChange,
+        .cb_rtn=cycle_count,
+        .obj=clk,
+        .user_data=reinterpret_cast<char*>(&cycle_count_int)
+    };
+
+    hgdb::replay::EmulationEngine engine(vpi.get());
+
+    // register the CB
+    auto *r = vpi->vpi_register_cb(&cb);
+    EXPECT_NE(r, nullptr);
+
+    engine.run();
+    EXPECT_EQ(cycle_count_int, 10 * 2);
 }
