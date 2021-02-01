@@ -150,6 +150,16 @@ std::optional<uint64_t> VCDDatabase::get_next_value_change_time(uint64_t signal_
     return results[0].time;
 }
 
+std::optional<uint64_t> VCDDatabase::get_prev_value_change_time(uint64_t signal_id,
+                                                                uint64_t base_time) {
+    using namespace sqlite_orm;
+    auto results = vcd_table_->get_all<VCDValue>(
+        where(c(&VCDValue::id) == signal_id && c(&VCDValue::time) < base_time),
+        order_by(&VCDValue::time).desc(), limit(1));
+    if (results.empty()) return std::nullopt;
+    return results[0].time;
+}
+
 void VCDDatabase::parse_vcd(std::istream &stream) {
     // the code below is mostly designed by Teguh Hofstee (https://github.com/hofstee)
     // heavily refactored to fit into hgdb's needs

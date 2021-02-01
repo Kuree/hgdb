@@ -28,13 +28,13 @@ public:
     void set_argv(int argc, char *argv[]);  // NOLINT
     void set_on_cb_added(const std::function<void(p_cb_data)> &on_cb_added);
     void set_on_cb_removed(const std::function<void(const s_cb_data &)> &on_cb_removed);
-    void set_on_reversed(const std::function<void(reverse_data *)> &on_reversed);
+    void set_on_reversed(const std::function<bool(reverse_data *)> &on_reversed);
     void set_timestamp(uint64_t time) { current_time_ = time; }
     hgdb::vcd::VCDDatabase &db() { return *db_; }
     bool is_valid_handle(vpiHandle handle) const;
     void trigger_cb(uint32_t reason) { trigger_cb(reason, nullptr, 0); }
     void trigger_cb(uint32_t reason, vpiHandle obj, int64_t value);
-    std::optional<uint64_t> get_signal_handle(vpiHandle handle);
+    std::optional<uint64_t> get_signal_id(vpiHandle handle);
 
     // helper functions
     static int64_t convert_value(const std::string &raw_value);
@@ -69,7 +69,7 @@ private:
     // callbacks
     std::optional<std::function<void(p_cb_data)>> on_cb_added_;
     std::optional<std::function<void(const s_cb_data &)>> on_cb_removed_;
-    std::optional<std::function<void(reverse_data *)>> on_reversed_;
+    std::optional<std::function<bool(reverse_data *)>> on_reversed_;
 };
 }  // namespace hgdb::replay
 

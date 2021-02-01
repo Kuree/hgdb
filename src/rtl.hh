@@ -34,10 +34,10 @@ public:
 
     // extended vpi controls, not present in the spec
     struct reverse_data {
-        // current time
+        // threshold time (the reversed timestamp has to be strictly < the given time)
         uint64_t time;
-        // <is_posedge, clock_handle>
-        std::vector<std::pair<bool, vpiHandle>> clock_signals;
+        // clock_handle
+        std::vector<vpiHandle> clock_signals;
     };
     virtual bool vpi_reverse(reverse_data *reverse_data) { return false; }
 };

@@ -21,7 +21,7 @@ private:
     // handle VPI callback
     void on_cb_added(p_cb_data cb_data);
     void on_cb_removed(const s_cb_data& cb_data);
-    void on_reversed(hgdb::AVPIProvider::reverse_data* reverse_data);
+    bool on_reversed(hgdb::AVPIProvider::reverse_data* reverse_data);
 
     // emulation logic
     void emulation_loop();

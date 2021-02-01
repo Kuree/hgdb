@@ -231,9 +231,9 @@ bool ReplayVPIProvider::vpi_reverse(reverse_data *reverse_data) {
     // TODO
     (void)reverse_data;
     if (on_reversed_) {
-        (*on_reversed_)(reverse_data);
+        return (*on_reversed_)(reverse_data);
     }
-    return true;
+    return false;
 }
 
 void ReplayVPIProvider::set_argv(int argc, char **argv) {
@@ -257,7 +257,7 @@ void ReplayVPIProvider::set_on_cb_removed(
     on_cb_removed_ = on_cb_removed;
 }
 
-void ReplayVPIProvider::set_on_reversed(const std::function<void(reverse_data *)> &on_reversed) {
+void ReplayVPIProvider::set_on_reversed(const std::function<bool(reverse_data *)> &on_reversed) {
     on_reversed_ = on_reversed;
 }
 
@@ -289,7 +289,7 @@ void ReplayVPIProvider::trigger_cb(uint32_t reason, vpiHandle handle, int64_t va
     }
 }
 
-std::optional<uint64_t> ReplayVPIProvider::get_signal_handle(vpiHandle handle) {
+std::optional<uint64_t> ReplayVPIProvider::get_signal_id(vpiHandle handle) {
     if (signal_id_map_.find(handle) != signal_id_map_.end())
         return signal_id_map_.at(handle);
     else

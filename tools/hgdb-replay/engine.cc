@@ -8,7 +8,7 @@ EmulationEngine::EmulationEngine(std::unique_ptr<ReplayVPIProvider> vcd) : vpi_(
     // set callbacks
     vpi_->set_on_cb_added([this](p_cb_data cb_data) { on_cb_added(cb_data); });
     vpi_->set_on_cb_removed([this](const s_cb_data& cb_data) { on_cb_removed(cb_data); });
-    vpi_->set_on_reversed([this](reverse_data* reverse_data) { on_reversed(reverse_data); });
+    vpi_->set_on_reversed([this](reverse_data* reverse_data) { return on_reversed(reverse_data); });
 
     // set time
     vpi_->set_timestamp(timestamp_);
@@ -38,14 +38,33 @@ void EmulationEngine::on_cb_removed(const s_cb_data& cb_data) {
     }
 }
 
-void EmulationEngine::on_reversed(hgdb::AVPIProvider::reverse_data* reverse_data) {}
+bool EmulationEngine::on_reversed(hgdb::AVPIProvider::reverse_data* reverse_data) {
+    uint64_t max_time = reverse_data->time;
+    std::vector<uint64_t> times;
+    times.reserve(reverse_data->clock_signals.size());
+    for (auto* handle : reverse_data->clock_signals) {
+        auto signal = vpi_->get_signal_id(handle);
+        if (signal) {
+            auto time = vpi_->db().get_prev_value_change_time(*signal, max_time);
+            if (time) {
+                times.emplace_back(*time);
+            }
+        }
+    }
+    if (times.empty()) return false;
+    std::sort(times.begin(), times.end());
+    auto next_time = times.back();
+    // move back a little bit so we can evaluate the posedge
+    timestamp_ = next_time - 1;
+    return true;
+}
 
 void EmulationEngine::emulation_loop() {
     while (true) {
         std::vector<uint64_t> times;
         times.reserve(watched_values_.size());
         for (auto const& iter : watched_values_) {
-            auto signal_id = vpi_->get_signal_handle(iter.first);
+            auto signal_id = vpi_->get_signal_id(iter.first);
             if (signal_id) {
                 auto time = vpi_->db().get_next_value_change_time(*signal_id, timestamp_);
                 if (time) {

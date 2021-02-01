@@ -471,10 +471,10 @@ bool RTLSimulatorClient::monitor_signals(const std::vector<std::string> &signals
 }
 
 bool RTLSimulatorClient::reverse_last_posedge(const std::vector<vpiHandle> &clk_handles) {
-    std::vector<std::pair<bool, vpiHandle>> handles;
+    std::vector<vpiHandle> handles;
     handles.reserve(clk_handles.size());
     for (auto *const handle : clk_handles) {
-        handles.emplace_back(std::make_pair(true, handle));
+        handles.emplace_back(handle);
     }
 
     auto time = get_simulation_time();
