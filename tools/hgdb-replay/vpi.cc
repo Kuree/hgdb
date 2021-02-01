@@ -261,6 +261,41 @@ void ReplayVPIProvider::set_on_reversed(const std::function<void(reverse_data *)
     on_reversed_ = on_reversed;
 }
 
+bool ReplayVPIProvider::is_valid_handle(const vpiHandle handle) const {
+    if (signal_id_map_.find(handle) != signal_id_map_.end()) return true;
+    if (instance_id_map_.find(handle) != instance_id_map_.end()) return true;
+    if (scan_map_.find(handle) != scan_map_.end()) return true;
+    if (scan_iter_.find(handle) != scan_iter_.end()) return true;
+    return false;
+}
+
+void ReplayVPIProvider::trigger_cb(uint32_t reason, vpiHandle handle, int64_t value) {  // NOLINT
+    for (auto const &iter : callbacks_) {
+        auto cb_data = iter.second;
+        if (cb_data.reason == reason) {
+            if (reason == cbValueChange) {
+                // only value change cares about the obj for now
+                if (cb_data.obj != handle) {
+                    // not the target
+                    continue;
+                } else {
+                    cb_data.value->value.integer = value;
+                }
+            }
+
+            auto func = cb_data.cb_rtn;
+            func(&cb_data);
+        }
+    }
+}
+
+std::optional<uint64_t> ReplayVPIProvider::get_signal_handle(vpiHandle handle) {
+    if (signal_id_map_.find(handle) != signal_id_map_.end())
+        return signal_id_map_.at(handle);
+    else
+        return std::nullopt;
+}
+
 int64_t ReplayVPIProvider::convert_value(const std::string &raw_value) {
     uint64_t bits = raw_value.size();
     int64_t result = 0;
@@ -282,7 +317,7 @@ vpiHandle ReplayVPIProvider::get_new_handle() {
     return reinterpret_cast<uint32_t *>(p);
 }
 
-vpiHandle ReplayVPIProvider::get_instance_handle(uint64_t instance_id) {
+vpiHandle ReplayVPIProvider::get_instance_handle(uint64_t instance_id) const {
     // could use a bidirectional map to speed up
     for (auto const &[handle, id] : instance_id_map_) {
         if (id == instance_id) {
@@ -292,7 +327,7 @@ vpiHandle ReplayVPIProvider::get_instance_handle(uint64_t instance_id) {
     return nullptr;
 }
 
-vpiHandle ReplayVPIProvider::get_signal_handle(uint64_t signal_id) {
+vpiHandle ReplayVPIProvider::get_signal_handle(uint64_t signal_id) const {
     for (auto const &[handle, id] : signal_id_map_) {
         if (id == signal_id) {
             return handle;

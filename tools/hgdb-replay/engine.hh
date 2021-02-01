@@ -1,6 +1,8 @@
 #ifndef HGDB_TOOL_ENGINE_HH
 #define HGDB_TOOL_ENGINE_HH
 
+#include <atomic>
+
 #include "vpi.hh"
 
 namespace hgdb::replay {
@@ -9,18 +11,22 @@ class EmulationEngine {
     // emulates the simulator from vcd
     // we take ownership of the vpi
     explicit EmulationEngine(std::unique_ptr<ReplayVPIProvider> vcd);
-    void start();
+    void run();
 
 private:
-    std::unique_ptr<ReplayVPIProvider> vcd_;
-    uint64_t timestamp_ = 0;
+    std::unique_ptr<ReplayVPIProvider> vpi_;
+    std::atomic<uint64_t> timestamp_ = 0;
+    std::map<vpiHandle, std::optional<int64_t>> watched_values_;
 
     // handle VPI callback
     void on_cb_added(p_cb_data cb_data);
-    void on_cb_removed(const s_cb_data &cb_data);
+    void on_cb_removed(const s_cb_data& cb_data);
     void on_reversed(hgdb::AVPIProvider::reverse_data* reverse_data);
+
+    // emulation logic
+    void emulation_loop();
 };
 
-}
+}  // namespace hgdb::replay
 
 #endif  // HGDB_TOOL_ENGINE_HH

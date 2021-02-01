@@ -65,6 +65,7 @@ public:
     std::optional<std::string> get_signal_value(uint64_t id, uint64_t timestamp);
     std::string get_full_signal_name(uint64_t signal_id);
     std::string get_full_instance_name(uint64_t instance_id);
+    std::optional<uint64_t> get_next_value_change_time(uint64_t signal_id, uint64_t base_time);
 
 private:
     void parse_vcd(std::istream &stream);
