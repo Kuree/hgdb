@@ -22,9 +22,15 @@ public:
     PLI_INT32 vpi_release_handle(vpiHandle object) override;
     PLI_INT32 vpi_control(PLI_INT32 operation, ...) override;
     vpiHandle vpi_handle_by_index(vpiHandle object, PLI_INT32 index) override;
-    bool vpi_reverse(reverse_data *reverse_data) override;
+    bool vpi_reverse(reverse_data* reversed_data) override;
 
+    // interaction with outside world
     void set_argv(int argc, char *argv[]);  // NOLINT
+    void set_on_cb_added(const std::function<void(p_cb_data)> &on_cb_added) ;
+    void set_on_cb_removed(const std::function<void(const s_cb_data&)> &on_cb_removed);
+    void set_on_reversed(const std::function<void(reverse_data *)> &on_reversed);
+    void set_timestamp(uint64_t time) { current_time_ = time; }
+    hgdb::vcd::VCDDatabase &db() { return *db_; }
 
     // helper functions
     static int64_t convert_value(const std::string &raw_value);
@@ -56,6 +62,10 @@ private:
     vpiHandle get_instance_handle(uint64_t instance_id);
     vpiHandle get_signal_handle(uint64_t signal_id);
 
+    // callbacks
+    std::optional<std::function<void(p_cb_data)>> on_cb_added_;
+    std::optional<std::function<void(const s_cb_data&)>> on_cb_removed_;
+    std::optional<std::function<void(reverse_data *)>> on_reversed_;
 
 };
 }  // namespace hgdb::replay

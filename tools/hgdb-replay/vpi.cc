@@ -181,12 +181,19 @@ void ReplayVPIProvider::vpi_get_time(vpiHandle object, p_vpi_time time_p) {
 vpiHandle ReplayVPIProvider::vpi_register_cb(p_cb_data cb_data_p) {
     auto *handle = get_new_handle();
     callbacks_.emplace(handle, *cb_data_p);
+    if (on_cb_added_) {
+        (*on_cb_added_)(cb_data_p);
+    }
     return handle;
 }
 
 PLI_INT32 ReplayVPIProvider::vpi_remove_cb(vpiHandle cb_obj) {
     if (callbacks_.find(cb_obj) != callbacks_.end()) {
+        auto cb_struct = callbacks_.at(cb_obj);
         callbacks_.erase(cb_obj);
+        if (on_cb_removed_) {
+            (*on_cb_removed_)(cb_struct);
+        }
         return 1;
     }
     return 0;
@@ -223,6 +230,9 @@ vpiHandle ReplayVPIProvider::vpi_handle_by_index(vpiHandle object, PLI_INT32 ind
 bool ReplayVPIProvider::vpi_reverse(reverse_data *reverse_data) {
     // TODO
     (void)reverse_data;
+    if (on_reversed_) {
+        (*on_reversed_)(reverse_data);
+    }
     return true;
 }
 
@@ -236,6 +246,19 @@ void ReplayVPIProvider::set_argv(int argc, char **argv) {
     for (auto const &arg : argv_str_) {
         argv_.emplace_back(const_cast<char *>(arg.c_str()));
     }
+}
+
+void ReplayVPIProvider::set_on_cb_added(const std::function<void(p_cb_data)> &on_cb_added) {
+    on_cb_added_ = on_cb_added;
+}
+
+void ReplayVPIProvider::set_on_cb_removed(
+    const std::function<void(const s_cb_data &)> &on_cb_removed) {
+    on_cb_removed_ = on_cb_removed;
+}
+
+void ReplayVPIProvider::set_on_reversed(const std::function<void(reverse_data *)> &on_reversed) {
+    on_reversed_ = on_reversed;
 }
 
 int64_t ReplayVPIProvider::convert_value(const std::string &raw_value) {
