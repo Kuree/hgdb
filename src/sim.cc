@@ -59,7 +59,7 @@ Debugger *initialize_hgdb_runtime_vpi(std::unique_ptr<AVPIProvider> vpi, bool st
         t_vpi_vlog_info info{};
         // luckily during that stage, vpi_get_vlog_info will report error
         // we will use that as an indication of VCS compilation stage
-        if (!start_server && !vpi_get_vlog_info(&info)) {
+        if (!start_server && !vpi_get_vlog_info(&info) && !vpi) {
             // we are inside VCS command
             return nullptr;
         }

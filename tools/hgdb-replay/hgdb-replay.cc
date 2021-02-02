@@ -30,7 +30,7 @@ int main(int argc, char *argv[]) {
     hgdb::replay::EmulationEngine engine(vpi.get());
 
     // set up the debug runtime
-    auto *debugger = hgdb::initialize_hgdb_runtime_vpi(std::move(vpi), true);
+    auto *debugger = hgdb::initialize_hgdb_runtime_vpi(std::move(vpi), false);
     // set the custom compute function
     debugger->rtl_client()->set_custom_hierarchy_func(mapping_func);
 
