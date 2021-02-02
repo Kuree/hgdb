@@ -6,6 +6,7 @@
 #include <stack>
 #include <string>
 #include <vector>
+#include <unordered_set>
 
 #include "sqlite_orm/sqlite_orm.h"
 
@@ -69,7 +70,7 @@ public:
     std::optional<uint64_t> get_next_value_change_time(uint64_t signal_id, uint64_t base_time);
     std::optional<uint64_t> get_prev_value_change_time(uint64_t signal_id, uint64_t base_time);
     std::pair<std::string, std::string> compute_instance_mapping(
-        const std::vector<std::string> &instance_names);
+        const std::unordered_set<std::string> &instance_names);
 
 private:
     // parsing functions

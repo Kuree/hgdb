@@ -1,6 +1,7 @@
 #ifndef HGDB_RTL_HH
 #define HGDB_RTL_HH
 
+#include <functional>
 #include <memory>
 #include <mutex>
 #include <optional>
@@ -70,6 +71,8 @@ public:
     void initialize(const std::vector<std::string> &instance_names,
                     std::unique_ptr<AVPIProvider> vpi);
     void initialize_instance_mapping(const std::vector<std::string> &instance_names);
+    void set_custom_hierarchy_func(const std::function<std::unordered_map<std::string, std::string>(
+                                       const std::unordered_set<std::string> &)> &func);
     void initialize_vpi(std::unique_ptr<AVPIProvider> vpi);
     vpiHandle get_handle(const std::string &name);
     vpiHandle get_handle(const std::vector<std::string> &tokens);
@@ -161,6 +164,9 @@ private:
 
     // other helper functions
     void remove_call_back(vpiHandle cb_handle);
+    std::optional<std::function<std::unordered_map<std::string, std::string>(
+        const std::unordered_set<std::string> &)>>
+        custom_hierarchy_func_;
 };
 }  // namespace hgdb
 

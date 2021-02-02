@@ -161,7 +161,7 @@ std::optional<uint64_t> VCDDatabase::get_prev_value_change_time(uint64_t signal_
 }
 
 std::pair<std::string, std::string> VCDDatabase::compute_instance_mapping(
-    const std::vector<std::string> &instance_names) {
+    const std::unordered_set<std::string> &instance_names) {
     // first get the longest instance name
     std::string instance_name;
     for (auto const &name : instance_names) {
@@ -203,7 +203,7 @@ std::pair<std::string, std::string> VCDDatabase::compute_instance_mapping(
     // find out at which point the become different
     uint64_t pos;
     auto full_name_tokens = util::get_tokens(full_name, ".");
-    for (pos = 0; pos < tokens.size(); pos++) {
+    for (pos = 1; pos < tokens.size(); pos++) {
         if (tokens[tokens.size() - pos] == full_name_tokens[full_name_tokens.size() - pos])
             continue;
     }
@@ -211,7 +211,8 @@ std::pair<std::string, std::string> VCDDatabase::compute_instance_mapping(
     auto def_name = tokens[0];
     auto mapped_name =
         util::join(full_name_tokens.begin(),
-                   full_name_tokens.begin() + (full_name_tokens.size() - pos + 1), ".");
+                   full_name_tokens.begin() + (full_name_tokens.size() - pos + 1), ".") +
+        ".";
     return {def_name, mapped_name};
 }
 

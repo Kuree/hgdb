@@ -105,7 +105,17 @@ void RTLSimulatorClient::initialize_instance_mapping(
         top_names.emplace(top);
     }
     // compute the naming map
-    compute_hierarchy_name_prefix(top_names);
+    if (custom_hierarchy_func_) {
+        hierarchy_name_prefix_map_ = (*custom_hierarchy_func_)(top_names);
+    } else {
+        compute_hierarchy_name_prefix(top_names);
+    }
+}
+
+void RTLSimulatorClient::set_custom_hierarchy_func(
+    const std::function<std::unordered_map<std::string, std::string>(
+        const std::unordered_set<std::string> &)> &func) {
+    custom_hierarchy_func_ = func;
 }
 
 void RTLSimulatorClient::initialize_vpi(std::unique_ptr<AVPIProvider> vpi) {

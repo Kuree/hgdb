@@ -49,7 +49,7 @@ void initialize_hgdb_runtime_vpi(std::unique_ptr<AVPIProvider> vpi) {
     initialize_hgdb_runtime_vpi(std::move(vpi), false);
 }
 
-void initialize_hgdb_runtime_vpi(std::unique_ptr<AVPIProvider> vpi, bool start_server) {
+Debugger *initialize_hgdb_runtime_vpi(std::unique_ptr<AVPIProvider> vpi, bool start_server) {
     // some hacks to detect VCS
     // when it's producing the simv executable, VCS will run this function
     // then when you run ./simv, it runs this function again
@@ -61,7 +61,7 @@ void initialize_hgdb_runtime_vpi(std::unique_ptr<AVPIProvider> vpi, bool start_s
         // we will use that as an indication of VCS compilation stage
         if (!start_server && !vpi_get_vlog_info(&info)) {
             // we are inside VCS command
-            return;
+            return nullptr;
         }
     }
 
@@ -100,5 +100,6 @@ void initialize_hgdb_runtime_vpi(std::unique_ptr<AVPIProvider> vpi, bool start_s
                                  reinterpret_cast<char *>(debugger));
         if (!res) std::cerr << "ERROR: failed to register runtime initialization" << std::endl;
     }
+    return debugger;
 }
 }  // namespace hgdb
