@@ -51,9 +51,14 @@ def test_replay(start_server, find_free_port):
             time.sleep(0.1)
             await client.set_breakpoint(sv, get_line_num(sv, "        out <= in;"))
             await client.continue_()
-            await client.recv()
+            bp = await client.recv()
+            assert bp["payload"]["time"] == 5
             await client.continue_()
             bp = await client.recv()
+            assert bp["payload"]["time"] == 15
+            assert bp["payload"]["instances"][0]["local"]["clk"] == "1"
+            assert bp["payload"]["instances"][0]["local"]["in"] == "1"
+            assert bp["payload"]["instances"][0]["local"]["out"] == "0"
 
         asyncio.get_event_loop().run_until_complete(test_logic())
 
