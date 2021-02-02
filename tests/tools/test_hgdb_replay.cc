@@ -177,12 +177,29 @@ TEST(replay, get_value_reverse) {  // NOLINT
     engine.run(false);
 
     engine.finish();
-    for (auto  i = 10u; i < 90; i += 10) {
+    for (auto i = 10u; i < 90; i += 10) {
         EXPECT_EQ(values.find(i), values.end());
     }
 
-    for (auto  i = 90u; i < 200; i += 10) {
+    for (auto i = 90u; i < 200; i += 10) {
         EXPECT_NE(values.find(i), values.end());
     }
+}
 
+TEST(vcd, instance_mapping) {  // NOLINT
+    change_cwd();
+    {
+        auto db = std::make_unique<hgdb::vcd::VCDDatabase>("waveform1.vcd");
+        std::vector<std::string> instance_names = {"child"};
+        auto const &[def_name, instance_name] = db->compute_instance_mapping(instance_names);
+        EXPECT_EQ(def_name, "child");
+        EXPECT_EQ(instance_name, "top.inst");
+    }
+    {
+        auto db = std::make_unique<hgdb::vcd::VCDDatabase>("waveform2.vcd");
+        std::vector<std::string> instance_names = {"child1", "child1.inst2", "child1.inst2.inst3"};
+        auto const &[def_name, instance_name] = db->compute_instance_mapping(instance_names);
+        EXPECT_EQ(def_name, "child1");
+        EXPECT_EQ(instance_name, "top.inst1");
+    }
 }

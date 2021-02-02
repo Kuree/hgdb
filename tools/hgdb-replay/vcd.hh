@@ -5,6 +5,7 @@
 #include <memory>
 #include <stack>
 #include <string>
+#include <vector>
 
 #include "sqlite_orm/sqlite_orm.h"
 
@@ -67,8 +68,11 @@ public:
     std::string get_full_instance_name(uint64_t instance_id);
     std::optional<uint64_t> get_next_value_change_time(uint64_t signal_id, uint64_t base_time);
     std::optional<uint64_t> get_prev_value_change_time(uint64_t signal_id, uint64_t base_time);
+    std::pair<std::string, std::string> compute_instance_mapping(
+        const std::vector<std::string> &instance_names);
 
 private:
+    // parsing functions
     void parse_vcd(std::istream &stream);
     void parse_vcd_values(std::istream &stream,
                           const std::unordered_map<std::string, uint64_t> &var_mapping);
@@ -90,6 +94,10 @@ private:
     void store_signal(const std::string &name, uint64_t id, uint64_t parent_id);
     void store_value(uint64_t id, uint64_t time, const std::string &value);
     std::unique_ptr<VCDTable> vcd_table_;
+
+    // helper functions
+    std::optional<uint64_t> match_hierarchy(const std::vector<std::string> &instance_tokens,
+                                            std::vector<uint64_t> targets);
 };
 
 }  // namespace hgdb::vcd

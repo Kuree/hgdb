@@ -160,6 +160,61 @@ std::optional<uint64_t> VCDDatabase::get_prev_value_change_time(uint64_t signal_
     return results[0].time;
 }
 
+std::pair<std::string, std::string> VCDDatabase::compute_instance_mapping(
+    const std::vector<std::string> &instance_names) {
+    // first get the longest instance name
+    std::string instance_name;
+    for (auto const &name : instance_names) {
+        if (name.size() > instance_name.size()) {
+            instance_name = name;
+        }
+    }
+
+    // now trying to figure out the potential instances based on the tokenization
+    auto tokens = util::get_tokens(instance_name, ".");
+    std::optional<uint64_t> matched_instance_id;
+    using namespace sqlite_orm;
+    std::vector<uint64_t> targets =
+        vcd_table_->select(&VCDModule::id, where(c(&VCDModule::name) == tokens.back()));
+    if (tokens.size() == 1) {
+        // we only have one level of hierarchy
+        // trying our best
+        auto instance_ids = vcd_table_->select(&VCDModuleHierarchy::child_id,
+                                               where(c(&VCDModuleHierarchy::parent_id) == 0));
+        if (!instance_ids.empty()) {
+            if (instance_ids.size() > 1) {
+                // best effort
+                log::log(
+                    log::log_level::error,
+                    fmt::format("Unable to determine hierarchy for {0}. Using best effort strategy",
+                                instance_name));
+            }
+            matched_instance_id = *(instance_ids[0]);
+        }
+
+    } else {
+        matched_instance_id = match_hierarchy(tokens, targets);
+    }
+    if (!matched_instance_id) {
+        // nothing we can do
+        return {};
+    }
+    auto full_name = get_full_instance_name(*matched_instance_id);
+    // find out at which point the become different
+    uint64_t pos;
+    auto full_name_tokens = util::get_tokens(full_name, ".");
+    for (pos = 0; pos < tokens.size(); pos++) {
+        if (tokens[tokens.size() - pos] == full_name_tokens[full_name_tokens.size() - pos])
+            continue;
+    }
+
+    auto def_name = tokens[0];
+    auto mapped_name =
+        util::join(full_name_tokens.begin(),
+                   full_name_tokens.begin() + (full_name_tokens.size() - pos + 1), ".");
+    return {def_name, mapped_name};
+}
+
 void VCDDatabase::parse_vcd(std::istream &stream) {
     // the code below is mostly designed by Teguh Hofstee (https://github.com/hofstee)
     // heavily refactored to fit into hgdb's needs
@@ -334,6 +389,42 @@ void VCDDatabase::store_module(const std::string &name, uint64_t id) {
 void VCDDatabase::store_value(uint64_t id, uint64_t time, const std::string &value) {
     VCDValue v{.id = std::make_unique<uint64_t>(id), .time = time, .value = value};
     vcd_table_->replace(v);
+}
+
+std::optional<uint64_t> VCDDatabase::match_hierarchy(
+    const std::vector<std::string> &instance_tokens, std::vector<uint64_t> targets) {
+    if (instance_tokens.size() < 2) return std::nullopt;
+    using namespace sqlite_orm;
+
+    std::unordered_map<uint64_t, uint64_t> parent_mapping;
+
+    // walking backwards
+    for (uint64_t i = instance_tokens.size() - 2; i > 0; i--) {
+        std::vector<uint64_t> result;
+        for (auto const &id : targets) {
+            auto instance_ids = vcd_table_->select(
+                &VCDModule::id, where(c(&VCDModule::id) == &VCDModuleHierarchy::parent_id &&
+                                      c(&VCDModuleHierarchy::child_id) == id &&
+                                      c(&VCDModule::name) == instance_tokens[i]));
+            for (auto const instance_id : instance_ids) {
+                parent_mapping.emplace(instance_id, id);
+            }
+            result.insert(result.end(), instance_ids.begin(), instance_ids.end());
+        }
+        if (result.size() == 1) {
+            // we have found it
+            // matched id will be in the root
+            auto id = result[0];
+            while (parent_mapping.find(id) != parent_mapping.end()) {
+                id = parent_mapping.at(id);
+            }
+            return id;
+            break;
+        } else {
+            targets = result;
+        }
+    }
+    return std::nullopt;
 }
 
 }  // namespace hgdb::vcd

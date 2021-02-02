@@ -1,0 +1,65 @@
+$date
+    Feb  1, 2021  20:27:28
+$end
+$version
+    TOOL:	xmsim(64)	19.03-s003
+$end
+$timescale
+    1 ns
+$end
+
+$scope module top $end
+$var reg       1 !    a $end
+
+$scope module inst1 $end
+$var wire      1 "    a1  $end
+
+$scope module inst2 $end
+$var wire      1 "    a2  $end
+
+$scope module inst3 $end
+$var wire      1 "    a3  $end
+$upscope $end
+
+$upscope $end
+
+$upscope $end
+
+$upscope $end
+
+$enddefinitions $end
+$dumpvars
+x!
+x"
+$end
+#10
+0!
+0"
+#20
+1!
+1"
+#30
+0!
+0"
+#40
+1!
+1"
+#50
+0!
+0"
+#60
+1!
+1"
+#70
+0!
+0"
+#80
+1!
+1"
+#90
+0!
+0"
+#100
+1!
+1"
+#100
