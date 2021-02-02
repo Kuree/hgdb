@@ -269,7 +269,9 @@ bool ReplayVPIProvider::is_valid_handle(const vpiHandle handle) const {
 }
 
 void ReplayVPIProvider::trigger_cb(uint32_t reason, vpiHandle handle, int64_t value) {  // NOLINT
-    for (auto const &iter : callbacks_) {
+    // use a shallow copy to avoid problems where the callback removes from cb
+    std::unordered_map<vpiHandle, s_cb_data> cb_copy = callbacks_;
+    for (auto const &iter : cb_copy) {
         auto cb_data = iter.second;
         s_vpi_value vpi_value;
         if (cb_data.reason == reason) {
