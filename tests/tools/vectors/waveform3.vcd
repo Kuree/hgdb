@@ -1,0 +1,144 @@
+$date
+    Feb  1, 2021  23:52:58
+$end
+$version
+    TOOL:	xmsim(64)	19.03-s003
+$end
+$timescale
+    1 ns
+$end
+
+$scope module top $end
+$var reg       1 !    clk $end
+$var reg       1 "    rst $end
+$var reg       4 #    in [3:0] $end
+$var reg       4 $    out [3:0] $end
+
+$scope module dut $end
+$var wire      1 %    clk  $end
+$var wire      1 &    rst  $end
+$var wire      4 '    in [3:0] $end
+$var reg       4 (    out [3:0] $end
+$upscope $end
+
+$upscope $end
+
+$enddefinitions $end
+$dumpvars
+0!
+0"
+b0 #
+bx $
+0%
+0&
+b0 '
+bx (
+$end
+#1
+1"
+1&
+b0 (
+b0 $
+#2
+0"
+0&
+#5
+1!
+1%
+#10
+0!
+b1 #
+b1 '
+0%
+#15
+1!
+1%
+b1 (
+b1 $
+#20
+0!
+b10 #
+b10 '
+0%
+#25
+1!
+1%
+b10 (
+b10 $
+#30
+0!
+b11 #
+b11 '
+0%
+#35
+1!
+1%
+b11 (
+b11 $
+#40
+0!
+b100 #
+b100 '
+0%
+#45
+1!
+1%
+b100 (
+b100 $
+#50
+0!
+b101 #
+b101 '
+0%
+#55
+1!
+1%
+b101 (
+b101 $
+#60
+0!
+b110 #
+b110 '
+0%
+#65
+1!
+1%
+b110 (
+b110 $
+#70
+0!
+b111 #
+b111 '
+0%
+#75
+1!
+1%
+b111 (
+b111 $
+#80
+0!
+b1000 #
+b1000 '
+0%
+#85
+1!
+1%
+b1000 (
+b1000 $
+#90
+0!
+b1001 #
+b1001 '
+0%
+#95
+1!
+1%
+b1001 (
+b1001 $
+#100
+0!
+b1010 #
+b1010 '
+0%
+#105
+1!

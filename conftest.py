@@ -15,7 +15,13 @@ def start_server_fn(port_num, program_name, args=None, gdbserver_port=None, stdo
     # use the shortest one
     dirs.sort(key=lambda x: len(x))
     build_dir = dirs[0]
-    server_path = os.path.join(build_dir, "tests", program_name)
+    if isinstance(program_name, (list, tuple)):
+        server_path = os.path.join(build_dir, *program_name)
+    else:
+        server_path = os.path.join(build_dir, "tests", program_name)
+    if not os.path.exists(server_path):
+        print(server_path)
+        return None
     if args is None:
         args = []
     args.append("+DEBUG_PORT=" + str(port_num))
