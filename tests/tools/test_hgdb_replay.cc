@@ -90,7 +90,7 @@ int cycle_count(p_cb_data cb_data) {
     return 0;
 }
 
-TEST(replay, clk_callback) {  // NOLINT
+TEST(replay, clk_callback_waveform1) {  // NOLINT
     change_cwd();
 
     auto db = std::make_unique<hgdb::vcd::VCDDatabase>("waveform1.vcd");
@@ -197,9 +197,57 @@ TEST(vcd, instance_mapping) {  // NOLINT
     }
     {
         auto db = std::make_unique<hgdb::vcd::VCDDatabase>("waveform2.vcd");
-        std::unordered_set<std::string> instance_names = {"child1", "child1.inst2", "child1.inst2.inst3"};
+        std::unordered_set<std::string> instance_names = {"child1", "child1.inst2",
+                                                          "child1.inst2.inst3"};
         auto const &[def_name, instance_name] = db->compute_instance_mapping(instance_names);
         EXPECT_EQ(def_name, "child1");
         EXPECT_EQ(instance_name, "top.inst1.");
+    }
+}
+
+struct get_clock_info {
+    std::set<std::pair<uint64_t, int64_t>> *values;
+    hgdb::RTLSimulatorClient *rtl;
+    vpiHandle clk;
+};
+
+int get_cycles_clock_value(p_cb_data cb_data) {
+    auto *user_data = cb_data->user_data;
+    auto *info = reinterpret_cast<get_clock_info *>(user_data);
+    auto time = info->rtl->get_simulation_time();
+    auto value = info->rtl->get_value(info->clk);
+    info->values->emplace(std::make_pair(time, *value));
+    return 0;
+}
+
+TEST(replay, clk_callback_waveform3) {  // NOLINT
+    change_cwd();
+    auto db = std::make_unique<hgdb::vcd::VCDDatabase>("waveform3.vcd");
+    auto vpi_ = std::make_unique<hgdb::replay::ReplayVPIProvider>(std::move(db));
+    auto *vpi = vpi_.get();
+    hgdb::RTLSimulatorClient rtl(std::move(vpi_));
+    // need to add some callbacks before hand it over to the engine
+    constexpr auto clk_name = "top.clk";
+    auto *clk = vpi->vpi_handle_by_name(const_cast<char *>(clk_name), nullptr);
+    EXPECT_NE(clk, nullptr);
+
+    std::set<std::pair<uint64_t, int64_t>> values;
+    get_clock_info info{.values = &values, .rtl = &rtl, .clk = clk};
+
+    s_cb_data cb{.reason = cbValueChange,
+                 .cb_rtn = get_cycles_clock_value,
+                 .obj = clk,
+                 .user_data = reinterpret_cast<char *>(&info)};
+
+    hgdb::replay::EmulationEngine engine(vpi);
+
+    // register the CB
+    auto *r = vpi->vpi_register_cb(&cb);
+    EXPECT_NE(r, nullptr);
+
+    engine.run();
+    // need to check all the posedge entries
+    for (uint32_t i = 5; i < 100; i += 10) {
+        EXPECT_NE(values.find(std::make_pair(i, 1)), values.end());
     }
 }

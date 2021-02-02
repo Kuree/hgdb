@@ -9,6 +9,12 @@ ReplayVPIProvider::ReplayVPIProvider(std::unique_ptr<hgdb::vcd::VCDDatabase> db)
 }
 
 void ReplayVPIProvider::vpi_get_value(vpiHandle expr, p_vpi_value value_p) {
+    // if there is an overridden value, use that
+    // although it is unlikely (only clk signals)
+    if (overridden_values_.find(expr) != overridden_values_.end()) [[unlikely]] {
+        value_p->value.integer = overridden_values_.at(expr);
+        return;
+    }
     if (signal_id_map_.find(expr) != signal_id_map_.end()) {
         auto signal_id = signal_id_map_.at(expr);
         auto value = db_->get_signal_value(signal_id, current_time_);
@@ -173,7 +179,7 @@ PLI_INT32 ReplayVPIProvider::vpi_get_vlog_info(p_vpi_vlog_info vlog_info_p) {
 
 void ReplayVPIProvider::vpi_get_time(vpiHandle object, p_vpi_time time_p) {
     if (time_p->type == vpiSimTime) {
-        auto time = is_callback_eval_? current_time_ + 1: current_time_;
+        auto time = is_callback_eval_ ? current_time_ + 1 : current_time_;
         time_p->low = time & 0xFFFF'FFFF;
         time_p->high = time >> 32u;
     }
@@ -302,6 +308,12 @@ std::optional<uint64_t> ReplayVPIProvider::get_signal_id(vpiHandle handle) {
     else
         return std::nullopt;
 }
+
+void ReplayVPIProvider::add_overridden_value(vpiHandle handle, int64_t value) {
+    overridden_values_.emplace(handle, value);
+}
+
+void ReplayVPIProvider::clear_overridden_values() { overridden_values_.clear(); }
 
 int64_t ReplayVPIProvider::convert_value(const std::string &raw_value) {
     uint64_t bits = raw_value.size();

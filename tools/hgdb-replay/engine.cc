@@ -92,7 +92,9 @@ void EmulationEngine::emulation_loop() {
         std::sort(times.begin(), times.end());
         // only need the first signal
         auto time = times[0];
-        // retrieve all teh watched values and compare their value change
+        // change time to the place where value changes happens
+        change_time(time);
+        // retrieve all the watched values and compare their value change
         std::unordered_map<vpiHandle, int64_t> changed_values;
         for (auto const& [handle, pre_value] : watched_values_) {
             s_vpi_value value_p;
@@ -110,8 +112,11 @@ void EmulationEngine::emulation_loop() {
         // need to file the callbacks
         // notice that we need to be very careful about the sequence of firing callback
         // in case that during the firing, client has request to reverse timestamp
+        vpi_->clear_overridden_values();
         for (auto const& [handle, new_value] : changed_values) {
             vpi_->set_is_callback_eval(true);
+            // set the overridden value
+            vpi_->add_overridden_value(handle, new_value);
             vpi_->trigger_cb(cbValueChange, handle, new_value);
             vpi_->set_is_callback_eval(false);
             // notice that we need to do a check on whether time has changed
@@ -120,6 +125,8 @@ void EmulationEngine::emulation_loop() {
                 break;
             }
         }
+        // clear out overridden values
+        vpi_->clear_overridden_values();
 
         // advance the timestamp
         // depends on the timestamp value, we decides differently
