@@ -33,13 +33,13 @@ public:
     virtual ~AVPIProvider() = default;
 
     // extended vpi controls, not present in the spec
-    struct reverse_data {
+    struct rewind_data {
         // threshold time (the reversed timestamp has to be strictly < the given time)
         uint64_t time;
         // clock_handle
         std::vector<vpiHandle> clock_signals;
     };
-    virtual bool vpi_reverse(reverse_data *reverse_data) { return false; }
+    virtual bool vpi_rewind(rewind_data *reverse_data) { return false; }
 };
 
 class VPIProvider : public AVPIProvider {

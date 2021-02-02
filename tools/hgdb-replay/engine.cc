@@ -2,26 +2,40 @@
 
 namespace hgdb::replay {
 
-using reverse_data = hgdb::AVPIProvider::reverse_data;
+using reverse_data = hgdb::AVPIProvider::rewind_data;
 
 EmulationEngine::EmulationEngine(ReplayVPIProvider* vcd) : vpi_(vcd) {
     // set callbacks
     vpi_->set_on_cb_added([this](p_cb_data cb_data) { on_cb_added(cb_data); });
     vpi_->set_on_cb_removed([this](const s_cb_data& cb_data) { on_cb_removed(cb_data); });
-    vpi_->set_on_reversed([this](reverse_data* reverse_data) { return on_reversed(reverse_data); });
+    vpi_->set_on_reversed([this](reverse_data* reverse_data) { return on_rewound(reverse_data); });
 
     // set time
-    vpi_->set_timestamp(timestamp_);
+    change_time(0);
 }
 
-void EmulationEngine::run() {
-    // we need to pull out the watched value list and see if there is any value change
-    vpi_->trigger_cb(cbStartOfSimulation);
+void EmulationEngine::run(bool blocking) {
+    auto run_logic = [this]() {
+        // we need to pull out the watched value list and see if there is any value change
+        vpi_->trigger_cb(cbStartOfSimulation);
 
-    // the loop
-    emulation_loop();
+        // the loop
+        emulation_loop();
 
-    vpi_->trigger_cb(cbEndOfSimulation);
+        vpi_->trigger_cb(cbEndOfSimulation);
+    };
+
+    if (blocking) {
+        run_logic();
+    } else {
+        thread_ = std::thread(run_logic);
+    }
+}
+
+void EmulationEngine::finish() {
+    if (thread_) {
+        thread_->join();
+    }
 }
 
 void EmulationEngine::on_cb_added(p_cb_data cb_data) {
@@ -38,11 +52,11 @@ void EmulationEngine::on_cb_removed(const s_cb_data& cb_data) {
     }
 }
 
-bool EmulationEngine::on_reversed(hgdb::AVPIProvider::reverse_data* reverse_data) {
-    uint64_t max_time = reverse_data->time;
+bool EmulationEngine::on_rewound(hgdb::AVPIProvider::rewind_data* rewind_data) {
+    uint64_t max_time = rewind_data->time;
     std::vector<uint64_t> times;
-    times.reserve(reverse_data->clock_signals.size());
-    for (auto* handle : reverse_data->clock_signals) {
+    times.reserve(rewind_data->clock_signals.size());
+    for (auto* handle : rewind_data->clock_signals) {
         auto signal = vpi_->get_signal_id(handle);
         if (signal) {
             auto time = vpi_->db().get_prev_value_change_time(*signal, max_time);
@@ -55,7 +69,7 @@ bool EmulationEngine::on_reversed(hgdb::AVPIProvider::reverse_data* reverse_data
     std::sort(times.begin(), times.end());
     auto next_time = times.back();
     // move back a little bit so we can evaluate the posedge
-    timestamp_ = next_time - 1;
+    change_time(next_time - 1);
     return true;
 }
 
@@ -92,7 +106,7 @@ void EmulationEngine::emulation_loop() {
         // notice that since we are doing emulation, at the callback only that particular
         // value is changed properly, the rest is still "lagging" behind, the we actually
         // need to fetch the time at (time - 1)
-        timestamp_ = time - 1;
+        change_time(time - 1);
         // need to file the callbacks
         // notice that we need to be very careful about the sequence of firing callback
         // in case that during the firing, client has request to reverse timestamp
@@ -113,9 +127,14 @@ void EmulationEngine::emulation_loop() {
         // requests when the simulator is running. only when the simulator is paused is
         // the request well-defined. in this case, inside the trigger_cb call
         if (timestamp_.load() == (time - 1)) {
-            timestamp_ = time;
+            change_time(time);
         }
     }
+}
+
+void EmulationEngine::change_time(uint64_t time) {
+    timestamp_ = time;
+    vpi_->set_timestamp(time);
 }
 
 }  // namespace hgdb::replay

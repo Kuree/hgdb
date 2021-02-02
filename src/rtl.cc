@@ -479,9 +479,9 @@ bool RTLSimulatorClient::reverse_last_posedge(const std::vector<vpiHandle> &clk_
 
     auto time = get_simulation_time();
 
-    AVPIProvider::reverse_data data{.time = time, .clock_signals = handles};
+    AVPIProvider::rewind_data data{.time = time, .clock_signals = handles};
 
-    return vpi_->vpi_reverse(&data);
+    return vpi_->vpi_rewind(&data);
 }
 
 PLI_INT32 RTLSimulatorClient::get_vpi_type(vpiHandle handle) {

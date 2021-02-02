@@ -227,11 +227,9 @@ vpiHandle ReplayVPIProvider::vpi_handle_by_index(vpiHandle object, PLI_INT32 ind
     return nullptr;
 }
 
-bool ReplayVPIProvider::vpi_reverse(reverse_data *reverse_data) {
-    // TODO
-    (void)reverse_data;
-    if (on_reversed_) {
-        return (*on_reversed_)(reverse_data);
+bool ReplayVPIProvider::vpi_rewind(rewind_data *rewind_data) {
+    if (on_rewound_) {
+        return (*on_rewound_)(rewind_data);
     }
     return false;
 }
@@ -257,8 +255,8 @@ void ReplayVPIProvider::set_on_cb_removed(
     on_cb_removed_ = on_cb_removed;
 }
 
-void ReplayVPIProvider::set_on_reversed(const std::function<bool(reverse_data *)> &on_reversed) {
-    on_reversed_ = on_reversed;
+void ReplayVPIProvider::set_on_reversed(const std::function<bool(rewind_data *)> &on_reversed) {
+    on_rewound_ = on_reversed;
 }
 
 bool ReplayVPIProvider::is_valid_handle(const vpiHandle handle) const {

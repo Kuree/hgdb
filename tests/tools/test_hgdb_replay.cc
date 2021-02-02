@@ -2,6 +2,7 @@
 
 #include "../../tools/hgdb-replay/engine.hh"
 #include "gtest/gtest.h"
+#include "thread.hh"
 #include "vpi_user.h"
 
 void change_cwd() {
@@ -89,7 +90,7 @@ int cycle_count(p_cb_data cb_data) {
     return 0;
 }
 
-TEST(replay, clk_callback) { // NOLINT
+TEST(replay, clk_callback) {  // NOLINT
     change_cwd();
 
     auto db = std::make_unique<hgdb::vcd::VCDDatabase>("waveform1.vcd");
@@ -97,15 +98,13 @@ TEST(replay, clk_callback) { // NOLINT
 
     // need to add some callbacks before hand it over to the engine
     constexpr auto clk_name = "top.clk";
-    auto *clk = vpi->vpi_handle_by_name(const_cast<char*>(clk_name), nullptr);
+    auto *clk = vpi->vpi_handle_by_name(const_cast<char *>(clk_name), nullptr);
     EXPECT_NE(clk, nullptr);
     int cycle_count_int = 0;
-    s_cb_data cb {
-        .reason=cbValueChange,
-        .cb_rtn=cycle_count,
-        .obj=clk,
-        .user_data=reinterpret_cast<char*>(&cycle_count_int)
-    };
+    s_cb_data cb{.reason = cbValueChange,
+                 .cb_rtn = cycle_count,
+                 .obj = clk,
+                 .user_data = reinterpret_cast<char *>(&cycle_count_int)};
 
     hgdb::replay::EmulationEngine engine(vpi.get());
 
@@ -115,4 +114,71 @@ TEST(replay, clk_callback) { // NOLINT
 
     engine.run();
     EXPECT_EQ(cycle_count_int, 10 * 2);
+}
+
+struct rewind_info {
+    std::unordered_set<uint64_t> *values;
+    bool *has_rewound;
+    hgdb::AVPIProvider *vpi;
+    vpiHandle clk;
+};
+
+int test_rewind_value_get(p_cb_data cb_data) {
+    auto *user_data = cb_data->user_data;
+    auto *info = reinterpret_cast<rewind_info *>(user_data);
+
+    // first block on
+    if (!(*info->has_rewound)) {
+        // rewind the time!
+        hgdb::AVPIProvider::rewind_data rewind_data;
+        rewind_data.time = 100;
+        rewind_data.clock_signals = {info->clk};
+        info->vpi->vpi_rewind(&rewind_data);
+        *info->has_rewound = true;
+    } else {
+        // get the times
+        s_vpi_time current_time{};
+        current_time.type = vpiSimTime;
+        info->vpi->vpi_get_time(nullptr, &current_time);
+        auto time = current_time.low;
+        info->values->emplace(time);
+    }
+
+    return 0;
+}
+
+TEST(replay, get_value_reverse) {  // NOLINT
+    change_cwd();
+
+    auto db = std::make_unique<hgdb::vcd::VCDDatabase>("waveform1.vcd");
+    auto vpi = std::make_unique<hgdb::replay::ReplayVPIProvider>(std::move(db));
+    hgdb::replay::EmulationEngine engine(vpi.get());
+
+    // set the time to 10
+    constexpr auto clk_name = "top.clk";
+    auto *clk = vpi->vpi_handle_by_name(const_cast<char *>(clk_name), nullptr);
+    EXPECT_NE(clk, nullptr);
+
+    std::unordered_set<uint64_t> values;
+    bool has_rewound = false;
+
+    rewind_info cb_info{
+        .values = &values, .has_rewound = &has_rewound, .vpi = vpi.get(), .clk = clk};
+
+    s_cb_data cb{.reason = cbValueChange,
+                 .cb_rtn = test_rewind_value_get,
+                 .obj = clk,
+                 .user_data = reinterpret_cast<char *>(&cb_info)};
+
+    // register the CB
+    auto *r = vpi->vpi_register_cb(&cb);
+    EXPECT_NE(r, nullptr);
+
+    engine.run(false);
+
+    engine.finish();
+    for (auto  i = 9u; i < (90 - 1); i += 10) {
+        EXPECT_EQ(values.find(i), values.end());
+    }
+
 }
