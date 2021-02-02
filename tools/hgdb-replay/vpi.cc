@@ -173,8 +173,9 @@ PLI_INT32 ReplayVPIProvider::vpi_get_vlog_info(p_vpi_vlog_info vlog_info_p) {
 
 void ReplayVPIProvider::vpi_get_time(vpiHandle object, p_vpi_time time_p) {
     if (time_p->type == vpiSimTime) {
-        time_p->low = current_time_ & 0xFFFF'FFFF;
-        time_p->high = current_time_ >> 32u;
+        auto time = is_callback_eval_? current_time_ + 1: current_time_;
+        time_p->low = time & 0xFFFF'FFFF;
+        time_p->high = time >> 32u;
     }
 }
 

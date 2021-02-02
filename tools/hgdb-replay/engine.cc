@@ -111,7 +111,9 @@ void EmulationEngine::emulation_loop() {
         // notice that we need to be very careful about the sequence of firing callback
         // in case that during the firing, client has request to reverse timestamp
         for (auto const& [handle, new_value] : changed_values) {
+            vpi_->set_is_callback_eval(true);
             vpi_->trigger_cb(cbValueChange, handle, new_value);
+            vpi_->set_is_callback_eval(false);
             // notice that we need to do a check on whether time has changed
             if (timestamp_.load() != (time - 1)) {
                 // time has changed, abort

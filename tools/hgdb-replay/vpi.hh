@@ -35,6 +35,7 @@ public:
     void trigger_cb(uint32_t reason) { trigger_cb(reason, nullptr, 0); }
     void trigger_cb(uint32_t reason, vpiHandle obj, int64_t value);
     std::optional<uint64_t> get_signal_id(vpiHandle handle);
+    void set_is_callback_eval(bool value) { is_callback_eval_ = value; }
 
     // helper functions
     static int64_t convert_value(const std::string &raw_value);
@@ -45,6 +46,9 @@ protected:
 private:
     std::unique_ptr<hgdb::vcd::VCDDatabase> db_;
     uint64_t current_time_ = 0;
+    // if it's in callback_eval, when we do get time we have to + 1 since we are getting
+    // stabilized values
+    bool is_callback_eval_ = false;
 
     // mapping from full names to handle
     std::unordered_map<std::string, vpiHandle> handle_mapping_;
