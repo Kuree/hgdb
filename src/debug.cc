@@ -327,11 +327,11 @@ void Debugger::add_breakpoint(const BreakPoint &bp_info, const BreakPoint &db_bp
         inserted_breakpoints_.emplace(db_bp.id);
         validate_expr(breakpoints_.back().expr.get(), db_bp.id, *db_bp.instance_id);
         if (!breakpoints_.back().expr->correct()) [[unlikely]] {
-            log_error("Unable to valid breakpoint expression: " + cond);
+            log_error("Unable to validate breakpoint expression: " + cond);
         }
         validate_expr(breakpoints_.back().enable_expr.get(), db_bp.id, *db_bp.instance_id);
         if (!breakpoints_.back().enable_expr->correct()) [[unlikely]] {
-            log_error("Unable to valid breakpoint expression: " + cond);
+            log_error("Unable to validate breakpoint expression: " + cond);
         }
     } else {
         // update breakpoint entry
@@ -340,7 +340,7 @@ void Debugger::add_breakpoint(const BreakPoint &bp_info, const BreakPoint &db_bp
                 b.expr = std::make_unique<DebugExpression>(cond);
                 validate_expr(b.expr.get(), db_bp.id, *db_bp.instance_id);
                 if (!b.expr->correct()) [[unlikely]] {
-                    log_error("Unable to valid breakpoint expression: " + cond);
+                    log_error("Unable to validate breakpoint expression: " + cond);
                 }
                 return;
             }
