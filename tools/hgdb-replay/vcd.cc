@@ -1,6 +1,5 @@
 #include "vcd.hh"
 
-#include <cassert>
 #include <filesystem>
 #include <sstream>
 #include <stack>
@@ -13,16 +12,6 @@
 
 enum class sv { Date, Version, Timescale, Comment, Scope, Upscope, Var, Enddefinitions };
 
-// NOLINTNEXTLINE
-static std::unordered_map<std::basic_string_view<char>, sv> sv_map = {
-    {"$date", sv::Date},
-    {"$version", sv::Version},
-    {"$timescale", sv::Timescale},
-    {"$comment", sv::Comment},
-    {"$scope", sv::Scope},
-    {"$upscope", sv::Upscope},
-    {"$var", sv::Var},
-    {"$enddefinitions", sv::Enddefinitions}};
 
 namespace hgdb::vcd {
 
@@ -232,9 +221,23 @@ void VCDDatabase::parse_vcd(std::istream &stream) {
     // begin transaction
     vcd_table_->begin_transaction();
 
+    static const std::unordered_map<std::basic_string_view<char>, sv> sv_map = {
+        {"$date", sv::Date},
+        {"$version", sv::Version},
+        {"$timescale", sv::Timescale},
+        {"$comment", sv::Comment},
+        {"$scope", sv::Scope},
+        {"$upscope", sv::Upscope},
+        {"$var", sv::Var},
+        {"$enddefinitions", sv::Enddefinitions}};
+
     while (true) {
         auto token = next_token(stream);
         if (token.empty()) break;
+
+        if (sv_map.find(token) == sv_map.end()) {
+            printf("Unable to find token: %s\n", token.c_str());
+        }
 
         switch (sv_map.at(token)) {
             case sv::Date:
@@ -250,7 +253,7 @@ void VCDDatabase::parse_vcd(std::istream &stream) {
                 break;
             }
             case sv::Upscope: {
-                assert(next_token(stream) == "$end");
+                next_token(stream);
                 scope.pop();
                 break;
             }
@@ -259,7 +262,7 @@ void VCDDatabase::parse_vcd(std::istream &stream) {
                 break;
             }
             case sv::Enddefinitions: {
-                assert(next_token(stream) == "$end");
+                next_token(stream);
                 parse_vcd_values(stream, var_mapping);
                 break;
             }
@@ -282,7 +285,7 @@ void VCDDatabase::parse_var_def(std::istream &stream, std::stack<uint64_t> &scop
     auto temp = next_token(stream);
     if (temp != "$end") {
         // slice
-        assert(next_token(stream) == "$end");
+        next_token(stream);
     }
     auto module_id = scope.top();
     var_mapping.emplace(ident, var_id_count);
@@ -294,7 +297,7 @@ void VCDDatabase::parse_module_def(std::istream &stream, std::stack<uint64_t> &s
                                    uint64_t &module_id_count) {
     next_token(stream);  // scope type
     auto name = next_token(stream);
-    assert(next_token(stream) == "$end");
+    next_token(stream);
     std::optional<uint64_t> parent_id;
     if (!scope.empty()) {
         parent_id = scope.top();
