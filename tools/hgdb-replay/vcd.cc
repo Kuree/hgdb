@@ -29,6 +29,8 @@ namespace hgdb::vcd {
 VCDDatabase::VCDDatabase(const std::string &filename) {
     vcd_table_ = std::make_unique<VCDTable>(initial_vcd_db(""));
     vcd_table_->sync_schema();
+    // set to off mode since we're not interested in recovery
+    vcd_table_->pragma.journal_mode(sqlite_orm::journal_mode::OFF);
     // if not exists, don't do anything
     if (!std::filesystem::exists(filename)) return;
     std::ifstream stream(filename);
@@ -227,6 +229,9 @@ void VCDDatabase::parse_vcd(std::istream &stream) {
     uint64_t module_id_count = 0;
     uint64_t var_id_count = 0;
 
+    // begin transaction
+    vcd_table_->begin_transaction();
+
     while (true) {
         auto token = next_token(stream);
         if (token.empty()) break;
@@ -262,6 +267,9 @@ void VCDDatabase::parse_vcd(std::istream &stream) {
             }
         }
     }
+
+    // end transaction
+    vcd_table_->commit();
 }
 void VCDDatabase::parse_var_def(std::istream &stream, std::stack<uint64_t> &scope,
                                 std::unordered_map<std::string, uint64_t> &var_mapping,
@@ -391,7 +399,7 @@ void VCDDatabase::store_module(const std::string &name, uint64_t id) {
 
 void VCDDatabase::store_value(uint64_t id, uint64_t time, const std::string &value) {
     VCDValue v{.id = std::make_unique<uint64_t>(id), .time = time, .value = value};
-    vcd_table_->replace(v);
+    vcd_table_->insert(v);
 }
 
 std::optional<uint64_t> VCDDatabase::match_hierarchy(
