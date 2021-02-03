@@ -108,6 +108,9 @@ public:
     [[nodiscard]] bool monitor_signals(const std::vector<std::string> &signals,
                                        int(cb_func)(p_cb_data), void *user_data);
 
+    // callback related
+    [[nodiscard]] std::unordered_set<std::string> callback_names();
+
     // reverse simulation supported
     // given a list of clock handles, reverse the execution
     [[maybe_unused]] bool reverse_last_posedge(const std::vector<vpiHandle> &clk_handles);

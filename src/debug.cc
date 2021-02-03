@@ -66,18 +66,19 @@ void Debugger::run() {
         // need to get information about the port number
         auto port = get_port();
         is_running_ = true;
-        server_->run(port);
         log_info(fmt::format("Debugging server started at :{0}", port));
+        server_->run(port);
     });
     // block this thread until we receive the continue from user
     lock_.wait();
 }
 
 void Debugger::stop() {
-    // if wait, continue it
-    lock_.ready();
     server_->stop();
-    is_running_ = false;
+    if (is_running_.load()) {
+        // just detach it from the simulator
+        detach();
+    }
 }
 
 void Debugger::eval() {
@@ -140,11 +141,29 @@ void Debugger::eval() {
 Debugger::~Debugger() { server_thread_.join(); }
 
 void Debugger::detach() {
+    // remove all the clock related callback
+    // depends on whether it's verilator or not
+    if (rtl_->is_verilator()) {
+        rtl_->remove_call_back("eval_hgdb");
+        log_info("Remove callback eval_hgdb");
+    } else {
+        std::set<std::string> callbacks;
+        auto const callback_names = rtl_->callback_names();
+        for (auto const &callback_name : callback_names) {
+            if (callback_name.find("Monitor") != std::string::npos) {
+                log_info("Remove callback " + callback_name);
+                rtl_->remove_call_back(callback_name);
+            }
+        }
+    }
+
+    // set evaluation mode to normal
+    evaluation_mode_ = EvaluationMode::None;
+    __sync_synchronize();
+
     // clear out inserted breakpoints
     inserted_breakpoints_.clear();
     breakpoints_.clear();
-    // set evaluation mode to normal
-    evaluation_mode_ = EvaluationMode::None;
 
     // need to put this here to avoid compiler/cpu to reorder the code
     // such that lock is released before the breakpoints is cleared
@@ -439,6 +458,8 @@ void Debugger::handle_connection(const ConnectionRequest &req, uint64_t conn_id)
     if (success) {
         auto resp = GenericResponse(status_code::success, req);
         send_message(resp.str(log_enabled_), conn_id);
+        // set running to true
+        is_running_ = true;
     } else {
         auto resp = GenericResponse(status_code::error, req,
                                     fmt::format("Unable to find {0}", db_filename));
@@ -547,7 +568,11 @@ void Debugger::handle_command(const CommandRequest &req, uint64_t) {
         }
         case CommandRequest::CommandType::stop: {
             log_info("handle_command: stop");
-            lock_.ready();
+            inserted_breakpoints_.clear();
+            breakpoints_.clear();
+            evaluation_mode_ = EvaluationMode::None;
+            // we will unlock the lock during the stop step to ensure proper shutdown
+            // of the runtime
             rtl_->finish_sim();
             stop();
             break;

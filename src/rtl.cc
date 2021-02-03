@@ -6,6 +6,7 @@
 #include <queue>
 #include <unordered_set>
 
+#include "log.hh"
 #include "util.hh"
 
 namespace hgdb {
@@ -313,7 +314,7 @@ vpiHandle RTLSimulatorClient::add_call_back(const std::string &cb_name, int cb_t
                       .value = &value,
                       .user_data = reinterpret_cast<char *>(user_data)};
     auto *handle = vpi_->vpi_register_cb(&cb_data);
-    if (!handle) {
+    if (handle) {
         // need to free the old one to avoid memory leak
         if (cb_handles_.find(cb_name) != cb_handles_.end()) {
             auto *old_handle = cb_handles_.at(cb_name);
@@ -344,7 +345,6 @@ void RTLSimulatorClient::remove_call_back(vpiHandle cb_handle) {
         }
     }
     vpi_->vpi_remove_cb(cb_handle);
-    vpi_->vpi_release_handle(cb_handle);
 }
 
 void RTLSimulatorClient::stop_sim(finish_value value) {
@@ -470,6 +470,8 @@ bool RTLSimulatorClient::monitor_signals(const std::vector<std::string> &signals
             add_call_back(callback_name, cbValueChange, cb_func, handle, user_data);
             added_handles.emplace_back(callback_name);
         } else {
+            log::log(log::log_level::error,
+                     fmt::format("Unable to register callback to monitor signal {0}", full_name));
             // well rollback
             for (auto const &cb_name : added_handles) {
                 remove_call_back(cb_name);
@@ -478,6 +480,16 @@ bool RTLSimulatorClient::monitor_signals(const std::vector<std::string> &signals
         }
     }
     return true;
+}
+
+std::unordered_set<std::string> RTLSimulatorClient::callback_names() {
+    std::lock_guard guard(cb_handles_lock_);
+    std::unordered_set<std::string> result;
+    for (auto const &iter : cb_handles_) {
+        result.emplace(iter.first);
+    }
+
+    return result;
 }
 
 bool RTLSimulatorClient::reverse_last_posedge(const std::vector<vpiHandle> &clk_handles) {

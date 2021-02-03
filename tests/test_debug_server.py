@@ -301,7 +301,6 @@ def test_watch(start_server, find_free_port):
     kill_server(s)
 
 
-@pytest.mark.skip(reason="Detach log is still buggy and has race condition issue")
 def test_detach(start_server, find_free_port):
     # FIXME
     s, uri = setup_server(start_server, find_free_port)
@@ -312,6 +311,7 @@ def test_detach(start_server, find_free_port):
             await client.change_option(detach_after_disconnect=True)
             await client.set_breakpoint("/tmp/test.py", 1)
             await client.continue_()
+            await client.recv()
 
     async def test_logic2():
         client = hgdb.HGDBClient(uri, None)

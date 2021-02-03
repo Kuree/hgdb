@@ -159,8 +159,8 @@ TEST_F(RTLModuleTest, test_cb) {  // NOLINT
     // trigger a wrong one first
     mock_vpi.trigger_cb(cbEndOfSimulation);
     EXPECT_EQ(value, 0);
-    constexpr int final_value = 4;
-    for (int i = 1; i < final_value; i++) {
+    constexpr int final_value = 3;
+    for (int i = 1; i <= final_value; i++) {
         mock_vpi.trigger_cb(cbStartOfSimulation);
         EXPECT_EQ(value, i);
     }
