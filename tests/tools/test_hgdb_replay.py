@@ -59,6 +59,16 @@ def test_replay(start_server, find_free_port):
             assert bp["payload"]["instances"][0]["local"]["clk"] == "1"
             assert bp["payload"]["instances"][0]["local"]["in"] == "1"
             assert bp["payload"]["instances"][0]["local"]["out"] == "0"
+            await client.continue_()
+            bp = await client.recv()
+            assert bp["payload"]["time"] == 25
+            # go back in time. notice that step back will also visit un-inserted breakpoint
+            await client.step_back()
+            bp = await client.recv()
+            assert bp["payload"]["time"] == 25
+            await client.step_back()
+            bp = await client.recv()
+            assert bp["payload"]["time"] == 15
 
         asyncio.get_event_loop().run_until_complete(test_logic())
 

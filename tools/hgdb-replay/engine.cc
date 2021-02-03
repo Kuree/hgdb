@@ -59,7 +59,7 @@ bool EmulationEngine::on_rewound(hgdb::AVPIProvider::rewind_data* rewind_data) {
     for (auto* handle : rewind_data->clock_signals) {
         auto signal = vpi_->get_signal_id(handle);
         if (signal) {
-            auto time = vpi_->db().get_prev_value_change_time(*signal, max_time);
+            auto time = vpi_->db().get_prev_value_change_time(*signal, max_time, "1");
             if (time) {
                 times.emplace_back(*time);
             }
