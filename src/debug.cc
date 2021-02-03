@@ -1160,7 +1160,8 @@ void Debugger::validate_expr(DebugExpression *expr, std::optional<uint32_t> brea
         std::optional<std::string> name;
         if (breakpoint_id) {
             name = db_->resolve_scoped_name_breakpoint(symbol, *breakpoint_id);
-        } else if (instance_id) {
+        }
+        if (!name && instance_id) {
             name = db_->resolve_scoped_name_instance(symbol, *instance_id);
         }
         std::string full_name;
