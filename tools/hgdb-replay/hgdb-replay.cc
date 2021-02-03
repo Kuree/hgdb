@@ -1,12 +1,19 @@
+#include <filesystem>
 #include <iostream>
 
 #include "engine.hh"
-#include "sim.hh"
 #include "log.hh"
-#include <filesystem>
+#include "sim.hh"
 
 void print_usage(const std::string &program_name) {
     std::cerr << "Usage: " << program_name << " waveform.vcd [args]" << std::endl;
+}
+
+bool has_flag(const std::string &flag, int argc, char *argv[]) {  // NOLINT
+    for (int i = 0; i < argc; i++) {
+        if (argv[i] == flag) return true;
+    }
+    return false;
 }
 
 int main(int argc, char *argv[]) {
@@ -22,8 +29,8 @@ int main(int argc, char *argv[]) {
         std::cerr << "Unable to find " << filename << std::endl;
         return EXIT_FAILURE;
     }
-
-    auto db = std::make_unique<hgdb::vcd::VCDDatabase>(filename);
+    auto has_store_db_flag = has_flag("--db", argc, argv);
+    auto db = std::make_unique<hgdb::vcd::VCDDatabase>(filename, has_store_db_flag);
 
     // notice that db will lose ownership soon. use raw pointer instead
     auto *db_ptr = db.get();
@@ -42,8 +49,8 @@ int main(int argc, char *argv[]) {
     // compute the mapping
     auto mapping_func = [db_ptr](const std::unordered_set<std::string> &instance_names)
         -> std::unordered_map<std::string, std::string> {
-      auto mapping = db_ptr->compute_instance_mapping(instance_names);
-      return {{mapping.first, mapping.second}};
+        auto mapping = db_ptr->compute_instance_mapping(instance_names);
+        return {{mapping.first, mapping.second}};
     };
     log::log(log::log_level::info, "Calculating design hierarchy...");
     debugger->rtl_client()->set_custom_hierarchy_func(mapping_func);

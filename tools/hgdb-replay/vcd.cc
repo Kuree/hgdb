@@ -12,16 +12,24 @@
 
 enum class sv { Date, Version, Timescale, Comment, Scope, Upscope, Var, Enddefinitions };
 
-
 namespace hgdb::vcd {
 
-VCDDatabase::VCDDatabase(const std::string &filename) {
-    vcd_table_ = std::make_unique<VCDTable>(initial_vcd_db(""));
-    vcd_table_->sync_schema();
-    // set to off mode since we're not interested in recovery
-    vcd_table_->pragma.journal_mode(sqlite_orm::journal_mode::OFF);
+VCDDatabase::VCDDatabase(const std::string &filename, bool store_converted_db) {
     // if not exists, don't do anything
     if (!std::filesystem::exists(filename)) return;
+
+    auto vcd_filename = get_vcd_db_filename(filename, store_converted_db);
+    // need to detect whether db exists before we actually create the file
+    bool db_exists = vcd_filename && std::filesystem::exists(*vcd_filename);
+    vcd_table_ = std::make_unique<VCDTable>(initial_vcd_db(vcd_filename ? *vcd_filename : ""));
+    vcd_table_->sync_schema();
+    if (db_exists) {
+        // we're good
+        return;
+    }
+    // set to off mode since we're not interested in recovery
+    vcd_table_->pragma.journal_mode(sqlite_orm::journal_mode::OFF);
+
     std::ifstream stream(filename);
     if (stream.bad()) return;
     parse_vcd(stream);
@@ -437,6 +445,21 @@ std::optional<uint64_t> VCDDatabase::match_hierarchy(
         } else {
             targets = result;
         }
+    }
+    return std::nullopt;
+}
+
+std::optional<std::string> VCDDatabase::get_vcd_db_filename(const std::string &filename,
+                                                            bool store) {
+    if (!store) return std::nullopt;
+    // check permission
+    namespace fs = std::filesystem;
+    auto name = filename + ".db";
+    auto dirname = fs::path(filename).parent_path();
+    auto perm = fs::status(filename).permissions();
+    if ((perm & fs::perms::owner_write) != fs::perms::none) {
+        // we can write to it
+        return name;
     }
     return std::nullopt;
 }

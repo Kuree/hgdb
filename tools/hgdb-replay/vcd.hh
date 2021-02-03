@@ -57,7 +57,7 @@ auto inline initial_vcd_db(const std::string &filename) {
 
 class VCDDatabase {
 public:
-    explicit VCDDatabase(const std::string &filename);
+    VCDDatabase(const std::string &filename, bool store_converted_db = false);
     std::optional<uint64_t> get_instance_id(const std::string &full_name);
     std::optional<uint64_t> get_signal_id(const std::string &full_name);
     std::vector<VCDSignal> get_instance_signals(uint64_t instance_id);
@@ -100,6 +100,7 @@ private:
     // helper functions
     std::optional<uint64_t> match_hierarchy(const std::vector<std::string> &instance_tokens,
                                             std::vector<uint64_t> targets);
+    static std::optional<std::string> get_vcd_db_filename(const std::string &filename, bool store);
 };
 
 }  // namespace hgdb::vcd
