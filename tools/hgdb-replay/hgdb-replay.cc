@@ -6,7 +6,15 @@
 #include "sim.hh"
 
 void print_usage(const std::string &program_name) {
-    std::cerr << "Usage: " << program_name << " waveform.vcd [args]" << std::endl;
+    // detect if inside a python process
+    std::string name;
+    if (std::getenv("HGDB_PYTHON_PACKAGE")) {
+        auto path = std::filesystem::path(program_name);
+        name = path.filename();
+    } else {
+        name = program_name;
+    }
+    std::cerr << "Usage: " << name << " waveform.vcd [args]" << std::endl;
 }
 
 bool has_flag(const std::string &flag, int argc, char *argv[]) {  // NOLINT

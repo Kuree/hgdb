@@ -1,6 +1,7 @@
 import os
 import sys
 import subprocess
+import shutil
 from setuptools import setup, Extension
 from setuptools.command.build_ext import build_ext
 
@@ -82,9 +83,16 @@ class CMakeBuild(build_ext):
         subprocess.check_call(
             ["cmake", ext.sourcedir] + cmake_args, cwd=self.build_temp
         )
+        make_targets = ["hgdb", "hgdb-replay-bin"]
         subprocess.check_call(
-            ["cmake", "--build", ".", "--target", "hgdb"] + build_args, cwd=self.build_temp
+            ["cmake", "--build", ".", "--target"] + make_targets + build_args, cwd=self.build_temp
         )
+        # need to copy binaries over
+        binaries = [os.path.join(self.build_temp, "tools", "hgdb-replay", "hgdb-replay")]
+        for binary in binaries:
+            assert os.path.isfile(binary)
+            print(extdir, binary)
+            shutil.copy(binary, extdir)
 
 
 root_dir = os.path.abspath(os.path.dirname(__file__))
@@ -102,6 +110,7 @@ setup(
     long_description_content_type='text/x-rst',
     url="https://github.com/Kuree/hgdb",
     python_requires=">=3.6",
+    scripts=["scripts/tools/hgdb-replay"],
     ext_modules=[CMakeExtension("libhgdb")],
     cmdclass={"build_ext": CMakeBuild},
 )
