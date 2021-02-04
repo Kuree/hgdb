@@ -9,4 +9,4 @@ import sys
 pkg = pkgutil.get_loader("libhgdb")
 path = os.path.dirname(pkg.path)
 bin_path = os.path.join(path, "hgdb-replay")
-subprocess.call(" ".join([bin_path] + sys.argv[1:]), env={"HGDB_PYTHON_PACKAGE": "1"})
+subprocess.call([bin_path] + sys.argv[1:], env={"HGDB_PYTHON_PACKAGE": "1"})
