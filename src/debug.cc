@@ -1163,6 +1163,12 @@ void Debugger::validate_expr(DebugExpression *expr, std::optional<uint32_t> brea
         }
         if (!name && instance_id) {
             name = db_->resolve_scoped_name_instance(symbol, *instance_id);
+            // if we still can't get it working. use the VPI instead
+            if (!name) {
+                auto inst_name = db_->get_instance_name(*instance_id);
+                if (inst_name) [[likely]]
+                    name = fmt::format("{0}.{1}", *inst_name, symbol);
+            }
         }
         std::string full_name;
         if (name) [[likely]] {
