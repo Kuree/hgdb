@@ -451,10 +451,16 @@ std::optional<uint64_t> VCDDatabase::match_hierarchy(
 
 std::optional<std::string> VCDDatabase::get_vcd_db_filename(const std::string &filename,
                                                             bool store) {
-    if (!store) return std::nullopt;
     // check permission
     namespace fs = std::filesystem;
     auto name = filename + ".db";
+    if (!store) {
+        if (fs::exists(name)) {
+            return name;
+        } else {
+            return std::nullopt;
+        }
+    }
     auto dirname = fs::path(filename).parent_path();
     auto perm = fs::status(filename).permissions();
     if ((perm & fs::perms::owner_write) != fs::perms::none) {
