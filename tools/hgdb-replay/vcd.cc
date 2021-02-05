@@ -183,14 +183,24 @@ std::pair<std::string, std::string> VCDDatabase::compute_instance_mapping(
         auto instance_ids = vcd_table_->select(&VCDModuleHierarchy::child_id,
                                                where(c(&VCDModuleHierarchy::parent_id) == 0));
         if (!instance_ids.empty()) {
+            uint64_t index = 0;
             if (instance_ids.size() > 1) {
                 // best effort
                 log::log(
                     log::log_level::error,
                     fmt::format("Unable to determine hierarchy for {0}. Using best effort strategy",
                                 instance_name));
+                // trying to find the one with the most amount of signals
+                uint64_t count = 0;
+                for (auto i = 0; i < instance_ids.size(); i++) {
+                    auto signals = vcd_table_->count<VCDSignal>(
+                        where(c(&VCDSignal::instance_id) == *instance_ids[i]));
+                    if (signals > count) {
+                        index = i;
+                    }
+                }
             }
-            matched_instance_id = *(instance_ids[0]);
+            matched_instance_id = *(instance_ids[index]);
         }
 
     } else {
