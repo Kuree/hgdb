@@ -41,6 +41,7 @@ public:
         std::vector<vpiHandle> clock_signals;
     };
     virtual bool vpi_rewind(rewind_data *reverse_data) { return false; }
+    virtual bool vpi_simulate_backward() { return false; }
 };
 
 class VPIProvider : public AVPIProvider {
