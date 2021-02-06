@@ -900,6 +900,9 @@ std::vector<Debugger::DebugBreakPoint *> Debugger::next_breakpoints() {
             else
                 return {};
         }
+        case EvaluationMode::ReverseBreakpointOnly: {
+            return next_reverse_breakpoints();
+        }
         case EvaluationMode::None: {
             return {};
         }
@@ -1016,13 +1019,7 @@ Debugger::DebugBreakPoint *Debugger::next_step_back_breakpoint() {
             // unless the simulator supported
             // need to extend RTL client capability to actually reverse timestamp
             // in the future.
-            auto clk_names = get_clock_signals();
-            std::vector<vpiHandle> handles;
-            handles.reserve(clk_names.size());
-            for (auto const &clk_name : clk_names) {
-                auto *handle = rtl_->get_handle(clk_name);
-                handles.emplace_back(handle);
-            }
+            auto const &handles = get_clock_handles();
             if (rtl_->reverse_last_posedge(handles)) {
                 // we successfully reverse the time
                 next_breakpoint_id = orders.back();
@@ -1040,6 +1037,80 @@ Debugger::DebugBreakPoint *Debugger::next_step_back_breakpoint() {
     auto bp_info = db_->get_breakpoint(*current_breakpoint_id_);
     return create_next_breakpoint(bp_info);
 }
+
+std::vector<Debugger::DebugBreakPoint *> Debugger::next_reverse_breakpoints() {
+    // if no breakpoint inserted. return early
+    std::lock_guard guard(breakpoint_lock_);
+    if (breakpoints_.empty()) return {};
+    // we basically reverse the search of the normal breakpoint
+
+    std::vector<Debugger::DebugBreakPoint *> result;
+
+    // if the current breakpoint is the first one already, we need to reverse the time to previous
+    // cycle
+    if (current_breakpoint_id_) {
+        if (breakpoints_.front().id == *current_breakpoint_id_) {
+            // we have reached the first one of the current
+            // call reverse
+            auto handles = get_clock_handles();
+            auto res = rtl_->reverse_last_posedge(handles);
+            if (!res) {
+                // can't revert the time. use the current timestamp
+                // just return the first one
+                result.emplace_back(&breakpoints_[0]);
+            }
+            current_breakpoint_id_ = std::nullopt;
+        } else {
+            // find the next inserted breakpoint
+            // notice that breakpoints are already ordered
+            // so we search from the beginning
+            std::optional<uint64_t> target_index_;
+            for (auto i = static_cast<int64_t>(breakpoints_.size() - 1); i >= 0; i--) {
+                auto id = breakpoints_[i].id;
+                if (id == *current_breakpoint_id_) {
+                    // find it
+                    target_index_ = i;
+                    break;
+                }
+            }
+            if (!target_index_) {
+                log_error("Unexpected state in the breakpoint scheduler");
+                target_index_ = breakpoints_.size() - 1;
+            }
+            result.emplace_back(&breakpoints_[*target_index_]);
+            auto const &ref_bp = *result[0];
+            auto const &target_expr = ref_bp.enable_expr->expression();
+            // if it's not single thread mode
+            if (!single_thread_mode_) {
+                // continue search backward
+                for (auto i = static_cast<int64_t>(*target_index_) - 1; i >= 0; i--) {
+                    auto &next_bp = breakpoints_[i];
+                    // if fn/ln/cn tuple doesn't match, stop
+                    // reorder the comparison in a way that exploits short circuit
+                    if (next_bp.line_num != ref_bp.line_num ||
+                        next_bp.filename != ref_bp.filename ||
+                        next_bp.column_num != ref_bp.column_num) {
+                        break;
+                    }
+                    // same enable expression but different instance id
+                    if (next_bp.instance_id != ref_bp.instance_id &&
+                        next_bp.enable_expr->expression() == target_expr) {
+                        result.emplace_back(&next_bp);
+                    }
+                }
+            }
+        }
+    } else {
+        // just return the last one
+        result.emplace_back(&breakpoints_.back());
+    }
+
+    for (auto *bp : result) {
+        evaluated_ids_.emplace(bp->id);
+    }
+    return result;
+}
+
 Debugger::DebugBreakPoint *Debugger::create_next_breakpoint(
     const std::optional<BreakPoint> &bp_info) {
     if (!bp_info) return nullptr;
@@ -1184,6 +1255,20 @@ void Debugger::validate_expr(DebugExpression *expr, std::optional<uint32_t> brea
             return;
         }
         expr->set_resolved_symbol_name(symbol, full_name);
+    }
+}
+
+const std::vector<vpiHandle> &Debugger::get_clock_handles() {
+    if (!clock_handles_.empty()) [[likely]] {
+        return clock_handles_;
+    } else {
+        auto clk_names = get_clock_signals();
+        clock_handles_.reserve(clk_names.size());
+        for (auto const &clk_name : clk_names) {
+            auto *handle = rtl_->get_handle(clk_name);
+            if (handle) clock_handles_.emplace_back(handle);
+        }
+        return clock_handles_;
     }
 }
 

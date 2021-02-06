@@ -84,7 +84,7 @@ private:
     // used for scheduler
     // if in single thread mode, instances with the same fn/ln won't be evaluated as a batch
     bool single_thread_mode_ = false;
-    enum class EvaluationMode { BreakPointOnly, StepOver, StepBack, None };
+    enum class EvaluationMode { BreakPointOnly, StepOver, StepBack, ReverseBreakpointOnly, None };
     EvaluationMode evaluation_mode_ = EvaluationMode::BreakPointOnly;
     std::unordered_set<uint32_t> evaluated_ids_;
     std::optional<uint32_t> current_breakpoint_id_;
@@ -94,6 +94,8 @@ private:
     // reduce DB traffic and remapping computation
     std::unordered_map<uint64_t, std::string> cached_instance_name_;
     std::mutex cached_instance_name_lock_;
+    // cache clock handles as well
+    std::vector<vpiHandle> clock_handles_;
 
     // monitor logic
     Monitor monitor_;
@@ -149,6 +151,7 @@ private:
     Debugger::DebugBreakPoint *next_step_over_breakpoint();
     std::vector<Debugger::DebugBreakPoint *> next_normal_breakpoints();
     Debugger::DebugBreakPoint *next_step_back_breakpoint();
+    std::vector<Debugger::DebugBreakPoint *> next_reverse_breakpoints();
     void start_breakpoint_evaluation();
     bool should_trigger(DebugBreakPoint *bp);
     void eval_breakpoint(DebugBreakPoint *bp, std::vector<bool> &result, uint32_t index);
@@ -161,6 +164,7 @@ private:
     void validate_expr(DebugExpression *expr, std::optional<uint32_t> breakpoint_id,
                        std::optional<uint32_t> instance_id);
     DebugBreakPoint *create_next_breakpoint(const std::optional<BreakPoint> &bp_info);
+    const std::vector<vpiHandle> &get_clock_handles();
 };
 
 }  // namespace hgdb
