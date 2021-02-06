@@ -204,6 +204,27 @@ std::vector<std::string> DebugDatabaseClient::get_annotation_values(const std::s
     return result;
 }
 
+std::unordered_map<std::string, int64_t> DebugDatabaseClient::get_context_static_values(
+    uint32_t breakpoint_id) {
+    // only integer values allowed
+    std::unordered_map<std::string, int64_t> result;
+    if (!db_) return result;
+    auto context_variables = get_context_variables(breakpoint_id);
+    for (auto const &bp : context_variables) {
+        // non-rtl value only
+        if (bp.second.is_rtl) continue;
+        auto const &symbol_name = bp.first.name;
+        auto const &str_value = bp.second.value;
+        try {
+            int64_t value = std::stoll(str_value);
+            result.emplace(symbol_name, value);
+        } catch (const std::invalid_argument &) {
+        } catch (const std::out_of_range &) {
+        }
+    }
+    return result;
+}
+
 DebugDatabaseClient::~DebugDatabaseClient() { close(); }
 
 void DebugDatabaseClient::set_src_mapping(const std::map<std::string, std::string> &mapping) {

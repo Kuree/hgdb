@@ -34,9 +34,11 @@ public:
         uint32_t instance_id, bool resolve_hierarchy_value = true);
     [[nodiscard]] std::vector<std::string> get_instance_names();
     [[nodiscard]] std::vector<std::string> get_annotation_values(const std::string &name);
+    std::unordered_map<std::string, int64_t> get_context_static_values(uint32_t breakpoint_id);
 
     ~DebugDatabaseClient();
 
+    // resolve filename or symbol names
     void set_src_mapping(const std::map<std::string, std::string> &mapping);
     [[nodiscard]] std::string resolve_filename_to_db(const std::string &filename) const;
     [[nodiscard]] std::string resolve_filename_to_client(const std::string &filename) const;

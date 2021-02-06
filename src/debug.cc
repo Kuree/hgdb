@@ -51,12 +51,10 @@ void Debugger::initialize_db(std::unique_ptr<DebugDatabaseClient> db) {
     auto instances = db_->get_instance_names();
     log_info("Compute instance mapping");
     rtl_->initialize_instance_mapping(instances);
-    // compute the look up table
-    log_info("Compute breakpoint look up table");
-    auto const &bp_ordering = db_->execution_bp_orders();
-    for (auto i = 0u; i < bp_ordering.size(); i++) {
-        bp_ordering_table_.emplace(bp_ordering[i], i);
-    }
+
+    // set up the scheduler
+    scheduler_ =
+        std::make_unique<Scheduler>(rtl_.get(), db_.get(), single_thread_mode_, log_enabled_);
 }
 
 void Debugger::run() {
@@ -90,7 +88,7 @@ void Debugger::eval() {
     log_info("Start breakpoint evaluation...");
     start_breakpoint_evaluation();  // clean the state
     while (true) {
-        auto bps = next_breakpoints();
+        auto bps = scheduler_->next_breakpoints();
         if (bps.empty()) break;
         std::vector<bool> hits(bps.size());
         std::fill(hits.begin(), hits.end(), false);
@@ -158,12 +156,10 @@ void Debugger::detach() {
     }
 
     // set evaluation mode to normal
-    evaluation_mode_ = EvaluationMode::None;
+    if (scheduler_) scheduler_->set_evaluation_mode(Scheduler::EvaluationMode::None);
     __sync_synchronize();
 
     // clear out inserted breakpoints
-    inserted_breakpoints_.clear();
-    breakpoints_.clear();
 
     // need to put this here to avoid compiler/cpu to reorder the code
     // such that lock is released before the breakpoints is cleared
@@ -297,102 +293,6 @@ void Debugger::log_info(const std::string &msg) const {
     }
 }
 
-std::unordered_map<std::string, int64_t> Debugger::get_context_static_values(
-    uint32_t breakpoint_id) {
-    // only integer values allowed
-    std::unordered_map<std::string, int64_t> result;
-    if (!db_) return result;
-    auto context_variables = db_->get_context_variables(breakpoint_id);
-    for (auto const &bp : context_variables) {
-        // non-rtl value only
-        if (bp.second.is_rtl) continue;
-        auto const &symbol_name = bp.first.name;
-        auto const &str_value = bp.second.value;
-        try {
-            int64_t value = std::stoll(str_value);
-            result.emplace(symbol_name, value);
-        } catch (const std::invalid_argument &) {
-        } catch (const std::out_of_range &) {
-        }
-    }
-    return result;
-}
-
-// functions that compute the trigger values
-std::vector<std::string> compute_trigger_symbol(const BreakPoint &bp) {
-    auto const &trigger_str = bp.trigger;
-    auto tokens = util::get_tokens(trigger_str, " ");
-    return tokens;
-}
-
-void Debugger::add_breakpoint(const BreakPoint &bp_info, const BreakPoint &db_bp) {
-    // add them to the eval vector
-    std::string cond = "1";
-    if (!db_bp.condition.empty()) cond = db_bp.condition;
-    if (!bp_info.condition.empty()) cond.append(" && " + bp_info.condition);
-    log_info(fmt::format("Breakpoint inserted into {0}:{1}", db_bp.filename, db_bp.line_num));
-    std::lock_guard guard(breakpoint_lock_);
-    if (inserted_breakpoints_.find(db_bp.id) == inserted_breakpoints_.end()) {
-        breakpoints_.emplace_back(DebugBreakPoint{
-            .id = db_bp.id,
-            .instance_id = *db_bp.instance_id,
-            .expr = std::make_unique<DebugExpression>(cond),
-            .enable_expr =
-                std::make_unique<DebugExpression>(db_bp.condition.empty() ? "1" : db_bp.condition),
-            .filename = db_bp.filename,
-            .line_num = db_bp.line_num,
-            .column_num = db_bp.column_num,
-            .trigger_symbols = compute_trigger_symbol(db_bp)});
-        inserted_breakpoints_.emplace(db_bp.id);
-        validate_expr(breakpoints_.back().expr.get(), db_bp.id, *db_bp.instance_id);
-        if (!breakpoints_.back().expr->correct()) [[unlikely]] {
-            log_error("Unable to validate breakpoint expression: " + cond);
-        }
-        validate_expr(breakpoints_.back().enable_expr.get(), db_bp.id, *db_bp.instance_id);
-        if (!breakpoints_.back().enable_expr->correct()) [[unlikely]] {
-            log_error("Unable to validate breakpoint expression: " + cond);
-        }
-    } else {
-        // update breakpoint entry
-        for (auto &b : breakpoints_) {
-            if (db_bp.id == b.id) {
-                b.expr = std::make_unique<DebugExpression>(cond);
-                validate_expr(b.expr.get(), db_bp.id, *db_bp.instance_id);
-                if (!b.expr->correct()) [[unlikely]] {
-                    log_error("Unable to validate breakpoint expression: " + cond);
-                }
-                return;
-            }
-        }
-    }
-    // clang-tidy reports memory leak due to the usage of emplace make_unique
-    // NOLINTNEXTLINE
-}
-
-void Debugger::reorder_breakpoints() {
-    std::lock_guard guard(breakpoint_lock_);
-    // need to sort them by the ordering
-    // the easiest way is to sort them by their lookup table. assuming the number of
-    // breakpoints is relatively small, i.e. < 100, sorting can be efficient and less
-    // bug-prone
-    std::sort(breakpoints_.begin(), breakpoints_.end(),
-              [this](const auto &left, const auto &right) -> bool {
-                  return bp_ordering_table_.at(left.id) < bp_ordering_table_.at(right.id);
-              });
-}
-
-void Debugger::remove_breakpoint(const BreakPoint &bp) {
-    std::lock_guard guard(breakpoint_lock_);
-    // notice that removal doesn't need reordering
-    for (auto pos = breakpoints_.begin(); pos != breakpoints_.end(); pos++) {
-        if (pos->id == bp.id) {
-            breakpoints_.erase(pos);
-            inserted_breakpoints_.erase(bp.id);
-            break;
-        }
-    }
-}
-
 bool Debugger::has_cli_flag(const std::string &flag) {
     if (!rtl_) return false;
     const auto &argv = rtl_->get_argv();
@@ -401,24 +301,6 @@ bool Debugger::has_cli_flag(const std::string &flag) {
 
 std::string Debugger::get_monitor_topic(uint64_t watch_id) {
     return fmt::format("watch-{0}", watch_id);
-}
-
-std::vector<std::string> Debugger::get_clock_signals() {
-    if (!rtl_) return {};
-    std::vector<std::string> result;
-    if (db_) {
-        // always load from db first
-        auto db_clock_names = db_->get_annotation_values("clock");
-        for (auto const &name : db_clock_names) {
-            auto full_name = rtl_->get_full_name(name);
-            result.emplace_back(full_name);
-        }
-    }
-    if (result.empty()) {
-        // use rtl based heuristics
-        result = rtl_->get_clocks_from_design();
-    }
-    return result;
 }
 
 PLI_INT32 eval_hgdb_on_clk(p_cb_data cb_data) {
@@ -447,7 +329,7 @@ void Debugger::handle_connection(const ConnectionRequest &req, uint64_t conn_id)
     // Verilator is handled differently
     if (success && rtl_ && !rtl_->is_verilator()) {
         // only trigger eval at the posedge clk
-        auto clock_signals = get_clock_signals();
+        auto clock_signals = util::get_clock_signals(rtl_.get(), db_.get());
         bool r = rtl_->monitor_signals(clock_signals, eval_hgdb_on_clk, this);
         if (!r || clock_signals.empty()) log_error("Failed to register evaluation callback");
     }
@@ -492,17 +374,17 @@ void Debugger::handle_breakpoint(const BreakPointRequest &req, uint64_t conn_id)
         }
 
         for (auto const &bp : bps) {
-            add_breakpoint(bp_info, bp);
+            scheduler_->add_breakpoint(bp_info, bp);
         }
 
-        reorder_breakpoints();
+        scheduler_->reorder_breakpoints();
     } else {
         // remove
         auto bps = db_->get_breakpoints(bp_info.filename, bp_info.line_num, bp_info.column_num);
 
         // notice that removal doesn't need reordering
         for (auto const &bp : bps) {
-            remove_breakpoint(bp);
+            scheduler_->remove_breakpoint(bp);
         }
     }
     // tell client we're good
@@ -524,9 +406,9 @@ void Debugger::handle_breakpoint_id(const BreakPointIDRequest &req, uint64_t con
             send_message(error_response.str(log_enabled_), conn_id);
             return;
         }
-        add_breakpoint(bp_info, *bp);
+        scheduler_->add_breakpoint(bp_info, *bp);
     } else {
-        remove_breakpoint(bp_info);
+        scheduler_->remove_breakpoint(bp_info);
     }
     // tell client we're good
     auto success_resp = GenericResponse(status_code::success, req);
@@ -562,15 +444,14 @@ void Debugger::handle_command(const CommandRequest &req, uint64_t) {
     switch (req.command_type()) {
         case CommandRequest::CommandType::continue_: {
             log_info("handle_command: continue_");
-            evaluation_mode_ = EvaluationMode::BreakPointOnly;
+            scheduler_->set_evaluation_mode(Scheduler::EvaluationMode::BreakPointOnly);
             lock_.ready();
             break;
         }
         case CommandRequest::CommandType::stop: {
             log_info("handle_command: stop");
-            inserted_breakpoints_.clear();
-            breakpoints_.clear();
-            evaluation_mode_ = EvaluationMode::None;
+            scheduler_->clear();
+            scheduler_->set_evaluation_mode(Scheduler::EvaluationMode::None);
             // we will unlock the lock during the stop step to ensure proper shutdown
             // of the runtime
             rtl_->finish_sim();
@@ -580,20 +461,20 @@ void Debugger::handle_command(const CommandRequest &req, uint64_t) {
         case CommandRequest::CommandType::step_over: {
             log_info("handle_command: step_over");
             // change the mode into step through
-            evaluation_mode_ = EvaluationMode::StepOver;
+            scheduler_->set_evaluation_mode(Scheduler::EvaluationMode::StepOver);
             lock_.ready();
             break;
         }
         case CommandRequest::CommandType::reverse_continue: {
             log_info("handle_command: reverse_continue");
-            evaluation_mode_ = EvaluationMode::ReverseBreakpointOnly;
+            scheduler_->set_evaluation_mode(Scheduler::EvaluationMode::ReverseBreakpointOnly);
             lock_.ready();
             break;
         }
         case CommandRequest::CommandType::step_back: {
             log_info("handle_command: step_back");
-            // change the mode into step through
-            evaluation_mode_ = EvaluationMode::StepBack;
+            // change the mode into step back
+            scheduler_->set_evaluation_mode(Scheduler::EvaluationMode::StepBack);
             lock_.ready();
             break;
         }
@@ -603,25 +484,10 @@ void Debugger::handle_command(const CommandRequest &req, uint64_t) {
 void Debugger::handle_debug_info(const DebuggerInformationRequest &req, uint64_t conn_id) {
     switch (req.command_type()) {
         case DebuggerInformationRequest::CommandType::breakpoints: {
-            std::vector<BreakPoint> bps;
+            std::vector<BreakPoint> bps = scheduler_->get_current_breakpoints();
             std::vector<BreakPoint *> bps_;
-
-            {
-                std::lock_guard guard(breakpoint_lock_);
-                bps.reserve(breakpoints_.size());
-                bps_.reserve(breakpoints_.size());
-                for (auto const &bp : breakpoints_) {
-                    auto bp_id = bp.id;
-                    auto bp_info = db_->get_breakpoint(bp_id);
-                    if (bp_info) {
-                        bps.emplace_back(BreakPoint{.id = bp_info->id,
-                                                    .filename = bp_info->filename,
-                                                    .line_num = bp_info->line_num,
-                                                    .column_num = bp_info->column_num});
-                        bps_.emplace_back(&bps.back());
-                    }
-                }
-            }
+            bps_.reserve(bps.size());
+            for (auto &bp : bps) bps_.emplace_back(&bp);
 
             auto resp = DebuggerInformationResponse(bps_);
             req.set_token(resp);
@@ -692,7 +558,7 @@ void Debugger::handle_evaluation(const EvaluationRequest &req, uint64_t) {
         }
 
         auto breakpoint_id = req.is_context() ? util::stoul(scope) : std::nullopt;
-        validate_expr(&expr, breakpoint_id, instance_id);
+        util::validate_expr(rtl_.get(), db_.get(), &expr, breakpoint_id, instance_id);
         if (!expr.correct()) {
             error_reason = "Unable to resolve symbols";
             send_error();
@@ -887,257 +753,6 @@ bool Debugger::check_send_db_error(RequestType type, uint64_t conn_id) {
     return true;
 }
 
-std::vector<Debugger::DebugBreakPoint *> Debugger::next_breakpoints() {
-    switch (evaluation_mode_) {
-        case EvaluationMode::BreakPointOnly: {
-            return next_normal_breakpoints();
-        }
-        case EvaluationMode::StepOver: {
-            auto *bp = next_step_over_breakpoint();
-            if (bp)
-                return {bp};
-            else
-                return {};
-        }
-        case EvaluationMode::StepBack: {
-            auto *bp = next_step_back_breakpoint();
-            if (bp)
-                return {bp};
-            else
-                return {};
-        }
-        case EvaluationMode::ReverseBreakpointOnly: {
-            return next_reverse_breakpoints();
-        }
-        case EvaluationMode::None: {
-            return {};
-        }
-    }
-    return {};
-}
-
-Debugger::DebugBreakPoint *Debugger::next_step_over_breakpoint() {
-    // need to get the actual ordering table
-    auto const &orders = db_->execution_bp_orders();
-    std::optional<uint32_t> next_breakpoint_id;
-    if (!current_breakpoint_id_) [[unlikely]] {
-        // need to grab the first one, doesn't matter which one
-        if (!orders.empty()) next_breakpoint_id = orders[0];
-    } else {
-        auto current_id = *current_breakpoint_id_;
-        auto pos = std::find(orders.begin(), orders.end(), current_id);
-        if (pos != orders.end()) {
-            auto index = static_cast<uint64_t>(std::distance(orders.begin(), pos));
-            if (index != (orders.size() - 1)) {
-                next_breakpoint_id = orders[index + 1];
-            }
-        }
-    }
-    if (!next_breakpoint_id) return nullptr;
-    current_breakpoint_id_ = next_breakpoint_id;
-    evaluated_ids_.emplace(*current_breakpoint_id_);
-    // need to get a new breakpoint
-    auto bp_info = db_->get_breakpoint(*current_breakpoint_id_);
-    return create_next_breakpoint(bp_info);
-}
-
-std::vector<Debugger::DebugBreakPoint *> Debugger::next_normal_breakpoints() {
-    // if no breakpoint inserted. return early
-    std::lock_guard guard(breakpoint_lock_);
-    if (breakpoints_.empty()) return {};
-    // we need to make the experience the same as debugging software
-    // as a result, when user add new breakpoints to the list that has high priority,
-    // we need to skip then and evaluate them at the next evaluation cycle
-    // maybe revisit this logic later? doesn't seem to be correct to me where there are
-    // breakpoint inserted during breakpoint hit
-    uint64_t index = 0;
-    // find index
-    std::optional<uint64_t> pos;
-    for (uint64_t i = 0; i < breakpoints_.size(); i++) {
-        auto id = breakpoints_[i].id;
-        if (evaluated_ids_.find(id) != evaluated_ids_.end()) {
-            pos = i;
-        }
-    }
-    if (pos) {
-        // we have a last hit
-        if (*pos + 1 < breakpoints_.size()) {
-            index = *pos + 1;
-        } else {
-            // the end
-            return {};
-        }
-    }
-
-    std::vector<Debugger::DebugBreakPoint *> result{&breakpoints_[index]};
-
-    // by default we generates as many breakpoints as possible to evaluate
-    // this can be turned of by client's request (changed via option-change request)
-    if (!single_thread_mode_) {
-        // once we have a hit index, scanning down the list to see if we have more
-        // hits if it shares the same fn/ln/cn tuple
-        // matching criteria:
-        // - same enable condition
-        // - different instance id
-        auto const &ref_bp = breakpoints_[index];
-        auto const &target_expr = ref_bp.enable_expr->expression();
-        for (uint64_t i = index + 1; i < breakpoints_.size(); i++) {
-            auto &next_bp = breakpoints_[i];
-            // if fn/ln/cn tuple doesn't match, stop
-            // reorder the comparison in a way that exploits short circuit
-            if (next_bp.line_num != ref_bp.line_num || next_bp.filename != ref_bp.filename ||
-                next_bp.column_num != ref_bp.column_num) {
-                break;
-            }
-            // same enable expression but different instance id
-            if (next_bp.instance_id != ref_bp.instance_id &&
-                next_bp.enable_expr->expression() == target_expr) {
-                result.emplace_back(&next_bp);
-            }
-        }
-    }
-
-    // the first will be current breakpoint id since we might skip some of them
-    // in the middle
-    current_breakpoint_id_ = result.front()->id;
-    for (auto const *bp : result) {
-        evaluated_ids_.emplace(bp->id);
-    }
-    return result;
-}
-
-Debugger::DebugBreakPoint *Debugger::next_step_back_breakpoint() {
-    // need to get the actual ordering table
-    auto const &orders = db_->execution_bp_orders();
-    std::optional<uint32_t> next_breakpoint_id;
-    if (!current_breakpoint_id_) [[unlikely]] {
-        // can't roll back if the current breakpoint id is not set
-        return nullptr;
-    } else {
-        auto current_id = *current_breakpoint_id_;
-        auto pos = std::find(orders.begin(), orders.end(), current_id);
-        auto index = static_cast<uint64_t>(std::distance(orders.begin(), pos));
-        if (index != 0) {
-            next_breakpoint_id = orders[index - 1];
-        } else {
-            // you get stuck at this breakpoint since we can't technically go back any
-            // more
-            // unless the simulator supported
-            // need to extend RTL client capability to actually reverse timestamp
-            // in the future.
-            auto const &handles = get_clock_handles();
-            if (rtl_->reverse_last_posedge(handles)) {
-                // we successfully reverse the time
-                next_breakpoint_id = orders.back();
-            } else {
-                // fail to reverse time, use the first one
-                next_breakpoint_id = orders[0];
-            }
-        }
-    }
-    if (!next_breakpoint_id) return nullptr;
-
-    current_breakpoint_id_ = next_breakpoint_id;
-    evaluated_ids_.emplace(*current_breakpoint_id_);
-    // need to get a new breakpoint
-    auto bp_info = db_->get_breakpoint(*current_breakpoint_id_);
-    return create_next_breakpoint(bp_info);
-}
-
-std::vector<Debugger::DebugBreakPoint *> Debugger::next_reverse_breakpoints() {
-    // if no breakpoint inserted. return early
-    std::lock_guard guard(breakpoint_lock_);
-    if (breakpoints_.empty()) return {};
-    // we basically reverse the search of the normal breakpoint
-
-    std::vector<Debugger::DebugBreakPoint *> result;
-
-    // if the current breakpoint is the first one already, we need to reverse the time to previous
-    // cycle
-    if (current_breakpoint_id_) {
-        if (breakpoints_.front().id == *current_breakpoint_id_) {
-            // we have reached the first one of the current
-            // call reverse
-            auto handles = get_clock_handles();
-            auto res = rtl_->reverse_last_posedge(handles);
-            if (!res) {
-                // can't revert the time. use the current timestamp
-                // just return the first one
-                result.emplace_back(&breakpoints_[0]);
-            }
-            current_breakpoint_id_ = std::nullopt;
-        } else {
-            // find the next inserted breakpoint
-            // notice that breakpoints are already ordered
-            // so we search from the beginning
-            std::optional<uint64_t> target_index_;
-            for (auto i = static_cast<int64_t>(breakpoints_.size() - 1); i >= 0; i--) {
-                auto id = breakpoints_[i].id;
-                if (id == *current_breakpoint_id_) {
-                    // find it
-                    target_index_ = i;
-                    break;
-                }
-            }
-            if (!target_index_) {
-                log_error("Unexpected state in the breakpoint scheduler");
-                target_index_ = breakpoints_.size() - 1;
-            }
-            result.emplace_back(&breakpoints_[*target_index_]);
-            auto const &ref_bp = *result[0];
-            auto const &target_expr = ref_bp.enable_expr->expression();
-            // if it's not single thread mode
-            if (!single_thread_mode_) {
-                // continue search backward
-                for (auto i = static_cast<int64_t>(*target_index_) - 1; i >= 0; i--) {
-                    auto &next_bp = breakpoints_[i];
-                    // if fn/ln/cn tuple doesn't match, stop
-                    // reorder the comparison in a way that exploits short circuit
-                    if (next_bp.line_num != ref_bp.line_num ||
-                        next_bp.filename != ref_bp.filename ||
-                        next_bp.column_num != ref_bp.column_num) {
-                        break;
-                    }
-                    // same enable expression but different instance id
-                    if (next_bp.instance_id != ref_bp.instance_id &&
-                        next_bp.enable_expr->expression() == target_expr) {
-                        result.emplace_back(&next_bp);
-                    }
-                }
-            }
-        }
-    } else {
-        // just return the last one
-        result.emplace_back(&breakpoints_.back());
-    }
-
-    for (auto *bp : result) {
-        evaluated_ids_.emplace(bp->id);
-    }
-    return result;
-}
-
-Debugger::DebugBreakPoint *Debugger::create_next_breakpoint(
-    const std::optional<BreakPoint> &bp_info) {
-    if (!bp_info) return nullptr;
-    std::string cond = bp_info->condition.empty() ? "1" : bp_info->condition;
-    next_temp_breakpoint_.id = *current_breakpoint_id_;
-    next_temp_breakpoint_.instance_id = *bp_info->instance_id;
-    next_temp_breakpoint_.enable_expr = std::make_unique<DebugExpression>(cond);
-    next_temp_breakpoint_.filename = bp_info->filename;
-    next_temp_breakpoint_.line_num = bp_info->line_num;
-    next_temp_breakpoint_.column_num = bp_info->column_num;
-    validate_expr(next_temp_breakpoint_.enable_expr.get(), next_temp_breakpoint_.id,
-                  next_temp_breakpoint_.instance_id);
-    return &next_temp_breakpoint_;
-}
-
-void Debugger::start_breakpoint_evaluation() {
-    evaluated_ids_.clear();
-    current_breakpoint_id_ = std::nullopt;
-    cached_signal_values_.clear();
-}
-
 bool Debugger::should_trigger(DebugBreakPoint *bp) {
     auto const &symbols = bp->trigger_symbols;
     // empty symbols means always trigger
@@ -1202,8 +817,7 @@ std::optional<int64_t> Debugger::get_value(const std::string &signal_name) {
 }
 
 void Debugger::eval_breakpoint(DebugBreakPoint *bp, std::vector<bool> &result, uint32_t index) {
-    const auto &bp_expr =
-        evaluation_mode_ == EvaluationMode::BreakPointOnly ? bp->expr : bp->enable_expr;
+    const auto &bp_expr = scheduler_->breakpoint_only() ? bp->expr : bp->enable_expr;
     // if not correct just always enable
     if (!bp_expr->correct()) return;
     // since at this point we have checked everything, just used the resolved name
@@ -1227,55 +841,9 @@ void Debugger::eval_breakpoint(DebugBreakPoint *bp, std::vector<bool> &result, u
     }
 }
 
-void Debugger::validate_expr(DebugExpression *expr, std::optional<uint32_t> breakpoint_id,
-                             std::optional<uint32_t> instance_id) {
-    auto context_static_values = breakpoint_id ? get_context_static_values(*breakpoint_id)
-                                               : std::unordered_map<std::string, int64_t>{};
-    expr->set_static_values(context_static_values);
-    auto required_symbols = expr->get_required_symbols();
-    for (auto const &symbol : required_symbols) {
-        std::optional<std::string> name;
-        if (breakpoint_id) {
-            name = db_->resolve_scoped_name_breakpoint(symbol, *breakpoint_id);
-        }
-        if (!name && instance_id) {
-            name = db_->resolve_scoped_name_instance(symbol, *instance_id);
-            // if we still can't get it working. use the VPI instead
-            if (!name) {
-                auto inst_name = db_->get_instance_name(*instance_id);
-                if (inst_name) [[likely]]
-                    name = fmt::format("{0}.{1}", *inst_name, symbol);
-            }
-        }
-        std::string full_name;
-        if (name) [[likely]] {
-            full_name = rtl_->get_full_name(*name);
-        } else {
-            // best effort
-            full_name = rtl_->get_full_name(symbol);
-        }
-        // see if it's a valid signal
-        bool valid = rtl_->is_valid_signal(full_name);
-        if (!valid) {
-            expr->set_error();
-            return;
-        }
-        expr->set_resolved_symbol_name(symbol, full_name);
-    }
-}
-
-const std::vector<vpiHandle> &Debugger::get_clock_handles() {
-    if (!clock_handles_.empty()) [[likely]] {
-        return clock_handles_;
-    } else {
-        auto clk_names = get_clock_signals();
-        clock_handles_.reserve(clk_names.size());
-        for (auto const &clk_name : clk_names) {
-            auto *handle = rtl_->get_handle(clk_name);
-            if (handle) clock_handles_.emplace_back(handle);
-        }
-        return clock_handles_;
-    }
+void Debugger::start_breakpoint_evaluation() {
+    scheduler_->start_breakpoint_evaluation();
+    cached_signal_values_.clear();
 }
 
 }  // namespace hgdb
