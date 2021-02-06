@@ -200,7 +200,7 @@ private:
 
 class CommandRequest : public Request {
 public:
-    enum class CommandType { continue_, step_over, step_back, stop };
+    enum class CommandType { continue_, step_over, step_back, stop, reverse_continue };
 
     CommandRequest() = default;
     void parse_payload(const std::string &payload) override;

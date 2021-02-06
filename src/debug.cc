@@ -584,6 +584,12 @@ void Debugger::handle_command(const CommandRequest &req, uint64_t) {
             lock_.ready();
             break;
         }
+        case CommandRequest::CommandType::reverse_continue: {
+            log_info("handle_command: reverse_continue");
+            evaluation_mode_ = EvaluationMode::ReverseBreakpointOnly;
+            lock_.ready();
+            break;
+        }
         case CommandRequest::CommandType::step_back: {
             log_info("handle_command: step_back");
             // change the mode into step through
