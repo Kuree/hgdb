@@ -82,7 +82,8 @@ private:
     static void log_error(const std::string &msg);
     void log_info(const std::string &msg) const;
 
-    // clocks
+    // scanning nearby breakpoints for multi-thread mode
+    void scan_breakpoints(uint64_t ref_index, bool forward, std::vector<DebugBreakPoint *> &result);
 };
 
 namespace util {

@@ -113,27 +113,7 @@ std::vector<DebugBreakPoint *> Scheduler::next_normal_breakpoints() {
     // by default we generates as many breakpoints as possible to evaluate
     // this can be turned of by client's request (changed via option-change request)
     if (!single_thread_mode_) {
-        // once we have a hit index, scanning down the list to see if we have more
-        // hits if it shares the same fn/ln/cn tuple
-        // matching criteria:
-        // - same enable condition
-        // - different instance id
-        auto const &ref_bp = breakpoints_[index];
-        auto const &target_expr = ref_bp.enable_expr->expression();
-        for (uint64_t i = index + 1; i < breakpoints_.size(); i++) {
-            auto &next_bp = breakpoints_[i];
-            // if fn/ln/cn tuple doesn't match, stop
-            // reorder the comparison in a way that exploits short circuit
-            if (next_bp.line_num != ref_bp.line_num || next_bp.filename != ref_bp.filename ||
-                next_bp.column_num != ref_bp.column_num) {
-                break;
-            }
-            // same enable expression but different instance id
-            if (next_bp.instance_id != ref_bp.instance_id &&
-                next_bp.enable_expr->expression() == target_expr) {
-                result.emplace_back(&next_bp);
-            }
-        }
+        scan_breakpoints(index, true, result);
     }
 
     // the first will be current breakpoint id since we might skip some of them
@@ -223,26 +203,9 @@ std::vector<DebugBreakPoint *> Scheduler::next_reverse_breakpoints() {
                 target_index_ = breakpoints_.size() - 1;
             }
             result.emplace_back(&breakpoints_[*target_index_]);
-            auto const &ref_bp = *result[0];
-            auto const &target_expr = ref_bp.enable_expr->expression();
             // if it's not single thread mode
             if (!single_thread_mode_) {
-                // continue search backward
-                for (auto i = static_cast<int64_t>(*target_index_) - 1; i >= 0; i--) {
-                    auto &next_bp = breakpoints_[i];
-                    // if fn/ln/cn tuple doesn't match, stop
-                    // reorder the comparison in a way that exploits short circuit
-                    if (next_bp.line_num != ref_bp.line_num ||
-                        next_bp.filename != ref_bp.filename ||
-                        next_bp.column_num != ref_bp.column_num) {
-                        break;
-                    }
-                    // same enable expression but different instance id
-                    if (next_bp.instance_id != ref_bp.instance_id &&
-                        next_bp.enable_expr->expression() == target_expr) {
-                        result.emplace_back(&next_bp);
-                    }
-                }
+                scan_breakpoints(*target_index_, false, result);
             }
         }
     } else {
@@ -391,6 +354,44 @@ void Scheduler::log_error(const std::string &msg) { log::log(log::log_level::err
 void Scheduler::log_info(const std::string &msg) const {
     if (log_enabled_) {
         log::log(log::log_level::info, msg);
+    }
+}
+
+void Scheduler::scan_breakpoints(uint64_t ref_index, bool forward,
+                                 std::vector<DebugBreakPoint *> &result) {
+    auto const &ref_bp = breakpoints_[ref_index];
+    auto const &target_expr = ref_bp.enable_expr->expression();
+
+    // once we have a hit index, scanning down the list to see if we have more
+    // hits if it shares the same fn/ln/cn tuple
+    // matching criteria:
+    // - same enable condition
+    // - different instance id
+
+    auto match = [&](int64_t i) -> bool {
+        auto &next_bp = breakpoints_[i];
+        // if fn/ln/cn tuple doesn't match, stop
+        // reorder the comparison in a way that exploits short circuit
+        if (next_bp.line_num != ref_bp.line_num || next_bp.filename != ref_bp.filename ||
+            next_bp.column_num != ref_bp.column_num) {
+            return false;
+        }
+        // same enable expression but different instance id
+        if (next_bp.instance_id != ref_bp.instance_id &&
+            next_bp.enable_expr->expression() == target_expr) {
+            result.emplace_back(&next_bp);
+        }
+        return true;
+    };
+
+    if (forward) {
+        for (auto i = ref_index; ref_index < static_cast<uint64_t>(breakpoints_.size()); i++) {
+            if (!match(i)) break;
+        }
+    } else {
+        for (auto i = static_cast<int64_t>(ref_index) - 1; i >= 0; i--) {
+            if (!match(i)) break;
+        }
     }
 }
 
