@@ -173,6 +173,7 @@ std::vector<DebugBreakPoint *> Scheduler::next_reverse_breakpoints() {
 
     // if the current breakpoint is the first one already, we need to reverse the time to previous
     // cycle
+    std::optional<uint64_t> target_index;
     if (current_breakpoint_id_) {
         if (breakpoints_.front().id == *current_breakpoint_id_) {
             // we have reached the first one of the current
@@ -182,36 +183,40 @@ std::vector<DebugBreakPoint *> Scheduler::next_reverse_breakpoints() {
             if (!res) {
                 // can't revert the time. use the current timestamp
                 // just return the first one
-                result.emplace_back(&breakpoints_[0]);
+                target_index = 0;
+            } else {
+                // time reversed
+                current_breakpoint_id_ = std::nullopt;
             }
-            current_breakpoint_id_ = std::nullopt;
         } else {
             // find the next inserted breakpoint
             // notice that breakpoints are already ordered
             // so we search from the beginning
-            std::optional<uint64_t> target_index_;
-            for (auto i = static_cast<int64_t>(breakpoints_.size() - 1); i >= 0; i--) {
+            for (auto i = breakpoints_.size() - 1; i >= 1; i--) {
                 auto id = breakpoints_[i].id;
                 if (id == *current_breakpoint_id_) {
                     // find it
-                    target_index_ = i;
+                    target_index = i - 1;
                     break;
                 }
-            }
-            if (!target_index_) {
-                log_error("Unexpected state in the breakpoint scheduler");
-                target_index_ = breakpoints_.size() - 1;
-            }
-            result.emplace_back(&breakpoints_[*target_index_]);
-            // if it's not single thread mode
-            if (!single_thread_mode_) {
-                scan_breakpoints(*target_index_, false, result);
             }
         }
     } else {
         // just return the last one
-        result.emplace_back(&breakpoints_.back());
+        target_index = breakpoints_.size() - 1;
     }
+
+    if (!target_index) {
+        current_breakpoint_id_ = std::nullopt;
+        return {};
+    }
+    result.emplace_back(&breakpoints_[*target_index]);
+    // if it's not single thread mode
+    if (!single_thread_mode_) {
+        scan_breakpoints(*target_index, false, result);
+    }
+    // use the last one as the breakpoint id
+    current_breakpoint_id_ = result.back()->id;
 
     for (auto *bp : result) {
         evaluated_ids_.emplace(bp->id);

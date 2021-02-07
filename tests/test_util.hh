@@ -264,7 +264,7 @@ public:
 
     [[nodiscard]] const std::vector<uint32_t> &vpi_ops() const { return vpi_ops_; }
 
-private:
+protected:
     std::string str_buffer_;
     char *vpi_handle_counter_ = nullptr;
     std::unordered_map<vpiHandle, std::vector<vpiHandle>> scan_map_;
