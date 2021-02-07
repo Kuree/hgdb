@@ -42,13 +42,15 @@ public:
  * endmodule
  */
 
-class ScheduleTest : public ::testing::Test {
+template <bool reverse>
+class ScheduleTestBase : public ::testing::Test {
 protected:
     std::unique_ptr<hgdb::RTLSimulatorClient> rtl_;
     std::unique_ptr<hgdb::DebugDatabaseClient> db_;
 
     void SetUp() override {
-        vpi_ = std::make_unique<ReverseMockVPIProvider>();
+        vpi_ = reverse ? std::make_unique<ReverseMockVPIProvider>()
+                       : std::make_unique<MockVPIProvider>();
         auto db = std::make_unique<hgdb::DebugDatabase>(hgdb::init_debug_db(""));
         db->sync_schema();
 
@@ -85,7 +87,11 @@ private:
     std::unique_ptr<MockVPIProvider> vpi_;
 };
 
-TEST_F(ScheduleTest, test_reverse_continue) {  // NOLINT
+class ScheduleTestReverse: public ScheduleTestBase<true> {};
+class ScheduleTestNoReverse: public ScheduleTestBase<false> {};
+
+
+TEST_F(ScheduleTestReverse, test_reverse_continue) {  // NOLINT
     // don't care about single thread mode since it will be covered by multi-threading mode
     bool val1 = false, val2 = true;
     hgdb::Scheduler scheduler(rtl_.get(), db_.get(), val1, val2);
@@ -103,12 +109,12 @@ TEST_F(ScheduleTest, test_reverse_continue) {  // NOLINT
 
     auto bps = scheduler.next_breakpoints();
     EXPECT_EQ(bps.size(), 2);
-    for (auto const &bp: bps) {
+    for (auto const &bp : bps) {
         EXPECT_EQ(bp->line_num, 2);
     }
     bps = scheduler.next_breakpoints();
     EXPECT_EQ(bps.size(), 2);
-    for (auto const &bp: bps) {
+    for (auto const &bp : bps) {
         EXPECT_EQ(bp->line_num, 1);
     }
 
@@ -119,8 +125,44 @@ TEST_F(ScheduleTest, test_reverse_continue) {  // NOLINT
 
     bps = scheduler.next_breakpoints();
     EXPECT_EQ(bps.size(), 2);
-    for (auto const &bp: bps) {
+    for (auto const &bp : bps) {
         EXPECT_EQ(bp->line_num, 2);
     }
     EXPECT_EQ(vpi->time(), 10 - 2);
+}
+
+TEST_F(ScheduleTestNoReverse, test_stepback_no_rollback) {  // NOLINT
+    // don't care about single thread mode since it will be covered by multi-threading mode
+    bool val1 = false, val2 = true;
+    hgdb::Scheduler scheduler(rtl_.get(), db_.get(), val1, val2);
+    auto *vpi = reinterpret_cast<MockVPIProvider *>(&rtl_->vpi());
+    vpi->set_time(10);
+
+    scheduler.set_evaluation_mode(hgdb::Scheduler::EvaluationMode::StepOver);
+    std::set<uint32_t> ids;
+
+    constexpr auto num_forward_bps = 3;
+    for (int i = 0; i < num_forward_bps; i++) {
+        auto bps = scheduler.next_breakpoints();
+        EXPECT_EQ(bps.size(), 1);
+        ids.emplace(bps[0]->id);
+    }
+    EXPECT_EQ(rtl_->get_simulation_time(), 10);
+    EXPECT_EQ(ids.size(), num_forward_bps);
+
+    // switch to step back mode
+    scheduler.set_evaluation_mode(hgdb::Scheduler::EvaluationMode::StepBack);
+
+    std::set<uint32_t> new_ids;
+
+    for (int i = 0; i < num_forward_bps + 1; i++) {
+        // since we can't roll back, it will return the first one
+        auto bps = scheduler.next_breakpoints();
+        EXPECT_EQ(bps.size(), 1);
+        new_ids.emplace(bps[0]->id);
+    }
+    EXPECT_EQ(rtl_->get_simulation_time(), 10);
+    EXPECT_EQ(new_ids.size(), num_forward_bps - 1);
+    for (auto const id: new_ids)
+        EXPECT_NE(ids.find(id), ids.end());
 }
