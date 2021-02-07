@@ -87,9 +87,8 @@ private:
     std::unique_ptr<MockVPIProvider> vpi_;
 };
 
-class ScheduleTestReverse: public ScheduleTestBase<true> {};
-class ScheduleTestNoReverse: public ScheduleTestBase<false> {};
-
+class ScheduleTestReverse : public ScheduleTestBase<true> {};
+class ScheduleTestNoReverse : public ScheduleTestBase<false> {};
 
 TEST_F(ScheduleTestReverse, test_reverse_continue) {  // NOLINT
     // don't care about single thread mode since it will be covered by multi-threading mode
@@ -163,6 +162,44 @@ TEST_F(ScheduleTestNoReverse, test_stepback_no_rollback) {  // NOLINT
     }
     EXPECT_EQ(rtl_->get_simulation_time(), 10);
     EXPECT_EQ(new_ids.size(), num_forward_bps - 1);
-    for (auto const id: new_ids)
-        EXPECT_NE(ids.find(id), ids.end());
+    for (auto const id : new_ids) EXPECT_NE(ids.find(id), ids.end());
+}
+
+TEST_F(ScheduleTestReverse, test_stepback_no_rollback) {  // NOLINT
+    // don't care about single thread mode since it will be covered by multi-threading mode
+    bool val1 = false, val2 = true;
+    hgdb::Scheduler scheduler(rtl_.get(), db_.get(), val1, val2);
+    auto *vpi = reinterpret_cast<MockVPIProvider *>(&rtl_->vpi());
+    vpi->set_time(10);
+
+    scheduler.set_evaluation_mode(hgdb::Scheduler::EvaluationMode::StepOver);
+    std::set<uint32_t> ids;
+
+    constexpr auto num_forward_bps = 3;
+    for (int i = 0; i < num_forward_bps; i++) {
+        auto bps = scheduler.next_breakpoints();
+        EXPECT_EQ(bps.size(), 1);
+        ids.emplace(bps[0]->id);
+    }
+    EXPECT_EQ(rtl_->get_simulation_time(), 10);
+    EXPECT_EQ(ids.size(), num_forward_bps);
+
+    // switch to step back mode
+    scheduler.set_evaluation_mode(hgdb::Scheduler::EvaluationMode::StepBack);
+
+    std::set<uint32_t> new_ids;
+
+    for (int i = 0; i < num_forward_bps; i++) {
+        // since we can't roll back, it will return the first one
+        auto bps = scheduler.next_breakpoints();
+        EXPECT_EQ(bps.size(), 1);
+        new_ids.emplace(bps[0]->id);
+    }
+    EXPECT_EQ(rtl_->get_simulation_time(), 10 - 2 * ((num_forward_bps - 1) / 4 + 1));
+    EXPECT_EQ(new_ids.size(), num_forward_bps);
+
+    std::set<uint32_t> diff;
+    std::set_difference(ids.begin(), ids.end(), new_ids.begin(), new_ids.end(),
+                        std::inserter(diff, diff.begin()));
+    EXPECT_FALSE(diff.empty());
 }
