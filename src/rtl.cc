@@ -255,7 +255,9 @@ std::optional<std::string> RTLSimulatorClient::get_str_value(vpiHandle handle) {
     v.format = vpiHexStrVal;
     vpi_->vpi_get_value(handle, &v);
     std::string result = v.value.str;
-    result = fmt::format("0x{0}", result);
+    // we only add 0x to any signal that has more than 1bit
+    auto width = get_vpi_size(handle);
+    if (width > 1) result = fmt::format("0x{0}", result);
     return result;
 }
 
@@ -535,6 +537,17 @@ PLI_INT32 RTLSimulatorClient::get_vpi_type(vpiHandle handle) {
     } else {
         auto t = vpi_->vpi_get(vpiType, handle);
         cached_vpi_types_.emplace(handle, t);
+        return t;
+    }
+}
+
+uint32_t RTLSimulatorClient::get_vpi_size(vpiHandle handle) {
+    std::lock_guard guard(cached_vpi_size_lock_);
+    if (cached_vpi_size_.find(handle) != cached_vpi_size_.end()) [[likely]] {
+        return cached_vpi_size_.at(handle);
+    } else {
+        auto t = vpi_->vpi_get(vpiSize, handle);
+        cached_vpi_size_.emplace(handle, t);
         return t;
     }
 }

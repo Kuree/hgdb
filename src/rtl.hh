@@ -135,6 +135,8 @@ private:
     std::mutex cb_handles_lock_;
     std::unordered_map<vpiHandle, PLI_INT32> cached_vpi_types_;
     std::mutex cached_vpi_types_lock_;
+    std::unordered_map<vpiHandle, uint32_t> cached_vpi_size_;
+    std::mutex cached_vpi_size_lock_;
 
     // cached module signals
     // this is to avoid to loop through instances repeatedly
@@ -167,6 +169,7 @@ private:
 
     // cached helper methods
     PLI_INT32 get_vpi_type(vpiHandle handle);
+    uint32_t get_vpi_size(vpiHandle handle);
 
     // other helper functions
     void remove_call_back(vpiHandle cb_handle);
