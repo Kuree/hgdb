@@ -204,7 +204,7 @@ TEST_F(ScheduleTestReverse, test_stepback_no_rollback) {  // NOLINT
     EXPECT_FALSE(diff.empty());
 }
 
-TEST_F(ScheduleTestNoReverse, test_stepvoer) {
+TEST_F(ScheduleTestNoReverse, test_stepvoer) {  // NOLINT
     bool val1 = false, val2 = true;
     hgdb::Scheduler scheduler(rtl_.get(), db_.get(), val1, val2);
 
@@ -223,3 +223,33 @@ TEST_F(ScheduleTestNoReverse, test_stepvoer) {
     auto bps = scheduler.next_breakpoints();
     EXPECT_TRUE(bps.empty());
 }
+
+TEST_F(ScheduleTestNoReverse, test_continue) {  // NOLINT
+    bool val1 = false, val2 = true;
+    hgdb::Scheduler scheduler(rtl_.get(), db_.get(), val1, val2);
+
+    scheduler.set_evaluation_mode(hgdb::Scheduler::EvaluationMode::BreakPointOnly);
+
+    auto breakpoints = db_->get_breakpoints("test.sv");
+    EXPECT_EQ(breakpoints.size(), 4);
+    for (auto const &bp : breakpoints) {
+        scheduler.add_breakpoint(bp, bp);
+    }
+    scheduler.reorder_breakpoints();
+
+    auto bps = scheduler.next_breakpoints();
+    EXPECT_EQ(bps.size(), 2);
+
+    for (auto const *bp: bps)
+        EXPECT_EQ(bp->line_num, 1);
+
+    bps = scheduler.next_breakpoints();
+    EXPECT_EQ(bps.size(), 2);
+
+    for (auto const *bp: bps)
+        EXPECT_EQ(bp->line_num, 2);
+
+    bps = scheduler.next_breakpoints();
+    EXPECT_TRUE(bps.empty());
+}
+
