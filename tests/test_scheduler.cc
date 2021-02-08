@@ -203,3 +203,23 @@ TEST_F(ScheduleTestReverse, test_stepback_no_rollback) {  // NOLINT
                         std::inserter(diff, diff.begin()));
     EXPECT_FALSE(diff.empty());
 }
+
+TEST_F(ScheduleTestNoReverse, test_stepvoer) {
+    bool val1 = false, val2 = true;
+    hgdb::Scheduler scheduler(rtl_.get(), db_.get(), val1, val2);
+
+    scheduler.set_evaluation_mode(hgdb::Scheduler::EvaluationMode::StepOver);
+
+    std::set<uint32_t> ids;
+
+    constexpr auto num_forward_bps = 4;
+    for (int i = 0; i < num_forward_bps; i++) {
+        auto bps = scheduler.next_breakpoints();
+        EXPECT_EQ(bps.size(), 1);
+        ids.emplace(bps[0]->id);
+    }
+    EXPECT_EQ(ids.size(), num_forward_bps);
+
+    auto bps = scheduler.next_breakpoints();
+    EXPECT_TRUE(bps.empty());
+}
