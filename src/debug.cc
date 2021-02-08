@@ -136,6 +136,11 @@ void Debugger::eval() {
     return false;
 }
 
+void Debugger::set_option(const std::string &name, bool value) {
+    auto options = get_options();
+    options.set_option(name, value);
+}
+
 Debugger::~Debugger() { server_thread_.join(); }
 
 void Debugger::detach() {
@@ -727,6 +732,7 @@ util::Options Debugger::get_options() {
     options.add_option("single_thread_mode", &single_thread_mode_);
     options.add_option("log_enabled", &log_enabled_);
     options.add_option("detach_after_disconnect", &detach_after_disconnect_);
+    options.add_option("use_hex_str", &use_hex_str_);
     return options;
 }
 

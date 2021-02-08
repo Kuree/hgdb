@@ -80,6 +80,8 @@ public:
     bool is_valid_signal(const std::string &name);
     std::optional<int64_t> get_value(const std::string &name);
     std::optional<int64_t> get_value(vpiHandle handle);
+    std::optional<std::string> get_str_value(const std::string &name);
+    std::optional<std::string> get_str_value(vpiHandle handle);
     using ModuleSignals = std::unordered_map<std::string, vpiHandle>;
     ModuleSignals get_module_signals(const std::string &name);
     [[nodiscard]] std::string get_full_name(const std::string &name) const;
@@ -101,7 +103,7 @@ public:
     // indicate if the simulator is verilator
     [[nodiscard]] bool is_verilator() const { return is_verilator_; }
     [[nodiscard]] bool is_vcs() const { return is_vcs_; }
-    [[nodiscard]] bool is_xcelium() const { return is_xcelium_; }
+    [[maybe_unused]] [[nodiscard]] bool is_xcelium() const { return is_xcelium_; }
 
     // search for clock signals
     [[nodiscard]] std::vector<std::string> get_clocks_from_design();

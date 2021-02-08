@@ -237,6 +237,28 @@ std::optional<int64_t> RTLSimulatorClient::get_value(const std::string &name) {
     return get_value(handle);
 }
 
+std::optional<std::string> RTLSimulatorClient::get_str_value(const std::string &name) {
+    auto *handle = get_handle(name);
+    return get_str_value(handle);
+}
+
+std::optional<std::string> RTLSimulatorClient::get_str_value(vpiHandle handle) {
+    if (!handle) [[unlikely]] {
+        return std::nullopt;
+    }
+    auto type = get_vpi_type(handle);
+    if (type == vpiModule) [[unlikely]] {
+        return std::nullopt;
+    }
+
+    s_vpi_value v;
+    v.format = vpiHexStrVal;
+    vpi_->vpi_get_value(handle, &v);
+    std::string result = v.value.str;
+    result = fmt::format("0x{0}", result);
+    return result;
+}
+
 std::unordered_map<std::string, vpiHandle> RTLSimulatorClient::get_module_signals(
     const std::string &name) {
     if (module_signals_cache_.find(name) != module_signals_cache_.end()) {

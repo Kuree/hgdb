@@ -38,6 +38,9 @@ public:
     // outside world can directly control the RTL client if necessary
     [[nodiscard]] RTLSimulatorClient *rtl_client() { return rtl_.get(); }
 
+    // directly set options from function API instead of through ws
+    void set_option(const std::string &name, bool value);
+
     ~Debugger();
 
 private:
@@ -54,8 +57,6 @@ private:
     std::atomic<bool> is_running_ = false;
 
     // used for scheduler
-    // if in single thread mode, instances with the same fn/ln won't be evaluated as a batch
-    bool single_thread_mode_ = false;
     std::unique_ptr<Scheduler> scheduler_;
 
     // reduce VPI traffic
@@ -68,8 +69,14 @@ private:
     // monitor logic
     Monitor monitor_;
 
+    // options
+    // if in single thread mode, instances with the same fn/ln won't be evaluated as a batch
+    bool single_thread_mode_ = false;
     // handle client disconnect logic
     bool detach_after_disconnect_ = false;
+    // whether to retrieve hex string instead of as integer
+    bool use_hex_str_ = false;
+
     void detach();
 
     // message handler

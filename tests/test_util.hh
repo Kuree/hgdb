@@ -24,9 +24,18 @@ public:
     MockVPIProvider() { get_new_handle(); }
     void vpi_get_value(vpiHandle expr, p_vpi_value value_p) override {
         if (signal_values_.find(expr) != signal_values_.end()) {
-            value_p->value.integer = signal_values_.at(expr);
+            if (value_p->format == vpiIntVal) {
+                value_p->value.integer = signal_values_.at(expr);
+            } else if (value_p->format == vpiHexStrVal) {
+                str_buffer_ = fmt::format("{0:X}", signal_values_.at(expr));
+                value_p->value.str = const_cast<char *>(str_buffer_.c_str());
+            }
         } else {
-            value_p->value.integer = 0;
+            if (value_p->format == vpiIntVal) {
+                value_p->value.integer = 0;
+            } else if (value_p->format == vpiHexStrVal) {
+                value_p->value.str = nullptr;
+            }
         }
     }
 

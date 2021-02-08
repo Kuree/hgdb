@@ -243,3 +243,9 @@ TEST_F(RTLModuleTest, test_valid_signal) {    // NOLINT
     EXPECT_FALSE(client->is_valid_signal("parent_mod"));
     EXPECT_FALSE(client->is_valid_signal("parent_mod.x"));
 }
+
+TEST_F(RTLModuleTest, test_hex_str) {   // NOLINT
+    auto val = client->get_str_value("parent_mod.inst1.a");
+    EXPECT_TRUE(val);
+    EXPECT_EQ(val, "0x2A");
+}
