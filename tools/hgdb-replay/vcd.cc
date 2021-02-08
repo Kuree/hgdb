@@ -295,10 +295,10 @@ void VCDDatabase::parse_vcd(std::istream &stream) {
 void VCDDatabase::parse_var_def(std::istream &stream, std::stack<uint64_t> &scope,
                                 std::unordered_map<std::string, uint64_t> &var_mapping,
                                 uint64_t &var_id_count) {
-    next_token(stream);               // type
-    next_token(stream);               // width
-    auto ident = next_token(stream);  // identifier
-    auto name = next_token(stream);   // name
+    next_token(stream);                           // type
+    auto width = std::stoul(next_token(stream));  // width
+    auto ident = next_token(stream);              // identifier
+    auto name = next_token(stream);               // name
 
     auto temp = next_token(stream);
     if (temp != "$end") {
@@ -307,7 +307,7 @@ void VCDDatabase::parse_var_def(std::istream &stream, std::stack<uint64_t> &scop
     }
     auto module_id = scope.top();
     var_mapping.emplace(ident, var_id_count);
-    store_signal(name, var_id_count, module_id);
+    store_signal(name, var_id_count, module_id, width);
     var_id_count++;
 }
 void VCDDatabase::parse_module_def(std::istream &stream, std::stack<uint64_t> &scope,
@@ -402,8 +402,12 @@ std::string VCDDatabase::next_token(std::istream &stream) {
     return result.str();
 }
 
-void VCDDatabase::store_signal(const std::string &name, uint64_t id, uint64_t parent_id) {
-    VCDSignal signal{.id = id, .name = name, .instance_id = std::make_unique<uint64_t>(parent_id)};
+void VCDDatabase::store_signal(const std::string &name, uint64_t id, uint64_t parent_id,
+                               uint32_t width) {
+    VCDSignal signal{.id = id,
+                     .name = name,
+                     .instance_id = std::make_unique<uint64_t>(parent_id),
+                     .width = width};
     vcd_table_->replace(signal);
 }
 

@@ -91,6 +91,7 @@ private:
     void log_info(const std::string &msg) const;
     bool has_cli_flag(const std::string &flag);
     [[nodiscard]] static std::string get_monitor_topic(uint64_t watch_id);
+    std::string get_var_value(const Variable &var);
 
     // request handler
     void handle_connection(const ConnectionRequest &req, uint64_t conn_id);

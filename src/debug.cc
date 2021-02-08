@@ -308,6 +308,24 @@ std::string Debugger::get_monitor_topic(uint64_t watch_id) {
     return fmt::format("watch-{0}", watch_id);
 }
 
+std::string Debugger::get_var_value(const Variable &var) {
+    std::string value_str;
+    if (var.is_rtl) {
+        auto full_name = rtl_->get_full_name(var.value);
+        if (!use_hex_str_) {
+            auto value = rtl_->get_value(full_name);
+            value_str = value ? std::to_string(*value) : error_value_str;
+        } else {
+            auto value = rtl_->get_str_value(full_name);
+            value_str = value ? *value : error_value_str;
+        }
+
+    } else {
+        value_str = var.value;
+    }
+    return value_str;
+}
+
 PLI_INT32 eval_hgdb_on_clk(p_cb_data cb_data) {
     // only if the clock value is high
     auto value = cb_data->value->value.integer;
@@ -684,27 +702,13 @@ void Debugger::send_breakpoint_hit(const std::vector<const DebugBreakPoint *> &b
 
         using namespace std::string_literals;
         for (auto const &[gen_var, var] : generator_values) {
-            std::string value_str;
-            if (var.is_rtl) {
-                auto full_name = rtl_->get_full_name(var.value);
-                auto value = rtl_->get_value(full_name);
-                value_str = value ? std::to_string(*value) : error_value_str;
-            } else {
-                value_str = var.value;
-            }
+            std::string value_str = get_var_value(var);
             auto var_name = gen_var.name;
             scope.add_generator_value(var_name, value_str);
         }
 
         for (auto const &[gen_var, var] : context_values) {
-            std::string value_str;
-            if (var.is_rtl) {
-                auto full_name = rtl_->get_full_name(var.value);
-                auto value = rtl_->get_value(full_name);
-                value_str = value ? std::to_string(*value) : error_value_str;
-            } else {
-                value_str = var.value;
-            }
+            std::string value_str = get_var_value(var);
             auto var_name = gen_var.name;
             scope.add_local_value(var_name, value_str);
         }

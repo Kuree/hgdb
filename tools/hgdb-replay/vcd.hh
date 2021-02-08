@@ -16,6 +16,7 @@ struct VCDSignal {
     uint64_t id;
     std::string name;
     std::unique_ptr<uint64_t> instance_id;
+    uint32_t width;
 };
 
 struct VCDModule {
@@ -43,6 +44,7 @@ auto inline initial_vcd_db(const std::string &filename) {
         make_table("signal", make_column("id", &VCDSignal::id, primary_key()),
                    make_column("name", &VCDSignal::name),
                    make_column("instance_id", &VCDSignal::instance_id),
+                   make_column("width", &VCDSignal::width),
                    foreign_key(&VCDSignal::instance_id).references(&VCDModule::id)),
         make_table("value", make_column("id", &VCDValue::id), make_column("time", &VCDValue::time),
                    make_column("value", &VCDValue::value),
@@ -93,7 +95,7 @@ private:
     // storage
     void store_module(const std::string &name, uint64_t id);
     void store_hierarchy(uint64_t parent_id, uint64_t child_id);
-    void store_signal(const std::string &name, uint64_t id, uint64_t parent_id);
+    void store_signal(const std::string &name, uint64_t id, uint64_t parent_id, uint32_t width);
     void store_value(uint64_t id, uint64_t time, const std::string &value);
     std::unique_ptr<VCDTable> vcd_table_;
 

@@ -98,6 +98,7 @@ void EmulationEngine::emulation_loop() {
         std::unordered_map<vpiHandle, int64_t> changed_values;
         for (auto const& [handle, pre_value] : watched_values_) {
             s_vpi_value value_p;
+            value_p.format = vpiIntVal;
             vpi_->vpi_get_value(handle, &value_p);
             auto current_value = value_p.value.integer;
             if (!pre_value || (pre_value && (*pre_value != current_value))) {

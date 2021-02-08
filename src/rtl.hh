@@ -121,6 +121,9 @@ public:
     // destructor to avoid memory leak in the simulator
     ~RTLSimulatorClient();
 
+    // used for compute potential clock signals if user doesn't provide proper annotation
+    static constexpr std::array clock_names_{"clk", "clock", "clk_in", "clock_in", "CLK", "CLOCK"};
+
 private:
     std::unordered_map<std::string, vpiHandle> handle_map_;
     std::mutex handle_map_lock_;
@@ -159,9 +162,6 @@ private:
     void compute_hierarchy_name_prefix(std::unordered_set<std::string> &top_names);
     void set_simulator_info();
     void compute_verilator_name_prefix(std::unordered_set<std::string> &top_names);
-
-    // used for compute potential clock signals if user doesn't provide proper annotation
-    static constexpr std::array clock_names_{"clk", "clock", "clk_in", "clock_in", "CLK", "CLOCK"};
 
     // brute-force to deal with verilator array indexing stuff
     using StringIterator = typename std::vector<std::string>::const_iterator;

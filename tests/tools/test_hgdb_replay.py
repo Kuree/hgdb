@@ -57,8 +57,8 @@ def test_replay(start_server, find_free_port):
             bp = await client.recv()
             assert bp["payload"]["time"] == 15
             assert bp["payload"]["instances"][0]["local"]["clk"] == "1"
-            assert bp["payload"]["instances"][0]["local"]["in"] == "1"
-            assert bp["payload"]["instances"][0]["local"]["out"] == "0"
+            assert bp["payload"]["instances"][0]["local"]["in"] == "0x1"
+            assert bp["payload"]["instances"][0]["local"]["out"] == "0x0"
             await client.continue_()
             bp = await client.recv()
             assert bp["payload"]["time"] == 25

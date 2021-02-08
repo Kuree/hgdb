@@ -14,19 +14,32 @@ void ReplayVPIProvider::vpi_get_value(vpiHandle expr, p_vpi_value value_p) {
     // if there is an overridden value, use that
     // although it is unlikely (only clk signals)
     if (overridden_values_.find(expr) != overridden_values_.end()) [[unlikely]] {
-        value_p->value.integer = overridden_values_.at(expr);
+        auto value = overridden_values_.at(expr);
+        if (value_p->format == vpiIntVal) {
+            value_p->value.integer = value;
+        } else if (value_p->format == vpiHexStrVal) {
+            str_buffer_ = fmt::format("{0:X}", value);
+            value_p->value.str = const_cast<char*>(str_buffer_.c_str());
+        }
         return;
     }
     if (signal_id_map_.find(expr) != signal_id_map_.end()) {
         auto signal_id = signal_id_map_.at(expr);
         auto value = db_->get_signal_value(signal_id, current_time_);
         if (value) {
-            // need to convert binary to actual integer values
-            value_p->value.integer = convert_value(*value);
-            return;
+            if (value_p->format == vpiIntVal) {
+                // need to convert binary to actual integer values
+                value_p->value.integer = convert_value(*value);
+                return;
+            } else if (value_p->format == vpiHexStrVal) {
+                str_buffer_ = convert_str_value(*value);
+                value_p->value.str = const_cast<char *>(str_buffer_.c_str());
+                return;
+            }
         }
     }
     value_p->value.integer = 0;
+    value_p->value.str = nullptr;
 }
 
 PLI_INT32 ReplayVPIProvider::vpi_get(PLI_INT32 property, vpiHandle object) {
@@ -39,9 +52,20 @@ PLI_INT32 ReplayVPIProvider::vpi_get(PLI_INT32 property, vpiHandle object) {
         }
     } else if (property == vpiSize) {
         // don't care about vpi size since we can't read array size from VCD files
-        return 1;
+        // it has to be a signal
+        if (signal_id_map_.find(object) == signal_id_map_.end()) {
+            return vpiUndefined;
+        }
+        // query about the signal object
+        auto signal_id = signal_id_map_.at(object);
+        auto signal = db_->get_signal(signal_id);
+        if (signal) {
+            return signal->width;
+        } else {
+            return vpiUndefined;
+        }
     }
-    return vpiError;
+    return vpiUndefined;
 }
 
 char *ReplayVPIProvider::vpi_get_str(PLI_INT32 property, vpiHandle object) {

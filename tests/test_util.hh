@@ -3,10 +3,10 @@
 
 #include <unordered_map>
 
+#include "fmt/format.h"
 #include "gtest/gtest.h"
 #include "rtl.hh"
 #include "schema.hh"
-#include "fmt/format.h"
 
 class DBTestHelper : public ::testing::Test {
 protected:
@@ -53,9 +53,15 @@ public:
             }
         } else if (property == vpiSize) {
             // every signal is 32-bit for now
+            // if it's clock object then it's 1
+            // otherwise it's 32
+            std::string name = this->vpi_get_str(vpiName, object);
+            for (auto const &n : hgdb::RTLSimulatorClient::clock_names_) {
+                if (name == n) return 1;
+            }
             return 32;
         }
-        return vpiError;
+        return vpiUndefined;
     }
 
     char *vpi_get_str(PLI_INT32 property, vpiHandle object) override {
