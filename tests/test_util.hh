@@ -6,6 +6,7 @@
 #include "gtest/gtest.h"
 #include "rtl.hh"
 #include "schema.hh"
+#include "fmt/format.h"
 
 class DBTestHelper : public ::testing::Test {
 protected:
@@ -51,8 +52,8 @@ public:
                 }
             }
         } else if (property == vpiSize) {
-            // every signal is 1-bit for now
-            return 1;
+            // every signal is 32-bit for now
+            return 32;
         }
         return vpiError;
     }

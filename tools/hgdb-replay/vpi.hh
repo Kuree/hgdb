@@ -42,6 +42,7 @@ public:
 
     // helper functions
     static int64_t convert_value(const std::string &raw_value);
+    static std::string convert_str_value(const std::string &raw_value);
 
 protected:
     vpiHandle get_new_handle();

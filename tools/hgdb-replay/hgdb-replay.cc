@@ -52,8 +52,11 @@ int main(int argc, char *argv[]) {
     // set up the debug runtime
     log::log(log::log_level::info, "Initializing HGDB runtime...");
     auto *debugger = hgdb::initialize_hgdb_runtime_vpi(std::move(vpi), false);
-    // set the custom compute function
 
+    // we use hex string by default
+    debugger->set_option("use_hex_str", true);
+
+    // set the custom compute function
     // compute the mapping
     auto mapping_func = [db_ptr](const std::unordered_set<std::string> &instance_names)
         -> std::unordered_map<std::string, std::string> {

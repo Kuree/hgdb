@@ -1,5 +1,7 @@
 #include "vpi.hh"
 
+#include "fmt/format.h"
+
 namespace hgdb::replay {
 
 ReplayVPIProvider::ReplayVPIProvider(std::unique_ptr<hgdb::vcd::VCDDatabase> db)
@@ -328,6 +330,47 @@ int64_t ReplayVPIProvider::convert_value(const std::string &raw_value) {
             return 0;
         }
     }
+    return result;
+}
+
+std::string ReplayVPIProvider::convert_str_value(const std::string &raw_value) {
+    uint64_t bits = raw_value.size();
+    std::string result;
+    std::vector<char> buf;
+    buf.reserve(5);
+
+    auto de_buf = [&buf, &result]() {
+        if (buf.empty()) return;
+        char c;
+        // figure out whether to put x or z in
+        if (std::all_of(buf.begin(), buf.end(), [](const auto c) { return c == 'x'; })) {
+            c = 'x';
+        } else if (std::any_of(buf.begin(), buf.end(), [](const auto c) { return c == 'x'; })) {
+            c = 'X';
+        } else if (std::all_of(buf.begin(), buf.end(), [](const auto c) { return c == 'z'; })) {
+            c = 'z';
+        } else if (std::any_of(buf.begin(), buf.end(), [](const auto c) { return c == 'z'; })) {
+            c = 'Z';
+        } else {
+            std::reverse(buf.begin(), buf.end());
+            buf.emplace_back('\0');
+            auto value = std::stoul(buf.data(), nullptr, 2);
+            c = static_cast<char>(value >= 10 ? (value - 10) + 'A' : value + '0');
+        }
+        result = fmt::format("{0}{1}", c, result);
+        buf.clear();
+    };
+
+    // we compute in reverse order
+    for (uint64_t i = bits; i != 0; i--) {
+        auto index = i - 1;
+        if (buf.size() < 4) {
+            buf.emplace_back(raw_value[index]);
+        }
+        if (buf.size() == 4) de_buf();
+    }
+    de_buf();
+
     return result;
 }
 
