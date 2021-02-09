@@ -103,13 +103,13 @@ std::optional<std::string> VCDDatabase::get_signal_value(uint64_t id, uint64_t t
     // sort timestamp and use the maximum timestamp that's < timestamp
     // this utilize some nice SQL language features. It will be as fast as sqlite can process
     using namespace sqlite_orm;
-    auto results = vcd_table_->get_all<VCDValue>(
-        where(c(&VCDValue::id) == id && c(&VCDValue::time) <= timestamp),
+    auto results = vcd_table_->select(
+        &VCDValue::value, where(c(&VCDValue::signal_id) == id && c(&VCDValue::time) <= timestamp),
         order_by(&VCDValue::time).desc(), limit(1));
     if (results.empty())
         return std::nullopt;
     else
-        return results[0].value;
+        return results[0];
 }
 
 std::string VCDDatabase::get_full_signal_name(uint64_t signal_id) {
@@ -142,23 +142,25 @@ std::string VCDDatabase::get_full_instance_name(uint64_t instance_id) {
 std::optional<uint64_t> VCDDatabase::get_next_value_change_time(uint64_t signal_id,
                                                                 uint64_t base_time) {
     using namespace sqlite_orm;
-    auto results = vcd_table_->get_all<VCDValue>(
-        where(c(&VCDValue::id) == signal_id && c(&VCDValue::time) > base_time),
+    auto results = vcd_table_->select(
+        &VCDValue::time,
+        where(c(&VCDValue::signal_id) == signal_id && c(&VCDValue::time) > base_time),
         order_by(&VCDValue::time).asc(), limit(1));
     if (results.empty()) return std::nullopt;
-    return results[0].time;
+    return results[0];
 }
 
 std::optional<uint64_t> VCDDatabase::get_prev_value_change_time(uint64_t signal_id,
                                                                 uint64_t base_time,
                                                                 const std::string &target_value) {
     using namespace sqlite_orm;
-    auto results = vcd_table_->get_all<VCDValue>(
-        where(c(&VCDValue::id) == signal_id && c(&VCDValue::time) < base_time &&
+    auto results = vcd_table_->select(
+        &VCDValue::time,
+        where(c(&VCDValue::signal_id) == signal_id && c(&VCDValue::time) < base_time &&
               c(&VCDValue::value) == target_value),
         order_by(&VCDValue::time).desc(), limit(1));
     if (results.empty()) return std::nullopt;
-    return results[0].time;
+    return results[0];
 }
 
 std::pair<std::string, std::string> VCDDatabase::compute_instance_mapping(
@@ -423,8 +425,18 @@ void VCDDatabase::store_module(const std::string &name, uint64_t id) {
 }
 
 void VCDDatabase::store_value(uint64_t id, uint64_t time, const std::string &value) {
-    VCDValue v{.id = std::make_unique<uint64_t>(id), .time = time, .value = value};
-    vcd_table_->insert(v);
+    auto &map = vcd_values_[id];
+    uint64_t vcd_id;
+    if (map.find(time) != map.end()) {
+        // duplicated entry, replace it
+        vcd_id = map.at(time);
+    } else {
+        vcd_id = vcd_value_count_++;
+        map.emplace(time, vcd_id);
+    }
+    VCDValue v{
+        .id = vcd_id, .signal_id = std::make_unique<uint64_t>(id), .time = time, .value = value};
+    vcd_table_->replace(v);
 }
 
 std::optional<uint64_t> VCDDatabase::match_hierarchy(

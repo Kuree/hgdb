@@ -288,7 +288,19 @@ TEST(replay, array_waveform4) {  // NOLINT
     vpi->set_timestamp(15);
     hgdb::RTLSimulatorClient rtl(std::move(vpi));
 
-    auto v = rtl.get_value("top.dut.a[0][1]");
-    EXPECT_NE(v, std::nullopt);
-    EXPECT_EQ(*v, 20 + 1 + 1);
+    // complete tests cases
+    int j = 1;
+    for (auto i = 0; i < 4; i++) {
+        for (auto k = 0; k < 2; k++) {
+            auto name1 = fmt::format("top.dut.a[{0}][{1}]", i, k);
+            auto name2 = fmt::format("top.dut.b[{0}][{1}]", i, k);
+            auto value1 = rtl.get_value(name1);
+            auto value2 = rtl.get_value(name2);
+            EXPECT_NE(value1, std::nullopt);
+            EXPECT_NE(value2, std::nullopt);
+            auto expected_value = i + 1 + j * 10 + k;
+            EXPECT_EQ(*value1, expected_value);
+            EXPECT_EQ(*value2, expected_value);
+        }
+    }
 }

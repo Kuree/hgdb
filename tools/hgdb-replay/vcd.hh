@@ -25,7 +25,8 @@ struct VCDModule {
 };
 
 struct VCDValue {
-    std::unique_ptr<uint64_t> id;
+    uint64_t id;
+    std::unique_ptr<uint64_t> signal_id;
     uint64_t time;
     std::string value;
 };
@@ -46,9 +47,10 @@ auto inline initial_vcd_db(const std::string &filename) {
                    make_column("instance_id", &VCDSignal::instance_id),
                    make_column("width", &VCDSignal::width),
                    foreign_key(&VCDSignal::instance_id).references(&VCDModule::id)),
-        make_table("value", make_column("id", &VCDValue::id), make_column("time", &VCDValue::time),
-                   make_column("value", &VCDValue::value),
-                   foreign_key(&VCDValue::id).references(&VCDSignal::id)),
+        make_table("value", make_column("id", &VCDValue::id, primary_key()),
+                   make_column("signal_id", &VCDValue::signal_id),
+                   make_column("time", &VCDValue::time), make_column("value", &VCDValue::value),
+                   foreign_key(&VCDValue::signal_id).references(&VCDSignal::id)),
         make_table("hierarchy", make_column("parent_id", &VCDModuleHierarchy::parent_id),
                    make_column("child_id", &VCDModuleHierarchy::child_id),
                    foreign_key(&VCDModuleHierarchy::parent_id).references(&VCDModule::id),
@@ -103,6 +105,10 @@ private:
     std::optional<uint64_t> match_hierarchy(const std::vector<std::string> &instance_tokens,
                                             std::vector<uint64_t> targets);
     static std::optional<std::string> get_vcd_db_filename(const std::string &filename, bool store);
+
+    // used to uniquely identify the vcd value
+    std::unordered_map<uint64_t, std::unordered_map<uint64_t, uint64_t>> vcd_values_;
+    uint64_t vcd_value_count_ = 0;
 };
 
 }  // namespace hgdb::vcd
