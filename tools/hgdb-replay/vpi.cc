@@ -451,6 +451,19 @@ void ReplayVPIProvider::add_overridden_value(vpiHandle handle, int64_t value) {
 
 void ReplayVPIProvider::clear_overridden_values() { overridden_values_.clear(); }
 
+std::string reconstruct_fullname(const std::vector<std::string> &tokens) {
+    std::string full_name = tokens[0];
+    for (auto i = 1; i < tokens.size(); i++) {
+        auto n = tokens[i];
+        if (std::all_of(n.begin(), n.end(), isdigit)) {
+            full_name.append(fmt::format("[{0}]", n));
+        } else {
+            full_name.append(fmt::format(".{0}", n));
+        }
+    }
+    return full_name;
+}
+
 void ReplayVPIProvider::build_array_table(const std::vector<std::string> &rtl_names) {
     // need to filter out the signal of interests
     std::set<std::string> array_signals;
@@ -509,15 +522,7 @@ void ReplayVPIProvider::build_array_table(const std::vector<std::string> &rtl_na
         // put it into the array info
         this->array_info_.emplace(array_handle, std::make_pair(handle, slices));
         // reconstruct proper name
-        std::string full_name = tokens[0];
-        for (auto i = 1; i < tokens.size(); i++) {
-            auto n = tokens[i];
-            if (std::all_of(n.begin(), n.end(), isdigit)) {
-                full_name.append(fmt::format("[{0}]", n));
-            } else {
-                full_name.append(fmt::format(".{0}", n));
-            }
-        }
+        std::string full_name = reconstruct_fullname(tokens);
         handle_mapping_.emplace(full_name, array_handle);
     }
 }

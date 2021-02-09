@@ -33,6 +33,9 @@ private:
     // emulation logic
     void emulation_loop();
     void change_time(uint64_t time);
+
+    // helper functions
+    std::vector<uint64_t> get_next_changed_times();
 };
 
 }  // namespace hgdb::replay

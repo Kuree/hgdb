@@ -75,17 +75,7 @@ bool EmulationEngine::on_rewound(hgdb::AVPIProvider::rewind_data* rewind_data) {
 
 void EmulationEngine::emulation_loop() {
     while (true) {
-        std::vector<uint64_t> times;
-        times.reserve(watched_values_.size());
-        for (auto const& iter : watched_values_) {
-            auto signal_id = vpi_->get_signal_id(iter.first);
-            if (signal_id) {
-                auto time = vpi_->db().get_next_value_change_time(*signal_id, timestamp_);
-                if (time) {
-                    times.emplace_back(*time);
-                }
-            }
-        }
+        std::vector<uint64_t> times = get_next_changed_times();
         // if there is no time to schedule, we break the loop
         if (times.empty()) break;
         // sort the times in ascending order
@@ -145,6 +135,21 @@ void EmulationEngine::emulation_loop() {
 void EmulationEngine::change_time(uint64_t time) {
     timestamp_ = time;
     vpi_->set_timestamp(time);
+}
+
+std::vector<uint64_t> EmulationEngine::get_next_changed_times() {
+    std::vector<uint64_t> times;
+    times.reserve(watched_values_.size());
+    for (auto const& iter : watched_values_) {
+        auto signal_id = vpi_->get_signal_id(iter.first);
+        if (signal_id) {
+            auto time = vpi_->db().get_next_value_change_time(*signal_id, timestamp_);
+            if (time) {
+                times.emplace_back(*time);
+            }
+        }
+    }
+    return times;
 }
 
 }  // namespace hgdb::replay
