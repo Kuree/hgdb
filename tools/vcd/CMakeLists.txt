@@ -1,0 +1,1 @@
+add_library(hgdb-vcd vcd.hh vcd.cc)
