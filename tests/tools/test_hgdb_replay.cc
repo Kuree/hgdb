@@ -1,10 +1,10 @@
 #include <filesystem>
 
 #include "../../tools/hgdb-replay/engine.hh"
+#include "fmt/format.h"
 #include "gtest/gtest.h"
 #include "thread.hh"
 #include "vpi_user.h"
-#include "fmt/format.h"
 
 void change_cwd() {
     namespace fs = std::filesystem;
@@ -277,19 +277,18 @@ TEST(replay, array_waveform4) {  // NOLINT
     auto db = std::make_unique<hgdb::vcd::VCDDatabase>("waveform4.vcd");
     auto vpi = std::make_unique<hgdb::replay::ReplayVPIProvider>(std::move(db));
     std::vector<std::string> signal_names;
-    for (auto i = 0; i < 15; i++) {
-        for (auto j = 0; j < 2; j++) {
-            for (auto k = 0; k < 4; k++) {
-                signal_names.emplace_back(fmt::format("top.dut.a.{0}.{1}.{2}", k, j, i));
-            }
+    for (auto i = 0; i < 4; i++) {
+        for (auto k = 0; k < 2; k++) {
+            signal_names.emplace_back(fmt::format("top.dut.a.{0}.{1}", i, k));
         }
     }
+
     vpi->build_array_table(signal_names);
 
-    vpi->set_timestamp(10);
+    vpi->set_timestamp(15);
     hgdb::RTLSimulatorClient rtl(std::move(vpi));
 
-
-    auto v = rtl.get_value("top.dut.a[0][1][0]");
+    auto v = rtl.get_value("top.dut.a[0][1]");
     EXPECT_NE(v, std::nullopt);
+    EXPECT_EQ(*v, 20 + 1 + 1);
 }

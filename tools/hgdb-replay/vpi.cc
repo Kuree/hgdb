@@ -51,10 +51,14 @@ void ReplayVPIProvider::vpi_get_value(vpiHandle expr, p_vpi_value value_p) {
             auto slice_size = signal->width / array_size;
             auto lo = slice_size * slice_info[0];
             auto hi = lo + slice_size;
-            auto *handle = parent_handle;
+            auto *handle = array_map_.at(parent_handle)[slice_info[0]];
             for (auto index = 1; index < slice_info.size(); index++) {
+                auto const &array = array_map_.at(handle);
+                handle = array[slice_info[index]];
+                if (!handle)
+                    goto error;
                 auto width = hi - lo;
-                array_size = array_map_.at(handle).size();
+                array_size = array.size();
                 slice_size = width / array_size;
                 auto i = slice_info[index];
                 lo = lo + slice_size * i;
@@ -66,6 +70,10 @@ void ReplayVPIProvider::vpi_get_value(vpiHandle expr, p_vpi_value value_p) {
             }
             // need to slice out the raw_value
             hi = std::min(hi, raw_value->size());
+            auto width = hi - lo;
+            // notice that everything is reversed
+            hi = raw_value->size() - lo;
+            lo = hi - width;
             auto value = raw_value->substr(lo, hi - lo);
             if (value_p->format == vpiIntVal) {
                 // need to convert binary to actual integer values
@@ -487,8 +495,13 @@ void ReplayVPIProvider::build_array_table(const std::vector<std::string> &rtl_na
             if (array_.size() < (index + 1)) {
                 array_.resize(index + 1, nullptr);
             }
-            array_handle = this->get_new_handle();
-            array_[index] = array_handle;
+            if (array_[index]) {
+                array_handle = array_[index];
+            } else {
+                array_handle = this->get_new_handle();
+                array_[index] = array_handle;
+            }
+
             slices.emplace_back(index);
         }
 

@@ -19,7 +19,7 @@ initial begin
         for (int i = 0; i < 4; i++) begin
             for (int k = 0; k < 2; k++) begin
                 dut.a[i][k] = i + 1 + j * 10 + k;
-                dut.b[i][k] = i + 2 + j * 10 + k;
+                dut.b[i][k] = i + 1 + j * 10 + k;
             end
         end
         #10;
