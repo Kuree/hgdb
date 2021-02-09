@@ -69,7 +69,7 @@ void ReplayVPIProvider::vpi_get_value(vpiHandle expr, p_vpi_value value_p) {
                 goto error;
             }
             // need to slice out the raw_value
-            hi = std::min(hi, raw_value->size());
+            hi = std::min<uint64_t>(hi, raw_value->size());
             auto width = hi - lo;
             // notice that everything is reversed
             hi = raw_value->size() - lo;
