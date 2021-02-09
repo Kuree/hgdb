@@ -67,7 +67,7 @@ int main(int argc, char *argv[]) {
         std::transform(
             names.begin(), names.end(), std::back_inserter(full_names),
             [debugger](const std::string &n) { return debugger->rtl_client()->get_full_name(n); });
-        vpi_->build_array_table(names);
+        vpi_->build_array_table(full_names);
     });
 
     // set the custom compute function

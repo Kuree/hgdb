@@ -20,7 +20,7 @@ def get_line_num(filename, pattern):
     return lines.index(pattern) + 1
 
 
-def write_out_db(filename, sv):
+def write_out_db3(filename, sv):
     db = hgdb.DebugSymbolTable(filename)
     db.store_instance(0, "mod")
     db.store_breakpoint(0, 0, sv, get_line_num(sv, "    if (rst)"))
@@ -33,7 +33,22 @@ def write_out_db(filename, sv):
             db.store_context_variable(name, i_, i)
 
 
-def test_replay(start_server, find_free_port):
+def write_out_db4(filename, sv):
+    db = hgdb.DebugSymbolTable(filename)
+    db.store_instance(0, "child")
+    db.store_breakpoint(0, 0, sv, get_line_num(sv, "logic [3:0][1:0][15:0] a;"))
+    db.store_breakpoint(1, 0, sv, get_line_num(sv, "logic [15:0] b[3:0][1:0];"))
+    id_ = 0
+    for i in range(4):
+        for j in range(2):
+            db.store_variable(id_, "a[{0}][{1}]".format(i, j))
+            db.store_variable(id_ + 1, "b[{0}][{1}]".format(i, j))
+            db.store_generator_variable("a[{0}][{1}]".format(i, j), 0, id_)
+            db.store_generator_variable("b[{0}][{1}]".format(i, j), 0, id_ + 1)
+            id_ += 1
+
+
+def test_replay3(start_server, find_free_port):
     root = get_root()
     vcd_path = os.path.join(root, "tests", "tools", "vectors", "waveform3.vcd")
     port = find_free_port()
@@ -43,7 +58,7 @@ def test_replay(start_server, find_free_port):
     sv = os.path.join(get_root(), "tests", "tools", "vectors", "waveform3.sv")
     with tempfile.TemporaryDirectory() as tempdir:
         db = os.path.join(tempdir, "debug.db")
-        write_out_db(db, sv)
+        write_out_db3(db, sv)
 
         async def test_logic():
             client = hgdb.client.HGDBClient("ws://localhost:{0}".format(port), db)
@@ -75,9 +90,38 @@ def test_replay(start_server, find_free_port):
     s.kill()
 
 
+def test_replay4(start_server, find_free_port):
+    root = get_root()
+    vcd_path = os.path.join(root, "tests", "tools", "vectors", "waveform4.vcd")
+    port = find_free_port()
+    s = start_server(port, ("tools", "hgdb-replay", "hgdb-replay"), args=[vcd_path])
+    if s is None:
+        pytest.skip("hgdb-deplay not available")
+    sv = os.path.join(get_root(), "tests", "tools", "vectors", "waveform4.sv")
+    with tempfile.TemporaryDirectory() as tempdir:
+        db = os.path.join(tempdir, "debug.db")
+        write_out_db4(db, sv)
+
+        async def test_logic():
+            client = hgdb.client.HGDBClient("ws://localhost:{0}".format(port), db)
+            await client.connect()
+            time.sleep(0.1)
+            await client.set_breakpoint(sv, get_line_num(sv, "logic [15:0] b[3:0][1:0];"))
+            await client.continue_()
+            bp = await client.recv()
+            assert bp["payload"]["instances"][0]["generator"]["a[0][0]"] == "0x0001"
+            await client.continue_()
+            bp = await client.recv()
+            assert bp["payload"]["instances"][0]["generator"]["a[0][0]"] == "0x000B"
+
+        asyncio.get_event_loop().run_until_complete(test_logic())
+
+    s.kill()
+
+
 if __name__ == "__main__":
     import sys
 
     sys.path.append(get_root())
     from conftest import start_server_fn, find_free_port_fn
-    test_replay(start_server_fn, find_free_port_fn)
+    test_replay4(start_server_fn, find_free_port_fn)
