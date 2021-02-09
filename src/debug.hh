@@ -41,6 +41,9 @@ public:
     // directly set options from function API instead of through ws
     void set_option(const std::string &name, bool value);
 
+    // set callbacks
+    void set_on_client_connected(const std::function<void(hgdb::DebugDatabaseClient &)> &func);
+
     ~Debugger();
 
 private:
@@ -126,6 +129,9 @@ private:
     // cached wrapper
     std::optional<int64_t> get_value(const std::string &signal_name);
     std::string get_full_name(uint64_t instance_id, const std::string &var_name);
+
+    // callbacks
+    std::optional<std::function<void(hgdb::DebugDatabaseClient &)>> on_client_connected_;
 };
 
 }  // namespace hgdb

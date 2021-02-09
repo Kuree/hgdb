@@ -19,7 +19,7 @@ void ReplayVPIProvider::vpi_get_value(vpiHandle expr, p_vpi_value value_p) {
             value_p->value.integer = value;
         } else if (value_p->format == vpiHexStrVal) {
             str_buffer_ = fmt::format("{0:X}", value);
-            value_p->value.str = const_cast<char*>(str_buffer_.c_str());
+            value_p->value.str = const_cast<char *>(str_buffer_.c_str());
         }
         return;
     }
@@ -37,7 +37,45 @@ void ReplayVPIProvider::vpi_get_value(vpiHandle expr, p_vpi_value value_p) {
                 return;
             }
         }
+    } else if (array_info_.find(expr) != array_info_.end()) {
+        // need to slice out the information we need
+        auto const &[parent_handle, slice_info] = array_info_.at(expr);
+        if (signal_id_map_.find(parent_handle) != signal_id_map_.end()) {
+            auto raw_value = db_->get_signal_value(signal_id_map_.at(parent_handle), current_time_);
+            if (!raw_value) goto error;
+            auto signal = db_->get_signal(signal_id_map_.at(parent_handle));
+            auto array_size = array_map_.at(parent_handle).size();
+            auto slice_size = signal->width / array_size;
+            auto lo = slice_size * slice_info[0];
+            auto hi = lo + slice_size;
+            auto *handle = parent_handle;
+            for (auto index = 1; index < slice_info.size(); index++) {
+                auto width = hi - lo;
+                array_size = array_map_.at(handle).size();
+                slice_size = width / array_size;
+                auto i = slice_info[index];
+                lo = lo + slice_size * i;
+                hi = lo + slice_size;
+            }
+            // need to slice out the raw value
+            if (lo >= raw_value->size()) {
+                goto error;
+            }
+            // need to slice out the raw_value
+            hi = std::min(hi, raw_value->size());
+            auto value = raw_value->substr(lo, hi - lo);
+            if (value_p->format == vpiIntVal) {
+                // need to convert binary to actual integer values
+                value_p->value.integer = convert_value(value);
+                return;
+            } else if (value_p->format == vpiHexStrVal) {
+                str_buffer_ = convert_str_value(value);
+                value_p->value.str = const_cast<char *>(str_buffer_.c_str());
+                return;
+            }
+        }
     }
+error:
     value_p->value.integer = 0;
     value_p->value.str = nullptr;
 }
@@ -254,9 +292,12 @@ PLI_INT32 ReplayVPIProvider::vpi_control(PLI_INT32 operation, ...) {
 }
 
 vpiHandle ReplayVPIProvider::vpi_handle_by_index(vpiHandle object, PLI_INT32 index) {
-    // VCD only has limited array support so we don't implement it here
-    (void)object;
-    (void)index;
+    if (array_map_.find(object) != array_map_.end()) {
+        auto const &array = array_map_.at(object);
+        if (array.size() > index) {
+            return array[index];
+        }
+    }
     return nullptr;
 }
 

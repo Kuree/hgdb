@@ -55,6 +55,11 @@ void Debugger::initialize_db(std::unique_ptr<DebugDatabaseClient> db) {
     // set up the scheduler
     scheduler_ =
         std::make_unique<Scheduler>(rtl_.get(), db_.get(), single_thread_mode_, log_enabled_);
+
+    // callbacks
+    if (on_client_connected_) {
+        (*on_client_connected_)(*db_);
+    }
 }
 
 void Debugger::run() {
@@ -139,6 +144,11 @@ void Debugger::eval() {
 void Debugger::set_option(const std::string &name, bool value) {
     auto options = get_options();
     options.set_option(name, value);
+}
+
+void Debugger::set_on_client_connected(
+    const std::function<void(hgdb::DebugDatabaseClient &)> &func) {
+    on_client_connected_ = func;
 }
 
 Debugger::~Debugger() { server_thread_.join(); }

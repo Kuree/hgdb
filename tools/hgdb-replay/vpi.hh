@@ -5,6 +5,8 @@
 #include "vcd.hh"
 
 namespace hgdb::replay {
+class EmulationEngine;
+
 class ReplayVPIProvider : public hgdb::AVPIProvider {
     // notice that much of the implementation is identical to the mock vpi provider
 public:
@@ -60,6 +62,12 @@ private:
     // cached module and signal ids
     std::unordered_map<vpiHandle, uint64_t> instance_id_map_;
     std::unordered_map<vpiHandle, uint64_t> signal_id_map_;
+    // array stuff. notice that vcd doesn't handle array very well given that packed array is
+    // actually a wide bus. we reconstruct the array dim/size from the symbol table, since
+    // we have to display it anyway
+    std::unordered_map<vpiHandle, std::vector<vpiHandle>> array_map_;
+    using ArrayInfo = std::pair<vpiHandle, std::vector<uint64_t>>;
+    std::unordered_map<vpiHandle, ArrayInfo> array_info_;
 
     // vpi related stuff
     char *vpi_handle_counter_ = nullptr;
@@ -79,6 +87,9 @@ private:
     std::optional<std::function<void(p_cb_data)>> on_cb_added_;
     std::optional<std::function<void(const s_cb_data &)>> on_cb_removed_;
     std::optional<std::function<bool(rewind_data *)>> on_rewound_;
+
+    // let emulation engine access the internal functions
+    friend EmulationEngine;
 };
 }  // namespace hgdb::replay
 

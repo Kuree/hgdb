@@ -225,6 +225,33 @@ std::unordered_map<std::string, int64_t> DebugDatabaseClient::get_context_static
     return result;
 }
 
+std::vector<std::string> DebugDatabaseClient::get_all_signal_names() {
+    using namespace sqlite_orm;
+    if (db_) return {};
+    std::set<std::string> names;
+    auto result = db_->select(
+        columns(&Variable::value, &Instance::name),
+        where(c(&Instance::id) == &GeneratorVariable::instance_id &&
+              c(&GeneratorVariable::variable_id) == &Variable::id && c(&Variable::is_rtl) == true));
+    for (auto const &[name, instance_name] : result) {
+        auto v = get_var_value(true, name, instance_name);
+        names.emplace(v);
+    }
+
+    result = db_->select(
+        columns(&Variable::value, &Instance::name),
+        where(c(&Instance::id) == &BreakPoint::instance_id &&
+              c(&ContextVariable::breakpoint_id) == &BreakPoint::id &&
+              c(&ContextVariable::variable_id) == &Variable::id && c(&Variable::is_rtl) == true));
+    for (auto const &[name, instance_name] : result) {
+        auto v = get_var_value(true, name, instance_name);
+        names.emplace(v);
+    }
+
+    auto r = std::vector<std::string>(names.begin(), names.end());
+    return r;
+}
+
 DebugDatabaseClient::~DebugDatabaseClient() { close(); }
 
 void DebugDatabaseClient::set_src_mapping(const std::map<std::string, std::string> &mapping) {

@@ -35,6 +35,7 @@ public:
     [[nodiscard]] std::vector<std::string> get_instance_names();
     [[nodiscard]] std::vector<std::string> get_annotation_values(const std::string &name);
     std::unordered_map<std::string, int64_t> get_context_static_values(uint32_t breakpoint_id);
+    std::vector<std::string> get_all_signal_names();
 
     ~DebugDatabaseClient();
 

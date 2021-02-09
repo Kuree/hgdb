@@ -16,6 +16,10 @@ public:
     void run(bool blocking = true);
     void finish();
 
+    // build array table
+    // we assume the rtl name is already mapped
+    void build_array_table(const std::vector<std::string> &array_names);
+
 private:
     ReplayVPIProvider* vpi_;
     std::atomic<uint64_t> timestamp_ = 0;
@@ -33,6 +37,8 @@ private:
     // emulation logic
     void emulation_loop();
     void change_time(uint64_t time);
+
+
 };
 
 }  // namespace hgdb::replay

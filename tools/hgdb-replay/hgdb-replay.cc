@@ -56,6 +56,12 @@ int main(int argc, char *argv[]) {
     // we use hex string by default
     debugger->set_option("use_hex_str", true);
 
+    // set callback on client connected
+    debugger->set_on_client_connected([&engine](hgdb::DebugDatabaseClient &table) {
+        auto names = table.get_all_signal_names();
+        engine.build_array_table(names);
+    });
+
     // set the custom compute function
     // compute the mapping
     auto mapping_func = [db_ptr](const std::unordered_set<std::string> &instance_names)
