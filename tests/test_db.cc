@@ -208,3 +208,19 @@ TEST_F(DBTest, resolve_path) {  // NOLINT
     result3 = client.resolve_filename_to_client(result3);
     EXPECT_EQ(result3, target3);
 }
+
+TEST_F(DBTest, get_all_signal_name) {   // NOLINT
+    // need to get generator and breakpoint vars
+    hgdb::store_instance(*db, 0, "a");
+    hgdb::store_variable(*db, 0, "a.b");
+    hgdb::store_variable(*db, 1, "c");
+    hgdb::store_generator_variable(*db, "d", 0, 0);
+    hgdb::store_breakpoint(*db, 0, 0, "test.cc", 1);
+    hgdb::store_context_variable(*db, "e", 0, 1);
+
+    hgdb::DebugDatabaseClient client(std::move(db));
+    auto names = client.get_all_signal_names();
+    EXPECT_EQ(names.size(), 2);
+    EXPECT_EQ(names[0], "a.b");
+    EXPECT_EQ(names[1], "a.c");
+}

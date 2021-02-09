@@ -44,6 +44,8 @@ int main(int argc, char *argv[]) {
     auto *db_ptr = db.get();
 
     auto vpi = std::make_unique<hgdb::replay::ReplayVPIProvider>(std::move(db));
+    auto *vpi_ = vpi.get();
+
     // set argv
     vpi->set_argv(argc, argv);
 
@@ -57,9 +59,10 @@ int main(int argc, char *argv[]) {
     debugger->set_option("use_hex_str", true);
 
     // set callback on client connected
-    debugger->set_on_client_connected([&engine](hgdb::DebugDatabaseClient &table) {
+
+    debugger->set_on_client_connected([vpi_](hgdb::DebugDatabaseClient &table) {
         auto names = table.get_all_signal_names();
-        engine.build_array_table(names);
+        vpi_->build_array_table(names);
     });
 
     // set the custom compute function

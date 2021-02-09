@@ -4,6 +4,7 @@
 #include "gtest/gtest.h"
 #include "thread.hh"
 #include "vpi_user.h"
+#include "fmt/format.h"
 
 void change_cwd() {
     namespace fs = std::filesystem;
@@ -269,4 +270,26 @@ TEST(replay, raw_string_conversion) {  // NOLINT
     EXPECT_EQ(value, "z");
     value = hgdb::replay::ReplayVPIProvider::convert_str_value("10x00011");
     EXPECT_EQ(value, "X3");
+}
+
+TEST(replay, array_waveform4) {  // NOLINT
+    change_cwd();
+    auto db = std::make_unique<hgdb::vcd::VCDDatabase>("waveform4.vcd");
+    auto vpi = std::make_unique<hgdb::replay::ReplayVPIProvider>(std::move(db));
+    std::vector<std::string> signal_names;
+    for (auto i = 0; i < 15; i++) {
+        for (auto j = 0; j < 2; j++) {
+            for (auto k = 0; k < 4; k++) {
+                signal_names.emplace_back(fmt::format("top.dut.a.{0}.{1}.{2}", k, j, i));
+            }
+        }
+    }
+    vpi->build_array_table(signal_names);
+
+    vpi->set_timestamp(10);
+    hgdb::RTLSimulatorClient rtl(std::move(vpi));
+
+
+    auto v = rtl.get_value("top.dut.a[0][1][0]");
+    EXPECT_NE(v, std::nullopt);
 }

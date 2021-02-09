@@ -46,6 +46,10 @@ public:
     static int64_t convert_value(const std::string &raw_value);
     static std::string convert_str_value(const std::string &raw_value);
 
+    // build array table
+    // we assume the rtl name is already mapped
+    void build_array_table(const std::vector<std::string> &array_names);
+
 protected:
     vpiHandle get_new_handle();
 

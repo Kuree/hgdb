@@ -1,6 +1,6 @@
 module child (input logic clk);
-logic [3:0][15:0] a;
-logic [15:0] b[3:0];
+logic [3:0][1:0][15:0] a;
+logic [15:0] b[3:0][1:0];
 endmodule
 
 module top;
@@ -17,8 +17,10 @@ initial begin
     $dumpvars(0, top);
     for (int j = 0; j < 2; j++) begin
         for (int i = 0; i < 4; i++) begin
-            dut.a[i] = i + 1 + j * 10;
-            dut.b[i] = i + 2 + j * 10;
+            for (int k = 0; k < 2; k++) begin
+                dut.a[i][k] = i + 1 + j * 10 + k;
+                dut.b[i][k] = i + 2 + j * 10 + k;
+            end
         end
         #10;
     end

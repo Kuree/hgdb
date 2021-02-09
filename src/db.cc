@@ -227,7 +227,7 @@ std::unordered_map<std::string, int64_t> DebugDatabaseClient::get_context_static
 
 std::vector<std::string> DebugDatabaseClient::get_all_signal_names() {
     using namespace sqlite_orm;
-    if (db_) return {};
+    if (!db_) return {};
     std::set<std::string> names;
     auto result = db_->select(
         columns(&Variable::value, &Instance::name),

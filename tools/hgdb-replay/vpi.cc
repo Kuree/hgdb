@@ -1,5 +1,8 @@
 #include "vpi.hh"
 
+#include <regex>
+
+#include "../../src/util.hh"
 #include "fmt/format.h"
 
 namespace hgdb::replay {
@@ -437,6 +440,72 @@ std::string ReplayVPIProvider::convert_str_value(const std::string &raw_value) {
     de_buf();
 
     return result;
+}
+
+void ReplayVPIProvider::build_array_table(const std::vector<std::string> &rtl_names) {
+    // need to filter out the signal of interests
+    std::set<std::string> array_signals;
+    auto re = std::regex(R"([\.\[]\d+)", std::regex_constants::ECMAScript);
+    for (auto const &name : rtl_names) {
+        if (std::regex_search(name, re)) {
+            array_signals.emplace(name);
+        }
+    }
+    for (auto const &name : array_signals) {
+        auto tokens = util::get_tokens(name, ".[]");
+        // search backward to find the root signal
+        // notice that we don't support generate construct since it's too much work to deal with
+        std::optional<uint64_t> start_index;
+        for (uint64_t index = tokens.size(); index != 0; index--) {
+            auto i = index - 1;
+            auto n = tokens[i];
+            if (std::all_of(n.begin(), n.end(), isdigit)) {
+                continue;
+            }
+            start_index = i;
+            break;
+        }
+        if (!start_index) {
+            // something went wrong?
+            continue;
+        }
+        // found a non-digit root
+        auto handle_name = util::join(tokens.begin(), tokens.begin() + *start_index + 1, ".");
+        std::vector<uint64_t> slices;
+
+        // see if we can find the handle name or not
+        auto *handle = this->vpi_handle_by_name(const_cast<char *>(handle_name.c_str()), nullptr);
+        if (!handle) {
+            // could be unpacked array
+            continue;
+        }
+        // fill out the array able
+        auto *array_handle = handle;
+        for (uint64_t idx = *start_index + 1; idx < tokens.size(); idx++) {
+            auto index = std::stoul(tokens[idx]);
+            auto &array_ = this->array_map_[array_handle];
+            if (array_.size() < (index + 1)) {
+                array_.resize(index + 1, nullptr);
+            }
+            array_handle = this->get_new_handle();
+            array_[index] = array_handle;
+            slices.emplace_back(index);
+        }
+
+        // put it into the array info
+        this->array_info_.emplace(array_handle, std::make_pair(handle, slices));
+        // reconstruct proper name
+        std::string full_name = tokens[0];
+        for (auto i = 1; i < tokens.size(); i++) {
+            auto n = tokens[i];
+            if (std::all_of(n.begin(), n.end(), isdigit)) {
+                full_name.append(fmt::format("[{0}]", n));
+            } else {
+                full_name.append(fmt::format(".{0}", n));
+            }
+        }
+        handle_mapping_.emplace(full_name, array_handle);
+    }
 }
 
 vpiHandle ReplayVPIProvider::get_new_handle() {

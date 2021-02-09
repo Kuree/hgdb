@@ -1,9 +1,5 @@
 #include "engine.hh"
 
-#include <regex>
-
-#include "../../src/util.hh"
-
 namespace hgdb::replay {
 
 using reverse_data = hgdb::AVPIProvider::rewind_data;
@@ -149,67 +145,6 @@ void EmulationEngine::emulation_loop() {
 void EmulationEngine::change_time(uint64_t time) {
     timestamp_ = time;
     vpi_->set_timestamp(time);
-}
-
-void EmulationEngine::build_array_table(const std::vector<std::string>& rtl_names) {
-    // need to filter out the signal of interests
-    std::set<std::string> array_signals;
-    auto re = std::regex(R"([\.\[]\d+)");
-    for (auto const& name : rtl_names) {
-        if (std::regex_match(name, re)) {
-            array_signals.emplace(name);
-        }
-    }
-    for (auto const& name : array_signals) {
-        auto tokens = util::get_tokens(name, ".[]");
-        // search backward to find the root signal
-        // notice that we don't support generate construct since it's too much work to deal with
-        std::optional<uint64_t> start_index;
-        for (uint64_t index = tokens.size(); index != 0; index--) {
-            auto i = index - 1;
-            auto n = tokens[i];
-            if (std::all_of(n.begin(), n.end(), isdigit)) {
-                continue;
-            }
-            start_index = i;
-            break;
-        }
-        if (!start_index) {
-            // something went wrong?
-            continue;
-        }
-        // found a non-digit root
-        auto handle_name = util::join(tokens.begin(), tokens.end() + *start_index, ".");
-        auto array_index = std::stoul(tokens[*start_index]);
-        std::vector<uint64_t> slices = {array_index};
-
-        // see if we can find the handle name or not
-        auto* handle = vpi_->vpi_handle_by_name(const_cast<char*>(handle_name.c_str()), nullptr);
-        if (!handle) {
-            // could be unpacked array
-            continue;
-        }
-        // fill out the array able
-        auto& array = vpi_->array_map_[handle];
-        if (array.size() < (array_index + 1)) {
-            array.resize(array_index + 1, nullptr);
-        }
-        auto* array_handle = vpi_->get_new_handle();
-        array[array_index] = array_handle;
-        for (uint64_t idx = array_index + 1; idx < tokens.size(); idx++) {
-            auto index = std::stoul(tokens[idx]);
-            auto array_ = vpi_->array_map_[array_handle];
-            if (array_.size() < (index + 1)) {
-                array_.resize(index + 1, nullptr);
-            }
-            array_handle = vpi_->get_new_handle();
-            array_[index] = array_handle;
-            slices.emplace_back(index);
-        }
-
-        // put it into the array info
-        vpi_->array_info_.emplace(array_handle, std::make_pair(handle, slices));
-    }
 }
 
 }  // namespace hgdb::replay

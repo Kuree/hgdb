@@ -16,10 +16,6 @@ public:
     void run(bool blocking = true);
     void finish();
 
-    // build array table
-    // we assume the rtl name is already mapped
-    void build_array_table(const std::vector<std::string> &array_names);
-
 private:
     ReplayVPIProvider* vpi_;
     std::atomic<uint64_t> timestamp_ = 0;
