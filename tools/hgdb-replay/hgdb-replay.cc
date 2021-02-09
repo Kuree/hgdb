@@ -60,8 +60,13 @@ int main(int argc, char *argv[]) {
 
     // set callback on client connected
 
-    debugger->set_on_client_connected([vpi_](hgdb::DebugDatabaseClient &table) {
+    debugger->set_on_client_connected([vpi_, debugger](hgdb::DebugDatabaseClient &table) {
         auto names = table.get_all_signal_names();
+        std::vector<std::string> full_names;
+        full_names.reserve(names.size());
+        std::transform(
+            names.begin(), names.end(), std::back_inserter(full_names),
+            [debugger](const std::string &n) { return debugger->rtl_client()->get_full_name(n); });
         vpi_->build_array_table(names);
     });
 
