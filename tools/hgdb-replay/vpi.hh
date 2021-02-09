@@ -5,7 +5,8 @@
 #include "vcd.hh"
 
 namespace hgdb::replay {
-class EmulationEngine;
+// helper functions
+std::string convert_str_value(const std::string &raw_value);
 
 class ReplayVPIProvider : public hgdb::AVPIProvider {
     // notice that much of the implementation is identical to the mock vpi provider
@@ -41,10 +42,6 @@ public:
     // used to override values in get_value
     void add_overridden_value(vpiHandle handle, int64_t value);
     void clear_overridden_values();
-
-    // helper functions
-    static int64_t convert_value(const std::string &raw_value);
-    static std::string convert_str_value(const std::string &raw_value);
 
     // build array table
     // we assume the rtl name is already mapped
@@ -91,9 +88,6 @@ private:
     std::optional<std::function<void(p_cb_data)>> on_cb_added_;
     std::optional<std::function<void(const s_cb_data &)>> on_cb_removed_;
     std::optional<std::function<bool(rewind_data *)>> on_rewound_;
-
-    // let emulation engine access the internal functions
-    friend EmulationEngine;
 };
 }  // namespace hgdb::replay
 

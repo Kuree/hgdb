@@ -33,8 +33,6 @@ private:
     // emulation logic
     void emulation_loop();
     void change_time(uint64_t time);
-
-
 };
 
 }  // namespace hgdb::replay

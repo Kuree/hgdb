@@ -254,21 +254,21 @@ TEST(replay, clk_callback_waveform3) {  // NOLINT
 }
 
 TEST(replay, raw_string_conversion) {  // NOLINT
-    auto value = hgdb::replay::ReplayVPIProvider::convert_str_value("101");
+    auto value = hgdb::replay::convert_str_value("101");
     EXPECT_EQ(value, "5");
 
-    value = hgdb::replay::ReplayVPIProvider::convert_str_value("101010");
+    value = hgdb::replay::convert_str_value("101010");
     EXPECT_EQ(value, "2A");
 
-    value = hgdb::replay::ReplayVPIProvider::convert_str_value("1011");
+    value = hgdb::replay::convert_str_value("1011");
     EXPECT_EQ(value, "B");
 
-    value = hgdb::replay::ReplayVPIProvider::convert_str_value("10z");
+    value = hgdb::replay::convert_str_value("10z");
     EXPECT_EQ(value, "Z");
 
-    value = hgdb::replay::ReplayVPIProvider::convert_str_value("zzz");
+    value = hgdb::replay::convert_str_value("zzz");
     EXPECT_EQ(value, "z");
-    value = hgdb::replay::ReplayVPIProvider::convert_str_value("10x00011");
+    value = hgdb::replay::convert_str_value("10x00011");
     EXPECT_EQ(value, "X3");
 }
 

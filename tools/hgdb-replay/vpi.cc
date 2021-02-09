@@ -13,39 +13,109 @@ ReplayVPIProvider::ReplayVPIProvider(std::unique_ptr<hgdb::vcd::VCDDatabase> db)
     get_new_handle();
 }
 
+int64_t convert_value(const std::string &raw_value) {
+    uint64_t bits = raw_value.size();
+    int64_t result = 0;
+    for (uint64_t i = 0; i < bits; i++) {
+        auto bit = bits - i - 1;
+        char v = raw_value[i];
+        if (v == '1') {
+            result |= 1 << bit;
+        } else if (v == 'z' || v == 'x') {
+            // invalid value we display 0, which is consistent with Verilator
+            return 0;
+        }
+    }
+    return result;
+}
+
+std::string convert_str_value(const std::string &raw_value) {
+    uint64_t bits = raw_value.size();
+    std::string result;
+    std::vector<char> buf;
+    buf.reserve(5);
+
+    auto de_buf = [&buf, &result]() {
+        if (buf.empty()) return;
+        char c;
+        // figure out whether to put x or z in
+        if (std::all_of(buf.begin(), buf.end(), [](const auto c) { return c == 'x'; })) {
+            c = 'x';
+        } else if (std::any_of(buf.begin(), buf.end(), [](const auto c) { return c == 'x'; })) {
+            c = 'X';
+        } else if (std::all_of(buf.begin(), buf.end(), [](const auto c) { return c == 'z'; })) {
+            c = 'z';
+        } else if (std::any_of(buf.begin(), buf.end(), [](const auto c) { return c == 'z'; })) {
+            c = 'Z';
+        } else {
+            std::reverse(buf.begin(), buf.end());
+            buf.emplace_back('\0');
+            auto value = std::stoul(buf.data(), nullptr, 2);
+            c = static_cast<char>(value >= 10 ? (value - 10) + 'A' : value + '0');
+        }
+        result = fmt::format("{0}{1}", c, result);
+        buf.clear();
+    };
+
+    // we compute in reverse order
+    for (uint64_t i = bits; i != 0; i--) {
+        auto index = i - 1;
+        if (buf.size() < 4) {
+            buf.emplace_back(raw_value[index]);
+        }
+        if (buf.size() == 4) de_buf();
+    }
+    de_buf();
+
+    return result;
+}
+
+template <class T>
+void set_value(p_vpi_value value_p, T value, std::string &str_buffer) {
+    if constexpr (std::is_same<T, std::string>::value) {
+        if (value_p->format == vpiIntVal) {
+            // need to convert binary to actual integer values
+            value_p->value.integer = convert_value(value);
+            return;
+        } else if (value_p->format == vpiHexStrVal) {
+            str_buffer = convert_str_value(value);
+            value_p->value.str = const_cast<char *>(str_buffer.c_str());
+            return;
+        }
+    } else {
+        if (value_p->format == vpiIntVal) {
+            value_p->value.integer = value;
+        } else if (value_p->format == vpiHexStrVal) {
+            str_buffer = fmt::format("{0:X}", value);
+            value_p->value.str = const_cast<char *>(str_buffer.c_str());
+        }
+        return;
+    }
+}
+
 void ReplayVPIProvider::vpi_get_value(vpiHandle expr, p_vpi_value value_p) {
     // if there is an overridden value, use that
     // although it is unlikely (only clk signals)
     if (overridden_values_.find(expr) != overridden_values_.end()) [[unlikely]] {
         auto value = overridden_values_.at(expr);
-        if (value_p->format == vpiIntVal) {
-            value_p->value.integer = value;
-        } else if (value_p->format == vpiHexStrVal) {
-            str_buffer_ = fmt::format("{0:X}", value);
-            value_p->value.str = const_cast<char *>(str_buffer_.c_str());
-        }
+        set_value(value_p, value, str_buffer_);
         return;
     }
     if (signal_id_map_.find(expr) != signal_id_map_.end()) {
         auto signal_id = signal_id_map_.at(expr);
         auto value = db_->get_signal_value(signal_id, current_time_);
         if (value) {
-            if (value_p->format == vpiIntVal) {
-                // need to convert binary to actual integer values
-                value_p->value.integer = convert_value(*value);
-                return;
-            } else if (value_p->format == vpiHexStrVal) {
-                str_buffer_ = convert_str_value(*value);
-                value_p->value.str = const_cast<char *>(str_buffer_.c_str());
-                return;
-            }
+            set_value(value_p, *value, str_buffer_);
         }
     } else if (array_info_.find(expr) != array_info_.end()) {
+        // if there is any error, we return
+        value_p->value.integer = 0;
+        value_p->value.str = nullptr;
         // need to slice out the information we need
         auto const &[parent_handle, slice_info] = array_info_.at(expr);
         if (signal_id_map_.find(parent_handle) != signal_id_map_.end()) {
             auto raw_value = db_->get_signal_value(signal_id_map_.at(parent_handle), current_time_);
-            if (!raw_value) goto error;
+            if (!raw_value) return;
             auto signal = db_->get_signal(signal_id_map_.at(parent_handle));
             auto array_size = array_map_.at(parent_handle).size();
             auto slice_size = signal->width / array_size;
@@ -55,8 +125,7 @@ void ReplayVPIProvider::vpi_get_value(vpiHandle expr, p_vpi_value value_p) {
             for (auto index = 1; index < slice_info.size(); index++) {
                 auto const &array = array_map_.at(handle);
                 handle = array[slice_info[index]];
-                if (!handle)
-                    goto error;
+                if (!handle) return;
                 auto width = hi - lo;
                 array_size = array.size();
                 slice_size = width / array_size;
@@ -66,7 +135,7 @@ void ReplayVPIProvider::vpi_get_value(vpiHandle expr, p_vpi_value value_p) {
             }
             // need to slice out the raw value
             if (lo >= raw_value->size()) {
-                goto error;
+                return;
             }
             // need to slice out the raw_value
             hi = std::min<uint64_t>(hi, raw_value->size());
@@ -75,20 +144,9 @@ void ReplayVPIProvider::vpi_get_value(vpiHandle expr, p_vpi_value value_p) {
             hi = raw_value->size() - lo;
             lo = hi - width;
             auto value = raw_value->substr(lo, hi - lo);
-            if (value_p->format == vpiIntVal) {
-                // need to convert binary to actual integer values
-                value_p->value.integer = convert_value(value);
-                return;
-            } else if (value_p->format == vpiHexStrVal) {
-                str_buffer_ = convert_str_value(value);
-                value_p->value.str = const_cast<char *>(str_buffer_.c_str());
-                return;
-            }
+            set_value(value_p, value, str_buffer_);
         }
     }
-error:
-    value_p->value.integer = 0;
-    value_p->value.str = nullptr;
 }
 
 PLI_INT32 ReplayVPIProvider::vpi_get(PLI_INT32 property, vpiHandle object) {
@@ -392,63 +450,6 @@ void ReplayVPIProvider::add_overridden_value(vpiHandle handle, int64_t value) {
 }
 
 void ReplayVPIProvider::clear_overridden_values() { overridden_values_.clear(); }
-
-int64_t ReplayVPIProvider::convert_value(const std::string &raw_value) {
-    uint64_t bits = raw_value.size();
-    int64_t result = 0;
-    for (uint64_t i = 0; i < bits; i++) {
-        auto bit = bits - i - 1;
-        char v = raw_value[i];
-        if (v == '1') {
-            result |= 1 << bit;
-        } else if (v == 'z' || v == 'x') {
-            // invalid value we display 0, which is consistent with Verilator
-            return 0;
-        }
-    }
-    return result;
-}
-
-std::string ReplayVPIProvider::convert_str_value(const std::string &raw_value) {
-    uint64_t bits = raw_value.size();
-    std::string result;
-    std::vector<char> buf;
-    buf.reserve(5);
-
-    auto de_buf = [&buf, &result]() {
-        if (buf.empty()) return;
-        char c;
-        // figure out whether to put x or z in
-        if (std::all_of(buf.begin(), buf.end(), [](const auto c) { return c == 'x'; })) {
-            c = 'x';
-        } else if (std::any_of(buf.begin(), buf.end(), [](const auto c) { return c == 'x'; })) {
-            c = 'X';
-        } else if (std::all_of(buf.begin(), buf.end(), [](const auto c) { return c == 'z'; })) {
-            c = 'z';
-        } else if (std::any_of(buf.begin(), buf.end(), [](const auto c) { return c == 'z'; })) {
-            c = 'Z';
-        } else {
-            std::reverse(buf.begin(), buf.end());
-            buf.emplace_back('\0');
-            auto value = std::stoul(buf.data(), nullptr, 2);
-            c = static_cast<char>(value >= 10 ? (value - 10) + 'A' : value + '0');
-        }
-        result = fmt::format("{0}{1}", c, result);
-        buf.clear();
-    };
-
-    // we compute in reverse order
-    for (uint64_t i = bits; i != 0; i--) {
-        auto index = i - 1;
-        if (buf.size() < 4) {
-            buf.emplace_back(raw_value[index]);
-        }
-        if (buf.size() == 4) de_buf();
-    }
-    de_buf();
-
-    return result;
-}
 
 void ReplayVPIProvider::build_array_table(const std::vector<std::string> &rtl_names) {
     // need to filter out the signal of interests
