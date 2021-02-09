@@ -1,4 +1,4 @@
-#include "vcd.hh"
+#include "vcd_db.hh"
 
 #include <filesystem>
 #include <sstream>

@@ -2,7 +2,7 @@
 #define HGDB_TOOLS_VPI_HH
 
 #include "rtl.hh"
-#include "vcd.hh"
+#include "vcd_db.hh"
 
 namespace hgdb::replay {
 // helper functions
