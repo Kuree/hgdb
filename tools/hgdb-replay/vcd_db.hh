@@ -12,26 +12,26 @@
 
 namespace hgdb::vcd {
 
-struct VCDSignal {
+struct VCDDBSignal {
     uint64_t id;
     std::string name;
     std::unique_ptr<uint64_t> instance_id;
     uint32_t width;
 };
 
-struct VCDModule {
+struct VCDDBModule {
     uint64_t id;
     std::string name;
 };
 
-struct VCDValue {
+struct VCDDBValue {
     uint64_t id;
     std::unique_ptr<uint64_t> signal_id;
     uint64_t time;
     std::string value;
 };
 
-struct VCDModuleHierarchy {
+struct VCDDBModuleHierarchy {
     std::unique_ptr<uint64_t> parent_id;
     std::unique_ptr<uint64_t> child_id;
 };
@@ -40,21 +40,21 @@ auto inline initial_vcd_db(const std::string &filename) {
     using namespace sqlite_orm;
     auto storage = make_storage(
         filename,
-        make_table("module", make_column("id", &VCDModule::id, primary_key()),
-                   make_column("name", &VCDModule::name)),
-        make_table("signal", make_column("id", &VCDSignal::id, primary_key()),
-                   make_column("name", &VCDSignal::name),
-                   make_column("instance_id", &VCDSignal::instance_id),
-                   make_column("width", &VCDSignal::width),
-                   foreign_key(&VCDSignal::instance_id).references(&VCDModule::id)),
-        make_table("value", make_column("id", &VCDValue::id, primary_key()),
-                   make_column("signal_id", &VCDValue::signal_id),
-                   make_column("time", &VCDValue::time), make_column("value", &VCDValue::value),
-                   foreign_key(&VCDValue::signal_id).references(&VCDSignal::id)),
-        make_table("hierarchy", make_column("parent_id", &VCDModuleHierarchy::parent_id),
-                   make_column("child_id", &VCDModuleHierarchy::child_id),
-                   foreign_key(&VCDModuleHierarchy::parent_id).references(&VCDModule::id),
-                   foreign_key(&VCDModuleHierarchy::child_id).references(&VCDModule::id)));
+        make_table("module", make_column("id", &VCDDBModule::id, primary_key()),
+                   make_column("name", &VCDDBModule::name)),
+        make_table("signal", make_column("id", &VCDDBSignal::id, primary_key()),
+                   make_column("name", &VCDDBSignal::name),
+                   make_column("instance_id", &VCDDBSignal::instance_id),
+                   make_column("width", &VCDDBSignal::width),
+                   foreign_key(&VCDDBSignal::instance_id).references(&VCDDBModule::id)),
+        make_table("value", make_column("id", &VCDDBValue::id, primary_key()),
+                   make_column("signal_id", &VCDDBValue::signal_id),
+                   make_column("time", &VCDDBValue::time), make_column("value", &VCDDBValue::value),
+                   foreign_key(&VCDDBValue::signal_id).references(&VCDDBSignal::id)),
+        make_table("hierarchy", make_column("parent_id", &VCDDBModuleHierarchy::parent_id),
+                   make_column("child_id", &VCDDBModuleHierarchy::child_id),
+                   foreign_key(&VCDDBModuleHierarchy::parent_id).references(&VCDDBModule::id),
+                   foreign_key(&VCDDBModuleHierarchy::child_id).references(&VCDDBModule::id)));
     storage.sync_schema();
     return storage;
 }
@@ -64,10 +64,10 @@ public:
     VCDDatabase(const std::string &filename, bool store_converted_db = false);
     std::optional<uint64_t> get_instance_id(const std::string &full_name);
     std::optional<uint64_t> get_signal_id(const std::string &full_name);
-    std::vector<VCDSignal> get_instance_signals(uint64_t instance_id);
-    std::vector<VCDModule> get_child_instances(uint64_t instance_id);
-    std::unique_ptr<VCDSignal> get_signal(uint64_t signal_id);
-    std::unique_ptr<VCDModule> get_instance(uint64_t instance_id);
+    std::vector<VCDDBSignal> get_instance_signals(uint64_t instance_id);
+    std::vector<VCDDBModule> get_child_instances(uint64_t instance_id);
+    std::unique_ptr<VCDDBSignal> get_signal(uint64_t signal_id);
+    std::unique_ptr<VCDDBModule> get_instance(uint64_t instance_id);
     std::optional<std::string> get_signal_value(uint64_t id, uint64_t timestamp);
     std::string get_full_signal_name(uint64_t signal_id);
     std::string get_full_instance_name(uint64_t instance_id);
