@@ -65,6 +65,7 @@ private:
     std::string error_message_;
 
     // parser helpers
+    void parse_meta(VCDMetaInfo::MetaType type);
     bool parse_scope_def();
     bool parse_var_def();
     bool parse_vcd_values();

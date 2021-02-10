@@ -16,6 +16,8 @@ VCDParser::VCDParser(const std::string &filename) : filename_(filename) {
 }
 
 std::string next_token(std::istream &stream) {
+    if (stream.bad()) [[unlikely]]
+        return {};
     std::stringstream result;
     uint64_t length = 0;
     while (!stream.eof()) {
@@ -35,7 +37,6 @@ std::string next_token(std::istream &stream) {
 }
 
 bool VCDParser::parse() {
-    if (stream_.bad()) return false;
     // the code below is mostly designed by Teguh Hofstee (https://github.com/hofstee)
     // heavily refactored to fit into hgdb's needs
 
@@ -48,11 +49,6 @@ bool VCDParser::parse() {
         {"$upscope", sv::Upscope},
         {"$var", sv::Var},
         {"$enddefinitions", sv::Enddefinitions}};
-    static const std::unordered_map<sv, VCDMetaInfo::MetaType> meta_map = {
-        {sv::Date, VCDMetaInfo::MetaType::date},
-        {sv::Version, VCDMetaInfo::MetaType::version},
-        {sv::Timescale, VCDMetaInfo::MetaType::timescale},
-        {sv::Comment, VCDMetaInfo::MetaType::comment}};
 
     while (true) {
         auto token = next_token(stream_);
@@ -63,19 +59,19 @@ bool VCDParser::parse() {
             return false;
         }
 
-        switch (sv_map.at(token)) {
+        static const std::unordered_map<sv, VCDMetaInfo::MetaType> meta_map = {
+            {sv::Date, VCDMetaInfo::MetaType::date},
+            {sv::Version, VCDMetaInfo::MetaType::version},
+            {sv::Timescale, VCDMetaInfo::MetaType::timescale},
+            {sv::Comment, VCDMetaInfo::MetaType::comment}};
+
+        auto token_type = sv_map.at(token);
+        switch (token_type) {
             case sv::Date:
             case sv::Version:
             case sv::Timescale:
             case sv::Comment: {
-                std::stringstream ss;
-                while ((token = next_token(stream_)) != end_str) {
-                    ss << " " << token;
-                }
-                if (on_meta_info_) {
-                    VCDMetaInfo meta_info{.type = meta_map.at(sv_map.at(token)), .value = ss.str()};
-                    (*on_meta_info_)(meta_info);
-                }
+                parse_meta(meta_map.at(token_type));
                 break;
             }
             case sv::Scope: {
@@ -132,6 +128,19 @@ VCDParser::~VCDParser() {
     // close the stream
     if (!stream_.bad()) {
         stream_.close();
+    }
+}
+
+void VCDParser::parse_meta(VCDMetaInfo::MetaType type) {
+    std::stringstream ss;
+    std::string token;
+
+    while ((token = next_token(stream_)) != end_str) {
+        ss << " " << token;
+    }
+    if (on_meta_info_) {
+        VCDMetaInfo meta_info{.type = type, .value = ss.str()};
+        (*on_meta_info_)(meta_info);
     }
 }
 
