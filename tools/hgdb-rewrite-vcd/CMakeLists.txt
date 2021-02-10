@@ -3,4 +3,6 @@ add_executable(hgdb-rewrite-vcd hgdb-rewrite-vcd.cc)
 target_link_libraries(hgdb-rewrite-vcd hgdb-vcd fmt)
 target_include_directories(hgdb-rewrite-vcd PRIVATE
         ../../include
-        ../../extern/fmt/include)
+        ../../extern/fmt/include
+        ../../extern/sqlite_orm/include
+        ../../extern/sqlite/include)
