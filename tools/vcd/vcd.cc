@@ -36,7 +36,7 @@ std::string next_token(std::istream &stream) {
     return result.str();
 }
 
-bool VCDParser::parse() {
+bool VCDParser::parse() {  // NOLINT
     // the code below is mostly designed by Teguh Hofstee (https://github.com/hofstee)
     // heavily refactored to fit into hgdb's needs
 
@@ -91,6 +91,7 @@ bool VCDParser::parse() {
             case sv::Enddefinitions: {
                 token = next_token(stream_);
                 if (!check_end(token)) return false;
+                if (!on_definition_finished_) (*on_definition_finished_)();
                 if (!parse_vcd_values()) return false;
                 break;
             }
@@ -102,30 +103,30 @@ bool VCDParser::parse() {
     return true;
 }
 
-void VCDParser::set_exit_scope(const std::optional<std::function<void()>> &func) {
-    on_exit_scope_ = func;
-}
+void VCDParser::set_exit_scope(const std::function<void()> &func) { on_exit_scope_ = func; }
 
-void VCDParser::set_on_enter_scope(
-    const std::optional<std::function<void(const VCDScopeDef &)>> &func) {
+void VCDParser::set_on_enter_scope(const std::function<void(const VCDScopeDef &)> &func) {
     on_enter_scope_ = func;
 }
 
-void VCDParser::set_on_meta_info(
-    const std::optional<std::function<void(const VCDMetaInfo &)>> &func) {
+void VCDParser::set_on_meta_info(const std::function<void(const VCDMetaInfo &)> &func) {
     on_meta_info_ = func;
 }
 
-void VCDParser::set_value_change(const std::optional<std::function<void(const VCDValue &)>> &func) {
+void VCDParser::set_value_change(const std::function<void(const VCDValue &)> &func) {
     on_value_change_ = func;
 }
 
-void VCDParser::set_on_var_def(const std::optional<std::function<void(const VCDVarDef &)>> &func) {
+void VCDParser::set_on_var_def(const std::function<void(const VCDVarDef &)> &func) {
     on_var_def_ = func;
 }
 
+void VCDParser::set_on_definition_finished(const std::function<void()> &func) {
+    on_definition_finished_ = func;
+}
+
 VCDParser::~VCDParser() {
-    // close the stream
+    // close the stream_
     if (!stream_.bad()) {
         stream_.close();
     }
@@ -188,8 +189,10 @@ bool VCDParser::parse_var_def() {
 bool VCDParser::parse_vcd_values() {
     size_t timestamp = 0;
 
-    auto add_value = [this, &timestamp](const std::string &identifier, const std::string &value) {
-        VCDValue v{.time = timestamp, .identifier = identifier, .value = value};
+    auto add_value = [this, &timestamp](const std::string &identifier, const std::string &value,
+                                        bool is_event = false) {
+        VCDValue v{
+            .time = timestamp, .identifier = identifier, .value = value, .is_event = is_event};
         if (on_value_change_) {
             (*on_value_change_)(v);
         }
@@ -205,7 +208,7 @@ bool VCDParser::parse_vcd_values() {
             auto value = std::string(1, token[0]);
             auto ident = std::string(token.substr(1));
 
-            add_value(ident, value);
+            add_value(ident, value, true);
         } else if (std::string("b").find(token[0]) != std::string::npos) {
             auto value = std::string(token.substr(1));
             auto ident = std::string(next_token(stream_));
