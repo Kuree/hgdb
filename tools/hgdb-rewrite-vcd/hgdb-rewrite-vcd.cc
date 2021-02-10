@@ -17,7 +17,7 @@ public:
                 const std::string &new_filename)
         : parser_(filename) {
         stream_ = std::ofstream(new_filename);
-        db_ = std::make_unique<hgdb::DebugDatabase>(hgdb::init_debug_db(filename));
+        db_ = std::make_unique<hgdb::DebugDatabase>(hgdb::init_debug_db(db_name));
         db_->sync_schema();
 
         // need to set up all the callback functions
@@ -57,6 +57,8 @@ private:
     hgdb::vcd::VCDParser parser_;
     std::ofstream stream_;
     std::unique_ptr<hgdb::DebugDatabase> db_;
+
+    static constexpr auto new_scope_name = "module";
 
     struct Scope {
         hgdb::vcd::VCDScopeDef def;
@@ -116,8 +118,11 @@ private:
             }
             design_root_ = target_scope;
         } else {
-            std::vector<Scope *> candidates{root_};
-            for (auto i = 1u; i < tokens.size(); i++) {
+            std::vector<Scope *> candidates{};
+            for (auto const &s : scopes_) {
+                if (s->def.name == tokens[1]) candidates.emplace_back(s.get());
+            }
+            for (auto i = 2u; i < tokens.size(); i++) {
                 std::vector<Scope *> temp;
                 for (auto *scope : candidates) {
                     for (auto *child_scope : scope->scopes) {
@@ -132,7 +137,7 @@ private:
                 return;
             }
             design_root_ = candidates[0];
-            for (auto i = 0u; i < tokens.size(); i++) {
+            for (auto i = 1u; i < tokens.size(); i++) {
                 design_root_ = design_root_->parent;
             }
         }
@@ -152,6 +157,7 @@ private:
             if (!scope) continue;
             // we need to rearrange the vars depends on the var name
             auto const [parent_scope, var_index] = get_var(scope, rtl_name);
+            if (!parent_scope) continue;
             auto *var = parent_scope->vars[var_index];
             // insert the var into a new scope
             insert_new_var(parent_scope, var, var_name);
@@ -172,6 +178,7 @@ private:
             auto const &name = tokens[i];
             bool found = false;
             for (auto *child_scope : scope->scopes) {
+                if (!child_scope) continue;
                 if (child_scope->def.name == name) {
                     scope = child_scope;
                     found = true;
@@ -197,9 +204,9 @@ private:
         }
         // we found the parent scope, now need to locate the var
         // compute the rest of var name
-        auto name = fmt::format("{}", fmt::join(tokens.begin() + index, tokens.end(), "."));
+        auto name = fmt::format("{}", fmt::join(tokens.begin() + index - 1, tokens.end(), "."));
         for (uint64_t i = 0; i < parent_scope->vars.size(); i++) {
-            if (parent_scope->vars[i]->name == name) {
+            if (parent_scope->vars[i] && parent_scope->vars[i]->name == name) {
                 return {parent_scope, i};
             }
         }
@@ -225,7 +232,7 @@ private:
                 scope->add_child(s.get());
                 s->def.name = tokens[i];
                 // VCD only allows a few scope types
-                s->def.type = "module";
+                s->def.type = new_scope_name;
                 scope = s.get();
                 scopes_.emplace_back(std::move(s));
             }
@@ -248,8 +255,6 @@ private:
         for (auto const *s : scope->scopes) {
             if (s) serialize(s);
         }
-
-        stream_ << std::endl;
 
         stream_ << "$upscope " << end_ << std::endl;
     }
@@ -328,8 +333,9 @@ std::pair<std::string, std::string> get_args(const std::string &arg1, const std:
         }
         std::array<char, 7> buff{0};
         stream.readsome(buff.data(), buff.size() - 1);
-        buff[6] = '0';
-        if (std::string(buff.data()) == "SQLite") {
+        buff[6] = '\0';
+        std::string buff_str = buff.data();
+        if (buff_str == "SQLite") {
             // it is the sqlite file
             if (i == 0)
                 return {arg2, arg1};

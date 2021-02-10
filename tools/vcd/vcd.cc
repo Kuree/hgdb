@@ -234,7 +234,7 @@ bool VCDParser::parse_vcd_values() {  // NOLINT
                     auto value = std::string(1, token[0]);
                     auto ident = std::string(token.substr(1));
 
-                    add_value(ident, value);
+                    add_value(ident, value, true);
                 } else if (std::string("b").find(token[0]) != std::string::npos) {
                     auto value = std::string(token.substr(1));
                     auto ident = std::string(next_token(stream_));
