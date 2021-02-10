@@ -82,6 +82,8 @@ TEST(vcd, vcd_parse) {  // NOLINT
     EXPECT_EQ(*value, "x");
     value = db.get_signal_value(*db.get_signal_id("top.result[2]"), 61);
     EXPECT_EQ(*value, "1");
+    value = db.get_signal_value(*db.get_signal_id("top.clk"), 10);
+    EXPECT_EQ(*value, "1");
 }
 
 int cycle_count(p_cb_data cb_data) {
