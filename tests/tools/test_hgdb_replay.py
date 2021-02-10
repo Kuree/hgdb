@@ -6,13 +6,6 @@ import asyncio
 import time
 
 
-def get_root():
-    dirname = os.path.abspath(__file__)
-    for i in range(3):
-        dirname = os.path.dirname(dirname)
-    return dirname
-
-
 def get_line_num(filename, pattern):
     with open(filename) as f:
         lines = f.readlines()
@@ -48,14 +41,14 @@ def write_out_db4(filename, sv):
             id_ += 1
 
 
-def test_replay3(start_server, find_free_port):
-    root = get_root()
-    vcd_path = os.path.join(root, "tests", "tools", "vectors", "waveform3.vcd")
+def test_replay3(start_server, find_free_port, get_tools_vector_dir):
+    vector_dir = get_tools_vector_dir()
+    vcd_path = os.path.join(vector_dir, "waveform3.vcd")
     port = find_free_port()
     s = start_server(port, ("tools", "hgdb-replay", "hgdb-replay"), args=[vcd_path])
     if s is None:
         pytest.skip("hgdb-deplay not available")
-    sv = os.path.join(get_root(), "tests", "tools", "vectors", "waveform3.sv")
+    sv = os.path.join(vector_dir, "waveform3.sv")
     with tempfile.TemporaryDirectory() as tempdir:
         db = os.path.join(tempdir, "debug.db")
         write_out_db3(db, sv)
@@ -90,14 +83,14 @@ def test_replay3(start_server, find_free_port):
     s.kill()
 
 
-def test_replay4(start_server, find_free_port):
-    root = get_root()
-    vcd_path = os.path.join(root, "tests", "tools", "vectors", "waveform4.vcd")
+def test_replay4(start_server, find_free_port, get_tools_vector_dir):
+    vector_dir = get_tools_vector_dir()
+    vcd_path = os.path.join(vector_dir, "waveform4.vcd")
     port = find_free_port()
     s = start_server(port, ("tools", "hgdb-replay", "hgdb-replay"), args=[vcd_path])
     if s is None:
         pytest.skip("hgdb-deplay not available")
-    sv = os.path.join(get_root(), "tests", "tools", "vectors", "waveform4.sv")
+    sv = os.path.join(vector_dir, "waveform4.sv")
     with tempfile.TemporaryDirectory() as tempdir:
         db = os.path.join(tempdir, "debug.db")
         write_out_db4(db, sv)
@@ -122,6 +115,6 @@ def test_replay4(start_server, find_free_port):
 if __name__ == "__main__":
     import sys
 
-    sys.path.append(get_root())
-    from conftest import start_server_fn, find_free_port_fn
-    test_replay4(start_server_fn, find_free_port_fn)
+    sys.path.append(os.getcwd())
+    from conftest import start_server_fn, find_free_port_fn, get_tools_vector_dir_fn
+    test_replay4(start_server_fn, find_free_port_fn, get_tools_vector_dir_fn)

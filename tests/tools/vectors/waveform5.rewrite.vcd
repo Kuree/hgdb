@@ -1,0 +1,89 @@
+$date
+   Feb 10, 2021 13:48:07
+$end
+$version
+   TOOL: xmsim(64) 20.09-s007
+$end
+$timescale
+   1 ns
+$end
+$scope module top $end
+$var reg 1 ! io_a_b  $end
+$var reg 1 " io_a_c  $end
+
+$scope module dut $end
+$var reg 16 ( abc[0] [15:0] $end
+$var reg 16 ' abc[1] [15:0] $end
+$var reg 16 & abc[2] [15:0] $end
+$var reg 16 % abc[3] [15:0] $end
+
+$scope module inst1 $end
+
+$scope module io $end
+
+$scope module a $end
+$var wire 1 # b  $end
+$var wire 1 $ c  $end
+
+$upscope $end
+$upscope $end
+$upscope $end
+$scope module inst2 $end
+
+$scope module io $end
+
+$scope module a $end
+$var wire 1 # b  $end
+$var wire 1 $ c  $end
+
+$upscope $end
+$upscope $end
+$upscope $end
+$scope module io $end
+
+$scope module a $end
+$var wire 1 # b  $end
+$var wire 1 $ c  $end
+
+$upscope $end
+$upscope $end
+$upscope $end
+$upscope $end
+$enddefinitions $end
+$dumpvars
+0!
+1"
+0#
+1$
+b1 %
+b1 &
+b1 '
+b1 (
+#10
+1!
+0"
+b10 (
+b10 '
+b10 &
+b10 %
+0$
+1#
+#20
+0!
+1"
+b11 (
+b11 '
+b11 &
+b11 %
+1$
+0#
+#30
+1!
+0"
+b100 (
+b100 '
+b100 &
+b100 %
+0$
+1#
+#40

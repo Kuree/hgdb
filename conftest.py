@@ -7,7 +7,7 @@ import socket
 from contextlib import closing
 
 
-def start_server_fn(port_num, program_name, args=None, gdbserver_port=None, stdout=True, wait=0):
+def get_build_folder_fn():
     root = os.path.dirname(os.path.realpath(__file__))
     # find build folder
     dirs = [d for d in os.listdir(root) if os.path.isdir(d) and "build" in d]
@@ -15,6 +15,11 @@ def start_server_fn(port_num, program_name, args=None, gdbserver_port=None, stdo
     # use the shortest one
     dirs.sort(key=lambda x: len(x))
     build_dir = dirs[0]
+    return build_dir
+
+
+def start_server_fn(port_num, program_name, args=None, gdbserver_port=None, stdout=True, wait=0):
+    build_dir = get_build_folder_fn()
     if isinstance(program_name, (list, tuple)):
         server_path = os.path.join(build_dir, *program_name)
     else:
@@ -40,6 +45,11 @@ def find_free_port_fn():
         return s.getsockname()[1]
 
 
+def get_tools_vector_dir_fn():
+    root = os.path.dirname(os.path.realpath(__file__))
+    return os.path.join(root, "tests", "tools", "vectors")
+
+
 @pytest.fixture()
 def start_server():
     return start_server_fn
@@ -48,3 +58,13 @@ def start_server():
 @pytest.fixture()
 def find_free_port():
     return find_free_port_fn
+
+
+@pytest.fixture()
+def get_build_folder():
+    return get_build_folder_fn
+
+
+@pytest.fixture()
+def get_tools_vector_dir():
+    return get_tools_vector_dir_fn
