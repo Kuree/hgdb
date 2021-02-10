@@ -125,6 +125,10 @@ void VCDParser::set_on_definition_finished(const std::function<void()> &func) {
     on_definition_finished_ = func;
 }
 
+void VCDParser::set_on_time_change(const std::function<void(uint64_t)> &func) {
+    on_time_change_ = func;
+}
+
 VCDParser::~VCDParser() {
     // close the stream_
     if (!stream_.bad()) {
@@ -204,6 +208,7 @@ bool VCDParser::parse_vcd_values() {
 
         if (token[0] == '#') {
             timestamp = std::stoi(std::string(token.substr(1)));
+            if (on_time_change_) (*on_time_change_)(timestamp);
         } else if (std::string("01xz").find(token[0]) != std::string::npos) {
             auto value = std::string(1, token[0]);
             auto ident = std::string(token.substr(1));
