@@ -1,5 +1,5 @@
-#ifndef HGDB_TOOLS_VCD_HH
-#define HGDB_TOOLS_VCD_HH
+#ifndef HGDB_TOOLS_VCD_DB_HH
+#define HGDB_TOOLS_VCD_DB_HH
 
 #include <fstream>
 #include <memory>
@@ -79,20 +79,9 @@ public:
 
 private:
     // parsing functions
-    void parse_vcd(std::istream &stream);
-    void parse_vcd_values(std::istream &stream,
-                          const std::unordered_map<std::string, uint64_t> &var_mapping);
-    void parse_module_def(std::istream &stream, std::stack<uint64_t> &scope,
-                          std::unordered_map<uint64_t, std::string> &scope_name,
-                          uint64_t &module_id_count);
-    void parse_var_def(std::istream &stream, std::stack<uint64_t> &scope,
-                       std::unordered_map<std::string, uint64_t> &var_mapping,
-                       uint64_t &var_id_count);
+    void parse_vcd(const std::string &filename);
 
     using VCDTable = decltype(initial_vcd_db(""));
-
-    // tokenization
-    static std::string next_token(std::istream &stream);
 
     // storage
     void store_module(const std::string &name, uint64_t id);
@@ -113,4 +102,4 @@ private:
 
 }  // namespace hgdb::vcd
 
-#endif  // HGDB_TOOLS_VCD_HH
+#endif  // HGDB_TOOLS_VCD_DB_HH

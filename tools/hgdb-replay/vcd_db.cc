@@ -1,7 +1,7 @@
 #include "vcd_db.hh"
 
 #include <filesystem>
-#include <sstream>
+#include <iostream>
 #include <stack>
 #include <string>
 #include <unordered_map>
@@ -9,8 +9,7 @@
 #include "fmt/format.h"
 #include "log.hh"
 #include "util.hh"
-
-enum class sv { Date, Version, Timescale, Comment, Scope, Upscope, Var, Enddefinitions };
+#include "vcd.hh"
 
 namespace hgdb::vcd {
 
@@ -30,9 +29,7 @@ VCDDatabase::VCDDatabase(const std::string &filename, bool store_converted_db) {
     // set to off mode since we're not interested in recovery
     vcd_table_->pragma.journal_mode(sqlite_orm::journal_mode::OFF);
 
-    std::ifstream stream(filename);
-    if (stream.bad()) return;
-    parse_vcd(stream);
+    parse_vcd(filename);
 }
 
 std::optional<uint64_t> VCDDatabase::get_instance_id(const std::string &full_name) {
@@ -232,9 +229,7 @@ std::pair<std::string, std::string> VCDDatabase::compute_instance_mapping(
     return {def_name, mapped_name};
 }
 
-void VCDDatabase::parse_vcd(std::istream &stream) {
-    // the code below is mostly designed by Teguh Hofstee (https://github.com/hofstee)
-    // heavily refactored to fit into hgdb's needs
+void VCDDatabase::parse_vcd(const std::string &filename) {
     std::stack<uint64_t> scope;
     std::unordered_map<uint64_t, std::string> scope_name;
     std::unordered_map<std::string, uint64_t> var_mapping;
@@ -244,167 +239,47 @@ void VCDDatabase::parse_vcd(std::istream &stream) {
     // begin transaction
     vcd_table_->begin_transaction();
 
-    static const std::unordered_map<std::basic_string_view<char>, sv> sv_map = {
-        {"$date", sv::Date},
-        {"$version", sv::Version},
-        {"$timescale", sv::Timescale},
-        {"$comment", sv::Comment},
-        {"$scope", sv::Scope},
-        {"$upscope", sv::Upscope},
-        {"$var", sv::Var},
-        {"$enddefinitions", sv::Enddefinitions}};
+    VCDParser parser(filename);
 
-    while (true) {
-        auto token = next_token(stream);
-        if (token.empty()) break;
-
-        if (sv_map.find(token) == sv_map.end()) {
-            printf("Unable to find token: %s\n", token.c_str());
+    // register relevant parts
+    parser.set_on_enter_scope([&, this](const VCDScopeDef &scope_def) {
+        std::optional<uint64_t> parent_id;
+        if (!scope.empty()) {
+            parent_id = scope.top();
         }
 
-        switch (sv_map.at(token)) {
-            case sv::Date:
-            case sv::Version:
-            case sv::Timescale:
-            case sv::Comment: {
-                while (next_token(stream) != "$end")
-                    ;
-                break;
-            }
-            case sv::Scope: {
-                parse_module_def(stream, scope, scope_name, module_id_count);
-                break;
-            }
-            case sv::Upscope: {
-                next_token(stream);
-                scope.pop();
-                break;
-            }
-            case sv::Var: {
-                parse_var_def(stream, scope, var_mapping, var_id_count);
-                break;
-            }
-            case sv::Enddefinitions: {
-                next_token(stream);
-                parse_vcd_values(stream, var_mapping);
-                break;
-            }
-            default: {
-            }
+        scope_name.emplace(module_id_count, scope_def.name);
+        scope.emplace(module_id_count);
+        store_module(scope_def.name, module_id_count);
+        if (parent_id) {
+            store_hierarchy(*parent_id, module_id_count);
         }
+        module_id_count++;
+    });
+
+    parser.set_exit_scope([&scope]() { scope.pop(); });
+
+    parser.set_on_var_def([&, this](const VCDVarDef &var) {
+        auto module_id = scope.top();
+        var_mapping.emplace(var.identifier, var_id_count);
+        store_signal(var.name, var_id_count, module_id, var.width);
+        var_id_count++;
+    });
+
+    parser.set_value_change([this, &var_mapping](const VCDValue &value) {
+        auto var_id = var_mapping.at(value.identifier);
+        store_value(var_id, value.time, value.value);
+    });
+
+    if (!parser.parse()) {
+        // something is wrong
+        vcd_table_->rollback();
+        std::cerr << parser.error_message() << std::endl;
+        return;
     }
 
     // end transaction
     vcd_table_->commit();
-}
-void VCDDatabase::parse_var_def(std::istream &stream, std::stack<uint64_t> &scope,
-                                std::unordered_map<std::string, uint64_t> &var_mapping,
-                                uint64_t &var_id_count) {
-    next_token(stream);                           // type
-    auto width = std::stoul(next_token(stream));  // width
-    auto ident = next_token(stream);              // identifier
-    auto name = next_token(stream);               // name
-
-    auto temp = next_token(stream);
-    if (temp != "$end") {
-        // slice
-        next_token(stream);
-    }
-    auto module_id = scope.top();
-    var_mapping.emplace(ident, var_id_count);
-    store_signal(name, var_id_count, module_id, width);
-    var_id_count++;
-}
-void VCDDatabase::parse_module_def(std::istream &stream, std::stack<uint64_t> &scope,
-                                   std::unordered_map<uint64_t, std::string> &scope_name,
-                                   uint64_t &module_id_count) {
-    next_token(stream);  // scope type
-    auto name = next_token(stream);
-    next_token(stream);
-    std::optional<uint64_t> parent_id;
-    if (!scope.empty()) {
-        parent_id = scope.top();
-    }
-
-    scope_name.emplace(module_id_count, name);
-    scope.emplace(module_id_count);
-    store_module(name, module_id_count);
-    if (parent_id) {
-        store_hierarchy(*parent_id, module_id_count);
-    }
-    module_id_count++;
-}
-
-void VCDDatabase::parse_vcd_values(std::istream &stream,
-                                   const std::unordered_map<std::string, uint64_t> &var_mapping) {
-    size_t timestamp = 0;
-
-    auto add_value = [this, &timestamp, &var_mapping](const std::string &identifier,
-                                                      const std::string &value) {
-        if (var_mapping.find(identifier) == var_mapping.end()) {
-            hgdb::log::log(hgdb::log::log_level::error, "Unable to find identifier " + identifier);
-            return;
-        }
-        auto var_id = var_mapping.at(identifier);
-        store_value(var_id, timestamp, value);
-    };
-
-    while (true) {
-        auto token = next_token(stream);
-        if (token.empty()) break;
-
-        if (token[0] == '#') {
-            timestamp = std::stoi(std::string(token.substr(1)));
-        } else if (std::string("01xz").find(token[0]) != std::string::npos) {
-            auto value = std::string(1, token[0]);
-            auto ident = std::string(token.substr(1));
-
-            add_value(ident, value);
-
-        } else if (std::string("b").find(token[0]) != std::string::npos) {
-            auto value = std::string(token.substr(1));
-            auto ident = std::string(next_token(stream));
-
-            add_value(ident, value);
-        } else if (token == "$dumpvars" || token == "$dumpall" || token == "$dumpon" ||
-                   token == "$dumpoff") {
-            while (true) {
-                token = next_token(stream);
-                if (token == "$end") {
-                    break;
-                } else if (std::string("01xz").find(token[0]) != std::string::npos) {
-                    auto value = std::string(1, token[0]);
-                    auto ident = std::string(token.substr(1));
-
-                    add_value(ident, value);
-                } else if (std::string("b").find(token[0]) != std::string::npos) {
-                    auto value = std::string(token.substr(1));
-                    auto ident = std::string(next_token(stream));
-
-                    add_value(ident, value);
-                }
-            }
-        }
-    }
-}
-
-std::string VCDDatabase::next_token(std::istream &stream) {
-    std::stringstream result;
-    uint64_t length = 0;
-    while (!stream.eof()) {
-        char c;
-        stream.get(c);
-        if (c == ' ' || c == '\t' || c == '\r' || c == '\n' || c == '\f') {
-            if (length == 0)
-                continue;
-            else
-                break;
-        }
-        result << c;
-        length++;
-    }
-
-    return result.str();
 }
 
 void VCDDatabase::store_signal(const std::string &name, uint64_t id, uint64_t parent_id,
