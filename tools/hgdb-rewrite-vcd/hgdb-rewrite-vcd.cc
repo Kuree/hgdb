@@ -50,7 +50,11 @@ public:
             [this](const std::string &action) { stream_ << action << std::endl; });
     }
 
-    bool convert() { return parser_.parse(); }
+    bool convert() {
+        if (parser_.has_error()) return false;
+        return parser_.parse();
+    }
+
     [[nodiscard]] const std::string &error_msg() const { return parser_.error_message(); }
 
 private:
@@ -104,7 +108,7 @@ private:
         vars_.emplace_back(std::move(var));
     }
 
-    void compute_design_root() {
+    void compute_design_root() {  // NOLINT
         // first we need to figure out the actual mapping between TB and the design top
         auto target_instance = find_longer_generator_instance();
         auto tokens = get_tokens(target_instance, ".");
@@ -360,5 +364,6 @@ int main(int argc, char *argv[]) {
 
     if (!rewriter.convert()) {
         std::cerr << "ERROR: " << rewriter.error_msg() << std::endl;
+        return EXIT_FAILURE;
     }
 }

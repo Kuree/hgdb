@@ -52,6 +52,7 @@ public:
     void set_on_dump_var_action(const std::function<void(const std::string &)> &func);
 
     const std::string &error_message() const { return error_message_; }
+    bool has_error() const { return has_error_; }
 
     ~VCDParser();
 
@@ -71,6 +72,7 @@ private:
     std::optional<std::function<void()>> on_definition_finished_;
 
     std::string error_message_;
+    bool has_error_ = false;
 
     // parser helpers
     void parse_meta(VCDMetaInfo::MetaType type);

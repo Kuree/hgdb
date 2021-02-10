@@ -1,6 +1,7 @@
 #include "vcd.hh"
 
 #include <sstream>
+#include <filesystem>
 
 namespace hgdb::vcd {
 
@@ -10,8 +11,9 @@ constexpr auto *end_str = "$end";
 
 VCDParser::VCDParser(const std::string &filename) : filename_(filename) {
     stream_ = std::ifstream(filename);
-    if (stream_.bad()) {
+    if (!std::filesystem::exists(filename)) {
         error_message_ = "Unable to open " + filename_;
+        has_error_ = true;
     }
 }
 
@@ -37,6 +39,7 @@ std::string next_token(std::istream &stream) {
 }
 
 bool VCDParser::parse() {  // NOLINT
+    if (has_error_) return false;
     // the code below is mostly designed by Teguh Hofstee (https://github.com/hofstee)
     // heavily refactored to fit into hgdb's needs
 
