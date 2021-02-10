@@ -49,6 +49,7 @@ public:
     void set_on_var_def(const std::function<void(const VCDVarDef &)> &func);
     void set_on_definition_finished(const std::function<void()> &func);
     void set_on_time_change(const std::function<void(uint64_t)> &func);
+    void set_on_dump_var_action(const std::function<void(const std::string &)> &func);
 
     const std::string &error_message() const { return error_message_; }
 
@@ -65,6 +66,7 @@ private:
     std::optional<std::function<void(const VCDValue &)>> on_value_change_;
     std::optional<std::function<void(const VCDVarDef &)>> on_var_def_;
     std::optional<std::function<void(uint64_t)>> on_time_change_;
+    std::optional<std::function<void(const std::string&)>> on_dump_var_action_;
     // parse stage notifier
     std::optional<std::function<void()>> on_definition_finished_;
 

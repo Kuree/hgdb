@@ -91,7 +91,7 @@ bool VCDParser::parse() {  // NOLINT
             case sv::Enddefinitions: {
                 token = next_token(stream_);
                 if (!check_end(token)) return false;
-                if (!on_definition_finished_) (*on_definition_finished_)();
+                if (on_definition_finished_) (*on_definition_finished_)();
                 if (!parse_vcd_values()) return false;
                 break;
             }
@@ -127,6 +127,10 @@ void VCDParser::set_on_definition_finished(const std::function<void()> &func) {
 
 void VCDParser::set_on_time_change(const std::function<void(uint64_t)> &func) {
     on_time_change_ = func;
+}
+
+void VCDParser::set_on_dump_var_action(const std::function<void(const std::string &)> &func) {
+    on_dump_var_action_ = func;
 }
 
 VCDParser::~VCDParser() {
@@ -190,7 +194,7 @@ bool VCDParser::parse_var_def() {
     return true;
 }
 
-bool VCDParser::parse_vcd_values() {
+bool VCDParser::parse_vcd_values() {  // NOLINT
     size_t timestamp = 0;
 
     auto add_value = [this, &timestamp](const std::string &identifier, const std::string &value,
@@ -221,6 +225,7 @@ bool VCDParser::parse_vcd_values() {
             add_value(ident, value);
         } else if (token == "$dumpvars" || token == "$dumpall" || token == "$dumpon" ||
                    token == "$dumpoff") {
+            if (on_dump_var_action_) (*on_dump_var_action_)(token);
             while (true) {
                 token = next_token(stream_);
                 if (token == "$end") {

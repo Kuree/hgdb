@@ -40,7 +40,14 @@ public:
         parser_.set_on_definition_finished([this]() {
             compute_design_root();
             remap_definition();
+            serialize(root_);
+
+            // the end of definition
+            stream_ << "$enddefinitions " << end_ << std::endl;
         });
+
+        parser_.set_on_dump_var_action(
+            [this](const std::string &action) { stream_ << action << std::endl; });
     }
 
     bool convert() { return parser_.parse(); }
