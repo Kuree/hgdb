@@ -590,6 +590,10 @@ bool RTLSimulatorClient::reverse_last_posedge(const std::vector<vpiHandle> &clk_
     return vpi_->vpi_rewind(&data);
 }
 
+void RTLSimulatorClient::set_vpi_allocator(const std::function<vpiHandle()> &func) {
+    vpi_allocator_ = func;
+}
+
 PLI_INT32 RTLSimulatorClient::get_vpi_type(vpiHandle handle) {
     std::lock_guard guard(cached_vpi_types_lock_);
     if (cached_vpi_types_.find(handle) != cached_vpi_types_.end()) [[likely]] {
@@ -637,7 +641,7 @@ vpiHandle RTLSimulatorClient::add_mock_slice_vpi(vpiHandle parent, const std::st
     auto slice_num = extract_slice(slice);
     if (!slice_num) return nullptr;
     auto [hi, lo] = *slice_num;
-    auto new_handle = ++mock_slice_handle_counter_;
+    auto new_handle = vpi_allocator_ ? (*vpi_allocator_)() : ++mock_slice_handle_counter_;
     mock_slice_handles_.emplace(new_handle, std::make_tuple(parent, hi, lo));
     return new_handle;
 }

@@ -47,7 +47,7 @@ public:
     // we assume the rtl name is already mapped
     void build_array_table(const std::vector<std::string> &array_names);
 
-protected:
+    // custom vpi allocator
     vpiHandle get_new_handle();
 
 private:

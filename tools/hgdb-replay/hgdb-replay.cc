@@ -58,8 +58,10 @@ int main(int argc, char *argv[]) {
     // we use hex string by default
     debugger->set_option("use_hex_str", true);
 
-    // set callback on client connected
+    // set the custom vpi allocator
+    debugger->rtl_client()->set_vpi_allocator([vpi_]() { return vpi_->get_new_handle(); });
 
+    // set callback on client connected
     debugger->set_on_client_connected([vpi_, debugger](hgdb::DebugDatabaseClient &table) {
         auto names = table.get_all_signal_names();
         std::vector<std::string> full_names;

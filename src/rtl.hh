@@ -118,6 +118,10 @@ public:
     // given a list of clock handles, reverse the execution
     [[maybe_unused]] bool reverse_last_posedge(const std::vector<vpiHandle> &clk_handles);
 
+    // if the client uses some custom vpiHandle allocator, they need to set this to avoid
+    // conflicts
+    void set_vpi_allocator(const std::function<vpiHandle()> &func);
+
     // destructor to avoid memory leak in the simulator
     ~RTLSimulatorClient();
 
@@ -150,6 +154,7 @@ private:
     // with slices
     std::unordered_map<vpiHandle, std::tuple<vpiHandle, uint32_t, uint32_t>> mock_slice_handles_;
     vpiHandle mock_slice_handle_counter_ = nullptr;
+    std::optional<std::function<vpiHandle()>> vpi_allocator_;
 
     // simulator info
     struct SimulatorInfo {

@@ -66,9 +66,11 @@ protected:
         // set time
         vpi_->set_time(time);
 
+        auto *raw_vpi = vpi_.get();
         std::unique_ptr<hgdb::AVPIProvider> vpi = std::move(vpi_);
         client = std::make_unique<hgdb::RTLSimulatorClient>(std::vector<std::string>{"parent_mod"},
                                                             std::move(vpi));
+        client->set_vpi_allocator([raw_vpi]() { return raw_vpi->get_new_handle(); });
     }
 
     MockVPIProvider &vpi() {
@@ -238,14 +240,19 @@ TEST_F(RTLModuleTest, test_array_access) {  // NOLINT
     EXPECT_EQ(value, 42);
 }
 
-TEST_F(RTLModuleTest, test_valid_signal) {    // NOLINT
+TEST_F(RTLModuleTest, test_valid_signal) {  // NOLINT
     EXPECT_TRUE(client->is_valid_signal("parent_mod.a"));
     EXPECT_FALSE(client->is_valid_signal("parent_mod"));
     EXPECT_FALSE(client->is_valid_signal("parent_mod.x"));
 }
 
-TEST_F(RTLModuleTest, test_hex_str) {   // NOLINT
+TEST_F(RTLModuleTest, test_hex_str) {  // NOLINT
     auto val = client->get_str_value("parent_mod.inst1.a");
     EXPECT_TRUE(val);
     EXPECT_EQ(val, "0x2A");
+}
+
+TEST_F(RTLModuleTest, test_slice) {  // NOLINT
+    auto handle = client->get_handle("parent_mod.a[3:0]");
+    EXPECT_NE(handle, nullptr);
 }
