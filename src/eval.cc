@@ -15,6 +15,7 @@ using tao::pegtl::eof;
 using tao::pegtl::if_must;
 using tao::pegtl::list;
 using tao::pegtl::one;
+using tao::pegtl::opt;
 using tao::pegtl::pad;
 using tao::pegtl::parse;
 using tao::pegtl::plus;
@@ -27,7 +28,7 @@ using tao::pegtl::two;
 struct integer : plus<digit> {};
 struct variable_head1 : plus<sor<alpha, one<'_'>, one<'$'>>> {};
 struct variable_head2 : seq<variable_head1, star<sor<variable_head1, digit>>> {};
-struct variable_tail : if_must<one<'['>, plus<digit>, one<']'>> {};
+struct variable_tail : if_must<one<'['>, plus<digit>, opt<one<':'>, plus<digit>>, one<']'>> {};
 struct variable2 : seq<variable_head2, star<variable_tail>> {};
 struct variable : list<variable2, one<'.'>> {};
 

@@ -2,7 +2,8 @@
 #include "gtest/gtest.h"
 
 TEST(expr, symbol_parse) {  // NOLINT
-    auto legal_symbols = {"a[0]", "a[0][0]", "__a", "$a", "a.b", "a0", "a[0].b", "a.b[0]", "a0$b0"};
+    auto legal_symbols = {"a[0]",   "a[0][0]", "__a",   "$a",     "a.b",   "a0",
+                          "a[0].b", "a.b[0]",  "a0$b0", "a[0:0]", "a[2:3]"};
     for (auto const *expr : legal_symbols) {
         hgdb::DebugExpression debug_expr(expr);
         EXPECT_TRUE(debug_expr.correct());
@@ -10,7 +11,7 @@ TEST(expr, symbol_parse) {  // NOLINT
         EXPECT_NE(debug_expr.find(expr), debug_expr.end());
     }
     // test illegal legal_symbols
-    auto illegal_symbols = {"0a", "="};
+    auto illegal_symbols = {"0a", "=", "a[:0]"};
     for (auto const *expr : illegal_symbols) {
         hgdb::DebugExpression debug_expr(expr);
         EXPECT_FALSE(debug_expr.correct());
