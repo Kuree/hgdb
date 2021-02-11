@@ -81,12 +81,19 @@ void set_value(p_vpi_value value_p, T value, std::string &str_buffer) {
             str_buffer = convert_str_value(value);
             value_p->value.str = const_cast<char *>(str_buffer.c_str());
             return;
+        } else if (value_p->format == vpiBinStrVal) {
+            // just use the raw string since it's already in binary format
+            str_buffer = value;
+            value_p->value.str = const_cast<char *>(str_buffer.c_str());
         }
     } else {
         if (value_p->format == vpiIntVal) {
             value_p->value.integer = value;
         } else if (value_p->format == vpiHexStrVal) {
             str_buffer = fmt::format("{0:X}", value);
+            value_p->value.str = const_cast<char *>(str_buffer.c_str());
+        } else if (value_p->format == vpiBinStrVal) {
+            str_buffer = fmt::format("{0:b}", value);
             value_p->value.str = const_cast<char *>(str_buffer.c_str());
         }
         return;

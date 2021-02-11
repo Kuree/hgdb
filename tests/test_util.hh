@@ -30,11 +30,14 @@ public:
             } else if (value_p->format == vpiHexStrVal) {
                 str_buffer_ = fmt::format("{0:X}", signal_values_.at(expr));
                 value_p->value.str = const_cast<char *>(str_buffer_.c_str());
+            } else if (value_p->format == vpiBinStrVal) {
+                str_buffer_ = fmt::format("{0:b}", signal_values_.at(expr));
+                value_p->value.str = const_cast<char *>(str_buffer_.c_str());
             }
         } else {
             if (value_p->format == vpiIntVal) {
                 value_p->value.integer = 0;
-            } else if (value_p->format == vpiHexStrVal) {
+            } else if (value_p->format == vpiHexStrVal || value_p->format == vpiBinStrVal) {
                 value_p->value.str = nullptr;
             }
         }
