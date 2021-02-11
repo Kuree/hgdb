@@ -165,10 +165,18 @@ vpiHandle RTLSimulatorClient::get_handle(const std::vector<std::string> &tokens)
         // notice that this will be called inside the normal get_handle
         // we we can assume that handle_map_ is well protected
         // strip off the trailing tokens until it becomes a variable
-        for (auto i = tokens.size() - 1; i > 0; i--) {
+
+        // also if the last token contains ':', we need to handle slice
+        // properly using the mock slice handle
+        bool has_slice = tokens.back().find_first_of(':') != std::string::npos;
+        auto array_size_end =
+            has_slice && tokens.size() > 1 ? tokens.size() - 2 : tokens.size() - 1;
+
+        vpiHandle ptr = nullptr;
+        for (auto i = array_size_end; i > 0; i--) {
             auto pos = tokens.begin() + i;
             auto handle_name = util::join(tokens.begin(), pos, ".");
-            vpiHandle ptr;
+
             if (handle_map_.find(handle_name) != handle_map_.end()) {
                 ptr = handle_map_.at(handle_name);
             } else {
@@ -184,11 +192,19 @@ vpiHandle RTLSimulatorClient::get_handle(const std::vector<std::string> &tokens)
                     // best effort
                     // notice that we only support array indexing, since struct
                     // access should handled by simulator properly
-                    return access_arrays(pos, tokens.end(), ptr);
+                    ptr = access_arrays(pos, tokens.end(), ptr);
                 }
             }
+            if (ptr) break;
         }
-        return nullptr;
+
+        if (has_slice && ptr) [[unlikely]] {
+            // need to create fake slices
+            // we optimize for cases where there is no slices
+            ptr = add_mock_slice_vpi(ptr, tokens.back());
+        }
+
+        return ptr;
     }
 }
 
@@ -217,6 +233,15 @@ vpiHandle RTLSimulatorClient::access_arrays(StringIterator begin, StringIterator
     return var_handle;
 }
 
+int64_t get_slice(int64_t value, const std::tuple<vpiHandle, uint32_t, uint32_t> &info) {
+    auto [parent, hi, lo] = info;
+    auto v = static_cast<uint64_t>(value);
+    auto hi_mask = std::numeric_limits<uint64_t>::max() << hi;
+    v = v & hi_mask;
+    v = v >> lo;
+    return static_cast<int64_t>(v);
+}
+
 std::optional<int64_t> RTLSimulatorClient::get_value(vpiHandle handle) {
     if (!handle) [[unlikely]] {
         return std::nullopt;
@@ -225,10 +250,23 @@ std::optional<int64_t> RTLSimulatorClient::get_value(vpiHandle handle) {
     if (type == vpiModule) [[unlikely]] {
         return std::nullopt;
     }
+    vpiHandle request_handle = handle;
+
+    // if we have mock vpi handle, use it
+    // optimize for unlikely
+    bool is_slice_handle = mock_slice_handles_.find(handle) != mock_slice_handles_.end();
+    if (is_slice_handle) [[unlikely]]
+        handle = std::get<0>(mock_slice_handles_.at(handle));
+
     s_vpi_value v;
     v.format = vpiIntVal;
     vpi_->vpi_get_value(handle, &v);
     int64_t result = v.value.integer;
+
+    if (is_slice_handle) [[unlikely]] {
+        result = get_slice(result, mock_slice_handles_.at(request_handle));
+    }
+
     return result;
 }
 
@@ -242,6 +280,20 @@ std::optional<std::string> RTLSimulatorClient::get_str_value(const std::string &
     return get_str_value(handle);
 }
 
+std::string get_slice(const std::string value,
+                      const std::tuple<vpiHandle, uint32_t, uint32_t> &info) {
+    auto [parent, hi, lo] = info;
+    // notice that it's in reverse order!
+    // hi and lo are inclusive as in RTL
+    if (lo > value.size() - 1) {
+        return "0";
+    }
+
+    auto pos = std::min<uint32_t>(value.size() - hi - 1, 0);
+    auto result = value.substr(pos, hi - lo + 1);
+    return result;
+}
+
 std::optional<std::string> RTLSimulatorClient::get_str_value(vpiHandle handle) {
     if (!handle) [[unlikely]] {
         return std::nullopt;
@@ -251,12 +303,20 @@ std::optional<std::string> RTLSimulatorClient::get_str_value(vpiHandle handle) {
         return std::nullopt;
     }
 
+    vpiHandle request_handle = handle;
+
+    bool is_slice = mock_slice_handles_.find(handle) != mock_slice_handles_.end();
+    handle = is_slice ? std::get<0>(mock_slice_handles_.at(handle)) : handle;
+
     s_vpi_value v;
-    v.format = vpiHexStrVal;
+    v.format = is_slice ? vpiBinStrVal : vpiHexStrVal;
     vpi_->vpi_get_value(handle, &v);
     std::string result = v.value.str;
+    if (is_slice) [[unlikely]] {
+        result = get_slice(result, mock_slice_handles_.at(request_handle));
+    }
     // we only add 0x to any signal that has more than 1bit
-    auto width = get_vpi_size(handle);
+    auto width = get_vpi_size(request_handle);
     if (width > 1) result = fmt::format("0x{0}", result);
     return result;
 }
@@ -557,6 +617,29 @@ RTLSimulatorClient::~RTLSimulatorClient() {
     for (auto const &iter : cb_handles_) {
         vpi_->vpi_release_handle(iter.second);
     }
+}
+
+std::optional<std::pair<uint32_t, uint32_t>> extract_slice(const std::string &token) {
+    auto nums = util::get_tokens(token, ":");
+    if (nums.size() != 2) return {};
+
+    uint32_t hi = 0, lo = std::numeric_limits<uint32_t>::max();
+    for (auto const &num : nums) {
+        auto n = util::stoul(num);
+        if (!n) return {};
+        if (*n < lo) lo = *n;
+        if (*n > hi) hi = *n;
+    }
+    return std::make_pair(hi, lo);
+}
+
+vpiHandle RTLSimulatorClient::add_mock_slice_vpi(vpiHandle parent, const std::string &slice) {
+    auto slice_num = extract_slice(slice);
+    if (!slice_num) return nullptr;
+    auto [hi, lo] = *slice_num;
+    auto new_handle = ++mock_slice_handle_counter_;
+    mock_slice_handles_.emplace(new_handle, std::make_tuple(parent, hi, lo));
+    return new_handle;
 }
 
 }  // namespace hgdb

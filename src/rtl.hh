@@ -145,6 +145,12 @@ private:
     // this is to avoid to loop through instances repeatedly
     std::unordered_map<std::string, ModuleSignals> module_signals_cache_;
 
+    // notice that to my best knowledge, there is no command VPI routine that shared by all
+    // simulator vendors that deal with slices. As a result, we need to fake vpiHandles to deal
+    // with slices
+    std::unordered_map<vpiHandle, std::tuple<vpiHandle, uint32_t, uint32_t>> mock_slice_handles_;
+    vpiHandle mock_slice_handle_counter_ = nullptr;
+
     // simulator info
     struct SimulatorInfo {
         std::string name;
@@ -176,6 +182,7 @@ private:
     std::optional<std::function<std::unordered_map<std::string, std::string>(
         const std::unordered_set<std::string> &)>>
         custom_hierarchy_func_;
+    vpiHandle add_mock_slice_vpi(vpiHandle parent, const std::string &slice);
 };
 }  // namespace hgdb
 
