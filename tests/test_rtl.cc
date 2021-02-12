@@ -253,6 +253,29 @@ TEST_F(RTLModuleTest, test_hex_str) {  // NOLINT
 }
 
 TEST_F(RTLModuleTest, test_slice) {  // NOLINT
-    auto handle = client->get_handle("parent_mod.a[3:0]");
+    auto &mock_vpi = vpi();
+    auto *handle = client->get_handle("parent_mod.a[7:4]");
     EXPECT_NE(handle, nullptr);
+    auto *parent_handle = client->get_handle("parent_mod.a");
+
+    for (auto v = 0u; v < 16; v++) {
+        mock_vpi.set_signal_value(parent_handle, v << 4);
+        auto value = client->get_value(handle);
+        EXPECT_TRUE(value);
+        EXPECT_EQ(*value, v);
+        auto str_value = client->get_str_value(handle);
+        EXPECT_TRUE(str_value);
+        EXPECT_EQ(*str_value, fmt::format("0x{0:X}", v));
+    }
+
+    // test with array slice as well
+    handle = client->get_handle("parent_mod.inst1.array[0][1][2:0]");
+    EXPECT_NE(handle, nullptr);
+    parent_handle = client->get_handle("parent_mod.inst1.array[0][1]");
+    for (auto v = 0u; v < 8; v++) {
+        mock_vpi.set_signal_value(parent_handle, v);
+        auto value = client->get_value(handle);
+        EXPECT_TRUE(value);
+        EXPECT_EQ(*value, v);
+    }
 }

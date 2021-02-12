@@ -169,33 +169,47 @@ vpiHandle RTLSimulatorClient::get_handle(const std::vector<std::string> &tokens)
         // also if the last token contains ':', we need to handle slice
         // properly using the mock slice handle
         bool has_slice = tokens.back().find_first_of(':') != std::string::npos;
-        auto array_size_end =
-            has_slice && tokens.size() > 1 ? tokens.size() - 2 : tokens.size() - 1;
-
         vpiHandle ptr = nullptr;
-        for (auto i = array_size_end; i > 0; i--) {
-            auto pos = tokens.begin() + i;
-            auto handle_name = util::join(tokens.begin(), pos, ".");
-
+        if (has_slice) [[unlikely]] {
+            // if it's a slice, last chance to get it right
+            auto handle_name = util::join(tokens.begin(), tokens.begin() + tokens.size() - 1, ".");
             if (handle_map_.find(handle_name) != handle_map_.end()) {
                 ptr = handle_map_.at(handle_name);
             } else {
-                auto *handle_name_ptr = const_cast<char *>(handle_name.c_str());
-                ptr = vpi_->vpi_handle_by_name(handle_name_ptr, nullptr);
+                ptr = vpi_->vpi_handle_by_name(const_cast<char *>(handle_name.c_str()), nullptr);
                 if (ptr) {
                     handle_map_.emplace(handle_name, ptr);
                 }
             }
-            if (ptr) {
-                auto type = get_vpi_type(ptr);
-                if (type != vpiModule) {
-                    // best effort
-                    // notice that we only support array indexing, since struct
-                    // access should handled by simulator properly
-                    ptr = access_arrays(pos, tokens.end(), ptr);
+        }
+
+        if (!ptr) [[likely]] {
+            auto array_size_end = has_slice ? tokens.size() - 2 : tokens.size() - 1;
+
+            for (auto i = array_size_end; i > 0; i--) {
+                auto pos = tokens.begin() + i;
+                auto handle_name = util::join(tokens.begin(), pos, ".");
+
+                if (handle_map_.find(handle_name) != handle_map_.end()) {
+                    ptr = handle_map_.at(handle_name);
+                } else {
+                    auto *handle_name_ptr = const_cast<char *>(handle_name.c_str());
+                    ptr = vpi_->vpi_handle_by_name(handle_name_ptr, nullptr);
+                    if (ptr) {
+                        handle_map_.emplace(handle_name, ptr);
+                    }
+                }
+                if (ptr) {
+                    auto type = get_vpi_type(ptr);
+                    if (type != vpiModule) {
+                        // best effort
+                        // notice that we only support array indexing, since struct
+                        // access should handled by simulator properly
+                        ptr = access_arrays(pos, tokens.begin() + array_size_end + 1, ptr);
+                        break;
+                    }
                 }
             }
-            if (ptr) break;
         }
 
         if (has_slice && ptr) [[unlikely]] {
@@ -234,9 +248,10 @@ vpiHandle RTLSimulatorClient::access_arrays(StringIterator begin, StringIterator
 }
 
 int64_t get_slice(int64_t value, const std::tuple<vpiHandle, uint32_t, uint32_t> &info) {
+    // notice that hi and lo are inclusive
     auto [parent, hi, lo] = info;
     auto v = static_cast<uint64_t>(value);
-    auto hi_mask = std::numeric_limits<uint64_t>::max() << hi;
+    auto hi_mask = ~(std::numeric_limits<uint64_t>::max() << (hi + 1));
     v = v & hi_mask;
     v = v >> lo;
     return static_cast<int64_t>(v);
@@ -290,8 +305,21 @@ std::string get_slice(const std::string value,
     }
 
     auto pos = std::min<uint32_t>(value.size() - hi - 1, 0);
-    auto result = value.substr(pos, hi - lo + 1);
-    return result;
+    auto lo_pos = std::max<uint32_t>(value.size() - lo - 1, 0);
+    auto result = value.substr(pos, lo_pos - pos + 1);
+    // now we have binary result, need to convert it into hex
+    // pad string to multiple of 4
+    while (result.size() % 4) {
+        result = fmt::format("0{0}", result);
+    }
+    std::string s;
+    for (auto i = 0u; i < result.size(); i += 4) {
+        auto str = result.substr(i, 4);
+        auto v = std::stoul(str, nullptr, 2);
+        s.append(fmt::format("{0:X}", v));
+    }
+
+    return s;
 }
 
 std::optional<std::string> RTLSimulatorClient::get_str_value(vpiHandle handle) {
