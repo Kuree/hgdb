@@ -173,14 +173,7 @@ vpiHandle RTLSimulatorClient::get_handle(const std::vector<std::string> &tokens)
         if (has_slice) [[unlikely]] {
             // if it's a slice, last chance to get it right
             auto handle_name = util::join(tokens.begin(), tokens.begin() + tokens.size() - 1, ".");
-            if (handle_map_.find(handle_name) != handle_map_.end()) {
-                ptr = handle_map_.at(handle_name);
-            } else {
-                ptr = vpi_->vpi_handle_by_name(const_cast<char *>(handle_name.c_str()), nullptr);
-                if (ptr) {
-                    handle_map_.emplace(handle_name, ptr);
-                }
-            }
+            ptr = get_handle_raw(handle_name);
         }
 
         if (!ptr) [[likely]] {
@@ -189,16 +182,8 @@ vpiHandle RTLSimulatorClient::get_handle(const std::vector<std::string> &tokens)
             for (auto i = array_size_end; i > 0; i--) {
                 auto pos = tokens.begin() + i;
                 auto handle_name = util::join(tokens.begin(), pos, ".");
+                ptr = get_handle_raw(handle_name);
 
-                if (handle_map_.find(handle_name) != handle_map_.end()) {
-                    ptr = handle_map_.at(handle_name);
-                } else {
-                    auto *handle_name_ptr = const_cast<char *>(handle_name.c_str());
-                    ptr = vpi_->vpi_handle_by_name(handle_name_ptr, nullptr);
-                    if (ptr) {
-                        handle_map_.emplace(handle_name, ptr);
-                    }
-                }
                 if (ptr) {
                     auto type = get_vpi_type(ptr);
                     if (type != vpiModule) {
@@ -295,7 +280,7 @@ std::optional<std::string> RTLSimulatorClient::get_str_value(const std::string &
     return get_str_value(handle);
 }
 
-std::string get_slice(const std::string value,
+std::string get_slice(const std::string &value,
                       const std::tuple<vpiHandle, uint32_t, uint32_t> &info) {
     auto [parent, hi, lo] = info;
     // notice that it's in reverse order!
@@ -669,9 +654,22 @@ vpiHandle RTLSimulatorClient::add_mock_slice_vpi(vpiHandle parent, const std::st
     auto slice_num = extract_slice(slice);
     if (!slice_num) return nullptr;
     auto [hi, lo] = *slice_num;
-    auto new_handle = vpi_allocator_ ? (*vpi_allocator_)() : ++mock_slice_handle_counter_;
+    auto *new_handle = vpi_allocator_ ? (*vpi_allocator_)() : ++mock_slice_handle_counter_;
     mock_slice_handles_.emplace(new_handle, std::make_tuple(parent, hi, lo));
     return new_handle;
+}
+
+vpiHandle RTLSimulatorClient::get_handle_raw(const std::string &handle_name) {
+    vpiHandle ptr = nullptr;
+    if (handle_map_.find(handle_name) != handle_map_.end()) {
+        ptr = handle_map_.at(handle_name);
+    } else {
+        ptr = vpi_->vpi_handle_by_name(const_cast<char *>(handle_name.c_str()), nullptr);
+        if (ptr) {
+            handle_map_.emplace(handle_name, ptr);
+        }
+    }
+    return ptr;
 }
 
 }  // namespace hgdb

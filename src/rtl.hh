@@ -188,6 +188,7 @@ private:
         const std::unordered_set<std::string> &)>>
         custom_hierarchy_func_;
     vpiHandle add_mock_slice_vpi(vpiHandle parent, const std::string &slice);
+    vpiHandle get_handle_raw(const std::string &handle_name);
 };
 }  // namespace hgdb
 
