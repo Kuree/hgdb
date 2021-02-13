@@ -74,7 +74,7 @@ private:
     std::map<std::string, int64_t> int_values_;
     std::map<std::string, std::string> string_values_;
 
-    template <typename T>
+    template <typename>
     inline static constexpr bool always_false_v = false;
 };
 
@@ -252,7 +252,7 @@ public:
 private:
     std::string scope_;
     std::string expression_;
-    bool is_context_;
+    bool is_context_ = false;
 };
 
 class OptionChangeRequest : public Request {
