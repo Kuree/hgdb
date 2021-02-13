@@ -377,6 +377,10 @@ vpiHandle ReplayVPIProvider::vpi_handle_by_index(vpiHandle object, PLI_INT32 ind
     return nullptr;
 }
 
+vpiHandle ReplayVPIProvider::vpi_put_value(vpiHandle, p_vpi_value, p_vpi_time, PLI_INT32) {
+    return nullptr;
+}
+
 bool ReplayVPIProvider::vpi_rewind(rewind_data *rewind_data) {
     if (on_rewound_) {
         return (*on_rewound_)(rewind_data);

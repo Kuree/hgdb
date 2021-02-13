@@ -195,6 +195,14 @@ public:
         }
     }
 
+    vpiHandle vpi_put_value(vpiHandle object, p_vpi_value value_p, p_vpi_time, PLI_INT32) override {
+        if (object && value_p->format == vpiIntVal) {
+            signal_values_[object] = value_p->value.integer;
+            return get_new_handle();
+        }
+        return nullptr;
+    }
+
     vpiHandle get_new_handle() {
         auto *p = vpi_handle_counter_++;
         return reinterpret_cast<uint32_t *>(p);

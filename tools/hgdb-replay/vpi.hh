@@ -25,6 +25,7 @@ public:
     PLI_INT32 vpi_release_handle(vpiHandle object) override;
     PLI_INT32 vpi_control(PLI_INT32 operation, ...) override;
     vpiHandle vpi_handle_by_index(vpiHandle object, PLI_INT32 index) override;
+    vpiHandle vpi_put_value(vpiHandle, p_vpi_value, p_vpi_time, PLI_INT32) override;
     bool vpi_rewind(rewind_data *rewind_data) override;
 
     // interaction with outside world

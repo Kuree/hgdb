@@ -80,6 +80,12 @@ PLI_INT32 VPIProvider::vpi_control(PLI_INT32 operation, ...) {
     return result;
 }
 
+vpiHandle VPIProvider::vpi_put_value(vpiHandle object, p_vpi_value value_p, p_vpi_time time_p,
+                                     PLI_INT32 flags) {
+    std::lock_guard guard(vpi_lock_);
+    return ::vpi_put_value(object, value_p, time_p, flags);
+}
+
 RTLSimulatorClient::RTLSimulatorClient(std::unique_ptr<AVPIProvider> vpi) {
     initialize_vpi(std::move(vpi));
 }

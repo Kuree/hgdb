@@ -31,6 +31,8 @@ public:
     virtual PLI_INT32 vpi_remove_cb(vpiHandle cb_obj) = 0;
     virtual PLI_INT32 vpi_release_handle(vpiHandle object) = 0;
     virtual PLI_INT32 vpi_control(PLI_INT32 operation, ...) = 0;
+    virtual vpiHandle vpi_put_value(vpiHandle object, p_vpi_value value_p, p_vpi_time time_p,
+                                    PLI_INT32 flags) = 0;
     virtual ~AVPIProvider() = default;
 
     // extended vpi controls, not present in the spec
@@ -58,6 +60,8 @@ class VPIProvider : public AVPIProvider {
     PLI_INT32 vpi_remove_cb(vpiHandle cb_obj) override;
     PLI_INT32 vpi_release_handle(vpiHandle object) override;
     PLI_INT32 vpi_control(PLI_INT32 operation, ...) override;
+    vpiHandle vpi_put_value(vpiHandle object, p_vpi_value value_p, p_vpi_time time_p,
+                            PLI_INT32 flags) override;
 
 private:
     std::mutex vpi_lock_;
