@@ -249,6 +249,11 @@ void Debugger::on_message(const std::string &message, uint64_t conn_id) {
             handle_monitor(*r, conn_id);
             break;
         }
+        case RequestType::set_value: {
+            auto *r = reinterpret_cast<SetValueRequest *>(req.get());
+            handle_set_value(*r, conn_id);
+            break;
+        }
         case RequestType::error: {
             auto *r = reinterpret_cast<ErrorRequest *>(req.get());
             handle_error(*r, conn_id);
@@ -689,6 +694,11 @@ void Debugger::handle_monitor(const MonitorRequest &req, uint64_t conn_id) {
         auto resp = GenericResponse(status_code::error, req, req.error_reason());
         send_message(resp.str(log_enabled_));
     }
+}
+
+void Debugger::handle_set_value(const SetValueRequest &req, uint64_t conn_id) {  // NOLINT
+    (void)(req);
+    (void)(conn_id);
 }
 
 void Debugger::handle_error(const ErrorRequest &req, uint64_t) {}

@@ -340,6 +340,29 @@ TEST(proto, request_parse_monitor) {  // NOLINT
     EXPECT_EQ(r->status(), hgdb::status_code::error);
 }
 
+TEST(proto, set_value_request) { // NOLINT
+    const auto *req_str = R"({
+    "request": true,
+    "type": "set-value",
+    "payload": {
+        "var_name": "a",
+        "value": 42,
+        "instance_id": 43,
+        "breakpoint_id": 44
+    }
+}
+)";
+    auto r = hgdb::Request::parse_request(req_str);
+    EXPECT_EQ(r->status(), hgdb::status_code::success);
+    auto *req = dynamic_cast<hgdb::SetValueRequest *>(r.get());
+    EXPECT_NE(req, nullptr);
+
+    EXPECT_EQ(req->var_name(), "a");
+    EXPECT_EQ(req->value(), 42);
+    EXPECT_EQ(*req->instance_scope(), 43);
+    EXPECT_EQ(*req->context_scope(), 44);
+}
+
 TEST(proto, generic_response) {  // NOLINT
     auto res =
         hgdb::GenericResponse(hgdb::status_code::error, hgdb::RequestType::error, "TEST_ERROR");

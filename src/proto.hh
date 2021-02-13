@@ -23,7 +23,8 @@ enum class RequestType {
     path_mapping,
     evaluation,
     option_change,
-    monitor
+    monitor,
+    set_value
 };
 
 [[nodiscard]] std::string to_string(RequestType type) noexcept;
@@ -295,6 +296,24 @@ private:
     std::optional<uint64_t> breakpoint_id_;
     std::optional<uint64_t> instance_id_;
     uint64_t track_id_ = 0;
+};
+
+class SetValueRequest : public Request {
+public:
+    SetValueRequest() = default;
+    void parse_payload(const std::string &payload) override;
+    [[nodiscard]] RequestType type() const override { return RequestType::set_value; }
+
+    [[nodiscard]] int64_t value() const { return value_; }
+    [[nodiscard]] const std::string &var_name() const { return var_name_; }
+    [[nodiscard]] const std::optional<uint64_t> &instance_scope() { return instance_scope_; }
+    [[nodiscard]] const std::optional<uint64_t> &context_scope() { return context_scope_; }
+
+private:
+    int64_t value_ = 0;
+    std::string var_name_;
+    std::optional<uint64_t> instance_scope_;
+    std::optional<uint64_t> context_scope_;
 };
 
 class DebuggerInformationResponse : public Response {

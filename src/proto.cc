@@ -98,6 +98,16 @@ namespace hgdb {
  * # notice that add request will get track_id in the generic response. clients are required
  * # to parse the value and use that as tracking id
  *
+ * Set Value request
+ * type: set-value
+ * payload:
+ *     var_name: [required] - string
+ *     value: [required] - int64_t
+ *     instance_id: [optional] - uint64_t
+ *     breakpoint_id: [optional] - uint64_t
+ * # instance_id and breakpoint_id can be used to scope var_name
+ *
+ *
  * Generic Response
  * type: generic
  * payload:
@@ -227,6 +237,8 @@ std::string to_string(RequestType type) noexcept {
             return "option-change";
         case RequestType::monitor:
             return "monitor";
+        case RequestType::set_value:
+            return "set-value";
     }
     return "error";
 }
@@ -553,6 +565,8 @@ std::unique_ptr<Request> Request::parse_request(const std::string &str) {
         result = std::make_unique<OptionChangeRequest>();
     } else if (type_str == "monitor") {
         result = std::make_unique<MonitorRequest>();
+    } else if (type_str == "set-value") {
+        result = std::make_unique<SetValueRequest>();
     } else {
         result = std::make_unique<ErrorRequest>("Unknown request");
     }
@@ -874,6 +888,27 @@ void MonitorRequest::parse_payload(const std::string &payload) {
         }
         track_id_ = *track_id;
     }
+}
+
+void SetValueRequest::parse_payload(const std::string &payload) {
+    using namespace rapidjson;
+    Document document;
+    document.Parse(payload.c_str());
+    if (!check_json(document, status_code_, error_reason_)) return;
+
+    auto variable_name = get_member<std::string>(document, "var_name", error_reason_);
+    auto v = get_member<int64_t>(document, "value", error_reason_);
+
+    if (!variable_name || !v) {
+        status_code_ = status_code::error;
+        return;
+    }
+    var_name_ = *variable_name;
+    value_ = *v;
+
+    // optional values
+    instance_scope_ = get_member<uint64_t>(document, "instance_id", error_reason_, false);
+    context_scope_ = get_member<uint64_t>(document, "breakpoint_id", error_reason_, false);
 }
 
 }  // namespace hgdb
