@@ -359,8 +359,8 @@ TEST(proto, set_value_request) { // NOLINT
 
     EXPECT_EQ(req->var_name(), "a");
     EXPECT_EQ(req->value(), 42);
-    EXPECT_EQ(*req->instance_scope(), 43);
-    EXPECT_EQ(*req->context_scope(), 44);
+    EXPECT_EQ(*req->instance_id(), 43);
+    EXPECT_EQ(*req->breakpoint_id(), 44);
 }
 
 TEST(proto, generic_response) {  // NOLINT

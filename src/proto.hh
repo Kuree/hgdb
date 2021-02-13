@@ -306,14 +306,14 @@ public:
 
     [[nodiscard]] int64_t value() const { return value_; }
     [[nodiscard]] const std::string &var_name() const { return var_name_; }
-    [[nodiscard]] const std::optional<uint64_t> &instance_scope() { return instance_scope_; }
-    [[nodiscard]] const std::optional<uint64_t> &context_scope() { return context_scope_; }
+    [[nodiscard]] const std::optional<uint64_t> &instance_id() const { return instance_id_; }
+    [[nodiscard]] const std::optional<uint64_t> &breakpoint_id() const { return breakpoint_id_; }
 
 private:
     int64_t value_ = 0;
     std::string var_name_;
-    std::optional<uint64_t> instance_scope_;
-    std::optional<uint64_t> context_scope_;
+    std::optional<uint64_t> instance_id_;
+    std::optional<uint64_t> breakpoint_id_;
 };
 
 class DebuggerInformationResponse : public Response {

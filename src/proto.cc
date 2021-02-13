@@ -907,8 +907,8 @@ void SetValueRequest::parse_payload(const std::string &payload) {
     value_ = *v;
 
     // optional values
-    instance_scope_ = get_member<uint64_t>(document, "instance_id", error_reason_, false);
-    context_scope_ = get_member<uint64_t>(document, "breakpoint_id", error_reason_, false);
+    instance_id_ = get_member<uint64_t>(document, "instance_id", error_reason_, false);
+    breakpoint_id_ = get_member<uint64_t>(document, "breakpoint_id", error_reason_, false);
 }
 
 }  // namespace hgdb

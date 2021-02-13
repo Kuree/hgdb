@@ -697,8 +697,43 @@ void Debugger::handle_monitor(const MonitorRequest &req, uint64_t conn_id) {
 }
 
 void Debugger::handle_set_value(const SetValueRequest &req, uint64_t conn_id) {  // NOLINT
-    (void)(req);
-    (void)(conn_id);
+    if (req.status() == status_code::success) {
+        std::optional<std::string> full_name;
+        // need to resolve the variable
+        if (req.breakpoint_id()) {
+            auto bp = *req.breakpoint_id();
+            full_name = db_->resolve_scoped_name_breakpoint(req.var_name(), bp);
+        } else if (req.instance_id()) {
+            // instance id
+            auto id = *req.instance_id();
+            full_name = db_->resolve_scoped_name_instance(req.var_name(), id);
+        } else {
+            // just the normal name
+            full_name = req.var_name();
+        }
+        if (!full_name || !rtl_->is_valid_signal(*full_name)) {
+            auto resp =
+                GenericResponse(status_code::error, req, "Unable to resolve " + req.var_name());
+            send_message(resp.str(log_enabled_), conn_id);
+            return;
+        }
+        // need to set the value
+        auto res = rtl_->set_value(*full_name, req.value());
+        if (res) {
+            auto resp = GenericResponse(status_code::success, req);
+            send_message(resp.str(log_enabled_), conn_id);
+            return;
+        } else {
+            auto resp =
+                GenericResponse(status_code::error, req, "Unable to set value for " + *full_name);
+            send_message(resp.str(log_enabled_), conn_id);
+            return;
+        }
+
+    } else {
+        auto resp = GenericResponse(status_code::error, req, req.error_reason());
+        send_message(resp.str(log_enabled_), conn_id);
+    }
 }
 
 void Debugger::handle_error(const ErrorRequest &req, uint64_t) {}
