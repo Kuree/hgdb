@@ -86,6 +86,8 @@ public:
     std::optional<int64_t> get_value(vpiHandle handle);
     std::optional<std::string> get_str_value(const std::string &name);
     std::optional<std::string> get_str_value(vpiHandle handle);
+    bool set_value(vpiHandle handle, int64_t value);
+    bool set_value(const std::string &name, int64_t value);
     using ModuleSignals = std::unordered_map<std::string, vpiHandle>;
     ModuleSignals get_module_signals(const std::string &name);
     [[nodiscard]] std::string get_full_name(const std::string &name) const;

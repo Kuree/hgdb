@@ -279,3 +279,11 @@ TEST_F(RTLModuleTest, test_slice) {  // NOLINT
         EXPECT_EQ(*value, v);
     }
 }
+
+TEST_F(RTLModuleTest, test_set_value) { // NOLINT
+    auto constexpr value = 42;
+    auto res = client->set_value("parent_mod.a", value);
+    EXPECT_TRUE(res);
+    auto v = client->get_value("parent_mod.a");
+    EXPECT_EQ(*v, value);
+}

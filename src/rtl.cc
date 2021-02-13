@@ -340,6 +340,21 @@ std::optional<std::string> RTLSimulatorClient::get_str_value(vpiHandle handle) {
     return result;
 }
 
+bool RTLSimulatorClient::set_value(vpiHandle handle, int64_t value) {
+    if (!handle) return false;
+    s_vpi_value vpi_value;
+    vpi_value.value.integer = value;
+    vpi_value.format = vpiIntVal;
+
+    handle = vpi_->vpi_put_value(handle, &vpi_value, nullptr, vpiNoDelay);
+    return handle != nullptr;
+}
+
+bool RTLSimulatorClient::set_value(const std::string &name, int64_t value) {
+    auto *handle = get_handle(name);
+    return set_value(handle, value);
+}
+
 std::unordered_map<std::string, vpiHandle> RTLSimulatorClient::get_module_signals(
     const std::string &name) {
     if (module_signals_cache_.find(name) != module_signals_cache_.end()) {
