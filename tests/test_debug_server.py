@@ -351,10 +351,27 @@ def test_step_back(start_server, find_free_port):
     kill_server(s)
 
 
+def test_set_value(start_server, find_free_port):
+    s, uri = setup_server(start_server, find_free_port)
+
+    async def test_logic():
+        async with hgdb.HGDBClient(uri, None) as client:
+            await client.connect()
+            await client.set_value("mod.a", 42)
+            await client.set_breakpoint("/tmp/test.py", 1)
+            await client.continue_()
+            bp = await client.recv()
+            assert bp["payload"]["instances"][0]["local"]["a"] == "42"
+            assert bp["payload"]["instances"][1]["local"]["a"] == "1"
+
+    asyncio.get_event_loop().run_until_complete(test_logic())
+    kill_server(s)
+
+
 if __name__ == "__main__":
     import sys
 
     sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
     from conftest import start_server_fn, find_free_port_fn
 
-    test_step_back(start_server_fn, find_free_port_fn)
+    test_set_value(start_server_fn, find_free_port_fn)
