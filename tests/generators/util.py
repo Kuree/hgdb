@@ -170,7 +170,7 @@ class CadenceTester(Tester):
         # bind vpi entry point as well
         lib_name = os.path.basename(self.lib_path)
         entry_point = lib_name + ":initialize_hgdb_runtime"
-        return ["-sv_lib", self.lib_path, "-access", "+r", "-loadvpi", entry_point]
+        return ["-sv_lib", self.lib_path, "-access", "+rw", "-loadvpi", entry_point]
 
 
 class XceliumTester(CadenceTester):

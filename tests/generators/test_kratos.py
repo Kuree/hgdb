@@ -6,8 +6,8 @@ import tempfile
 import hgdb
 import pytest
 
-from util import (VerilatorTester, get_vector_file, get_uri, get_root, get_line_num,
-                  XceliumTester, VCSTester)
+from .util import (VerilatorTester, get_vector_file, get_uri, get_root, get_line_num,
+                   XceliumTester, VCSTester)
 
 py_filename = os.path.abspath(__file__)
 
@@ -173,4 +173,5 @@ def test_kratos_multiple_instances(find_free_port, simulator):
 if __name__ == "__main__":
     sys.path.append(get_root())
     from conftest import find_free_port_fn
+
     test_kratos_single_instance(find_free_port_fn, VerilatorTester)
