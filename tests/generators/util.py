@@ -124,7 +124,7 @@ class VerilatorTester(Tester):
     def run(self, blocking=True, **kwargs):
         # compile it first
         verilator = shutil.which("verilator")
-        args = [verilator, "--cc", "--exe", "--vpi"]
+        args = [verilator, "--cc", "--exe", "--vpi", "--public-flat-rw"]
         args += self.files + [os.path.abspath(self.lib_path), "-Wno-fatal"]
         subprocess.check_call(args, cwd=self.cwd)
         env = self._set_lib_env()
