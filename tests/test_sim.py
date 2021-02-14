@@ -4,6 +4,7 @@ import tempfile
 import os
 import asyncio
 import sys
+import pytest
 
 
 def set_value_db(db_filename):
@@ -16,8 +17,9 @@ def set_value_db(db_filename):
 
 
 def test_set_value(find_free_port):
+    if not XceliumTester.available():
+        pytest.skip("Xcelium not available")
     with tempfile.TemporaryDirectory() as temp:
-        temp = "temp"
         db_filename = os.path.abspath(os.path.join(temp, "debug.db"))
         set_value_db(db_filename)
         sv_filename = os.path.join(os.path.dirname(os.path.abspath(__file__)), "vectors", "test_set_value.sv")
@@ -32,16 +34,15 @@ def test_set_value(find_free_port):
                 # set breakpoint
                 await client.set_breakpoint("test.sv", 1)
                 await client.continue_()
-                bp = await client.recv()
-                print(bp)
+                await client.recv()
                 # change value
                 await client.set_value("data", 8, instance_id=0)
                 await client.continue_()
                 bp = await client.recv()
-                print(bp)
+                assert bp["payload"]["instances"][0]["generator"]["out"] == "8"
                 await client.continue_()
                 bp = await client.recv()
-                print(bp)
+                assert bp["payload"]["instances"][0]["generator"]["out"] == "0"
 
             asyncio.get_event_loop().run_until_complete(test_logic())
 

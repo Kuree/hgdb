@@ -38,7 +38,6 @@ initial begin
     for (int i = 0; i < 16; i++) begin
         in = i;
         @(posedge clk);
-        $display("out: %0d", out);
     end
     $finish;
 end
