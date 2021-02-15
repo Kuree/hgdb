@@ -91,9 +91,9 @@ namespace hgdb {
  * payload:
  *      action: [required] - [enum] string (add/remove)
  *      monitor_type: [required for add] - [enum] string
- *      scoped_name_: [required for add] - string
- *      instance_id: [required for add, cannot co-exists with breakpoint_id] - uint64_t
- *      breakpoint_id: [required for add, cannot co-exists with instance_id] - uint64_t
+ *      var_name: [required for add] - string
+ *      instance_id: [optional] - uint64_t
+ *      breakpoint_id: [optional] - uint64_t
  *      track_id: [required for remove] - uint64_t
  * # notice that add request will get track_id in the generic response. clients are required
  * # to parse the value and use that as tracking id
@@ -857,28 +857,15 @@ void MonitorRequest::parse_payload(const std::string &payload) {
             return;
         }
 
-        auto name_ = get_member<std::string>(document, "scoped_name", error_reason_);
+        auto name_ = get_member<std::string>(document, "var_name", error_reason_);
         if (!name_) {
             status_code_ = status_code::error;
             return;
         }
-        scoped_name_ = *name_;
+        var_name_ = *name_;
 
-        auto instance_id = get_member<uint64_t>(document, "instance_id", error_reason_, false);
-        auto breakpoint_id = get_member<uint64_t>(document, "breakpoint_id", error_reason_, false);
-
-        if (instance_id && breakpoint_id) {
-            error_reason_ =
-                "Instance id and breakpoint id cannot be in the request at the same time";
-            status_code_ = status_code::error;
-            return;
-        } else if (!instance_id && !breakpoint_id) {
-            error_reason_ = "Either Instance id or breakpoint id has to be in the request";
-            status_code_ = status_code::error;
-        }
-
-        instance_id_ = instance_id;
-        breakpoint_id_ = breakpoint_id;
+        instance_id_ = get_member<uint64_t>(document, "instance_id", error_reason_, false);
+        breakpoint_id_ = get_member<uint64_t>(document, "breakpoint_id", error_reason_, false);
     } else {
         // only track_id is required
         auto track_id = get_member<uint64_t>(document, "track_id", error_reason_);

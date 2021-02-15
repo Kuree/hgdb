@@ -124,10 +124,10 @@ class HGDBClient:
         assert (instance_id is not None) or (breakpoint_id is None)
         assert monitor_type in {"breakpoint", "clock_edge"}
         payload = {"request": True, "type": "monitor",
-                   "payload": {"action_type": "add", "monitor_type": monitor_type, "scoped_name": name}}
+                   "payload": {"action_type": "add", "monitor_type": monitor_type, "var_name": name}}
         if breakpoint_id is not None:
             payload["payload"]["breakpoint_id"] = breakpoint_id
-        else:
+        if instance_id is not None:
             payload["payload"]["instance_id"] = instance_id
         resp = await self.__send_check(payload, True)
         return resp["payload"]["track_id"]

@@ -284,7 +284,7 @@ public:
 
     [[nodiscard]] ActionType action_type() const { return action_type_; }
     [[nodiscard]] MonitorType monitor_type() const { return monitor_type_; }
-    [[nodiscard]] const std::string &scope_name() const { return scoped_name_; }
+    [[nodiscard]] const std::string &var_name() const { return var_name_; }
     [[nodiscard]] const std::optional<uint64_t> &breakpoint_id() const { return breakpoint_id_; };
     [[nodiscard]] const std::optional<uint64_t> &instance_id() const { return instance_id_; }
     [[nodiscard]] uint64_t track_id() const { return track_id_; }
@@ -292,7 +292,7 @@ public:
 private:
     ActionType action_type_ = ActionType::add;
     MonitorType monitor_type_ = MonitorType::breakpoint;
-    std::string scoped_name_;
+    std::string var_name_;
     std::optional<uint64_t> breakpoint_id_;
     std::optional<uint64_t> instance_id_;
     uint64_t track_id_ = 0;

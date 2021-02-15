@@ -341,6 +341,29 @@ std::string Debugger::get_var_value(const Variable &var) {
     return value_str;
 }
 
+std::optional<std::string> Debugger::resolve_var_name(
+    const std::string &var_name, const std::optional<uint64_t> &instance_id,
+    const std::optional<uint64_t> &breakpoint_id) {
+    std::optional<std::string> full_name;
+    if (breakpoint_id) {
+        auto bp = *breakpoint_id;
+        full_name = db_->resolve_scoped_name_breakpoint(var_name, bp);
+    } else if (instance_id) {
+        // instance id
+        auto id = *instance_id;
+        full_name = db_->resolve_scoped_name_instance(var_name, id);
+    } else {
+        // just the normal name
+        full_name = var_name;
+    }
+
+    if (full_name && !rtl_->is_valid_signal(*full_name)) {
+        full_name = std::nullopt;
+    }
+
+    return full_name;
+}
+
 PLI_INT32 eval_hgdb_on_clk(p_cb_data cb_data) {
     // only if the clock value is high
     auto value = cb_data->value->value.integer;
@@ -653,19 +676,11 @@ void Debugger::handle_monitor(const MonitorRequest &req, uint64_t conn_id) {
     if (req.status() == status_code::success) {
         // depends on whether it is an add or remove action
         if (req.action_type() == MonitorRequest::ActionType::add) {
-            std::optional<std::string> full_name;
-            if (req.breakpoint_id()) {
-                auto bp = *req.breakpoint_id();
-                full_name = db_->resolve_scoped_name_breakpoint(req.scope_name(), bp);
-
-            } else {
-                // instance id
-                auto id = *req.instance_id();
-                full_name = db_->resolve_scoped_name_instance(req.scope_name(), id);
-            }
-            if (!full_name || !rtl_->is_valid_signal(*full_name)) {
-                auto resp = GenericResponse(status_code::error, req,
-                                            "Unable to resolve " + req.scope_name());
+            std::optional<std::string> full_name =
+                resolve_var_name(req.var_name(), req.instance_id(), req.breakpoint_id());
+            if (!full_name) {
+                auto resp =
+                    GenericResponse(status_code::error, req, "Unable to resolve " + req.var_name());
                 send_message(resp.str(log_enabled_));
                 return;
             }
@@ -698,20 +713,9 @@ void Debugger::handle_monitor(const MonitorRequest &req, uint64_t conn_id) {
 
 void Debugger::handle_set_value(const SetValueRequest &req, uint64_t conn_id) {  // NOLINT
     if (req.status() == status_code::success) {
-        std::optional<std::string> full_name;
-        // need to resolve the variable
-        if (req.breakpoint_id()) {
-            auto bp = *req.breakpoint_id();
-            full_name = db_->resolve_scoped_name_breakpoint(req.var_name(), bp);
-        } else if (req.instance_id()) {
-            // instance id
-            auto id = *req.instance_id();
-            full_name = db_->resolve_scoped_name_instance(req.var_name(), id);
-        } else {
-            // just the normal name
-            full_name = req.var_name();
-        }
-        if (!full_name || !rtl_->is_valid_signal(*full_name)) {
+        std::optional<std::string> full_name =
+            resolve_var_name(req.var_name(), req.instance_id(), req.breakpoint_id());
+        if (!full_name) {
             auto resp =
                 GenericResponse(status_code::error, req, "Unable to resolve " + req.var_name());
             send_message(resp.str(log_enabled_), conn_id);
