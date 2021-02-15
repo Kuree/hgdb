@@ -592,12 +592,12 @@ void Debugger::handle_path_mapping(const PathMappingRequest &req, uint64_t conn_
     }
 }
 
-void Debugger::handle_evaluation(const EvaluationRequest &req, uint64_t) {
+void Debugger::handle_evaluation(const EvaluationRequest &req, uint64_t conn_id) {
     std::string error_reason = req.error_reason();
     // linux kernel style error handling
-    auto send_error = [&error_reason, this, &req]() {
+    auto send_error = [&error_reason, this, &req, conn_id]() {
         auto resp = GenericResponse(status_code::error, req, error_reason);
-        send_message(resp.str(log_enabled_));
+        send_message(resp.str(log_enabled_), conn_id);
     };
 
     if (db_ && req.status() == status_code::success) [[likely]] {
@@ -642,14 +642,14 @@ void Debugger::handle_evaluation(const EvaluationRequest &req, uint64_t) {
         auto value = expr.eval(values);
         EvaluationResponse eval_resp(scope, std::to_string(value));
         req.set_token(eval_resp);
-        send_message(eval_resp.str(log_enabled_));
+        send_message(eval_resp.str(log_enabled_), conn_id);
         return;
     } else {
         send_error();
     }
 }
 
-void Debugger::handle_option_change(const OptionChangeRequest &req, uint64_t) {
+void Debugger::handle_option_change(const OptionChangeRequest &req, uint64_t conn_id) {
     if (req.status() == status_code::success) {
         auto options = get_options();
         for (auto const &[name, value] : req.bool_values()) {
@@ -665,10 +665,10 @@ void Debugger::handle_option_change(const OptionChangeRequest &req, uint64_t) {
             options.set_option(name, value);
         }
         auto resp = GenericResponse(status_code::success, req);
-        send_message(resp.str(log_enabled_));
+        send_message(resp.str(log_enabled_), conn_id);
     } else {
         auto resp = GenericResponse(status_code::error, req, req.error_reason());
-        send_message(resp.str(log_enabled_));
+        send_message(resp.str(log_enabled_), conn_id);
     }
 }
 
@@ -681,7 +681,7 @@ void Debugger::handle_monitor(const MonitorRequest &req, uint64_t conn_id) {
             if (!full_name) {
                 auto resp =
                     GenericResponse(status_code::error, req, "Unable to resolve " + req.var_name());
-                send_message(resp.str(log_enabled_));
+                send_message(resp.str(log_enabled_), conn_id);
                 return;
             }
             auto track_id = monitor_.add_monitor_variable(*full_name, req.monitor_type());
@@ -691,7 +691,7 @@ void Debugger::handle_monitor(const MonitorRequest &req, uint64_t conn_id) {
             auto topic = get_monitor_topic(track_id);
             this->server_->add_to_topic(topic, conn_id);
 
-            send_message(resp.str(log_enabled_));
+            send_message(resp.str(log_enabled_), conn_id);
         } else {
             // it's remove
             auto track_id = req.track_id();
@@ -702,12 +702,12 @@ void Debugger::handle_monitor(const MonitorRequest &req, uint64_t conn_id) {
             this->server_->remove_from_topic(topic, conn_id);
 
             auto resp = GenericResponse(status_code::success, req);
-            send_message(resp.str(log_enabled_));
+            send_message(resp.str(log_enabled_), conn_id);
         }
 
     } else {
         auto resp = GenericResponse(status_code::error, req, req.error_reason());
-        send_message(resp.str(log_enabled_));
+        send_message(resp.str(log_enabled_), conn_id);
     }
 }
 
