@@ -21,6 +21,7 @@ PLAT_TO_CMAKE = {
     "win-arm64": "ARM64",
 }
 
+binary_names = ["hgdb-replay", "hgdb-rewrite-vcd"]
 
 # A CMakeExtension needs a sourcedir instead of a file list.
 # The name must be the _single_ output extension from the CMake build.
@@ -83,15 +84,14 @@ class CMakeBuild(build_ext):
         subprocess.check_call(
             ["cmake", ext.sourcedir] + cmake_args, cwd=self.build_temp
         )
-        make_targets = ["hgdb", "hgdb-replay-bin"]
+        make_targets = ["hgdb", "hgdb-replay-bin", "hgdb-rewrite-vcd"]
         subprocess.check_call(
             ["cmake", "--build", ".", "--target"] + make_targets + build_args, cwd=self.build_temp
         )
         # need to copy binaries over
-        binaries = [os.path.join(self.build_temp, "tools", "hgdb-replay", "hgdb-replay")]
+        binaries = [os.path.join(self.build_temp, "tools", name, name) for name in binary_names]
         for binary in binaries:
             assert os.path.isfile(binary)
-            print(extdir, binary)
             shutil.copy(binary, extdir)
 
 
@@ -110,7 +110,7 @@ setup(
     long_description_content_type='text/x-rst',
     url="https://github.com/Kuree/hgdb",
     python_requires=">=3.6",
-    scripts=["scripts/tools/hgdb-replay"],
+    scripts=[os.path.join("scripts", "tools", name) for name in binary_names],
     ext_modules=[CMakeExtension("libhgdb")],
     cmdclass={"build_ext": CMakeBuild},
 )
