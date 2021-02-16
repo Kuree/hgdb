@@ -715,6 +715,8 @@ void Debugger::handle_monitor(const MonitorRequest &req, uint64_t conn_id) {
 }
 
 void Debugger::handle_set_value(const SetValueRequest &req, uint64_t conn_id) {  // NOLINT
+    log_info(fmt::format("handle set value {0} = {1}", req.var_name(), req.value()));
+
     if (req.status() == status_code::success) {
         std::optional<std::string> full_name =
             resolve_var_name(req.var_name(), req.instance_id(), req.breakpoint_id());
@@ -727,6 +729,11 @@ void Debugger::handle_set_value(const SetValueRequest &req, uint64_t conn_id) { 
         // need to set the value
         auto res = rtl_->set_value(*full_name, req.value());
         if (res) {
+            // we need to remove cached value
+            std::lock_guard guard(cached_signal_values_lock_);
+            if (cached_signal_values_.find(*full_name) != cached_signal_values_.end()) {
+                cached_signal_values_.erase(*full_name);
+            }
             auto resp = GenericResponse(status_code::success, req);
             send_message(resp.str(log_enabled_), conn_id);
             return;
