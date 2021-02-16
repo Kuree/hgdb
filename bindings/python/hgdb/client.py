@@ -101,6 +101,9 @@ class HGDBClient:
     async def step_back(self):
         await self.__send_command("step_back")
 
+    async def reverse_continue(self):
+        await self.__send_command("reverse_continue")
+
     async def __send_command(self, command_str):
         payload = {"request": True, "type": "command", "payload": {"command": command_str}}
         await self.send(payload)
