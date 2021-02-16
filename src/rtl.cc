@@ -219,7 +219,7 @@ bool RTLSimulatorClient::is_valid_signal(const std::string &name) {
     if (!handle) return false;
     auto type = get_vpi_type(handle);
     return type == vpiReg || type == vpiNet || type == vpiRegArray || type == vpiRegBit ||
-           type == vpiNetArray || type == vpiNetBit;
+           type == vpiNetArray || type == vpiNetBit || type == vpiPartSelect;
 }
 
 vpiHandle RTLSimulatorClient::access_arrays(StringIterator begin, StringIterator end,
@@ -346,8 +346,16 @@ bool RTLSimulatorClient::set_value(vpiHandle handle, int64_t value) {
     vpi_value.value.integer = value;
     vpi_value.format = vpiIntVal;
 
-    handle = vpi_->vpi_put_value(handle, &vpi_value, nullptr, vpiNoDelay);
-    return handle != nullptr;
+    // If the flags argument also has the bit mask vpiReturnEvent,
+    // vpi_put_value() shall return a handle of type vpiSchedEvent to the newly scheduled event,
+    // provided there is some form of a delay and an event is scheduled.
+    // If the bit mask is not used, or if no delay is used, or if an event is not scheduled,
+    // the return value shall be NULL.
+    // based on the spec, there is no way to tell whether it is successful or not
+    // as a result, we use a magic number to indicate if it fails for emulator
+    auto *res = vpi_->vpi_put_value(handle, &vpi_value, nullptr, vpiNoDelay);
+    auto *invalid_value = (vpiHandle)std::numeric_limits<uint64_t>::max();
+    return invalid_value != res;
 }
 
 bool RTLSimulatorClient::set_value(const std::string &name, int64_t value) {

@@ -378,7 +378,8 @@ vpiHandle ReplayVPIProvider::vpi_handle_by_index(vpiHandle object, PLI_INT32 ind
 }
 
 vpiHandle ReplayVPIProvider::vpi_put_value(vpiHandle, p_vpi_value, p_vpi_time, PLI_INT32) {
-    return nullptr;
+    auto *invalid_value = (vpiHandle)(std::numeric_limits<uint64_t>::max());
+    return invalid_value;
 }
 
 bool ReplayVPIProvider::vpi_rewind(rewind_data *rewind_data) {
