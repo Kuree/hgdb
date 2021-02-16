@@ -501,7 +501,10 @@ void Debugger::handle_bp_location(const BreakPointLocationRequest &req, uint64_t
     send_message(resp.str(log_enabled_), conn_id);
 }
 
-void Debugger::handle_command(const CommandRequest &req, uint64_t) {
+void Debugger::handle_command(const CommandRequest &req, uint64_t conn_id) {
+    // we don't care about the response. this is just set to conform the req-resp style
+    auto resp = GenericResponse(status_code::success, req);
+    send_message(resp.str(log_enabled_), conn_id);
     switch (req.command_type()) {
         case CommandRequest::CommandType::continue_: {
             log_info("handle_command: continue_");

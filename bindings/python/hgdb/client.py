@@ -11,6 +11,7 @@ class HGDBClient:
         self.uri = uri
         self.ws = None
         self.src_mapping = src_mapping
+        self.token_count = 0
 
     async def recv(self, timeout=0):
         try:
@@ -22,6 +23,10 @@ class HGDBClient:
             return None
 
     async def send(self, payload):
+        # we set our own token
+        if "token" not in payload:
+            payload["token"] = "python-{0}".format(self.token_count)
+            self.token_count += 1
         await self.ws.send(json.dumps(payload))
 
     async def connect(self):
@@ -107,6 +112,8 @@ class HGDBClient:
     async def __send_command(self, command_str):
         payload = {"request": True, "type": "command", "payload": {"command": command_str}}
         await self.send(payload)
+        # no care about the response
+        await self.recv()
 
     async def get_info(self, status_command="breakpoints", check_error=True):
         payload = {"request": True, "type": "debugger-info", "payload": {"command": status_command}}
