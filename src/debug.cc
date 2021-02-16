@@ -509,7 +509,10 @@ void Debugger::handle_command(const CommandRequest &req, uint64_t conn_id) {
     // sleep for 1ms to prevent reordering of ack packet
     // this is used for client that expects response ordering
     using namespace std::chrono_literals;
+    // notice that the following line will trigger a crash in the latest clang-tidy
+#ifndef __clang__
     std::this_thread::sleep_for(5ms);
+#endif
 
     switch (req.command_type()) {
         case CommandRequest::CommandType::continue_: {
