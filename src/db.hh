@@ -58,6 +58,8 @@ private:
     bool is_closed_ = false;
     std::mutex db_lock_;
 
+    bool use_base_name_ = false;
+
     // we compute the execution order as we initialize the client, which is defined by the scope
     std::vector<uint32_t> execution_bp_orders_;
 
@@ -71,6 +73,8 @@ private:
     static std::string resolve(const std::string &src_path, const std::string &dst_path,
                                const std::string &target);
     [[nodiscard]] bool has_src_remap() const { return !src_remap_.empty(); }
+
+    void compute_use_base_name();
 };
 }  // namespace hgdb
 

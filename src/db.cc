@@ -1,6 +1,7 @@
 #include "db.hh"
 
 #include <filesystem>
+#include <unordered_set>
 
 #include "fmt/format.h"
 #include "util.hh"
@@ -12,6 +13,7 @@ DebugDatabaseClient::DebugDatabaseClient(const std::string &filename) {
     db_->sync_schema();
 
     setup_execution_order();
+    compute_use_base_name();
 }
 
 DebugDatabaseClient::DebugDatabaseClient(std::unique_ptr<DebugDatabase> db) {
@@ -19,6 +21,7 @@ DebugDatabaseClient::DebugDatabaseClient(std::unique_ptr<DebugDatabase> db) {
     db_ = std::move(db);
     // NOLINTNEXTLINE
     setup_execution_order();
+    compute_use_base_name();
 }
 
 void DebugDatabaseClient::close() {
@@ -33,6 +36,10 @@ std::vector<BreakPoint> DebugDatabaseClient::get_breakpoints(const std::string &
     using namespace sqlite_orm;
     std::vector<BreakPoint> bps;
     auto resolved_filename = resolve_filename_to_db(filename);
+    if (use_base_name_) {
+        std::filesystem::path p = resolved_filename;
+        resolved_filename = p.filename();
+    }
     std::lock_guard guard(db_lock_);
     if (col_num != 0) {
         bps = db_->get_all<BreakPoint>(where(c(&BreakPoint::filename) == resolved_filename &&
@@ -58,8 +65,13 @@ std::vector<BreakPoint> DebugDatabaseClient::get_breakpoints(const std::string &
 }
 
 std::vector<BreakPoint> DebugDatabaseClient::get_breakpoints(const std::string &filename) {
+    auto resolved_filename = resolve_filename_to_db(filename);
+    if (use_base_name_) {
+        std::filesystem::path p = resolved_filename;
+        resolved_filename = p.filename();
+    }
     // NOLINTNEXTLINE
-    return get_breakpoints(filename, 0, 0);
+    return get_breakpoints(resolved_filename, 0, 0);
 }
 
 std::optional<BreakPoint> DebugDatabaseClient::get_breakpoint(uint32_t breakpoint_id) {
@@ -352,6 +364,22 @@ std::string DebugDatabaseClient::resolve(const std::string &src_path, const std:
         return r;
     } else {
         return target;
+    }
+}
+
+void DebugDatabaseClient::compute_use_base_name() {
+    // if there is any filename that's not absolute path
+    // we have to report that
+    using namespace sqlite_orm;
+    auto filenames = db_->select(&BreakPoint::filename);
+    std::unordered_set<std::string> filename_set;
+    for (auto const &filename : filenames) filename_set.emplace(filename);
+    for (auto const &filename : filename_set) {
+        std::filesystem::path p = filename;
+        if (!p.is_absolute()) {
+            use_base_name_ = true;
+            break;
+        }
     }
 }
 
