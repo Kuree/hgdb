@@ -103,10 +103,13 @@ setup(
     long_description_content_type='text/x-rst',
     packages=['hgdb'],
     url="https://github.com/Kuree/hgdb",
+    scripts=["scripts/toml2hgdb"],
     python_requires=">=3.6",
     ext_modules=[CMakeExtension("_hgdb")],
     cmdclass={"build_ext": CMakeBuild},
     extras_require={
         "client": ["websockets"],
+        "toml": ["toml"],
+        "all": ["websockets", "toml"]
     }
 )

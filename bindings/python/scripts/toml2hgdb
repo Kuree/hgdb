@@ -1,0 +1,90 @@
+#!/usr/bin/env python
+
+import toml
+import sys
+import os
+from hgdb import DebugSymbolTable
+
+
+def parse_toml(toml_filename):
+    data = toml.load(toml_filename)
+    return data
+
+
+def get_tops(design):
+    # compute top modules
+    child_def = set()
+    defs = set()
+    for design_name, detail in design.items():
+        defs.add(design_name)
+        if "instances" in detail:
+            for d in detail["instances"].values():
+                child_def.add(d)
+    result = []
+    for d in defs:
+        if d not in child_def:
+            result.append(d)
+    # ordering guarantee
+    result.sort()
+    return result
+
+
+var_count = 0
+breakpoint_id_count = 0
+instance_count = 0
+
+
+def write_out_design(def_name, inst_name, design_data, db):
+    # this is recursive. no compression so far
+    global var_count, breakpoint_id_count, instance_count
+    db.store_instance(instance_count, inst_name)
+    def_data = design_data[def_name]
+    # create variable
+    if "variables" in def_data:
+        for var_name, rtl_name in def_data["variables"].items():
+            db.store_variable(var_count, rtl_name)
+            db.store_generator_variable(var_name, instance_id=instance_count, variable_id=var_count)
+            var_count += 1
+    if "breakpoints" in def_data:
+        for entry in def_data["breakpoints"]:
+            if len(entry) == 2:
+                fn_info, cond = entry
+                trigger = ""
+            else:
+                assert len(entry) == 3
+                fn_info, cond, trigger = entry
+            fn_info = fn_info.replace(":", " ")
+            info = fn_info.split(" ")
+            if len(info) == 2:
+                fn, ln = info
+                cn = 0
+            else:
+                assert len(info) == 3
+                fn, ln, cn = info
+            db.store_breakpoint(breakpoint_id_count, instance_count, fn, int(ln), column_num=int(cn),
+                                condition=cond, trigger=trigger)
+            breakpoint_id_count += 1
+    instance_count += 1
+
+    # recursively call the child instances
+    if "instances" in def_data:
+        for i_name, d_name in def_data["instances"].items():
+            write_out_design(d_name, f"{inst_name}.{i_name}", design_data, db)
+
+
+def main():
+    if len(sys.argv) != 3:
+        print("Usage:", sys.argv[0], "input.toml", "output.db", file=sys.stderr)
+        exit(1)
+    toml_filename = sys.argv[1]
+    assert os.path.exists(toml_filename), f"#{toml_filename} does not exist!"
+    db_filename = sys.argv[2]
+    design = parse_toml(toml_filename)
+    tops = get_tops(design)
+    db = DebugSymbolTable(db_filename)
+    for top_name in tops:
+        write_out_design(top_name, top_name, design, db)
+
+
+if __name__ == "__main__":
+    main()

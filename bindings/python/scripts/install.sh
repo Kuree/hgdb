@@ -9,6 +9,6 @@ CWD="$(pwd)"
 cd "${ROOT}"
 python setup.py bdist_wheel
 WHEEL_NAME="$(ls dist/*.whl)"
-pip install "${WHEEL_NAME}"[client]
+pip install "${WHEEL_NAME}"[all]
 
 cd "${CWD}"
