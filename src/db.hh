@@ -52,6 +52,7 @@ public:
     [[nodiscard]] const std::vector<uint32_t> &execution_bp_orders() const {
         return execution_bp_orders_;
     }
+    [[nodiscard]] bool use_base_name() const { return use_base_name_; }
 
 private:
     std::unique_ptr<DebugDatabase> db_;

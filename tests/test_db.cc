@@ -224,3 +224,14 @@ TEST_F(DBTest, get_all_signal_name) {   // NOLINT
     EXPECT_EQ(names[0], "a.b");
     EXPECT_EQ(names[1], "a.c");
 }
+
+TEST_F(DBTest, basename) {  // NOLINT
+    hgdb::store_instance(*db, 0, "mod");
+    hgdb::store_breakpoint(*db, 0, 0, "test.sv", 1);
+
+    hgdb::DebugDatabaseClient client(std::move(db));
+    EXPECT_TRUE(client.use_base_name());
+
+    auto bps = client.get_breakpoints("/test/test.sv");
+    EXPECT_EQ(bps.size(), 1);
+}
