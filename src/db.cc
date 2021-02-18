@@ -66,7 +66,7 @@ std::vector<BreakPoint> DebugDatabaseClient::get_breakpoints(const std::string &
 
 std::vector<BreakPoint> DebugDatabaseClient::get_breakpoints(const std::string &filename) {
     auto resolved_filename = resolve_filename_to_db(filename);
-    if (use_base_name_) {
+    if (use_base_name_) {  // NOLINT
         std::filesystem::path p = resolved_filename;
         resolved_filename = p.filename();
     }
