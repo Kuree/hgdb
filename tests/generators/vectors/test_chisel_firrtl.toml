@@ -1,0 +1,75 @@
+[ImplicitStateVendingMachine]
+breakpoints = [
+["SimpleVendingMachine.scala 19:9", "1"],
+["ImplicitStateVendingMachine.scala 15:21", "1"],
+["ImplicitStateVendingMachine.scala 16:11", "!reset && doDispense"],
+["ImplicitStateVendingMachine.scala 18:11", "!reset && !doDispense"],
+["ImplicitStateVendingMachine.scala 21:20", "1"],
+["ImplicitStateVendingMachine.scala 21:31", "io_nickel"],
+["ImplicitStateVendingMachine.scala 22:18", "1"],
+["ImplicitStateVendingMachine.scala 22:29", "io_dime"],
+["ImplicitStateVendingMachine.scala 24:15", "1"],
+]
+[ImplicitStateVendingMachine.instances]
+[ImplicitStateVendingMachine.variables]
+"clock" = "clock"
+"reset" = "reset"
+"io.nickel" = "io_nickel"
+"io.dime" = "io_dime"
+"io.dispense" = "io_dispense"
+"value" = "value"
+"incValue" = "incValue"
+[SimpleVendingMachineTester]
+breakpoints = [
+["Counter.scala 118:17", "1"],
+["Counter.scala 76:15", "!reset && "],
+["Counter.scala 86:20", ""],
+["Counter.scala 86:28", "!reset && wrap_wrap"],
+["Counter.scala 118:24", ""],
+["SimpleVendingMachine.scala 76:15", "1"],
+["SimpleVendingMachine.scala 76:21", "done"],
+["SimpleVendingMachine.scala 76:29", "done"],
+["SimpleVendingMachine.scala 78:29", "1"],
+["SimpleVendingMachine.scala 78:29", "1"],
+["SimpleVendingMachine.scala 78:29", "1"],
+["SimpleVendingMachine.scala 78:29", "1"],
+["SimpleVendingMachine.scala 78:29", "1"],
+["SimpleVendingMachine.scala 78:29", "1"],
+["SimpleVendingMachine.scala 78:29", "1"],
+["SimpleVendingMachine.scala 78:29", "1"],
+["SimpleVendingMachine.scala 78:29", "1"],
+["SimpleVendingMachine.scala 78:29", "1"],
+["SimpleVendingMachine.scala 79:29", "1"],
+["SimpleVendingMachine.scala 79:29", "1"],
+["SimpleVendingMachine.scala 79:29", "1"],
+["SimpleVendingMachine.scala 79:29", "1"],
+["SimpleVendingMachine.scala 79:29", "1"],
+["SimpleVendingMachine.scala 79:29", "1"],
+["SimpleVendingMachine.scala 79:29", "1"],
+["SimpleVendingMachine.scala 79:29", "1"],
+["SimpleVendingMachine.scala 79:29", "1"],
+["SimpleVendingMachine.scala 79:29", "1"],
+["SimpleVendingMachine.scala 80:29", "1"],
+["SimpleVendingMachine.scala 80:29", "1"],
+["SimpleVendingMachine.scala 80:29", "1"],
+["SimpleVendingMachine.scala 80:29", "1"],
+["SimpleVendingMachine.scala 80:29", "1"],
+["SimpleVendingMachine.scala 80:29", "1"],
+["SimpleVendingMachine.scala 80:29", "1"],
+["SimpleVendingMachine.scala 80:29", "1"],
+["SimpleVendingMachine.scala 80:29", "1"],
+["SimpleVendingMachine.scala 80:29", "1"],
+["SimpleVendingMachine.scala 82:17", "1"],
+["SimpleVendingMachine.scala 83:15", "1"],
+["SimpleVendingMachine.scala 84:9", "1"],
+]
+[SimpleVendingMachineTester.instances]
+dut = "ImplicitStateVendingMachine"
+[SimpleVendingMachineTester.variables]
+"clock" = "clock"
+"reset" = "reset"
+"cycle" = "cycle"
+"done" = "done"
+"nickelInputs" = "nickelInputs"
+"dimeInputs" = "dimeInputs"
+"expected" = "expected"

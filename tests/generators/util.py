@@ -162,7 +162,7 @@ class CadenceTester(Tester):
         # run it
         args = [self.toolchain] + list(self.files) + self.__get_flag()
         # first elaborate, which is blocking
-        self._run(args + ["-elaborate"] + self._get_flags(kwargs), self.cwd, env, True)
+        self._run(args + ["-elaborate", "-sv"] + self._get_flags(kwargs), self.cwd, env, True)
         # then use the latest snapshot
         self._run([self.toolchain, "-R"] + self._get_flags(kwargs), self.cwd, env, blocking)
 
