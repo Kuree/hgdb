@@ -7,20 +7,20 @@ import pytest
 import hgdb
 import asyncio
 
-from .util import (get_vector_file, get_root, XceliumTester, get_uri)
+from .util import (get_vector_file, get_root, XceliumTester, get_uri, VerilatorTester)
 
 
-def test_chisel_firrtl(find_free_port):
-    simulator = XceliumTester
+@pytest.mark.parametrize("simulator", [VerilatorTester, XceliumTester])
+def test_chisel_firrtl(find_free_port, simulator):
     if not simulator.available():
         pytest.skip(simulator.__name__ + " not available")
     with tempfile.TemporaryDirectory() as temp:
         temp = os.path.abspath(temp)
-
         db_filename = os.path.join(temp, "debug.db")
         fir_filename = get_vector_file("test_chisel_firrtl.toml")
         rtl_filename = get_vector_file("test_chisel_firrtl.v")
-        tb_filename = get_vector_file("test_chisel_firrtl_tb.sv")
+        ext = ".sv" if simulator == XceliumTester else ".cc"
+        tb_filename = get_vector_file("test_chisel_firrtl_tb" + ext)
         assert os.path.isfile(fir_filename)
         # convert it to the hgdb
         subprocess.check_call(["toml2hgdb", fir_filename, db_filename])
@@ -53,4 +53,4 @@ if __name__ == "__main__":
     sys.path.append(get_root())
     from conftest import find_free_port_fn
 
-    test_chisel_firrtl(find_free_port_fn)
+    test_chisel_firrtl(find_free_port_fn, VerilatorTester)
