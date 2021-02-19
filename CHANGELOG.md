@@ -4,7 +4,33 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.0.2] - 2021-02--3
+## [0.0.3] - 2021-02-18
+### Added
+- Automatically reuse built VCD table if exists
+- Added extended vpi call to reverse time
+- Add reverse continue
+- Add more scheduling unit tests
+- Add hex string to vpi and runtime
+- Add support for arrays in vcd-replay
+- Add vcd-rewrite-vcd to rewrite VCD based on symbol tables
+- Add support for slice values
+- Add support for set values
+- Add tool to convert toml-based symbol table description to native hgdb database
+
+### Changed
+- Improve hierarchy mapping strategy (#15)
+- Decouple debugger and scheduler logic
+- VCD parser is refactor to be callback based
+- Monitor proto is changed
+- Add basename filename query support to relax absolute name requirement
+
+### Fixed
+- Fix hgdb-replay script args passing
+- Fix scope resolution with VPI
+- Fixed a bug where VCD will have extra records if a value changed multiple times in the same timestamp
+- Variable minor bug fixes in vcd-replay
+
+## [0.0.2] - 2021-02-03
 ### Added
 - Add monitor request
 - Add cb lock to prevent race condition
