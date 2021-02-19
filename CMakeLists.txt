@@ -19,6 +19,9 @@ add_subdirectory(extern/PEGTL)
 set(THREADS_PREFER_PTHREAD_FLAG ON)
 find_package(Threads REQUIRED)
 
+# set checker flags
+include(cmake/SetFlags.cmake)
+
 # main library
 add_subdirectory(src)
 # tools
