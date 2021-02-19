@@ -4,7 +4,7 @@ This documentation describes the design philosophy and usages of hgdb.
 ## What does hgdb do
 There are several core features offered by hgdb:
 - An infrastructure to create and query symbol table.
-- A source level debugger server.
+- A source-level debugger server.
 - A framework to interact with RTL simulators.
 
 hgdb cannot do:
@@ -49,7 +49,7 @@ assign b = b_2;
 assign a = b_2;
 ```
 
-In the original source code, we have three lines that can be used to insert breakpoint: line 3, 4, and 6. Notice that after SSA transformation, we have generated additional signals which may be confusing to the designers. We will cover this later!
+In the original source code, we have three lines that can be used to insert breakpoint: line 3, 4, 6 and 7. Notice that after SSA transformation, we have generated additional signals which may be confusing to the designers. We will cover this later!
 
 For line 3, since there is no conditional statement before the line, if we insert a breakpoint there, we would expect this to be triggered every clock cycle. In such case, we say the enable condition is `"1"`, since the expression always evaluates to `true`. In SSA analysis, the dominance frontier set for line 3 is empty. Similar rule applies to line 7 as well.
 
@@ -161,17 +161,17 @@ Below shows the schema of the database. It's highly recommended to read the [sch
 ```SQL
 CREATE TABLE IF NOT EXISTS 'annotation' ( 'name' TEXT NOT NULL , 'value' TEXT NOT NULL );
 
-CREATE TABLE IF NOT EXISTS 'generator_variable' ( 'name' TEXT NOT NULL , 'instance_id' INTEGER , 'variable_id' INTEGER , FOREIGN KEY( instance_id ) REFERENCES instance ( id ) , FOREIGN KEY( variable_id ) REFERENCES variable ( id ) );
+CREATE TABLE IF NOT EXISTS 'generator_variable' ( 'name' TEXT NOT NULL , 'instance_id' INTEGER , 'variable_id' INTEGER , 'annotation' TEXT NOT NULL , FOREIGN KEY('instance_id') REFERENCES 'instance'('id'), FOREIGN KEY('variable_id') REFERENCES 'variable'('id'));
 
-CREATE TABLE IF NOT EXISTS 'context_variable' ( 'name' TEXT NOT NULL , 'breakpoint_id' INTEGER , 'variable_id' INTEGER , FOREIGN KEY( breakpoint_id ) REFERENCES breakpoint ( id ) , FOREIGN KEY( variable_id ) REFERENCES variable ( id ) );
+CREATE TABLE IF NOT EXISTS 'context_variable' ( 'name' TEXT NOT NULL , 'breakpoint_id' INTEGER , 'variable_id' INTEGER , FOREIGN KEY('breakpoint_id') REFERENCES 'breakpoint'('id'), FOREIGN KEY('variable_id') REFERENCES 'variable'('id'));
 
 CREATE TABLE IF NOT EXISTS 'variable' ( 'id' INTEGER PRIMARY KEY NOT NULL , 'value' TEXT NOT NULL , 'is_rtl' INTEGER NOT NULL );
 
 CREATE TABLE IF NOT EXISTS 'scope' ( 'scope' INTEGER PRIMARY KEY NOT NULL , 'breakpoints' TEXT NOT NULL );
 
-CREATE TABLE IF NOT EXISTS 'instance' ( 'id' INTEGER PRIMARY KEY NOT NULL , 'name' TEXT NOT NULL );
+CREATE TABLE IF NOT EXISTS 'instance' ( 'id' INTEGER PRIMARY KEY NOT NULL , 'name' TEXT NOT NULL , 'annotation' TEXT NOT NULL );
 
-CREATE TABLE IF NOT EXISTS 'breakpoint' ( 'id' INTEGER PRIMARY KEY NOT NULL , 'instance_id' INTEGER , 'filename' TEXT NOT NULL , 'line_num' INTEGER NOT NULL , 'column_num' INTEGER NOT NULL , 'condition' TEXT NOT NULL , 'trigger' TEXT NOT NULL , FOREIGN KEY( instance_id ) REFERENCES instance ( id ) );
+CREATE TABLE IF NOT EXISTS 'breakpoint' ( 'id' INTEGER PRIMARY KEY NOT NULL , 'instance_id' INTEGER , 'filename' TEXT NOT NULL , 'line_num' INTEGER NOT NULL , 'column_num' INTEGER NOT NULL , 'condition' TEXT NOT NULL , 'trigger' TEXT NOT NULL , FOREIGN KEY('instance_id') REFERENCES 'instance'('id'));
 ```
 
 hgdb offers C++ and Python bindings to interact with the symbol table. Feel free to contribute to bindings from other languages.
