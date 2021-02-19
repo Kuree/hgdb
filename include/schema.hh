@@ -21,7 +21,8 @@ struct BreakPoint {
     std::unique_ptr<uint32_t> instance_id;
     /**
      * Path for the source file that generates the corresponding line in
-     * absolute path.
+     * either absolute path or its basename. The table can only use one of
+     * them; mixing absolute path and basename will cause error during runtime.
      */
     std::string filename;
     /**
@@ -188,7 +189,7 @@ struct ContextVariable {
      *    ...
      *    array_1.1.0
      *    ...
-     * 2. array_1[0][[0]
+     * 2. array_1[0][[0]  <- preferred
      *    array_1[0][1]
      *    ...
      *    array_1[1[0]
