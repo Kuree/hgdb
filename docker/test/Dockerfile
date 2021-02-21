@@ -8,7 +8,7 @@ ENV DEBIAN_FRONTEND=noninteractive
 
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
-        build-essential cmake verilator \
+        build-essential cmake verilator iverilog \
         python3 python3-dev python3-pip python3-wheel && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
