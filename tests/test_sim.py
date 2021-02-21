@@ -54,21 +54,35 @@ def test_set_value(find_free_port, simulator):
             asyncio.get_event_loop().run_until_complete(test_logic())
 
 
+def create_iverilog_db(db_filename):
+    db = DebugSymbolTable(db_filename)
+    db.store_instance(0, "top")
+    for i, name in enumerate(["clk", "rst", "a", "b"]):
+        db.store_variable(i, name)
+        db.store_generator_variable(name, 0, i)
+    db.store_breakpoint(0, 0, "test_iverilog.v", 1, condition="rst == 0")
+
+
 def test_iverilog(find_free_port):
     simulator = IVerilogTester
     if not simulator.available():
         pytest.skip("{0} not available".format(simulator.__name__))
     with tempfile.TemporaryDirectory() as temp:
         tb_filename = os.path.join(vector_dir, "test_iverilog.v")
+        db_filename = os.path.join(temp, "debug.db")
+        create_iverilog_db(db_filename)
         with simulator(tb_filename, cwd=temp) as tester:
             port = find_free_port()
             tester.run(blocking=False, DEBUG_PORT=port, DEBUG_LOG=True)
             uri = get_uri(port)
 
             async def test_logic():
-                client = HGDBClient(uri, None)
+                client = HGDBClient(uri, db_filename)
                 await client.connect()
+                await client.set_breakpoint("test_iverilog.v", 1)
                 await client.continue_()
+                bp = await client.recv()
+                assert bp["payload"]["time"] == 10
 
             asyncio.get_event_loop().run_until_complete(test_logic())
 
