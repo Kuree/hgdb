@@ -1,5 +1,5 @@
 from hgdb import HGDBClient, DebugSymbolTable
-from generators.util import XceliumTester, VerilatorTester, get_uri, get_root
+from generators.util import XceliumTester, VerilatorTester, IVerilogTester, get_uri, get_root
 import tempfile
 import os
 import asyncio
@@ -54,8 +54,27 @@ def test_set_value(find_free_port, simulator):
             asyncio.get_event_loop().run_until_complete(test_logic())
 
 
+def test_iverilog(find_free_port):
+    simulator = IVerilogTester
+    if not simulator.available():
+        pytest.skip("{0} not available".format(simulator.__name__))
+    with tempfile.TemporaryDirectory() as temp:
+        tb_filename = os.path.join(vector_dir, "test_iverilog.v")
+        with simulator(tb_filename, cwd=temp) as tester:
+            port = find_free_port()
+            tester.run(blocking=False, DEBUG_PORT=port, DEBUG_LOG=True)
+            uri = get_uri(port)
+
+            async def test_logic():
+                client = HGDBClient(uri, None)
+                await client.connect()
+                await client.continue_()
+
+            asyncio.get_event_loop().run_until_complete(test_logic())
+
+
 if __name__ == "__main__":
     sys.path.append(get_root())
     from conftest import find_free_port_fn
 
-    test_set_value(find_free_port_fn, VerilatorTester)
+    test_iverilog(find_free_port_fn)

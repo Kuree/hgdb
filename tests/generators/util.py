@@ -202,3 +202,27 @@ class VCSTester(Tester):
     @staticmethod
     def available():
         return shutil.which("vcs") is not None
+
+
+class IVerilogTester(Tester):
+    def __init__(self, *files: str, cwd=None, clean_up_run=False):
+        super().__init__(*files, cwd=cwd, clean_up_run=clean_up_run)
+
+    def run(self, blocking=True, **kwargs):
+        env = self._set_lib_env()
+        output = "test"
+        args = ["iverilog"] + list(self.files) + ["-o", output]
+        # compile
+        self._run(args, self.cwd, env, True)
+        # run the design
+        flags = self._get_flags(kwargs)
+        name = os.path.splitext(os.path.basename(self.lib_path))[0]
+        # symbolic link it to .vpi
+        new_vpi = os.path.join(self.cwd, name + ".vpi")
+        if not os.path.exists(new_vpi):
+            shutil.copyfile(self.lib_path, new_vpi)
+        self._run(["vvp", "-M.", "-m" + name, "./" + output] + flags, self.cwd, env, blocking)
+
+    @staticmethod
+    def available():
+        return shutil.which("iverilog") is not None
