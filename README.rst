@@ -25,6 +25,7 @@ compliant simulator.
 
 - Cadence® Xcelium™
 - Synopsys VCS®
+- Mentor Questa®
 - Verilator
 - Icarus Verilog
 
@@ -92,6 +93,12 @@ how to use it with different simulators.
   .. code-block:: bash
 
     vcs [commands] -debug_acc+all -load libhgdb.so
+
+- Mentor Questa®
+
+  .. code-block:: bash
+
+    vsim [flags] -pli libghdb.so
 
 - Verilator
 
