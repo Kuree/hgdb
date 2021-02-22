@@ -1,5 +1,5 @@
 from hgdb import HGDBClient, DebugSymbolTable
-from generators.util import XceliumTester, VerilatorTester, IVerilogTester, get_uri, get_root
+from generators.util import XceliumTester, VerilatorTester, IVerilogTester, QuestaTester, get_uri, get_root
 import tempfile
 import os
 import asyncio
@@ -63,15 +63,15 @@ def create_iverilog_db(db_filename):
     db.store_breakpoint(0, 0, "test_iverilog.v", 1, condition="rst == 0")
 
 
-def test_iverilog(find_free_port):
-    simulator = IVerilogTester
+@pytest.mark.parametrize("simulator", [IVerilogTester, QuestaTester])
+def test_other_simulators(find_free_port, simulator):
     if not simulator.available():
         pytest.skip("{0} not available".format(simulator.__name__))
     with tempfile.TemporaryDirectory() as temp:
         tb_filename = os.path.join(vector_dir, "test_iverilog.v")
         db_filename = os.path.join(temp, "debug.db")
         create_iverilog_db(db_filename)
-        with simulator(tb_filename, cwd=temp) as tester:
+        with simulator(tb_filename, cwd=temp, top_name="top") as tester:
             port = find_free_port()
             tester.run(blocking=False, DEBUG_PORT=port, DEBUG_LOG=True)
             uri = get_uri(port)
@@ -83,6 +83,7 @@ def test_iverilog(find_free_port):
                 await client.continue_()
                 bp = await client.recv()
                 assert bp["payload"]["time"] == 10
+                assert bp["payload"]["instances"][0]["generator"]["clk"] == "1"
 
             asyncio.get_event_loop().run_until_complete(test_logic())
 
@@ -91,4 +92,4 @@ if __name__ == "__main__":
     sys.path.append(get_root())
     from conftest import find_free_port_fn
 
-    test_iverilog(find_free_port_fn)
+    test_other_simulators(find_free_port_fn, QuestaTester)

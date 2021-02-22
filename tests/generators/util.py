@@ -33,7 +33,7 @@ def get_line_num(filename, target_line):
 class Tester:
     __test__ = False
 
-    def __init__(self, *files: str, cwd=None, clean_up_run=False):
+    def __init__(self, *files: str, cwd=None, clean_up_run=False, top_name=""):
         self.lib_path = self.__find_libhgdb()
         self.files = []
         for file in files:
@@ -41,6 +41,7 @@ class Tester:
         self.cwd = self._process_cwd(cwd)
         self.clean_up_run = clean_up_run
         self.__process = []
+        self.top_name = top_name
 
     @staticmethod
     def __find_libhgdb():
@@ -118,8 +119,8 @@ class Tester:
 
 
 class VerilatorTester(Tester):
-    def __init__(self, *files: str, cwd=None, clean_up_run=False):
-        super().__init__(*files, cwd=cwd, clean_up_run=clean_up_run)
+    def __init__(self, *files: str, cwd=None, clean_up_run=False, top_name=""):
+        super().__init__(*files, cwd=cwd, clean_up_run=clean_up_run, top_name=top_name)
 
     def run(self, blocking=True, **kwargs):
         # compile it first
@@ -152,8 +153,8 @@ class VerilatorTester(Tester):
 
 
 class CadenceTester(Tester):
-    def __init__(self, *files: str, cwd=None, clean_up_run=False):
-        super().__init__(*files, cwd=cwd, clean_up_run=clean_up_run)
+    def __init__(self, *files: str, cwd=None, clean_up_run=False, top_name=""):
+        super().__init__(*files, cwd=cwd, clean_up_run=clean_up_run, top_name=top_name)
         self.toolchain = ""
 
     def run(self, blocking=True, **kwargs):
@@ -184,8 +185,8 @@ class XceliumTester(CadenceTester):
 
 
 class VCSTester(Tester):
-    def __init__(self, *files: str, cwd=None, clean_up_run=False):
-        super().__init__(*files, cwd=cwd, clean_up_run=clean_up_run)
+    def __init__(self, *files: str, cwd=None, clean_up_run=False, top_name=""):
+        super().__init__(*files, cwd=cwd, clean_up_run=clean_up_run, top_name=top_name)
 
     def run(self, blocking=True, **kwargs):
         env = self._set_lib_env()
@@ -205,8 +206,8 @@ class VCSTester(Tester):
 
 
 class IVerilogTester(Tester):
-    def __init__(self, *files: str, cwd=None, clean_up_run=False):
-        super().__init__(*files, cwd=cwd, clean_up_run=clean_up_run)
+    def __init__(self, *files: str, cwd=None, clean_up_run=False, top_name=""):
+        super().__init__(*files, cwd=cwd, clean_up_run=clean_up_run, top_name=top_name)
 
     def run(self, blocking=True, **kwargs):
         env = self._set_lib_env()
@@ -226,3 +227,27 @@ class IVerilogTester(Tester):
     @staticmethod
     def available():
         return shutil.which("iverilog") is not None
+
+
+class QuestaTester(Tester):
+    def __init__(self, *files: str, cwd=None, clean_up_run=False, top_name=""):
+        super().__init__(*files, cwd=cwd, clean_up_run=clean_up_run, top_name=top_name)
+
+    def run(self, blocking=True, **kwargs):
+        env = self._set_lib_env()
+        # first compile
+        args = ["vlog", "-sv"] + list(self.files)
+        self._run(args, self.cwd, env, True)
+        # run vsim command
+        flags = self._get_flags(kwargs)
+        args = ["vsim", self.top_name] + self.__get_flag() + flags
+        self._run(args, self.cwd, env, blocking)
+
+    def __get_flag(self):
+        name = os.path.basename(self.lib_path)
+        return ["-pli", name, "-batch", "-do",  "run -all; exit"]
+
+    @staticmethod
+    def available():
+        return shutil.which("vlog") is not None
+
