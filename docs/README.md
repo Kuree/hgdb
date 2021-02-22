@@ -34,19 +34,19 @@ if (a) {            // line 3
 } else {
     b := 1;         // line 6
 }
-a := b;             // line 7
+c := b;             // line 7
 ```
 
 After SSA transformation, we have something in SystemVerilog close to the following
 
 ```SystemVerilog
-logic a, b, b_0, b_1
+logic a, b, b_0, b_1, c
 
 assign b_0 = 0;
 assign b_1 = 1;
 assign b_2 = a? b_0: b_1;
 assign b = b_2;
-assign a = b_2;
+assign c = b_2;
 ```
 
 In the original source code, we have three lines that can be used to insert breakpoint: line 3, 4, 6 and 7. Notice that after SSA transformation, we have generated additional signals which may be confusing to the designers. We will cover this later!
@@ -88,7 +88,7 @@ if (a) {            // line 3
 } else {
     b := 1;         // line 6
 }
-a := b;             // line 7
+c := b;             // line 7
 ```
 
 ```SystemVerilog
@@ -98,7 +98,7 @@ assign b_0 = 0;
 assign b_1 = 1;
 assign b_2 = a? b_0: b_1;
 assign b = b_2;
-assign a = b_2;
+assign c = b_2;
 ```
 
 At line 3, we have two variables, a, and b. Let's assume we will map `a` to RTL signal `a`, and `b` to RTL signal `b`. The scope looks something like this:
