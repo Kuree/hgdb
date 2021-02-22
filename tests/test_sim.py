@@ -60,7 +60,7 @@ def create_iverilog_db(db_filename):
     for i, name in enumerate(["clk", "rst", "a", "b"]):
         db.store_variable(i, name)
         db.store_generator_variable(name, 0, i)
-    db.store_breakpoint(0, 0, "test_iverilog.v", 1, condition="rst == 0")
+    db.store_breakpoint(0, 0, "test_simulator.v", 1, condition="rst == 0")
 
 
 @pytest.mark.parametrize("simulator", [IVerilogTester, QuestaTester])
@@ -68,7 +68,7 @@ def test_other_simulators(find_free_port, simulator):
     if not simulator.available():
         pytest.skip("{0} not available".format(simulator.__name__))
     with tempfile.TemporaryDirectory() as temp:
-        tb_filename = os.path.join(vector_dir, "test_iverilog.v")
+        tb_filename = os.path.join(vector_dir, "test_simulator.v")
         db_filename = os.path.join(temp, "debug.db")
         create_iverilog_db(db_filename)
         with simulator(tb_filename, cwd=temp, top_name="top") as tester:
@@ -79,7 +79,7 @@ def test_other_simulators(find_free_port, simulator):
             async def test_logic():
                 client = HGDBClient(uri, db_filename)
                 await client.connect()
-                await client.set_breakpoint("test_iverilog.v", 1)
+                await client.set_breakpoint("test_simulator.v", 1)
                 await client.continue_()
                 bp = await client.recv()
                 assert bp["payload"]["time"] == 10
