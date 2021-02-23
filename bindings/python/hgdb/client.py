@@ -26,9 +26,11 @@ class HGDBClient:
         except (asyncio.exceptions.IncompleteReadError, websockets.exceptions.ConnectionClosedError):
             return None
 
-    async def recv_bp(self):
+    async def recv_bp(self, timeout=0):
         while len(self._bps) == 0:
-            await self.recv()
+            res = await self.recv(timeout)
+            if res is None and len(self._bps) == 0:
+                return None
         bp = self._bps[0]
         self._bps = self._bps[1:]
         return bp
