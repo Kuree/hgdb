@@ -1,4 +1,4 @@
-name: CI Test
+name: Memtest
 
 on: [push, pull_request]
 
@@ -16,19 +16,22 @@ jobs:
         auth_header="$(git config --local --get http.https://github.com/.extraheader)"
         git submodule sync --recursive
         git -c "http.extraheader=$auth_header" -c protocol.version=2 submodule update --init --force --recursive --depth=1
-    - name: Build ctest 🔨
-      shell: bash
-      run: cd build && cmake .. && make -j
-      env:
-        CC: gcc-10
-        CXX: g++-10
     - name: Install Valgrind
       shell: bash
       run: |
-        sudo apt update
-        sudo apt install -y valgrind
+        sudo apt-get update
+        sudo apt-get install -y valgrind cmake
+        cmake --version
+        valgrind --version
+    - name: Build ctest 🔨
+      shell: bash
+      run: mkdir build && cd build && cmake .. && make -j
+      env:
+        CC: gcc-10
+        CXX: g++-10
     - name: Run memtest  👾
       shell: bash
       run: |
         cd build
+        valgrind --version
         ctest --overwrite MemoryCheckCommandOptions="--leak-check=full --error-exitcode=100" -T memcheck
