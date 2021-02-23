@@ -12,15 +12,26 @@ class HGDBClient:
         self.ws = None
         self.src_mapping = src_mapping
         self.token_count = 0
+        self._bps = []
 
     async def recv(self, timeout=0):
         try:
             if timeout == 0:
-                return json.loads(await self.ws.recv())
+                res = json.loads(await self.ws.recv())
             else:
-                return json.loads(await asyncio.wait_for(self.ws.recv(), timeout))
+                res = json.loads(await asyncio.wait_for(self.ws.recv(), timeout))
+            if res["type"] == "breakpoint":
+                self._bps.append(res)
+            return res
         except (asyncio.exceptions.IncompleteReadError, websockets.exceptions.ConnectionClosedError):
             return None
+
+    async def recv_bp(self):
+        while len(self._bps) == 0:
+            await self.recv()
+        bp = self._bps[0]
+        self._bps = self._bps[1:]
+        return bp
 
     async def send(self, payload):
         # we set our own token

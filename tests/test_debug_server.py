@@ -5,7 +5,6 @@
 import asyncio
 import os
 import time
-import pytest
 
 import hgdb
 
@@ -136,7 +135,7 @@ def test_breakpoint_hit_continue(start_server, find_free_port):
         # continue
         await client.continue_()
         # should get breakpoint info
-        bp_info1 = await client.recv()
+        bp_info1 = await client.recv_bp()
         assert bp_info1["payload"]["line_num"] == 1
         # should receive two instances
         # they should have the same information
@@ -144,7 +143,7 @@ def test_breakpoint_hit_continue(start_server, find_free_port):
         assert bp_info1["payload"]["instances"][0]["instance_name"] == "mod"
         assert bp_info1["payload"]["instances"][1]["instance_name"] == "mod2"
         await client.continue_()
-        bp_info2 = await client.recv()
+        bp_info2 = await client.recv_bp()
         assert bp_info2["payload"]["line_num"] == 1
 
     asyncio.get_event_loop().run_until_complete(test_logic())
@@ -159,21 +158,21 @@ def test_breakpoint_step_over(start_server, find_free_port):
         await client.connect()
         await client.step_over()
         await client.step_over()
-        bp1 = await client.recv()
+        bp1 = await client.recv_bp()
         await client.step_over()
-        await client.recv()  # second instance
+        await client.recv_bp()  # second instance
         await client.step_over()  # second instance
-        bp2 = await client.recv()
+        bp2 = await client.recv_bp()
         await client.step_over()
-        await client.recv()  # second instance
+        await client.recv_bp()  # second instance
         await client.step_over()  # second instance
-        bp3 = await client.recv()
+        bp3 = await client.recv_bp()
         bp4 = None
         for i in range(2):  # skip the 6
             await client.step_over()
-            await client.recv()  # second instance
+            await client.recv_bp()  # second instance
             await client.step_over()  # second instance
-            bp4 = await client.recv()
+            bp4 = await client.recv_bp()
         # the sequence should be 1, 2, 5, 6, 1, ...
         assert bp1["payload"]["line_num"] == 1 and bp4["payload"]["line_num"] == 1
         assert bp2["payload"]["line_num"] == 2
@@ -222,7 +221,7 @@ def test_src_mapping(start_server, find_free_port):
         await client.set_src_mapping(mapping)
         await client.set_breakpoint(filename, 1)
         await client.continue_()
-        bp = await client.recv()
+        bp = await client.recv_bp()
         assert bp["payload"]["filename"] == filename
 
     asyncio.get_event_loop().run_until_complete(test_logic())
@@ -282,7 +281,7 @@ def test_watch(start_server, find_free_port):
         id2 = await client.add_monitor("b", 1, monitor_type="clock_edge")
         await client.set_breakpoint("/tmp/test.py", 1)
         await client.continue_()
-        await client.recv()  # breakpoint
+        await client.recv_bp()  # breakpoint
         watch1 = await client.recv()
         assert watch1["payload"]["track_id"] == id1
         await client.continue_()
@@ -294,7 +293,7 @@ def test_watch(start_server, find_free_port):
         # remove id2
         await client.remove_monitor(id2)
         await client.continue_()
-        bp = await client.recv()
+        bp = await client.recv_bp()
         assert bp["type"] == "breakpoint"
 
     asyncio.get_event_loop().run_until_complete(test_logic())
@@ -310,7 +309,7 @@ def test_detach(start_server, find_free_port):
             await client.change_option(detach_after_disconnect=True)
             await client.set_breakpoint("/tmp/test.py", 1)
             await client.continue_()
-            await client.recv()
+            await client.recv_bp()
 
     async def test_logic2():
         client = hgdb.HGDBClient(uri, None)
@@ -330,14 +329,15 @@ def test_step_back(start_server, find_free_port):
         async with hgdb.HGDBClient(uri, None) as client:
             await client.connect()
             await client.step_over()
-            bp1 = await client.recv()
+            bp1 = await client.recv_bp()
             await client.step_over()
-            bp2 = await client.recv()
+            bp2 = await client.recv_bp()
+            assert bp1 != bp2
             await client.step_back()
-            bp3 = await client.recv()
+            bp3 = await client.recv_bp()
             assert bp3 == bp1
             await client.step_back()
-            bp4 = await client.recv()
+            bp4 = await client.recv_bp()
             # this will be stuck at the very beginning of the evaluation loop
             assert bp4 == bp1
 
@@ -354,7 +354,7 @@ def test_set_value(start_server, find_free_port):
             await client.set_value("mod.a", 42)
             await client.set_breakpoint("/tmp/test.py", 1)
             await client.continue_()
-            bp = await client.recv()
+            bp = await client.recv_bp()
             assert bp["payload"]["instances"][0]["local"]["a"] == "42"
             assert bp["payload"]["instances"][1]["local"]["a"] == "1"
 
@@ -371,7 +371,7 @@ def test_special_value(start_server, find_free_port):
             await client.set_breakpoint("/tmp/test.py", 1)
             for i in range(5):
                 await client.continue_()
-                await client.recv()
+                await client.recv_bp()
             res = await client.evaluate("0", "$time + 1")
             assert res["payload"]["result"] == "5"
     asyncio.get_event_loop().run_until_complete(test_logic())
