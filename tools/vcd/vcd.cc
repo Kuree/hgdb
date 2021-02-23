@@ -23,7 +23,7 @@ std::string next_token(std::istream &stream) {
     std::stringstream result;
     uint64_t length = 0;
     while (!stream.eof()) {
-        char c;
+        char c = '\0';
         stream.get(c);
         if (c == ' ' || c == '\t' || c == '\r' || c == '\n' || c == '\f') {
             if (length == 0)

@@ -163,13 +163,13 @@ public:
 
     vpiHandle vpi_register_cb(p_cb_data cb_data_p) override {
         auto *handle = get_new_handle();
-        callbacks_.emplace(handle, *cb_data_p);
+        callbacks_.emplace(handle, cb_data{.data=*cb_data_p});
         return handle;
     }
 
     PLI_INT32 vpi_remove_cb(vpiHandle cb_obj) override {
         if (callbacks_.find(cb_obj) != callbacks_.end()) {
-            callbacks_.erase(cb_obj);
+            callbacks_.at(cb_obj).deleted = true;
             return 1;
         }
         return 0;
@@ -251,9 +251,10 @@ public:
     void trigger_cb(uint32_t reason) {
         for (auto const &iter : callbacks_) {
             auto cb_data = iter.second;
-            if (cb_data.reason == reason) {
-                auto func = cb_data.cb_rtn;
-                func(&cb_data);
+            if (cb_data.deleted) continue;
+            if (cb_data.data.reason == reason) {
+                auto func = cb_data.data.cb_rtn;
+                func(&cb_data.data);
             }
         }
     }
@@ -262,8 +263,9 @@ public:
         std::vector<s_cb_data> result;
         for (auto const &iter : callbacks_) {
             auto cb_data = iter.second;
-            if (cb_data.reason == reason) {
-                result.emplace_back(cb_data);
+            if (cb_data.deleted) continue;
+            if (cb_data.data.reason == reason) {
+                result.emplace_back(cb_data.data);
             }
         }
         return result;
@@ -279,10 +281,10 @@ public:
         // no adding callbacks inside the callback allowed
         if (value_changed) {
             for (auto &iter : callbacks_) {
-                auto &cb = iter.second;
-                if (cb.obj == handle && cb.reason == cbValueChange) {
+                auto &cb_data = iter.second;
+                if (cb_data.data.obj == handle && cb_data.data.reason == cbValueChange) {
                     // trigger the callback
-                    cb.cb_rtn(&cb);
+                    cb_data.data.cb_rtn(&cb_data.data);
                 }
             }
         }
@@ -306,7 +308,11 @@ protected:
     // for arrays
     std::unordered_map<vpiHandle, std::vector<vpiHandle>> array_handles_;
 
-    std::unordered_map<vpiHandle, s_cb_data> callbacks_;
+    struct cb_data {
+        bool deleted = false;
+        s_cb_data data;
+    };
+    std::unordered_map<vpiHandle, cb_data> callbacks_;
 
     std::vector<uint32_t> vpi_ops_;
 

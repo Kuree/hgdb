@@ -19,6 +19,14 @@ jobs:
     - name: Build ctest 🔨
       shell: bash
       run: cd build && cmake .. && make -j
+      env:
+        CC: gcc-10
+        CXX: g++-10
+    - name: Install Valgrind
+      shell: bash
+      run: |
+        sudo apt update
+        sudo apt install -y valgrind
     - name: Run memtest  👾
       shell: bash
       run: |
