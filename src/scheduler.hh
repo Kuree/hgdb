@@ -56,7 +56,7 @@ private:
 
     EvaluationMode evaluation_mode_ = EvaluationMode::BreakPointOnly;
 
-    std::vector<DebugBreakPoint> breakpoints_;
+    std::vector<std::unique_ptr<DebugBreakPoint>> breakpoints_;
     std::unordered_set<uint32_t> inserted_breakpoints_;
     // look up table for ordering of breakpoints
     std::unordered_map<uint32_t, uint64_t> bp_ordering_table_;

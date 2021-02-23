@@ -93,7 +93,7 @@ std::vector<DebugBreakPoint *> Scheduler::next_normal_breakpoints() {
     // find index
     std::optional<uint64_t> pos;
     for (uint64_t i = 0; i < breakpoints_.size(); i++) {
-        auto id = breakpoints_[i].id;
+        auto id = breakpoints_[i]->id;
         if (evaluated_ids_.find(id) != evaluated_ids_.end()) {
             pos = i;
         }
@@ -108,7 +108,7 @@ std::vector<DebugBreakPoint *> Scheduler::next_normal_breakpoints() {
         }
     }
 
-    std::vector<DebugBreakPoint *> result{&breakpoints_[index]};
+    std::vector<DebugBreakPoint *> result{breakpoints_[index].get()};
 
     // by default we generates as many breakpoints as possible to evaluate
     // this can be turned of by client's request (changed via option-change request)
@@ -175,7 +175,7 @@ std::vector<DebugBreakPoint *> Scheduler::next_reverse_breakpoints() {
     // cycle
     std::optional<uint64_t> target_index;
     if (current_breakpoint_id_) {
-        if (breakpoints_.front().id == *current_breakpoint_id_) {
+        if (breakpoints_.front()->id == *current_breakpoint_id_) {
             // we have reached the first one of the current
             // call reverse
             auto handles = clock_handles_;
@@ -193,7 +193,7 @@ std::vector<DebugBreakPoint *> Scheduler::next_reverse_breakpoints() {
             // notice that breakpoints are already ordered
             // so we search from the beginning
             for (auto i = breakpoints_.size() - 1; i >= 1; i--) {
-                auto id = breakpoints_[i].id;
+                auto id = breakpoints_[i]->id;
                 if (id == *current_breakpoint_id_) {
                     // find it
                     target_index = i - 1;
@@ -210,7 +210,7 @@ std::vector<DebugBreakPoint *> Scheduler::next_reverse_breakpoints() {
         current_breakpoint_id_ = std::nullopt;
         return {};
     }
-    result.emplace_back(&breakpoints_[*target_index]);
+    result.emplace_back(breakpoints_[*target_index].get());
     // if it's not single thread mode
     if (!single_thread_mode_) {
         scan_breakpoints(*target_index, false, result);
@@ -270,42 +270,41 @@ void Scheduler::add_breakpoint(const BreakPoint &bp_info, const BreakPoint &db_b
     log_info(fmt::format("Breakpoint inserted into {0}:{1}", db_bp.filename, db_bp.line_num));
     std::lock_guard guard(breakpoint_lock_);
     if (inserted_breakpoints_.find(db_bp.id) == inserted_breakpoints_.end()) {
-        breakpoints_.emplace_back(DebugBreakPoint{
-            .id = db_bp.id,
-            .instance_id = *db_bp.instance_id,
-            .expr = std::make_unique<DebugExpression>(cond),
-            .enable_expr =
-                std::make_unique<DebugExpression>(db_bp.condition.empty() ? "1" : db_bp.condition),
-            .filename = db_bp.filename,
-            .line_num = db_bp.line_num,
-            .column_num = db_bp.column_num,
-            .trigger_symbols = compute_trigger_symbol(db_bp)});
+        auto bp = std::make_unique<DebugBreakPoint>();
+        bp->id = db_bp.id;
+        bp->instance_id = *db_bp.instance_id;
+        bp->expr = std::make_unique<DebugExpression>(cond);
+        bp->enable_expr =
+            std::make_unique<DebugExpression>(db_bp.condition.empty() ? "1" : db_bp.condition);
+        bp->filename = db_bp.filename;
+        bp->line_num = db_bp.line_num;
+        bp->column_num = db_bp.column_num;
+        bp->trigger_symbols = compute_trigger_symbol(db_bp);
+        breakpoints_.emplace_back(std::move(bp));
         inserted_breakpoints_.emplace(db_bp.id);
-        util::validate_expr(rtl_, db_, breakpoints_.back().expr.get(), db_bp.id,
+        util::validate_expr(rtl_, db_, breakpoints_.back()->expr.get(), db_bp.id,
                             *db_bp.instance_id);
-        if (!breakpoints_.back().expr->correct()) [[unlikely]] {
+        if (!breakpoints_.back()->expr->correct()) [[unlikely]] {
             log_error("Unable to validate breakpoint expression: " + cond);
         }
-        util::validate_expr(rtl_, db_, breakpoints_.back().enable_expr.get(), db_bp.id,
+        util::validate_expr(rtl_, db_, breakpoints_.back()->enable_expr.get(), db_bp.id,
                             *db_bp.instance_id);
-        if (!breakpoints_.back().enable_expr->correct()) [[unlikely]] {
+        if (!breakpoints_.back()->enable_expr->correct()) [[unlikely]] {
             log_error("Unable to validate breakpoint expression: " + cond);
         }
     } else {
         // update breakpoint entry
         for (auto &b : breakpoints_) {
-            if (db_bp.id == b.id) {
-                b.expr = std::make_unique<DebugExpression>(cond);
-                util::validate_expr(rtl_, db_, b.expr.get(), db_bp.id, *db_bp.instance_id);
-                if (!b.expr->correct()) [[unlikely]] {
+            if (db_bp.id == b->id) {
+                b->expr = std::make_unique<DebugExpression>(cond);
+                util::validate_expr(rtl_, db_, b->expr.get(), db_bp.id, *db_bp.instance_id);
+                if (!b->expr->correct()) [[unlikely]] {
                     log_error("Unable to validate breakpoint expression: " + cond);
                 }
                 return;
             }
         }
     }
-    // clang-tidy reports memory leak due to the usage of emplace make_unique
-    // NOLINTNEXTLINE
 }
 
 void Scheduler::reorder_breakpoints() {
@@ -316,7 +315,7 @@ void Scheduler::reorder_breakpoints() {
     // bug-prone
     std::sort(breakpoints_.begin(), breakpoints_.end(),
               [this](const auto &left, const auto &right) -> bool {
-                  return bp_ordering_table_.at(left.id) < bp_ordering_table_.at(right.id);
+                  return bp_ordering_table_.at(left->id) < bp_ordering_table_.at(right->id);
               });
 }
 
@@ -324,7 +323,7 @@ void Scheduler::remove_breakpoint(const BreakPoint &bp) {
     std::lock_guard guard(breakpoint_lock_);
     // notice that removal doesn't need reordering
     for (auto pos = breakpoints_.begin(); pos != breakpoints_.end(); pos++) {
-        if (pos->id == bp.id) {
+        if ((*pos)->id == bp.id) {
             breakpoints_.erase(pos);
             inserted_breakpoints_.erase(bp.id);
             break;
@@ -337,7 +336,7 @@ std::vector<BreakPoint> Scheduler::get_current_breakpoints() {
     std::lock_guard guard(breakpoint_lock_);
     bps.reserve(breakpoints_.size());
     for (auto const &bp : breakpoints_) {
-        auto bp_id = bp.id;
+        auto bp_id = bp->id;
         auto bp_info = db_->get_breakpoint(bp_id);
         if (bp_info) {
             bps.emplace_back(BreakPoint{.id = bp_info->id,
@@ -365,7 +364,7 @@ void Scheduler::log_info(const std::string &msg) const {
 void Scheduler::scan_breakpoints(uint64_t ref_index, bool forward,
                                  std::vector<DebugBreakPoint *> &result) {
     auto const &ref_bp = breakpoints_[ref_index];
-    auto const &target_expr = ref_bp.enable_expr->expression();
+    auto const &target_expr = ref_bp->enable_expr->expression();
 
     // once we have a hit index, scanning down the list to see if we have more
     // hits if it shares the same fn/ln/cn tuple
@@ -374,23 +373,23 @@ void Scheduler::scan_breakpoints(uint64_t ref_index, bool forward,
     // - different instance id
 
     auto match = [&](int64_t i) -> bool {
-        auto &next_bp = breakpoints_[i];
+        auto const &next_bp = breakpoints_[i];
         // if fn/ln/cn tuple doesn't match, stop
         // reorder the comparison in a way that exploits short circuit
-        if (next_bp.line_num != ref_bp.line_num || next_bp.filename != ref_bp.filename ||
-            next_bp.column_num != ref_bp.column_num) {
+        if (next_bp->line_num != ref_bp->line_num || next_bp->filename != ref_bp->filename ||
+            next_bp->column_num != ref_bp->column_num) {
             return false;
         }
         // same enable expression but different instance id
-        if (next_bp.instance_id != ref_bp.instance_id &&
-            next_bp.enable_expr->expression() == target_expr) {
-            result.emplace_back(&next_bp);
+        if (next_bp->instance_id != ref_bp->instance_id &&
+            next_bp->enable_expr->expression() == target_expr) {
+            result.emplace_back(next_bp.get());
         }
         return true;
     };
 
     if (forward) {
-        for (auto i = ref_index; ref_index < static_cast<uint64_t>(breakpoints_.size()); i++) {
+        for (auto i = ref_index; i < static_cast<uint64_t>(breakpoints_.size()); i++) {
             if (!match(i)) break;
         }
     } else {
