@@ -641,11 +641,6 @@ void Debugger::handle_evaluation(const EvaluationRequest &req, uint64_t conn_id)
         std::unordered_map<std::string, int64_t> values;
         auto const &names = expr.resolved_symbol_names();
         for (auto const &[name, full_name] : names) {
-            if (full_name == util::time_var_name) [[unlikely]] {
-                auto v = rtl_->get_simulation_time();
-                values.emplace(name, v);
-                continue;
-            }
             auto v = get_value(full_name);
             if (v) values.emplace(name, *v);
         }
@@ -899,7 +894,13 @@ std::optional<int64_t> Debugger::get_value(const std::string &signal_name) {
         }
     }
     // need to actually get the value
-    auto value = rtl_->get_value(signal_name);
+    std::optional<int64_t> value;
+    if (signal_name != util::time_var_name) [[likely]] {
+        value = rtl_->get_value(signal_name);
+    } else {
+        value = rtl_->get_simulation_time();
+    }
+
     if (value) {
         std::lock_guard guard(cached_signal_values_lock_);
         cached_signal_values_.emplace(signal_name, *value);
@@ -917,12 +918,7 @@ void Debugger::eval_breakpoint(DebugBreakPoint *bp, std::vector<bool> &result, u
     auto const &symbol_full_names = bp_expr->resolved_symbol_names();
     std::unordered_map<std::string, int64_t> values;
     for (auto const &[symbol_name, full_name] : symbol_full_names) {
-        if (full_name == util::time_var_name) [[unlikely]] {
-            auto v = rtl_->get_simulation_time();
-            values.emplace(symbol_name, v);
-            continue;
-        }
-        auto v = rtl_->get_value(full_name);
+        auto v = get_value(full_name);
         if (!v) break;
         values.emplace(symbol_name, *v);
     }
