@@ -78,7 +78,11 @@ private:
     std::unordered_map<vpiHandle, uint64_t> scan_iter_;
     std::vector<std::string> argv_str_;
     std::vector<char *> argv_;
-    std::unordered_map<vpiHandle, s_cb_data> callbacks_;
+    struct cb_data {
+        bool deleted = false;
+        s_cb_data data = {};
+    };
+    std::unordered_map<vpiHandle, cb_data> callbacks_;
     constexpr static auto product = "HGDB-Replay";
     constexpr static auto version = "0.1";
 

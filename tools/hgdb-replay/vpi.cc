@@ -327,7 +327,7 @@ void ReplayVPIProvider::vpi_get_time(vpiHandle object, p_vpi_time time_p) {
 
 vpiHandle ReplayVPIProvider::vpi_register_cb(p_cb_data cb_data_p) {
     auto *handle = get_new_handle();
-    callbacks_.emplace(handle, *cb_data_p);
+    callbacks_.emplace(handle, cb_data{.data = *cb_data_p});
     if (on_cb_added_) {
         (*on_cb_added_)(cb_data_p);
     }
@@ -336,10 +336,10 @@ vpiHandle ReplayVPIProvider::vpi_register_cb(p_cb_data cb_data_p) {
 
 PLI_INT32 ReplayVPIProvider::vpi_remove_cb(vpiHandle cb_obj) {
     if (callbacks_.find(cb_obj) != callbacks_.end()) {
-        auto cb_struct = callbacks_.at(cb_obj);
-        callbacks_.erase(cb_obj);
+        auto &cb_struct = callbacks_.at(cb_obj);
+        cb_struct.deleted = true;
         if (on_cb_removed_) {
-            (*on_cb_removed_)(cb_struct);
+            (*on_cb_removed_)(cb_struct.data);
         }
         return 1;
     }
@@ -423,29 +423,28 @@ bool ReplayVPIProvider::is_valid_handle(const vpiHandle handle) const {
 }
 
 void ReplayVPIProvider::trigger_cb(uint32_t reason, vpiHandle handle, int64_t value) {  // NOLINT
-    // use a shallow copy to avoid problems where the callback removes from cb
-    std::unordered_map<vpiHandle, s_cb_data> cb_copy = callbacks_;
-    for (auto const &iter : cb_copy) {
+    for (auto const &iter : callbacks_) {
         auto cb_data = iter.second;
+        if (cb_data.deleted) continue;
         s_vpi_value vpi_value;
-        if (cb_data.reason == reason) {
+        if (cb_data.data.reason == reason) {
             if (reason == cbValueChange) {
                 // only value change cares about the obj for now
-                if (cb_data.obj != handle) {
+                if (cb_data.data.obj != handle) {
                     // not the target
                     continue;
                 } else {
-                    cb_data.value = &vpi_value;
-                    cb_data.value->value.integer = value;
+                    cb_data.data.value = &vpi_value;
+                    cb_data.data.value->value.integer = value;
                 }
             }
 
-            auto func = cb_data.cb_rtn;
+            auto func = cb_data.data.cb_rtn;
             // vpi_value will be valid for this callback
             // after that it won't,
-            func(&cb_data);
+            func(&cb_data.data);
             // so set this to null
-            cb_data.value = nullptr;
+            cb_data.data.value = nullptr;
         }
     }
 }

@@ -310,7 +310,7 @@ protected:
 
     struct cb_data {
         bool deleted = false;
-        s_cb_data data;
+        s_cb_data data = {};
     };
     std::unordered_map<vpiHandle, cb_data> callbacks_;
 
