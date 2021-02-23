@@ -302,7 +302,6 @@ def test_watch(start_server, find_free_port):
 
 
 def test_detach(start_server, find_free_port):
-    # FIXME
     s, uri = setup_server(start_server, find_free_port)
 
     async def test_logic1():
@@ -368,10 +367,26 @@ def test_set_value(start_server, find_free_port):
     kill_server(s)
 
 
+def test_special_value(start_server, find_free_port):
+    s, uri = setup_server(start_server, find_free_port)
+
+    async def test_logic():
+        async with hgdb.HGDBClient(uri, None) as client:
+            await client.connect()
+            await client.set_breakpoint("/tmp/test.py", 1)
+            for i in range(5):
+                await client.continue_()
+                await client.recv()
+            res = await client.evaluate("0", "$time + 1")
+            assert res["payload"]["result"] == "5"
+    asyncio.get_event_loop().run_until_complete(test_logic())
+    kill_server(s)
+
+
 if __name__ == "__main__":
     import sys
 
     sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
     from conftest import start_server_fn, find_free_port_fn
 
-    test_set_value(start_server_fn, find_free_port_fn)
+    test_special_value(start_server_fn, find_free_port_fn)

@@ -194,6 +194,7 @@ int main(int argc, char *argv[]) {
         if (!no_eval) {
             debug.eval();
             time++;
+            raw_vpi->set_time(time);
             // notice that we only set dut here, so after the first breakpoint hits
             // only one will be hit later on
             raw_vpi->set_signal_value(

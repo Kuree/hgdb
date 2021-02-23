@@ -641,6 +641,11 @@ void Debugger::handle_evaluation(const EvaluationRequest &req, uint64_t conn_id)
         std::unordered_map<std::string, int64_t> values;
         auto const &names = expr.resolved_symbol_names();
         for (auto const &[name, full_name] : names) {
+            if (full_name == util::time_var_name) [[unlikely]] {
+                auto v = rtl_->get_simulation_time();
+                values.emplace(name, v);
+                continue;
+            }
             auto v = get_value(full_name);
             if (v) values.emplace(name, *v);
         }
@@ -912,6 +917,11 @@ void Debugger::eval_breakpoint(DebugBreakPoint *bp, std::vector<bool> &result, u
     auto const &symbol_full_names = bp_expr->resolved_symbol_names();
     std::unordered_map<std::string, int64_t> values;
     for (auto const &[symbol_name, full_name] : symbol_full_names) {
+        if (full_name == util::time_var_name) [[unlikely]] {
+            auto v = rtl_->get_simulation_time();
+            values.emplace(symbol_name, v);
+            continue;
+        }
         auto v = rtl_->get_value(full_name);
         if (!v) break;
         values.emplace(symbol_name, *v);

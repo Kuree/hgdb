@@ -408,6 +408,10 @@ void validate_expr(RTLSimulatorClient *rtl, DebugDatabaseClient *db, DebugExpres
     expr->set_static_values(context_static_values);
     auto required_symbols = expr->get_required_symbols();
     for (auto const &symbol : required_symbols) {
+        if (symbol == time_var_name) [[unlikely]] {
+            expr->set_resolved_symbol_name(symbol, symbol);
+            continue;
+        }
         std::optional<std::string> name;
         if (breakpoint_id) {
             name = db->resolve_scoped_name_breakpoint(symbol, *breakpoint_id);
