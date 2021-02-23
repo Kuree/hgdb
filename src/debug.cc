@@ -1,6 +1,5 @@
 #include "debug.hh"
 
-#include <chrono>
 #include <filesystem>
 #include <functional>
 #include <thread>
@@ -506,13 +505,6 @@ void Debugger::handle_command(const CommandRequest &req, uint64_t conn_id) {
     // we don't care about the response. this is just set to conform the req-resp style
     auto resp = GenericResponse(status_code::success, req);
     send_message(resp.str(log_enabled_), conn_id);
-    // sleep for 1ms to prevent reordering of ack packet
-    // this is used for client that expects response ordering
-    using namespace std::chrono_literals;
-    // notice that the following line will trigger a crash in the latest clang-tidy
-#ifndef __clang__
-    std::this_thread::sleep_for(5ms);
-#endif
 
     switch (req.command_type()) {
         case CommandRequest::CommandType::continue_: {
