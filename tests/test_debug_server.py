@@ -368,10 +368,11 @@ def test_special_value(start_server, find_free_port):
     async def test_logic():
         async with hgdb.HGDBClient(uri, None) as client:
             await client.connect()
-            await client.set_breakpoint("/tmp/test.py", 1)
+            await client.set_breakpoint("/tmp/test.py", 1, cond="$instance == 1")
             for i in range(5):
                 await client.continue_()
-                await client.recv_bp()
+                bp = await client.recv_bp()
+                assert bp["payload"]["instances"][0]["instance_id"] == 1
             res = await client.evaluate("0", "$time + 1")
             assert res["payload"]["result"] == "5"
     asyncio.get_event_loop().run_until_complete(test_logic())
@@ -384,4 +385,4 @@ if __name__ == "__main__":
     sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
     from conftest import start_server_fn, find_free_port_fn
 
-    test_step_back(start_server_fn, find_free_port_fn)
+    test_special_value(start_server_fn, find_free_port_fn)

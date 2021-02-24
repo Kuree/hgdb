@@ -915,6 +915,10 @@ void Debugger::eval_breakpoint(DebugBreakPoint *bp, std::vector<bool> &result, u
     auto const &symbol_full_names = bp_expr->resolved_symbol_names();
     std::unordered_map<std::string, int64_t> values;
     for (auto const &[symbol_name, full_name] : symbol_full_names) {
+        if (symbol_name == util::instance_var_name) [[unlikely]] {
+            values.emplace(symbol_name, bp->instance_id);
+            continue;
+        }
         auto v = get_value(full_name);
         if (!v) break;
         values.emplace(symbol_name, *v);

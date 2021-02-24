@@ -406,8 +406,10 @@ void validate_expr(RTLSimulatorClient *rtl, DebugDatabaseClient *db, DebugExpres
                                                : std::unordered_map<std::string, int64_t>{};
     expr->set_static_values(context_static_values);
     auto required_symbols = expr->get_required_symbols();
+    const static std::unordered_set<std::string> predefined_symbols = {time_var_name,
+                                                                       instance_var_name};
     for (auto const &symbol : required_symbols) {
-        if (symbol == time_var_name) [[unlikely]] {
+        if (predefined_symbols.find(symbol) != predefined_symbols.end()) [[unlikely]] {
             expr->set_resolved_symbol_name(symbol, symbol);
             continue;
         }

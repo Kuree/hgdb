@@ -88,6 +88,8 @@ private:
 
 namespace util {
 constexpr auto time_var_name = "$time";
+constexpr auto instance_var_name = "$instance";
+
 void validate_expr(RTLSimulatorClient *rtl, DebugDatabaseClient *db, DebugExpression *expr,
                    std::optional<uint32_t> breakpoint_id, std::optional<uint32_t> instance_id);
 std::vector<std::string> get_clock_signals(RTLSimulatorClient *rtl, DebugDatabaseClient *db);
