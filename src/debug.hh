@@ -79,6 +79,8 @@ private:
     bool detach_after_disconnect_ = false;
     // whether to retrieve hex string instead of as integer
     bool use_hex_str_ = false;
+    // whether to pause at clock edge
+    bool pause_at_posedge = false;
 
     void detach();
 

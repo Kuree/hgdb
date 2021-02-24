@@ -85,6 +85,10 @@ void Debugger::stop() {
 }
 
 void Debugger::eval() {
+    // if we set to pause at posedge, need to do that at the very beginning!
+    if (pause_at_posedge) [[unlikely]] {
+        lock_.wait();
+    }
     // the function that actually triggers breakpoints!
     // notice that there is a hidden race condition
     // when we trigger the breakpoint, the runtime (simulation side) will be paused via a lock.
@@ -807,6 +811,7 @@ util::Options Debugger::get_options() {
     options.add_option("log_enabled", &log_enabled_);
     options.add_option("detach_after_disconnect", &detach_after_disconnect_);
     options.add_option("use_hex_str", &use_hex_str_);
+    options.add_option("pause_at_posedge", &pause_at_posedge);
     return options;
 }
 
