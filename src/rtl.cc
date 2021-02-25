@@ -665,6 +665,17 @@ RTLSimulatorClient::~RTLSimulatorClient() {
     }
 }
 
+std::unordered_map<std::string, std::string> RTLSimulatorClient::get_top_mapping() const {
+    std::unordered_map<std::string, std::string> result;
+    for (auto const &[src_name, tb_name] : hierarchy_name_prefix_map_) {
+        auto name_from =
+            src_name.ends_with('.') ? src_name.substr(0, src_name.size() - 1) : src_name;
+        auto name_to = tb_name.ends_with('.') ? tb_name.substr(0, tb_name.size() - 1) : tb_name;
+        result.emplace(name_from, name_to);
+    }
+    return result;
+}
+
 std::optional<std::pair<uint32_t, uint32_t>> extract_slice(const std::string &token) {
     auto nums = util::get_tokens(token, ":");
     if (nums.size() != 2) return {};

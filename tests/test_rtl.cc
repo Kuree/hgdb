@@ -280,10 +280,16 @@ TEST_F(RTLModuleTest, test_slice) {  // NOLINT
     }
 }
 
-TEST_F(RTLModuleTest, test_set_value) { // NOLINT
+TEST_F(RTLModuleTest, test_set_value) {  // NOLINT
     auto constexpr value = 42;
     auto res = client->set_value("parent_mod.a", value);
     EXPECT_TRUE(res);
     auto v = client->get_value("parent_mod.a");
     EXPECT_EQ(*v, value);
+}
+
+TEST_F(RTLModuleTest, test_get_design) {  // NOLINT
+    auto mapping = client->get_top_mapping();
+    EXPECT_EQ(mapping.size(), 1);
+    EXPECT_EQ(mapping["parent_mod"], "top.dut");
 }

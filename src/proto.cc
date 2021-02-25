@@ -421,6 +421,10 @@ DebuggerInformationResponse::DebuggerInformationResponse(std::map<std::string, s
     : command_type_(DebuggerInformationRequest::CommandType::options),
       options_(std::move(options)) {}
 
+DebuggerInformationResponse::DebuggerInformationResponse(
+    std::unordered_map<std::string, std::string> design)
+    : command_type_(DebuggerInformationRequest::CommandType::design), design_(std::move(design)) {}
+
 std::string DebuggerInformationResponse::str(bool pretty_print) const {
     using namespace rapidjson;
     Document document(rapidjson::kObjectType);  // NOLINT
@@ -464,6 +468,12 @@ std::string DebuggerInformationResponse::str(bool pretty_print) const {
             set_member(payload, allocator, "status", status_str_);
             break;
         }
+        case DebuggerInformationRequest::CommandType::design: {
+            // make it ordered here
+            auto design = std::map<std::string, std::string>(design_.begin(), design_.end());
+            set_member(payload, allocator, "design", design);
+            break;
+        }
     }
 
     set_member(document, "payload", payload);
@@ -481,6 +491,9 @@ std::string DebuggerInformationResponse::get_command_str() const {
         }
         case DebuggerInformationRequest::CommandType::options: {
             return "options";
+        }
+        case DebuggerInformationRequest::CommandType::design: {
+            return "design";
         }
     }
     return "";
@@ -756,6 +769,8 @@ void DebuggerInformationRequest::parse_payload(const std::string &payload) {
         command_type_ = CommandType::status;
     } else if (command == "options") {
         command_type_ = CommandType::options;
+    } else if (command == "design") {
+        command_type_ = CommandType::design;
     } else {
         status_code_ = status_code::error;
         error_reason_ = "Unknown command type " + command;

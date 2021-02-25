@@ -134,6 +134,9 @@ public:
     // used for compute potential clock signals if user doesn't provide proper annotation
     static constexpr std::array clock_names_{"clk", "clock", "clk_in", "clock_in", "CLK", "CLOCK"};
 
+    // inform user about our mapping
+    [[nodiscard]] std::unordered_map<std::string, std::string> get_top_mapping() const;
+
 private:
     std::unordered_map<std::string, vpiHandle> handle_map_;
     std::mutex handle_map_lock_;

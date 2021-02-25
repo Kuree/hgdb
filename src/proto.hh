@@ -215,7 +215,7 @@ private:
 
 class DebuggerInformationRequest : public Request {
 public:
-    enum class CommandType { breakpoints, status, options };
+    enum class CommandType { breakpoints, status, options, design };
     DebuggerInformationRequest() = default;
     void parse_payload(const std::string &payload) override;
     [[nodiscard]] RequestType type() const override { return RequestType::debugger_info; }
@@ -321,6 +321,8 @@ public:
     explicit DebuggerInformationResponse(std::string status);
     explicit DebuggerInformationResponse(std::vector<BreakPoint *> bps);
     explicit DebuggerInformationResponse(std::map<std::string, std::string> options);
+    explicit DebuggerInformationResponse(std::unordered_map<std::string, std::string> design);
+
     [[nodiscard]] std::string str(bool pretty_print) const override;
     [[nodiscard]] std::string type() const override {
         return to_string(RequestType::debugger_info);
@@ -331,6 +333,7 @@ private:
     std::string status_str_;
     std::vector<BreakPoint *> bps_;
     std::map<std::string, std::string> options_;
+    std::unordered_map<std::string, std::string> design_;
     [[nodiscard]] std::string get_command_str() const;
 };
 
