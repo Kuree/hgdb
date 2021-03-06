@@ -82,6 +82,9 @@ private:
     std::string error_message_;
     bool has_error_ = false;
 
+    inline uint64_t tellg() { return stream_->tellg(); }
+
+protected:
     // parser helpers
     void parse_meta(VCDMetaInfo::MetaType type);
     bool parse_scope_def();
@@ -90,7 +93,6 @@ private:
 
     bool check_end(const std::string &token);
 
-    inline uint64_t tellg() { return stream_->tellg(); }
 };
 
 }  // namespace hgdb::vcd
