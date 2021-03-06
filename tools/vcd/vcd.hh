@@ -7,6 +7,7 @@
 #include <stack>
 #include <string>
 #include <unordered_set>
+#include <istream>
 
 namespace hgdb::vcd {
 
@@ -44,6 +45,7 @@ struct VCDMetaInfo: public VCSStreamInfo {
 class VCDParser {
 public:
     explicit VCDParser(const std::string &filename);
+    explicit VCDParser(std::istream &stream): stream_(&stream) {}
     bool parse();
 
     // set callback
@@ -62,7 +64,8 @@ public:
     ~VCDParser();
 
 private:
-    std::ifstream stream_;
+    std::istream *stream_;
+    std::ifstream fstream_;
     std::string filename_;
 
     // callbacks
@@ -86,6 +89,8 @@ private:
     bool parse_vcd_values();
 
     bool check_end(const std::string &token);
+
+    inline uint64_t tellg() { return stream_->tellg(); }
 };
 
 }  // namespace hgdb::vcd

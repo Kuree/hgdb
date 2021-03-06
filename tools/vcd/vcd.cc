@@ -10,11 +10,12 @@ enum class sv { Date, Version, Timescale, Comment, Scope, Upscope, Var, Enddefin
 constexpr auto *end_str = "$end";
 
 VCDParser::VCDParser(const std::string &filename) : filename_(filename) {
-    stream_ = std::ifstream(filename);
+    fstream_ = std::ifstream(filename);
     if (!std::filesystem::exists(filename)) {
         error_message_ = "Unable to open " + filename_;
         has_error_ = true;
     }
+    stream_ = &fstream_;
 }
 
 std::string next_token(std::istream &stream) {
@@ -37,6 +38,8 @@ std::string next_token(std::istream &stream) {
 
     return result.str();
 }
+
+std::string next_token(std::istream *stream) { return next_token(*stream); }
 
 bool VCDParser::parse() {  // NOLINT
     if (has_error_) return false;
@@ -138,15 +141,15 @@ void VCDParser::set_on_dump_var_action(const std::function<void(const std::strin
 
 VCDParser::~VCDParser() {
     // close the stream_
-    if (!stream_.bad()) {
-        stream_.close();
+    if (!filename_.empty() && !fstream_.bad()) {
+        fstream_.close();
     }
 }
 
 void VCDParser::parse_meta(VCDMetaInfo::MetaType type) {
     std::stringstream ss;
     std::string token;
-    uint64_t start_pos = stream_.tellg();
+    uint64_t start_pos = tellg();
 
     while ((token = next_token(stream_)) != end_str) {
         ss << " " << token;
@@ -154,14 +157,14 @@ void VCDParser::parse_meta(VCDMetaInfo::MetaType type) {
     if (on_meta_info_) {
         VCDMetaInfo meta_info{.type = type, .value = ss.str()};
         meta_info.start_pos = start_pos;
-        meta_info.end_pos = stream_.tellg();
+        meta_info.end_pos = tellg();
         (*on_meta_info_)(meta_info);
     }
 }
 
 bool VCDParser::parse_scope_def() {
     static VCDScopeDef scope_def;
-    scope_def.start_pos = stream_.tellg();
+    scope_def.start_pos = tellg();
     scope_def.type = next_token(stream_);  // scope type
     scope_def.name = next_token(stream_);
     auto token = next_token(stream_);
@@ -169,7 +172,7 @@ bool VCDParser::parse_scope_def() {
         error_message_ = "Illegal VCD file";
         return false;
     }
-    scope_def.end_pos = stream_.tellg();
+    scope_def.end_pos = tellg();
     if (on_enter_scope_) {
         (*on_enter_scope_)(scope_def);
     }
@@ -178,7 +181,7 @@ bool VCDParser::parse_scope_def() {
 
 bool VCDParser::parse_var_def() {
     static VCDVarDef var_def;
-    var_def.start_pos = stream_.tellg();
+    var_def.start_pos = tellg();
     var_def.type = next_token(stream_);
     var_def.width = std::stoul(next_token(stream_));
     var_def.identifier = next_token(stream_);
@@ -196,7 +199,7 @@ bool VCDParser::parse_var_def() {
         var_def.slice = "";
     }
 
-    var_def.end_pos = stream_.tellg();
+    var_def.end_pos = tellg();
 
     if (on_var_def_) {
         (*on_var_def_)(var_def);
@@ -214,14 +217,14 @@ bool VCDParser::parse_vcd_values() {  // NOLINT
         VCDValue v{
             .time = timestamp, .identifier = identifier, .value = value, .is_event = is_event};
         v.start_pos = start_pos;
-        v.end_pos = stream_.tellg();
+        v.end_pos = tellg();
         if (on_value_change_) {
             (*on_value_change_)(v);
         }
     };
 
     while (true) {
-        start_pos = stream_.tellg();
+        start_pos = tellg();
         auto token = next_token(stream_);
         if (token.empty()) return true;
 
