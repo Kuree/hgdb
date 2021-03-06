@@ -10,12 +10,17 @@
 
 namespace hgdb::vcd {
 
-struct VCDScopeDef {
+struct VCSStreamInfo {
+    uint64_t start_pos;
+    uint64_t end_pos;
+};
+
+struct VCDScopeDef: public VCSStreamInfo {
     std::string name;
     std::string type;
 };
 
-struct VCDVarDef {
+struct VCDVarDef: public VCSStreamInfo {
     std::string identifier;
     std::string type;
     uint32_t width;
@@ -23,14 +28,14 @@ struct VCDVarDef {
     std::string slice;
 };
 
-struct VCDValue {
+struct VCDValue: public VCSStreamInfo {
     uint64_t time;
     std::string identifier;
     std::string value;
     bool is_event;
 };
 
-struct VCDMetaInfo {
+struct VCDMetaInfo: public VCSStreamInfo {
     enum class MetaType { date, version, timescale, comment };
     MetaType type;
     std::string value;

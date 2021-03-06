@@ -1,7 +1,7 @@
 #include "vcd.hh"
 
-#include <sstream>
 #include <filesystem>
+#include <sstream>
 
 namespace hgdb::vcd {
 
@@ -146,18 +146,22 @@ VCDParser::~VCDParser() {
 void VCDParser::parse_meta(VCDMetaInfo::MetaType type) {
     std::stringstream ss;
     std::string token;
+    uint64_t start_pos = stream_.tellg();
 
     while ((token = next_token(stream_)) != end_str) {
         ss << " " << token;
     }
     if (on_meta_info_) {
         VCDMetaInfo meta_info{.type = type, .value = ss.str()};
+        meta_info.start_pos = start_pos;
+        meta_info.end_pos = stream_.tellg();
         (*on_meta_info_)(meta_info);
     }
 }
 
 bool VCDParser::parse_scope_def() {
     static VCDScopeDef scope_def;
+    scope_def.start_pos = stream_.tellg();
     scope_def.type = next_token(stream_);  // scope type
     scope_def.name = next_token(stream_);
     auto token = next_token(stream_);
@@ -165,6 +169,7 @@ bool VCDParser::parse_scope_def() {
         error_message_ = "Illegal VCD file";
         return false;
     }
+    scope_def.end_pos = stream_.tellg();
     if (on_enter_scope_) {
         (*on_enter_scope_)(scope_def);
     }
@@ -173,7 +178,7 @@ bool VCDParser::parse_scope_def() {
 
 bool VCDParser::parse_var_def() {
     static VCDVarDef var_def;
-
+    var_def.start_pos = stream_.tellg();
     var_def.type = next_token(stream_);
     var_def.width = std::stoul(next_token(stream_));
     var_def.identifier = next_token(stream_);
@@ -191,6 +196,8 @@ bool VCDParser::parse_var_def() {
         var_def.slice = "";
     }
 
+    var_def.end_pos = stream_.tellg();
+
     if (on_var_def_) {
         (*on_var_def_)(var_def);
     }
@@ -199,17 +206,22 @@ bool VCDParser::parse_var_def() {
 
 bool VCDParser::parse_vcd_values() {  // NOLINT
     size_t timestamp = 0;
+    uint64_t start_pos;
 
-    auto add_value = [this, &timestamp](const std::string &identifier, const std::string &value,
-                                        bool is_event = false) {
+    auto add_value = [this, &timestamp, &start_pos](const std::string &identifier,
+                                                    const std::string &value,
+                                                    bool is_event = false) {
         VCDValue v{
             .time = timestamp, .identifier = identifier, .value = value, .is_event = is_event};
+        v.start_pos = start_pos;
+        v.end_pos = stream_.tellg();
         if (on_value_change_) {
             (*on_value_change_)(v);
         }
     };
 
     while (true) {
+        start_pos = stream_.tellg();
         auto token = next_token(stream_);
         if (token.empty()) return true;
 
