@@ -103,10 +103,16 @@ how to use it with different simulators.
 - Verilator
 
   Verilator is a little bit tedious since it is not specification-compliant.
-  ``verilator [flags] --vpi ${path_to_libhgdb.so}``
+
+  First, we need to generate the verilator files with extra VPI flags
+
+  .. code-block:: bash
+
+    verilator [flags] --vpi ${path_to_libhgdb.so}``
+
   In addition, most signals should be labeled as public, otherwise breakpoints and frame
   inspection will not work. An easy way is to use ``--public-flat-rw``
-  flag. In addition to the flags, we need add following code to the test bench:
+  flag when invoking ``verilator``. In addition to the flags, we need add following code to the test bench:
 
   - Forward declare the runtime call:
 
