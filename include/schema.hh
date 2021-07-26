@@ -21,8 +21,7 @@ struct BreakPoint {
     std::unique_ptr<uint32_t> instance_id;
     /**
      * Path for the source file that generates the corresponding line in
-     * either absolute path or its basename. The table can only use one of
-     * them; mixing absolute path and basename will cause error during runtime.
+     * absolute path.
      */
     std::string filename;
     /**
@@ -189,7 +188,7 @@ struct ContextVariable {
      *    ...
      *    array_1.1.0
      *    ...
-     * 2. array_1[0][[0]  <- preferred
+     * 2. array_1[0][[0]
      *    array_1[0][1]
      *    ...
      *    array_1[1[0]
@@ -266,6 +265,47 @@ struct Annotation {
     std::string value;
 };
 
+/**
+ * Used for event-based debugging
+ */
+struct Event {
+    /**
+     * Event name, typically in a form of namespace separated by '/', e.g. test/event
+     */
+    std::string name;
+    /**
+     * Transaction name, typically in a form of namespace separated by '/', e.g. test/transaction
+     */
+    std::string transaction;
+    /**
+     * Enum flag value.
+     * 0 - None
+     * 1 - Starts the transaction
+     * 2 - Ends the transaction
+     */
+    uint64_t action;
+    /**
+     * A json string serialized from a dictionary. The key is field name, and the value
+     * can either be a variable name (scoped by breakpoint id, or full path), or a numeric
+     * constant.
+     */
+    std::string fields;
+    /**
+     * A json string serialized from a dictionary. The format is identical to fields. If the
+     * event action is Start, the inflight transaction will store the current values described by
+     * the matches table. The match values of subsequent events will be used against the start
+     * event's match table. If all values match, the event will be added to the current
+     * transaction. If a field name doesn't exist in previous events within the target transaction
+     * debugger client is free to throw away the event.
+     */
+    std::string matches;
+    /**
+     * Links back to the event statement, which can be used for breakpoint in the source
+     * code
+     */
+    std::unique_ptr<uint32_t> breakpoint_id;
+};
+
 auto inline init_debug_db(const std::string &filename) {
     using namespace sqlite_orm;
     auto storage = make_storage(
@@ -298,7 +338,14 @@ auto inline init_debug_db(const std::string &filename) {
                    foreign_key(&GeneratorVariable::instance_id).references(&Instance::id),
                    foreign_key(&GeneratorVariable::variable_id).references(&Variable::id)),
         make_table("annotation", make_column("name", &Annotation::name),
-                   make_column("value", &Annotation::value)));
+                   make_column("value", &Annotation::value)),
+        make_table("event", make_column("name", &Event::name),
+                   make_column("transaction", &Event::transaction),
+                   make_column("action", &Event::action), make_column("fields", &Event::fields),
+                   make_column("matches", &Event::matches),
+                   make_column("breakpoint_id", &Event::breakpoint_id),
+                   foreign_key(&Event::breakpoint_id).references(&BreakPoint::id)));
+
     storage.sync_schema();
     return storage;
 }
@@ -371,6 +418,18 @@ inline void store_generator_variable(DebugDatabase &db, const std::string &name,
 
 inline void store_annotation(DebugDatabase &db, const std::string &name, const std::string &value) {
     db.replace(Annotation{.name = name, .value = value});
+}
+
+inline void store_event(DebugDatabase &db, const std::string &name, const std::string &transaction,
+                        uint64_t action, const std::string &fields,
+                        const std::string &matches, uint32_t breakpoint_id) {
+    db.replace(Event{.name = name,
+                     .transaction = transaction,
+                     .action = action,
+                     .fields = fields,
+                     .matches = matches,
+                     .breakpoint_id = std::make_unique<uint32_t>(breakpoint_id)});
+    // NOLINTNEXTLINE
 }
 
 }  // namespace hgdb
