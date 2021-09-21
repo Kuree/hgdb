@@ -60,7 +60,8 @@ std::optional<uint64_t> VCDDatabase::get_signal_id(const std::string &full_name)
     auto tokens = util::get_tokens(full_name, ".");
     if (tokens.size() < 2) return std::nullopt;
     // the last one is the signal name
-    auto module_name = util::join(tokens.begin(), tokens.begin() + tokens.size() - 1, ".");
+    auto module_name =
+        util::join(tokens.begin(), tokens.begin() + static_cast<long>(tokens.size()) - 1, ".");
     auto module_id = get_instance_id(module_name);
     if (!module_id) return std::nullopt;
     auto vars =
@@ -70,32 +71,47 @@ std::optional<uint64_t> VCDDatabase::get_signal_id(const std::string &full_name)
     return vars[0];
 }
 
-std::vector<VCDDBSignal> VCDDatabase::get_instance_signals(uint64_t instance_id) {
+std::vector<WaveformSignal> VCDDatabase::get_instance_signals(uint64_t instance_id) {
     using namespace sqlite_orm;
     auto vars =
         vcd_table_->get_all<VCDDBSignal>(where(c(&VCDDBSignal::instance_id) == instance_id));
-    return vars;
-}
-
-std::vector<VCDDBModule> VCDDatabase::get_child_instances(uint64_t instance_id) {
-    using namespace sqlite_orm;
-    auto vars = vcd_table_->select(columns(&VCDDBModule::name, &VCDDBModule::id),
-                                   where(c(&VCDDBModuleHierarchy::parent_id) == instance_id &&
-                                         c(&VCDDBModuleHierarchy::child_id) == &VCDDBModule::id));
-    std::vector<VCDDBModule> result;
+    std::vector<WaveformSignal> result;
     result.reserve(vars.size());
-    for (auto const &[name, id] : vars) {
-        result.emplace_back(VCDDBModule{.id = id, .name = name});
+    for (auto const &v : vars) {
+        result.emplace_back(WaveformSignal{v.id, v.name, v.width});
     }
     return result;
 }
 
-std::unique_ptr<VCDDBSignal> VCDDatabase::get_signal(uint64_t signal_id) {
-    return std::move(vcd_table_->get_pointer<VCDDBSignal>(signal_id));
+std::vector<WaveformInstance> VCDDatabase::get_child_instances(uint64_t instance_id) {
+    using namespace sqlite_orm;
+    auto vars = vcd_table_->select(columns(&VCDDBModule::name, &VCDDBModule::id),
+                                   where(c(&VCDDBModuleHierarchy::parent_id) == instance_id &&
+                                         c(&VCDDBModuleHierarchy::child_id) == &VCDDBModule::id));
+    std::vector<WaveformInstance> result;
+    result.reserve(vars.size());
+    for (auto const &[name, id] : vars) {
+        result.emplace_back(WaveformInstance{.id = id, .name = name});
+    }
+    return result;
 }
 
-std::unique_ptr<VCDDBModule> VCDDatabase::get_instance(uint64_t instance_id) {
-    return std::move(vcd_table_->get_pointer<VCDDBModule>(instance_id));
+std::optional<WaveformSignal> VCDDatabase::get_signal(uint64_t signal_id) {
+    auto ptr = vcd_table_->get_pointer<VCDDBSignal>(signal_id);
+    if (ptr) {
+        return WaveformSignal{.id = ptr->id, .name = ptr->name, .width = ptr->width};
+    } else {
+        return std::nullopt;
+    }
+}
+
+std::optional<std::string> VCDDatabase::get_instance(uint64_t instance_id) {
+    auto ptr = vcd_table_->get_pointer<VCDDBModule>(instance_id);
+    if (ptr) {
+        return ptr->name;
+    } else {
+        return std::nullopt;
+    }
 }
 
 std::optional<std::string> VCDDatabase::get_signal_value(uint64_t id, uint64_t timestamp) {
@@ -117,24 +133,24 @@ std::string VCDDatabase::get_full_signal_name(uint64_t signal_id) {
     auto ptr = get_signal(signal_id);
     if (!ptr) return "";
     std::string name = ptr->name;
-    uint64_t instance_id = *ptr->instance_id;
+    uint64_t instance_id = ptr->id;
     name = fmt::format("{0}.{1}", get_full_instance_name(instance_id), name);
     return name;
 }
 
 std::string VCDDatabase::get_full_instance_name(uint64_t instance_id) {
     using namespace sqlite_orm;
-    auto ptr = get_instance(instance_id);
-    if (!ptr) return "";
-    std::string name = ptr->name;
+    auto inst_name = get_instance(instance_id);
+    if (!inst_name) return "";
+    std::string name = *inst_name;
     while (true) {
         auto parents = vcd_table_->get_all<VCDDBModuleHierarchy>(
             where(c(&VCDDBModuleHierarchy::child_id) == instance_id));
         if (parents.empty()) break;
         instance_id = *(parents[0].parent_id);
-        ptr = get_instance(instance_id);
-        if (!ptr) break;
-        name = fmt::format("{0}.{1}", ptr->name, name);
+        inst_name = get_instance(instance_id);
+        if (!inst_name) break;
+        name = fmt::format("{0}.{1}", *inst_name, name);
     }
     return name;
 }

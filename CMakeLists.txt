@@ -9,6 +9,7 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 # set -fPIC everywhere
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 include(CheckCXXCompilerFlag)
+set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake")
 
 # extern dependencies
 add_subdirectory(extern/fmt)

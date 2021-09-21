@@ -205,7 +205,7 @@ char *ReplayVPIProvider::vpi_get_str(PLI_INT32 property, vpiHandle object) {
             auto instance_id = instance_id_map_.at(object);
             auto instance = db_->get_instance(instance_id);
             if (instance) {
-                str_buffer_ = instance->name;
+                str_buffer_ = std::move(*instance);
             }
         }
     }

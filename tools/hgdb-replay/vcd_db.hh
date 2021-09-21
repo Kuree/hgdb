@@ -8,6 +8,7 @@
 #include <unordered_set>
 #include <vector>
 
+#include "../waveform/waveform.hh"
 #include "sqlite_orm/sqlite_orm.h"
 
 namespace hgdb::vcd {
@@ -59,23 +60,25 @@ auto inline initial_vcd_db(const std::string &filename) {
     return storage;
 }
 
-class VCDDatabase {
+class VCDDatabase : public waveform::WaveformProvider {
 public:
-    VCDDatabase(const std::string &filename, bool store_converted_db = false);
-    std::optional<uint64_t> get_instance_id(const std::string &full_name);
-    std::optional<uint64_t> get_signal_id(const std::string &full_name);
-    std::vector<VCDDBSignal> get_instance_signals(uint64_t instance_id);
-    std::vector<VCDDBModule> get_child_instances(uint64_t instance_id);
-    std::unique_ptr<VCDDBSignal> get_signal(uint64_t signal_id);
-    std::unique_ptr<VCDDBModule> get_instance(uint64_t instance_id);
-    std::optional<std::string> get_signal_value(uint64_t id, uint64_t timestamp);
-    std::string get_full_signal_name(uint64_t signal_id);
-    std::string get_full_instance_name(uint64_t instance_id);
-    std::optional<uint64_t> get_next_value_change_time(uint64_t signal_id, uint64_t base_time);
+    explicit VCDDatabase(const std::string &filename) : VCDDatabase(filename, false) {}
+    VCDDatabase(const std::string &filename, bool store_converted_db);
+    std::optional<uint64_t> get_instance_id(const std::string &full_name) override;
+    std::optional<uint64_t> get_signal_id(const std::string &full_name) override;
+    std::vector<WaveformSignal> get_instance_signals(uint64_t instance_id) override;
+    std::vector<WaveformInstance> get_child_instances(uint64_t instance_id) override;
+    std::optional<WaveformSignal> get_signal(uint64_t signal_id) override;
+    std::optional<std::string> get_instance(uint64_t instance_id) override;
+    std::optional<std::string> get_signal_value(uint64_t id, uint64_t timestamp) override;
+    std::string get_full_signal_name(uint64_t signal_id) override;
+    std::string get_full_instance_name(uint64_t instance_id) override;
+    std::optional<uint64_t> get_next_value_change_time(uint64_t signal_id,
+                                                       uint64_t base_time) override;
     std::optional<uint64_t> get_prev_value_change_time(uint64_t signal_id, uint64_t base_time,
-                                                       const std::string &target_value);
+                                                       const std::string &target_value) override;
     std::pair<std::string, std::string> compute_instance_mapping(
-        const std::unordered_set<std::string> &instance_names);
+        const std::unordered_set<std::string> &instance_names) override;
 
 private:
     // parsing functions

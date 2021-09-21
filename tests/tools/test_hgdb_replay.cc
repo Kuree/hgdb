@@ -72,7 +72,7 @@ TEST(vcd, vcd_parse) {  // NOLINT
 
     auto module = db.get_instance(0);
     EXPECT_TRUE(module);
-    EXPECT_EQ(module->name, "top");
+    EXPECT_EQ(*module, "top");
 
     auto value = db.get_signal_value(*db.get_signal_id("top.inst.b"), 20);
     EXPECT_EQ(*value, "1");
