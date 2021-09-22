@@ -2,6 +2,7 @@
 #define HGDB_WAVEFORM_HH
 #include <memory>
 #include <optional>
+#include <unordered_set>
 #include <vector>
 
 struct WaveformSignal {
@@ -34,6 +35,8 @@ public:
                                                                const std::string &target_value) = 0;
     virtual std::pair<std::string, std::string> compute_instance_mapping(
         const std::unordered_set<std::string> &instance_names) = 0;
+
+    virtual ~WaveformProvider() = default;
 };
 }  // namespace hgdb::waveform
 

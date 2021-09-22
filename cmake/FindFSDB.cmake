@@ -1,6 +1,6 @@
 set(VERDI_HOME $ENV{VERDI_HOME})
 set(FSDB_HOME ${VERDI_HOME}/share/FsdbReader)
-set(FSDB_LINUX_LIB ${FSDB_HOME}/Linux64)
+set(FSDB_LINUX_LIB ${FSDB_HOME}/linux64)
 set(FSDB_INCLUDE_DIR ${FSDB_HOME})
 
 find_library(LIBNFFR Names nffr HINTS ${FSDB_LINUX_LIB})
