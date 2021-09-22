@@ -140,66 +140,6 @@ static bool_T parse_var_def(fsdbTreeCBType cb_type, void *client_data, void *tre
     return true;
 }
 
-struct fsdbReaderBlackoutChain {
-    uint64_t tim;
-    bool active;
-};
-
-template <typename T>
-uint64_t T2U64(T t) {
-    return (((uint64_t)(t).H << 32) | ((uint64_t)(t).L));
-}
-
-template <typename T>
-uint64_t Xt2U64(T xt) {
-    return (((uint64_t)(xt).t64.H << 32) | ((uint64_t)(xt).t64.L));
-}
-
-template <typename T>
-uint64_t FXT2U64(T xt) {
-    return (((uint64_t)(xt).hltag.H << 32) | ((uint64_t)(xt).hltag.L));
-}
-
-static bool fsdbReaderGetMaxFsdbTag64(ffrObject *fsdb_obj, uint64_t *tim) {
-    fsdbTag64 tag64;
-    fsdbRC rc = fsdb_obj->ffrGetMaxFsdbTag64(&tag64);
-
-    if (rc == FSDB_RC_SUCCESS) {
-        *tim = T2U64(tag64);
-    }
-
-    return rc == FSDB_RC_SUCCESS;
-}
-
-static unsigned int fsdbReaderGetDumpOffRange(ffrObject *fsdb_obj,
-                                              std::vector<fsdbReaderBlackoutChain> &r) {
-    if (fsdb_obj->ffrHasDumpOffRange()) {
-        uint_T count;
-        fsdbDumpOffRange *fdr = nullptr;
-
-        if (FSDB_RC_SUCCESS == fsdb_obj->ffrGetDumpOffRange(count, fdr)) {
-            auto c = static_cast<uint64_t>(count);
-            r.resize(c * 2);
-
-            for (auto i = 0ul; i < c; i++) {
-                r[i * 2u].tim = FXT2U64(fdr[i].begin);
-                r[i * 2].active = false;
-                r[i * 2 + 1].tim = FXT2U64(fdr[i].end);
-                r[i * 2 + 1].active = true;
-            }
-
-            uint64_t max_t;
-            if (fsdbReaderGetMaxFsdbTag64(fsdb_obj, &max_t)) {
-                if ((count == 1) && (max_t == r[0].tim)) {
-                    r.resize(0);
-                }
-            }
-        }
-    }
-
-    return r.size();
-}
-
 namespace hgdb::fsdb {
 
 FSDBProvider::FSDBProvider(const std::string &filename) {
@@ -234,10 +174,6 @@ FSDBProvider::FSDBProvider(const std::string &filename) {
     fsdb_->ffrReadDataTypeDefByBlkIdx(blk_idx);
 
     // start the parsing process
-    std::vector<fsdbReaderBlackoutChain> dumpoff_ranges;
-    auto dumpoff_count = fsdbReaderGetDumpOffRange(fsdb_, dumpoff_ranges);
-    (void)dumpoff_count;
-
     parser_info info;
 
     fsdb_->ffrSetTreeCBFunc(parse_var_def, &info);
@@ -315,14 +251,77 @@ std::optional<std::string> FSDBProvider::get_instance(uint64_t instance_id) {
     }
 }
 
+// helper function to convert FSDB value to vcd string
+std::optional<std::string> to_vcd_value(ushort_T bit_size, fsdbBytesPerBit bytes_per_bit,
+                                        byte_T *vc_ptr) {
+    uint32_t byte_count;
+    switch (bytes_per_bit) {
+        case FSDB_BYTES_PER_BIT_1B:
+            byte_count = 1 * bit_size;
+            break;
+        case FSDB_BYTES_PER_BIT_2B:
+            byte_count = 2 * bit_size;
+            break;
+        case FSDB_BYTES_PER_BIT_4B:
+            byte_count = 4 * bit_size;
+            break;
+        case FSDB_BYTES_PER_BIT_8B:
+            byte_count = 8 * bit_size;
+            break;
+        default:
+            return std::nullopt;
+    }
+    std::string result;
+    for (auto i = 0u; i < byte_count; i++, vc_ptr++) {
+        auto vc_type = *vc_ptr;
+        switch (vc_type) {
+            case FSDB_BT_VCD_0:
+                result.append("0");
+                break;
+            case FSDB_BT_VCD_1:
+                result.append("1");
+                break;
+            case FSDB_BT_VCD_X:
+                result.append("x");
+                break;
+            case FSDB_BT_VCD_Z:
+                result.append("z");
+                break;
+            default:
+                return std::nullopt;
+        }
+    }
+
+    return result;
+}
+
 std::optional<std::string> FSDBProvider::get_signal_value(uint64_t id, uint64_t timestamp) {
     auto signal = get_signal(id);
     if (!signal) return std::nullopt;
     // now need to construct handler and query the value change
     auto *hdl = fsdb_->ffrCreateVCTrvsHdl(static_cast<int64_t>(id));
-    // we traverse through until we found a match
-    // this will be very slow for signals that frequently change
-    // need t refer to JUMP_TEST
+    if (!hdl) {
+        return std::nullopt;
+    }
+
+    // we will try to jump to that particular time
+    fsdbTag64 time;
+    time.H = static_cast<uint32_t>(timestamp >> 32);
+    time.L = static_cast<uint32_t>(timestamp & 0xFFFFFFFF);
+
+    auto res = hdl->ffrGotoXTag(&time);
+    if (res != FSDB_RC_SUCCESS) {
+        // failure to jump time
+        hdl->ffrFree();
+        return std::nullopt;
+    }
+    // get raw data
+    byte_T *vc_ptr;
+    hdl->ffrGetVC(&vc_ptr);
+    // for consistency reason we convert to VCD-style string
+    auto r = to_vcd_value(hdl->ffrGetBitSize(), hdl->ffrGetBytesPerBit(), vc_ptr);
+    hdl->ffrFree();
+    return r;
 }
 
 std::string FSDBProvider::get_full_signal_name(uint64_t signal_id) {
@@ -341,6 +340,126 @@ std::string FSDBProvider::get_full_instance_name(uint64_t instance_id) {
     } else {
         return {};
     }
+}
+
+std::optional<uint64_t> FSDBProvider::get_next_value_change_time(uint64_t signal_id,
+                                                                 uint64_t base_time) {
+    auto signal = get_signal(signal_id);
+    if (!signal) return std::nullopt;
+    // now need to construct handler and query the value change
+    auto *hdl = fsdb_->ffrCreateVCTrvsHdl(static_cast<int64_t>(signal_id));
+    if (!hdl) {
+        return std::nullopt;
+    }
+
+    // we will try to jump to that particular time
+    fsdbTag64 time;
+    time.H = static_cast<uint32_t>(base_time >> 32);
+    time.L = static_cast<uint32_t>(base_time & 0xFFFFFFFF);
+
+    auto res = hdl->ffrGotoXTag(&time);
+    if (res != FSDB_RC_SUCCESS) {
+        // failure to jump time
+        hdl->ffrFree();
+        return std::nullopt;
+    }
+
+    hdl->ffrGotoNextVC();
+    hdl->ffrGetXTag(&time);
+    uint64_t r = time.L;
+    r |= static_cast<uint64_t>(time.H) << 32;
+    hdl->ffrFree();
+    return r;
+}
+
+std::optional<uint64_t> FSDBProvider::get_prev_value_change_time(uint64_t signal_id,
+                                                                 uint64_t base_time,
+                                                                 const std::string &target_value) {
+    auto signal = get_signal(signal_id);
+    if (!signal) return std::nullopt;
+    // now need to construct handler and query the value change
+    auto *hdl = fsdb_->ffrCreateVCTrvsHdl(static_cast<int64_t>(signal_id));
+    if (!hdl) {
+        return std::nullopt;
+    }
+
+    // we will try to jump to that particular time
+    fsdbTag64 time;
+    time.H = static_cast<uint32_t>(base_time >> 32);
+    time.L = static_cast<uint32_t>(base_time & 0xFFFFFFFF);
+
+    auto res = hdl->ffrGotoXTag(&time);
+    if (res != FSDB_RC_SUCCESS) {
+        // failure to jump time
+        hdl->ffrFree();
+        return std::nullopt;
+    }
+    while (true) {
+        hdl->ffrGotoPrevVC();
+        byte_T *vc_ptr;
+        hdl->ffrGetVC(&vc_ptr);
+        auto str = to_vcd_value(hdl->ffrGetBitSize(), hdl->ffrGetBytesPerBit(), vc_ptr);
+        if (str == target_value) {
+            hdl->ffrGetXTag(&time);
+            uint64_t r = time.L;
+            r |= static_cast<uint64_t>(time.H) << 32;
+            hdl->ffrFree();
+            return r;
+        }
+    }
+}
+
+inline uint64_t count_char(const std::string &str, char c) {
+    return std::count(str.begin(), str.end(), c);
+}
+
+std::pair<std::string, std::string> FSDBProvider::compute_instance_mapping(
+    const std::unordered_set<std::string> &instance_names) {
+    // first get the longest instance name
+    std::string instance_name;
+    uint64_t hierarchy_count = 0;
+    for (auto const &name : instance_names) {
+        auto c = count_char(name, '.');
+        if (c > hierarchy_count) {
+            instance_name = name;
+        }
+    }
+
+    // need to compute the hierarchy without the top level name
+    auto pos = instance_name.find_first_of('.');
+    if (pos == std::string::npos) {
+        // only one level. best of luck
+        // we pick whatever has second level and slap on it.
+        for (auto const &[name, id] : instance_name_map_) {
+            auto c = count_char(name, '.');
+            if (c == 2) {
+                // that's it
+                return {instance_name, name + "."};
+            }
+            throw std::runtime_error("Unable to compute instance name mapping");
+        }
+    } else {
+        // multiple level
+        auto same_name = instance_name.substr(pos + 1);
+        // trying to find a match
+        for (auto const &[name, id] : instance_name_map_) {
+            if (name.size() <= same_name.size()) {
+                continue;
+            }
+            // see if there is a match
+            if (name.ends_with(same_name)) {
+                auto p = name.find_last_of(same_name);
+                p--;
+                if (name[p] == '.') {
+                    // it's a match
+                    auto mapped = name.substr(0, p);
+                    auto top_name = instance_name.substr(pos - 1);
+                    return {top_name, mapped};
+                }
+            }
+        }
+    }
+    throw std::runtime_error("Unable to compute instance name mapping");
 }
 
 FSDBProvider::~FSDBProvider() {

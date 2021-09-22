@@ -11,7 +11,7 @@ std::string convert_str_value(const std::string &raw_value);
 class ReplayVPIProvider : public hgdb::AVPIProvider {
     // notice that much of the implementation is identical to the mock vpi provider
 public:
-    explicit ReplayVPIProvider(std::unique_ptr<hgdb::vcd::VCDDatabase> db);
+    explicit ReplayVPIProvider(std::unique_ptr<hgdb::waveform::WaveformProvider> db);
     void vpi_get_value(vpiHandle expr, p_vpi_value value_p) override;
     PLI_INT32 vpi_get(PLI_INT32 property, vpiHandle object) override;
     char *vpi_get_str(PLI_INT32 property, vpiHandle object) override;
@@ -34,7 +34,7 @@ public:
     void set_on_cb_removed(const std::function<void(const s_cb_data &)> &on_cb_removed);
     void set_on_reversed(const std::function<bool(rewind_data *)> &on_reversed);
     void set_timestamp(uint64_t time) { current_time_ = time; }
-    hgdb::vcd::VCDDatabase &db() { return *db_; }
+    hgdb::waveform::WaveformProvider &db() { return *db_; }
     bool is_valid_handle(vpiHandle handle) const;
     void trigger_cb(uint32_t reason) { trigger_cb(reason, nullptr, 0); }
     void trigger_cb(uint32_t reason, vpiHandle obj, int64_t value);
@@ -52,7 +52,7 @@ public:
     vpiHandle get_new_handle();
 
 private:
-    std::unique_ptr<hgdb::vcd::VCDDatabase> db_;
+    std::unique_ptr<hgdb::waveform::WaveformProvider> db_;
     uint64_t current_time_ = 0;
     // if it's in callback_eval, when we do get time we have to + 1 since we are getting
     // stabilized values

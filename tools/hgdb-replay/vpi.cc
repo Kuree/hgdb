@@ -7,7 +7,7 @@
 
 namespace hgdb::replay {
 
-ReplayVPIProvider::ReplayVPIProvider(std::unique_ptr<hgdb::vcd::VCDDatabase> db)
+ReplayVPIProvider::ReplayVPIProvider(std::unique_ptr<hgdb::waveform::WaveformProvider> db)
     : db_(std::move(db)) {
     // claim the nullptr;
     get_new_handle();
