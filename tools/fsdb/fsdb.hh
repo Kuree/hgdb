@@ -39,6 +39,8 @@ private:
     std::unordered_map<std::string, uint64_t> instance_name_map_;
     std::unordered_map<uint64_t, WaveformSignal> variable_map_;
     std::unordered_map<std::string, uint64_t> variable_id_map_;
+    std::unordered_map<uint64_t, std::vector<uint64_t>> instance_vars_;
+    std::unordered_map<uint64_t, std::vector<uint64_t>> instance_hierarchy_;
 };
 
 }  // namespace hgdb::fsdb
