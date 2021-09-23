@@ -129,11 +129,11 @@ def test_fsdb_replay(start_server, find_free_port, get_tools_vector_dir):
     fsdb_path = os.path.join(vector_dir, "waveform6.fsdb")
     if not os.path.exists(fsdb_path):
         pytest.skip("FSDB not available")
-    port = 8888 #find_free_port()
+    port = find_free_port()
 
-    #s = start_server(port, ("tools", "hgdb-replay", "hgdb-replay"), args=[fsdb_path])
-    #if s is None:
-    #    pytest.skip("hgdb-deplay not available")
+    s = start_server(port, ("tools", "hgdb-replay", "hgdb-replay"), args=[fsdb_path])
+    if s is None:
+        pytest.skip("hgdb-deplay not available")
     sv = os.path.join(vector_dir, "waveform6.sv")
     with tempfile.TemporaryDirectory() as tempdir:
         db = os.path.join(tempdir, "debug.db")
@@ -146,11 +146,18 @@ def test_fsdb_replay(start_server, find_free_port, get_tools_vector_dir):
             await client.set_breakpoint(sv, get_line_num(sv, "    b <= {a, ~a};"))
             await client.continue_()
             bp = await client.recv()
-            print(bp)
+            # at the first clock edge, b is not initialized
+            assert bp["payload"]["instances"][0]["local"]["b"] == "0xx"
+            await client.continue_()
+            bp = await client.recv()
+            assert bp["payload"]["instances"][0]["local"]["b"] == "0x1"
+            await client.continue_()
+            bp = await client.recv()
+            assert bp["payload"]["instances"][0]["local"]["b"] == "0x2"
 
         asyncio.get_event_loop().run_until_complete(test_logic())
 
-    # s.kill()
+    s.kill()
 
 
 if __name__ == "__main__":
