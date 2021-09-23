@@ -283,12 +283,19 @@ vpiHandle ReplayVPIProvider::vpi_iterate(PLI_INT32 type, vpiHandle refHandle) {
         }
     } else if (type == vpiModule) {
         if (refHandle == nullptr) {
-            // this is top. top instance is always id 0 (how instance id allocation works)
+            // this is top. top instance is not always 0 given how the DB tree walk
+            auto top_instance_id = db_->top_instance_id();
             for (auto const &[handle, id] : instance_id_map_) {
-                if (id == 0) {
+                if (id == top_instance_id) {
                     handles.emplace_back(handle);
                     break;
                 }
+            }
+            // if not found. this could be caused by completely new system
+            if (handles.empty()) {
+                auto *handle = get_new_handle();
+                instance_id_map_.emplace(handle, top_instance_id);
+                handles.emplace_back(handle);
             }
         } else {
             if (instance_id_map_.find(refHandle) == instance_id_map_.end()) {
@@ -298,9 +305,12 @@ vpiHandle ReplayVPIProvider::vpi_iterate(PLI_INT32 type, vpiHandle refHandle) {
             auto instances = db_->get_child_instances(instance_id);
             for (auto const &instance : instances) {
                 auto *handle = get_instance_handle(instance.id);
-                if (handle) {
-                    handles.emplace_back(handle);
+                if (!handle) {
+                    // may not be created yet
+                    handle = get_new_handle();
+                    instance_id_map_.emplace(handle, instance.id);
                 }
+                handles.emplace_back(handle);
             }
         }
     }

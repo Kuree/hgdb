@@ -43,6 +43,8 @@ public:
         return std::nullopt;
     }
 
+    [[nodiscard]] inline virtual uint64_t top_instance_id() const { return 0; }
+
     virtual ~WaveformProvider() = default;
 };
 }  // namespace hgdb::waveform

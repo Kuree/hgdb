@@ -27,6 +27,8 @@ public:
                                                        const std::string &target_value) override;
 
     [[nodiscard]] bool has_inst_definition() const override { return true; }
+    std::optional<std::string> get_instance_definition(uint64_t instance_id) const override;
+    uint64_t top_instance_id() const override { return top_instance_ ; }
 
     ~FSDBProvider() override;
 
@@ -41,7 +43,8 @@ private:
     std::unordered_map<std::string, uint64_t> variable_id_map_;
     std::unordered_map<uint64_t, std::vector<uint64_t>> instance_vars_;
     std::unordered_map<uint64_t, std::vector<uint64_t>> instance_hierarchy_;
-    std::unordered_map<std::string, std::vector<uint64_t>> instance_def_map_;
+    std::unordered_map<std::string, std::unordered_set<uint64_t>> instance_def_map_;
+    uint64_t top_instance_ = 0;
 };
 
 }  // namespace hgdb::fsdb

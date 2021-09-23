@@ -1,8 +1,8 @@
 #include "fsdb.hh"
 
+#include <regex>
 #include <stack>
 #include <vector>
-#include <regex>
 
 #include "ffrAPI.h"
 
@@ -25,7 +25,9 @@ public:
     // used to map the instance names
     // key is the module name and values are instance ids
     // this is designed to reduce memory overhead in case of lots of instances
-    std::unordered_map<std::string, std::vector<uint64_t>> instance_def_map;
+    std::unordered_map<std::string, std::unordered_set<uint64_t>> instance_def_map;
+
+    std::optional<uint64_t> top_instance_id;
 
     // tracking information
     std::stack<uint64_t> current_instance_ids;
@@ -43,6 +45,7 @@ public:
 
 static bool_T null_trace_cb(fsdbTreeCBType, void *, void *) { return true; }
 
+// NOLINTNEXTLINE
 static bool_T parse_var_def(fsdbTreeCBType cb_type, void *client_data, void *tree_cb_data) {
     auto *info = reinterpret_cast<parser_info *>(client_data);
     auto &scopes = info->scopes;
@@ -62,7 +65,9 @@ static bool_T parse_var_def(fsdbTreeCBType cb_type, void *client_data, void *tre
             info->instance_name_map.emplace(full_name, id);
             scopes.emplace_back(scope->name);
             auto scope_type = static_cast<int>(scope->type);
-            if (scope_type == FSDB_ST_SV_INTERFACE || scope_type == FSDB_ST_VCD_MODULE) {
+            // we are not interested in the hidden scope
+            if ((scope_type == FSDB_ST_SV_INTERFACE || scope_type == FSDB_ST_VCD_MODULE) &&
+                !scope->is_hidden_scope) {
                 // parent info
                 if (!info->current_instance_ids.empty()) {
                     auto parent_id = info->current_instance_ids.top();
@@ -70,7 +75,11 @@ static bool_T parse_var_def(fsdbTreeCBType cb_type, void *client_data, void *tre
                 }
                 info->current_instance_ids.emplace(id);
                 if (scope_type == FSDB_ST_VCD_MODULE && scope->module) {
-                    info->instance_def_map[scope->module].emplace_back(id);
+                    info->instance_def_map[scope->module].emplace(id);
+                    if (!info->top_instance_id) {
+                        // the first one is always the TOP
+                        info->top_instance_id = id;
+                    }
                 }
             }
             break;
@@ -206,6 +215,8 @@ FSDBProvider::FSDBProvider(const std::string &filename) {
     instance_vars_ = std::move(info.instance_vars);
     instance_hierarchy_ = std::move(info.instance_hierarchy);
     instance_def_map_ = std::move(info.instance_def_map);
+
+    if (info.top_instance_id) top_instance_ = *info.top_instance_id;
 }
 
 std::optional<uint64_t> FSDBProvider::get_instance_id(const std::string &full_name) {
@@ -433,6 +444,18 @@ std::optional<uint64_t> FSDBProvider::get_prev_value_change_time(uint64_t signal
             return r;
         }
     }
+}
+
+std::optional<std::string> FSDBProvider::get_instance_definition(uint64_t instance_id) const {
+    if (instance_map_.find(instance_id) != instance_map_.end()) {
+        // need to find a match
+        for (auto const &[def, ids] : instance_def_map_) {
+            if (ids.find(instance_id) != ids.end()) {
+                return def;
+            }
+        }
+    }
+    return std::nullopt;
 }
 
 FSDBProvider::~FSDBProvider() {
