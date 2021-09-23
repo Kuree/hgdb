@@ -312,8 +312,23 @@ TEST(replay, array_waveform4) {  // NOLINT
 }
 
 #ifdef USE_FSDB
+bool inside_valgrind() {
+    auto *ld_preload = std::getenv("LD_PRELOAD");
+    if (ld_preload) {
+        std::string ld_str = ld_preload;
+        return ld_str.find("valgrind") != std::string::npos;
+    }
+    return false;
+}
+
 TEST(fsdb, waveform6) {  // NOLINT
     change_cwd();
+    // notice that this test has memory leak because ffr library use malloc for strings (I believe)
+    // which never get cleaned up
+    if (inside_valgrind()) {
+        GTEST_SKIP_("FSDB frr library has memory leak which we can't fix");
+    }
+
     // if the file doesn't exist, skip
     auto constexpr filename = "waveform6.fsdb";
     if (!std::filesystem::exists(filename)) {

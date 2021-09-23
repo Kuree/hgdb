@@ -10,6 +10,9 @@
 // converted for modern C++
 // https://github.com/gtkwave/gtkwave/blob/master/gtkwave3-gtk3/contrib/fsdb2vcd/fsdb2vcd_fast.cc
 
+// notice that I tried my best to avoid memory leaks but there are several leaks reported by
+// valgrind.
+
 struct parser_info {
 public:
     std::vector<std::string> scopes;
@@ -460,6 +463,7 @@ std::optional<std::string> FSDBProvider::get_instance_definition(uint64_t instan
 
 FSDBProvider::~FSDBProvider() {
     if (fsdb_) {
+        fsdb_->ffrFreeNavDB();
         fsdb_->ffrClose();
     }
 }
