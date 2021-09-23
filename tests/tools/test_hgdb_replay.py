@@ -41,6 +41,18 @@ def write_out_db4(filename, sv):
             id_ += 1
 
 
+def write_out_db6(filename, sv):
+    db = hgdb.DebugSymbolTable(filename)
+    db.store_instance(0, "child")
+    db.store_instance(1, "child.inst")
+    db.store_breakpoint(0, 0, sv, get_line_num(sv, "    b <= {a, ~a};"))
+    db.store_variable(0, "clk")
+    db.store_generator_variable("clk", 0, 0)
+    db.store_variable(1, "b")
+    db.store_generator_variable("b", 0, 1)
+    db.store_context_variable("b", 0, 1)
+
+
 def test_replay3(start_server, find_free_port, get_tools_vector_dir):
     vector_dir = get_tools_vector_dir()
     vcd_path = os.path.join(vector_dir, "waveform3.vcd")
@@ -112,9 +124,38 @@ def test_replay4(start_server, find_free_port, get_tools_vector_dir):
     s.kill()
 
 
+def test_fsdb_replay(start_server, find_free_port, get_tools_vector_dir):
+    vector_dir = get_tools_vector_dir()
+    fsdb_path = os.path.join(vector_dir, "waveform6.fsdb")
+    if not os.path.exists(fsdb_path):
+        pytest.skip("FSDB not available")
+    port = 8888 #find_free_port()
+
+    #s = start_server(port, ("tools", "hgdb-replay", "hgdb-replay"), args=[fsdb_path])
+    #if s is None:
+    #    pytest.skip("hgdb-deplay not available")
+    sv = os.path.join(vector_dir, "waveform6.sv")
+    with tempfile.TemporaryDirectory() as tempdir:
+        db = os.path.join(tempdir, "debug.db")
+        write_out_db6(db, sv)
+
+        async def test_logic():
+            client = hgdb.client.HGDBClient("ws://localhost:{0}".format(port), db)
+            await client.connect()
+            time.sleep(0.1)
+            await client.set_breakpoint(sv, get_line_num(sv, "    b <= {a, ~a};"))
+            await client.continue_()
+            bp = await client.recv()
+            print(bp)
+
+        asyncio.get_event_loop().run_until_complete(test_logic())
+
+    # s.kill()
+
+
 if __name__ == "__main__":
     import sys
 
     sys.path.append(os.getcwd())
     from conftest import start_server_fn, find_free_port_fn, get_tools_vector_dir_fn
-    test_replay4(start_server_fn, find_free_port_fn, get_tools_vector_dir_fn)
+    test_fsdb_replay(start_server_fn, find_free_port_fn, get_tools_vector_dir_fn)

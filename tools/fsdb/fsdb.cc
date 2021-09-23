@@ -22,6 +22,11 @@ public:
     std::unordered_map<uint64_t, std::vector<uint64_t>> instance_vars;
     std::unordered_map<uint64_t, std::vector<uint64_t>> instance_hierarchy;
 
+    // used to map the instance names
+    // key is the module name and values are instance ids
+    // this is designed to reduce memory overhead in case of lots of instances
+    std::unordered_map<std::string, std::vector<uint64_t>> instance_def_map;
+
     // tracking information
     std::stack<uint64_t> current_instance_ids;
 
@@ -64,6 +69,9 @@ static bool_T parse_var_def(fsdbTreeCBType cb_type, void *client_data, void *tre
                     info->instance_hierarchy[parent_id].emplace_back(id);
                 }
                 info->current_instance_ids.emplace(id);
+                if (scope_type == FSDB_ST_VCD_MODULE && scope->module) {
+                    info->instance_def_map[scope->module].emplace_back(id);
+                }
             }
             break;
         }
@@ -197,6 +205,7 @@ FSDBProvider::FSDBProvider(const std::string &filename) {
     variable_id_map_ = std::move(info.variable_id_map);
     instance_vars_ = std::move(info.instance_vars);
     instance_hierarchy_ = std::move(info.instance_hierarchy);
+    instance_def_map_ = std::move(info.instance_def_map);
 }
 
 std::optional<uint64_t> FSDBProvider::get_instance_id(const std::string &full_name) {
@@ -424,63 +433,6 @@ std::optional<uint64_t> FSDBProvider::get_prev_value_change_time(uint64_t signal
             return r;
         }
     }
-}
-
-inline uint64_t count_char(const std::string &str, char c) {
-    return std::count(str.begin(), str.end(), c);
-}
-
-std::pair<std::string, std::string> FSDBProvider::compute_instance_mapping(
-    const std::unordered_set<std::string> &instance_names) {
-    // first get the longest instance name
-    std::string instance_name;
-    uint64_t hierarchy_count = 0;
-    for (auto const &name : instance_names) {
-        auto c = count_char(name, '.');
-        if (c > hierarchy_count) {
-            instance_name = name;
-        }
-    }
-
-    // need to compute the hierarchy without the top level name
-    auto pos = instance_name.find_first_of('.');
-    if (pos == std::string::npos) {
-        // only one level. best of luck
-        // we pick whatever has second level and slap on it.
-        for (auto const &[name, id] : instance_name_map_) {
-            auto c = count_char(name, '.');
-            if (c == 2) {
-                // that's it
-                return {instance_name, name + "."};
-            }
-            throw std::runtime_error("Unable to compute instance name mapping");
-        }
-    } else {
-        // multiple level
-        auto same_name = instance_name.substr(pos + 1);
-        // trying to find a match
-        for (auto const &[name, id] : instance_name_map_) {
-            if (name.size() <= same_name.size()) {
-                continue;
-            }
-            auto same_name_c = count_char(same_name, '.');
-            auto name_c = count_char(name, '.');
-            if (name_c < (same_name_c + 1 + 1)) {
-                continue;
-            }
-            // see if there is a match
-            if (name.ends_with(same_name)) {
-                auto p = name.find_last_of(same_name) - same_name.size();
-                if (name[p] == '.') {
-                    // it's a match
-                    auto mapped = name.substr(0, p + 1);
-                    auto top_name = instance_name.substr(0, pos);
-                    return {top_name, mapped};
-                }
-            }
-        }
-    }
-    throw std::runtime_error("Unable to compute instance name mapping");
 }
 
 FSDBProvider::~FSDBProvider() {

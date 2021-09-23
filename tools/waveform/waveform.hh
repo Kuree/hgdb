@@ -33,8 +33,15 @@ public:
     virtual std::optional<uint64_t> get_prev_value_change_time(uint64_t signal_id,
                                                                uint64_t base_time,
                                                                const std::string &target_value) = 0;
-    virtual std::pair<std::string, std::string> compute_instance_mapping(
-        const std::unordered_set<std::string> &instance_names) = 0;
+    inline virtual std::pair<std::string, std::string> compute_instance_mapping(
+        const std::unordered_set<std::string> &instance_names) {
+        return {};
+    }
+    [[nodiscard]] inline virtual bool has_inst_definition() const { return false; }
+    [[nodiscard]] virtual std::optional<std::string> get_instance_definition(
+        uint64_t instance_id) const {
+        return std::nullopt;
+    }
 
     virtual ~WaveformProvider() = default;
 };

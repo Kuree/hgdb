@@ -184,8 +184,9 @@ PLI_INT32 ReplayVPIProvider::vpi_get(PLI_INT32 property, vpiHandle object) {
 
 char *ReplayVPIProvider::vpi_get_str(PLI_INT32 property, vpiHandle object) {
     str_buffer_ = "";
-    // we don't support def name since we can't read that from the vcd
-    // client has to some other heuristics to figure out the hierarchy remapping
+    // depends on whether the underlying database support the definition name or not
+    // we may behave differently. VCD based database doesn't encode definition name
+    // so we can't return result
     if (property == vpiFullName) {
         if (signal_id_map_.find(object) != signal_id_map_.end()) {
             auto signal_id = signal_id_map_.at(object);
@@ -207,6 +208,12 @@ char *ReplayVPIProvider::vpi_get_str(PLI_INT32 property, vpiHandle object) {
             if (instance) {
                 str_buffer_ = std::move(*instance);
             }
+        }
+    } else if (property == vpiDefName && db_->has_inst_definition()) {
+        auto instance_id = instance_id_map_.at(object);
+        auto name = db_->get_instance_definition(instance_id);
+        if (name) {
+            str_buffer_ = std::move(*name);
         }
     }
     return const_cast<char *>(str_buffer_.c_str());
@@ -428,6 +435,10 @@ void ReplayVPIProvider::trigger_cb(uint32_t reason, vpiHandle handle, int64_t va
         if (cb_data.deleted) continue;
         s_vpi_value vpi_value;
         if (cb_data.data.reason == reason) {
+            // we only support one end of simulation callback
+            // this is because the cleanup code will delete the debugger, which includes the
+            // vpi provider
+            bool end_of_simulation = reason == cbEndOfSimulation;
             if (reason == cbValueChange) {
                 // only value change cares about the obj for now
                 if (cb_data.data.obj != handle) {
@@ -435,7 +446,7 @@ void ReplayVPIProvider::trigger_cb(uint32_t reason, vpiHandle handle, int64_t va
                     continue;
                 } else {
                     cb_data.data.value = &vpi_value;
-                    cb_data.data.value->value.integer = value;
+                    cb_data.data.value->value.integer = static_cast<int>(value);
                 }
             }
 
@@ -443,6 +454,8 @@ void ReplayVPIProvider::trigger_cb(uint32_t reason, vpiHandle handle, int64_t va
             // vpi_value will be valid for this callback
             // after that it won't,
             func(&cb_data.data);
+            // jump out to avoid memory error if it's the end of simulation
+            if (end_of_simulation) return;
             // so set this to null
             cb_data.data.value = nullptr;
         }

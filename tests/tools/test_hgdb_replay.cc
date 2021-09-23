@@ -342,15 +342,6 @@ TEST(fsdb, waveform6) {  // NOLINT
         EXPECT_EQ(cycle_count_int, 10 * 2);
     }
 
-    // name mapping
-    {
-        auto db = std::make_unique<hgdb::fsdb::FSDBProvider>("waveform6.fsdb");
-        std::unordered_set<std::string> instance_names = {"child", "child.inst"};
-        auto const &[def_name, instance_name] = db->compute_instance_mapping(instance_names);
-        EXPECT_EQ(def_name, "child");
-        EXPECT_EQ(instance_name, "top.inst.");
-    }
-
     // get value for array
     {
         auto db = std::make_unique<hgdb::fsdb::FSDBProvider>("waveform6.fsdb");

@@ -25,8 +25,8 @@ public:
                                                        uint64_t base_time) override;
     std::optional<uint64_t> get_prev_value_change_time(uint64_t signal_id, uint64_t base_time,
                                                        const std::string &target_value) override;
-    std::pair<std::string, std::string> compute_instance_mapping(
-        const std::unordered_set<std::string> &instance_names) override;
+
+    [[nodiscard]] bool has_inst_definition() const override { return true; }
 
     ~FSDBProvider() override;
 
@@ -41,6 +41,7 @@ private:
     std::unordered_map<std::string, uint64_t> variable_id_map_;
     std::unordered_map<uint64_t, std::vector<uint64_t>> instance_vars_;
     std::unordered_map<uint64_t, std::vector<uint64_t>> instance_hierarchy_;
+    std::unordered_map<std::string, std::vector<uint64_t>> instance_def_map_;
 };
 
 }  // namespace hgdb::fsdb
