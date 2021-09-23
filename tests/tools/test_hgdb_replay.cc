@@ -6,6 +6,10 @@
 #include "thread.hh"
 #include "vpi_user.h"
 
+#ifdef USE_FSDB
+#include "../../tools/fsdb/fsdb.hh"
+#endif
+
 void change_cwd() {
     namespace fs = std::filesystem;
     fs::path filename = __FILE__;
@@ -306,3 +310,60 @@ TEST(replay, array_waveform4) {  // NOLINT
         }
     }
 }
+
+#ifdef USE_FSDB
+TEST(fsdb, waveform6) {  // NOLINT
+    change_cwd();
+    // replay callback
+    {
+        auto db = std::make_unique<hgdb::fsdb::FSDBProvider>("waveform6.fsdb");
+        auto vpi = std::make_unique<hgdb::replay::ReplayVPIProvider>(std::move(db));
+        constexpr auto clk_name = "top.clk";
+        auto *clk = vpi->vpi_handle_by_name(const_cast<char *>(clk_name), nullptr);
+        EXPECT_NE(clk, nullptr);
+        int cycle_count_int = 0;
+        s_cb_data cb{.reason = cbValueChange,
+                     .cb_rtn = cycle_count,
+                     .obj = clk,
+                     .user_data = reinterpret_cast<char *>(&cycle_count_int)};
+
+        hgdb::replay::EmulationEngine engine(vpi.get());
+
+        // register the CB
+        auto *r = vpi->vpi_register_cb(&cb);
+        EXPECT_NE(r, nullptr);
+
+        engine.run();
+        EXPECT_EQ(cycle_count_int, 10 * 2);
+    }
+
+    // name mapping
+    {
+        auto db = std::make_unique<hgdb::fsdb::FSDBProvider>("waveform6.fsdb");
+        std::unordered_set<std::string> instance_names = {"child", "child.inst"};
+        auto const &[def_name, instance_name] = db->compute_instance_mapping(instance_names);
+        EXPECT_EQ(def_name, "child");
+        EXPECT_EQ(instance_name, "top.inst.");
+    }
+
+    // get value for array
+    {
+        auto db = std::make_unique<hgdb::fsdb::FSDBProvider>("waveform6.fsdb");
+        constexpr auto array_name1 = "top.result[1]";
+        constexpr auto array_name2 = "top.result.1";
+        auto array1 = db->get_signal_id(array_name1);
+        auto array2 = db->get_signal_id(array_name2);
+        EXPECT_TRUE(array1);
+        EXPECT_EQ(*array1, *array2);
+
+        auto v = db->get_signal_value(*array1, 64);
+        EXPECT_TRUE(v);
+        EXPECT_EQ(*v, "10");
+    }
+
+    // get value for struct
+    {
+
+    }
+}
+#endif

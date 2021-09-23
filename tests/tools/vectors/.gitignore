@@ -1,0 +1,8 @@
+# VCS stuff
+*.key
+simv*
+*.log
+csrc
+# verdi stuff
+novas*
+verdi*

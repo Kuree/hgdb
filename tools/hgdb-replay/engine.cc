@@ -97,7 +97,7 @@ void EmulationEngine::emulation_loop() {
             }
         }
         // notice that since we are doing emulation, at the callback only that particular
-        // value is changed properly, the rest is still "lagging" behind, the we actually
+        // value is changed properly, the rest is still "lagging" behind, then we actually
         // need to fetch the time at (time - 1)
         change_time(time - 1);
         // need to file the callbacks

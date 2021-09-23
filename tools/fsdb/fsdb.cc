@@ -2,6 +2,7 @@
 
 #include <stack>
 #include <vector>
+#include <regex>
 
 #include "ffrAPI.h"
 
@@ -71,6 +72,7 @@ static bool_T parse_var_def(fsdbTreeCBType cb_type, void *client_data, void *tre
             auto *s = reinterpret_cast<fsdbTreeCBDataStructBegin *>(tree_cb_data);
             // treat struct as a scope
             auto full_name = info->full_name();
+            full_name.append(s->name);
             auto id = info->instance_map.size();
             info->instance_map.emplace(id, WaveformInstance{id, full_name});
             info->instance_name_map.emplace(full_name, id);
@@ -82,6 +84,7 @@ static bool_T parse_var_def(fsdbTreeCBType cb_type, void *client_data, void *tre
             auto *var = reinterpret_cast<fsdbTreeCBDataVar *>(tree_cb_data);
             std::string name = var->name;
             auto full_name = info->full_name();
+            full_name.append(name);
             uint32_t width;
             if (var->type == FSDB_VT_VCD_REAL) {
                 width = 64;
@@ -203,6 +206,12 @@ std::optional<uint64_t> FSDBProvider::get_signal_id(const std::string &full_name
     if (variable_id_map_.find(full_name) != variable_id_map_.end()) {
         return variable_id_map_.at(full_name);
     } else {
+        // trying array dot conversion
+        const static std::regex pattern(R"(\.(\d+))");
+        auto new_name = std::regex_replace(full_name, pattern, R"(\[$1\])");
+        if (variable_id_map_.find(new_name) != variable_id_map_.end()) {
+            return variable_id_map_.at(new_name);
+        }
         return std::nullopt;
     }
 }
@@ -369,7 +378,10 @@ std::optional<uint64_t> FSDBProvider::get_next_value_change_time(uint64_t signal
     uint64_t r = time.L;
     r |= static_cast<uint64_t>(time.H) << 32;
     hdl->ffrFree();
-    return r;
+    if (r == base_time)
+        return std::nullopt;
+    else
+        return r;
 }
 
 std::optional<uint64_t> FSDBProvider::get_prev_value_change_time(uint64_t signal_id,
@@ -446,14 +458,18 @@ std::pair<std::string, std::string> FSDBProvider::compute_instance_mapping(
             if (name.size() <= same_name.size()) {
                 continue;
             }
+            auto same_name_c = count_char(same_name, '.');
+            auto name_c = count_char(name, '.');
+            if (name_c < (same_name_c + 1 + 1)) {
+                continue;
+            }
             // see if there is a match
             if (name.ends_with(same_name)) {
-                auto p = name.find_last_of(same_name);
-                p--;
+                auto p = name.find_last_of(same_name) - same_name.size();
                 if (name[p] == '.') {
                     // it's a match
-                    auto mapped = name.substr(0, p);
-                    auto top_name = instance_name.substr(pos - 1);
+                    auto mapped = name.substr(0, p + 1);
+                    auto top_name = instance_name.substr(0, pos);
                     return {top_name, mapped};
                 }
             }
