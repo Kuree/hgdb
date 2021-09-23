@@ -35,3 +35,8 @@ jobs:
         cd build
         valgrind --version
         ctest --overwrite MemoryCheckCommandOptions="--leak-check=full --error-exitcode=100" -T memcheck
+    - uses: actions/upload-artifact@v2
+      if: failure()
+      with:
+        name: memcheck-log
+        path: build/Testing
