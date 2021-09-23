@@ -4,6 +4,22 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+
+## [0.0.4] - 2021009-23
+### Added
+- iverilog and Questa support
+- Add ability to pause at clock edge
+- Add timeout to recv_bp in python binding
+- Add design info the debugger information request
+- Add supppport for FSDB replay
+
+### Changed
+- Better out-of-order breakpoint support
+
+### Fixed
+- Fix index bug. Thanks Valgrind!
+- Fix replay VPI emulator on new instance mapping
+
 ## [0.0.3] - 2021-02-18
 ### Added
 - Automatically reuse built VCD table if exists
