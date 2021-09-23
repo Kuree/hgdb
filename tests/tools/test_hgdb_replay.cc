@@ -314,9 +314,14 @@ TEST(replay, array_waveform4) {  // NOLINT
 #ifdef USE_FSDB
 TEST(fsdb, waveform6) {  // NOLINT
     change_cwd();
+    // if the file doesn't exist, skip
+    auto constexpr filename = "waveform6.fsdb";
+    if (!std::filesystem::exists(filename)) {
+        GTEST_SKIP_("Waveform not available");
+    }
     // replay callback
     {
-        auto db = std::make_unique<hgdb::fsdb::FSDBProvider>("waveform6.fsdb");
+        auto db = std::make_unique<hgdb::fsdb::FSDBProvider>(filename);
         auto vpi = std::make_unique<hgdb::replay::ReplayVPIProvider>(std::move(db));
         constexpr auto clk_name = "top.clk";
         auto *clk = vpi->vpi_handle_by_name(const_cast<char *>(clk_name), nullptr);
@@ -358,12 +363,19 @@ TEST(fsdb, waveform6) {  // NOLINT
 
         auto v = db->get_signal_value(*array1, 64);
         EXPECT_TRUE(v);
+        // value is 2, in VCD form it's 10
         EXPECT_EQ(*v, "10");
     }
 
     // get value for struct
     {
-
+        auto db = std::make_unique<hgdb::fsdb::FSDBProvider>("waveform6.fsdb");
+        constexpr auto array_name1 = "top.test_s.a";
+        auto id = db->get_signal_id(array_name1);
+        EXPECT_TRUE(id);
+        auto v = db->get_signal_value(*id, 42);
+        EXPECT_TRUE(v);
+        EXPECT_EQ(*v, "1");
     }
 }
 #endif

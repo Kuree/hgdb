@@ -6,3 +6,5 @@ csrc
 # verdi stuff
 novas*
 verdi*
+# FSDB. can't upload it to public just in case of copyright issue
+*.fsdb

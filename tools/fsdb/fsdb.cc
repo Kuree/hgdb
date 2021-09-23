@@ -95,6 +95,11 @@ static bool_T parse_var_def(fsdbTreeCBType cb_type, void *client_data, void *tre
                     width = var->rbitnum - var->lbitnum + 1;
                 }
             }
+            // one thing to notice is that FSDB adds width to the end if it's greater than 1
+            if (width > 1) {
+                auto pos = full_name.find_last_of('[');
+                full_name = full_name.substr(0, pos);
+            }
             // we use the ID inside FSDB to avoid extra layer of translation
             auto id = static_cast<uint64_t>(var->u.idcode);
             info->variable_map.emplace(id, WaveformSignal{id, full_name, width});
@@ -208,7 +213,7 @@ std::optional<uint64_t> FSDBProvider::get_signal_id(const std::string &full_name
     } else {
         // trying array dot conversion
         const static std::regex pattern(R"(\.(\d+))");
-        auto new_name = std::regex_replace(full_name, pattern, R"(\[$1\])");
+        auto new_name = std::regex_replace(full_name, pattern, R"([$1])");
         if (variable_id_map_.find(new_name) != variable_id_map_.end()) {
             return variable_id_map_.at(new_name);
         }
