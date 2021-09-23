@@ -5,6 +5,10 @@
 #include "log.hh"
 #include "sim.hh"
 
+#ifdef USE_FSDB
+#include "../fsdb/fsdb.hh"
+#endif
+
 void print_usage(const std::string &program_name) {
     // detect if inside a python process
     std::string name;
@@ -24,21 +28,42 @@ bool has_flag(const std::string &flag, int argc, char *argv[]) {  // NOLINT
     return false;
 }
 
+bool is_vcd(const std::string &filename) {
+    // heuristics to detect if it's vcd
+    std::ifstream stream(filename);
+    std::array<char, 1> buffer = {0};
+    stream.read(buffer.data(), sizeof(buffer));
+    stream.close();
+    return buffer[0] == '$';
+}
+
 int main(int argc, char *argv[]) {
     if (argc < 2) {
         print_usage(argv[0]);
         return EXIT_FAILURE;
     }
     namespace log = hgdb::log;
-    log::log(log::log_level::info, "Building VCD database...");
-
     std::string filename = argv[1];
     if (!std::filesystem::exists(filename)) {
         std::cerr << "Unable to find " << filename << std::endl;
         return EXIT_FAILURE;
     }
-    auto has_store_db_flag = has_flag("--db", argc, argv);
-    auto db = std::make_unique<hgdb::vcd::VCDDatabase>(filename, has_store_db_flag);
+
+    std::unique_ptr<hgdb::waveform::WaveformProvider> db;
+    if (is_vcd(filename)) {
+        log::log(log::log_level::info, "Building VCD database...");
+
+        auto has_store_db_flag = has_flag("--db", argc, argv);
+        db = std::make_unique<hgdb::vcd::VCDDatabase>(filename, has_store_db_flag);
+    } else {
+#ifdef USE_FSDB
+        db = std::make_unique<hgdb::fsdb::FSDBProvider>(filename);
+#endif
+    }
+    if (!db) {
+        log::log(log::log_level::error, "Unable to read file " + filename);
+        return EXIT_FAILURE;
+    }
 
     // notice that db will lose ownership soon. use raw pointer instead
     auto *db_ptr = db.get();

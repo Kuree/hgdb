@@ -19,6 +19,9 @@ add_subdirectory(extern/PEGTL)
 # system dependencies
 set(THREADS_PREFER_PTHREAD_FLAG ON)
 find_package(Threads REQUIRED)
+if (DEFINED ENV{VERDI_HOME})
+    find_package(FSDB REQUIRED)
+endif()
 
 # set checker flags
 include(cmake/SetFlags.cmake)

@@ -13,5 +13,5 @@ find_package_handle_standard_Args(FSDB DEFAULT_MSG
 mark_as_advanced(FSDB_INCLUDE_DIR LIBNFFR)
 
 add_library(verdi::fsdb INTERFACE IMPORTED)
-set_property(TARGET verdi::fsdb PROPERTY INTERFACE_LINK_LIBRARIES ${LIBNFFR} ${LIBNSYS})
+set_property(TARGET verdi::fsdb PROPERTY INTERFACE_LINK_LIBRARIES ${LIBNFFR} ${LIBNSYS} z)
 set_property(TARGET verdi::fsdb PROPERTY INTERFACE_INCLUDE_DIRECTORIES ${FSDB_INCLUDE_DIR})
