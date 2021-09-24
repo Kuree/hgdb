@@ -2,6 +2,7 @@
 #define HGDB_SERVER_HH
 
 #include <mutex>
+#include <optional>
 #include <unordered_map>
 #include <unordered_set>
 
