@@ -28,3 +28,6 @@
 [submodule "extern/PEGTL"]
 	path = extern/PEGTL
 	url = https://github.com/taocpp/PEGTL
+[submodule "extern/argparse"]
+	path = extern/argparse
+	url = https://github.com/p-ranav/argparse

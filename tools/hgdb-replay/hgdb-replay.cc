@@ -1,6 +1,8 @@
 #include <filesystem>
 #include <iostream>
+#include <cstdlib>
 
+#include "argparse/argparse.hpp"
 #include "engine.hh"
 #include "log.hh"
 #include "sim.hh"
@@ -9,23 +11,39 @@
 #include "../fsdb/fsdb.hh"
 #endif
 
-void print_usage(const std::string &program_name) {
-    // detect if inside a python process
-    std::string name;
+#define STRINGIFY2(X) #X
+#define STRINGIFY(X) STRINGIFY2(X)
+#define VERSION_STR STRINGIFY(VERSION_NUMBER)
+
+std::optional<argparse::ArgumentParser> get_args(int argc, char **argv) {
+    argparse::ArgumentParser program("HGDB Replay", VERSION_STR);
+    std::string program_name;
     if (std::getenv("HGDB_PYTHON_PACKAGE")) {
         auto path = std::filesystem::path(program_name);
-        name = path.filename();
+        program_name = path.filename();
     } else {
-        name = program_name;
+        program_name = argv[0];
     }
-    std::cerr << "Usage: " << name << " waveform.vcd [args]" << std::endl;
-}
+    // make the program name look nicer
+    argv[0] = const_cast<char *>(program_name.c_str());
 
-bool has_flag(const std::string &flag, int argc, char *argv[]) {  // NOLINT
-    for (int i = 0; i < argc; i++) {
-        if (argv[i] == flag) return true;
+    program.add_argument("filename").help("Waveform file in either VCD or FSDB format").required();
+    // optional argument for vcd
+    program.add_argument("--db").implicit_value(true).default_value(false);
+    // we can specify the port as well instead of changing it in the env by hand
+    program.add_argument("--port", "-p")
+        .help("Debug port")
+        .default_value<uint16_t>(0)
+        .scan<'d', uint16_t>();
+
+    try {
+        program.parse_args(argc, argv);
+        return program;
+    } catch (const std::runtime_error &err) {
+        std::cerr << err.what() << std::endl;
+        std::cerr << program;
+        return std::nullopt;
     }
-    return false;
 }
 
 bool is_vcd(const std::string &filename) {
@@ -37,23 +55,28 @@ bool is_vcd(const std::string &filename) {
     return buffer[0] == '$';
 }
 
+void set_port(uint16_t port) {
+    // only try to override the env when the port is not 0
+    if (port > 0) {
+        auto str = std::to_string(port);
+        setenv("+DEBUG_PORT", str.c_str(), true);
+    }
+}
+
+// NOLINTNEXTLINE
 int main(int argc, char *argv[]) {
-    if (argc < 2) {
-        print_usage(argv[0]);
+    auto program = get_args(argc, argv);
+    if (!program) {
         return EXIT_FAILURE;
     }
     namespace log = hgdb::log;
-    std::string filename = argv[1];
-    if (!std::filesystem::exists(filename)) {
-        std::cerr << "Unable to find " << filename << std::endl;
-        return EXIT_FAILURE;
-    }
+    auto filename = program->get("filename");
 
     std::unique_ptr<hgdb::waveform::WaveformProvider> db;
     if (is_vcd(filename)) {
         log::log(log::log_level::info, "Building VCD database...");
 
-        auto has_store_db_flag = has_flag("--db", argc, argv);
+        auto has_store_db_flag = program->get<bool>("--db");
         db = std::make_unique<hgdb::vcd::VCDDatabase>(filename, has_store_db_flag);
     } else {
 #ifdef USE_FSDB
@@ -64,6 +87,8 @@ int main(int argc, char *argv[]) {
         log::log(log::log_level::error, "Unable to read file " + filename);
         return EXIT_FAILURE;
     }
+    // settting port if necessary
+    set_port(program->get<uint16_t>("--port"));
 
     // notice that db will lose ownership soon. use raw pointer instead
     auto *db_ptr = db.get();
