@@ -1,14 +1,43 @@
+#include <filesystem>
 #include <iostream>
 #include <memory>
 #include <stack>
 #include <unordered_map>
 
 #include "../vcd/vcd.hh"
+#include "argparse/argparse.hpp"
 #include "fmt/format.h"
 #include "schema.hh"
 
-void print_help(const std::string &program_name) {
-    std::cerr << "Usage: " << program_name << " <original.vcd> <debug.db> <new_vcd>" << std::endl;
+#define STRINGIFY2(X) #X
+#define STRINGIFY(X) STRINGIFY2(X)
+#define VERSION_STR STRINGIFY(VERSION_NUMBER)
+
+std::optional<argparse::ArgumentParser> get_args(int argc, char **argv) {
+    argparse::ArgumentParser program("HGDB Replay", VERSION_STR);
+    std::string program_name;
+    if (std::getenv("HGDB_PYTHON_PACKAGE")) {
+        auto path = std::filesystem::path(program_name);
+        program_name = path.filename();
+    } else {
+        program_name = argv[0];
+    }
+
+    // make the program name look nicer
+    argv[0] = const_cast<char *>(program_name.c_str());
+
+    program.add_argument("-i", "--input-vcd").help("Input VCD file").required();
+    program.add_argument("-d", "--debug-db").help("Debug symbol table").required();
+    program.add_argument("-o", "--output-vcd").help("Output VCD file").required();
+
+    try {
+        program.parse_args(argc, argv);
+        return program;
+    } catch (const std::runtime_error &err) {
+        std::cerr << err.what() << std::endl;
+        std::cerr << program;
+        return std::nullopt;
+    }
 }
 
 class VCDReWriter {
@@ -326,39 +355,15 @@ private:
     }
 };
 
-std::pair<std::string, std::string> get_args(const std::string &arg1, const std::string &arg2) {
-    // use magic four number to detect file types
-    std::vector args = {arg1, arg2};
-    for (auto i = 0; i < args.size(); i++) {
-        std::ifstream stream(args[i]);
-        if (stream.bad()) {
-            std::cerr << "Unable to open " << arg1 << std::endl;
-            return {};
-        }
-        std::array<char, 7> buff{0};
-        stream.readsome(buff.data(), buff.size() - 1);
-        buff[6] = '\0';
-        std::string buff_str = buff.data();
-        if (buff_str == "SQLite") {
-            // it is the sqlite file
-            if (i == 0)
-                return {arg2, arg1};
-            else
-                return {arg1, arg2};
-        }
-    }
-    return {};
-}
-
+// NOLINTNEXTLINE
 int main(int argc, char *argv[]) {
-    if (argc != 4) {
-        print_help(argv[0]);
+    auto args = get_args(argc, argv);
+    if (!args) {
         return EXIT_FAILURE;
     }
-    auto const [filename, db_filename] = get_args(argv[1], argv[2]);
-    if (filename.empty() || db_filename.empty()) return EXIT_FAILURE;
-
-    std::string new_filename = argv[3];
+    auto filename = args->get<std::string>("-i");
+    auto db_filename = args->get<std::string>("-d");
+    auto new_filename = args->get<std::string>("-o");
 
     VCDReWriter rewriter(filename, db_filename, new_filename);
 

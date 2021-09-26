@@ -37,7 +37,7 @@ def test_hgdb_rewrite_vcd(get_build_folder, get_tools_vector_dir):
         vector_dir = get_tools_vector_dir()
         target_vcd = os.path.join(vector_dir, "waveform5.vcd")
         gold_vcd = os.path.join(vector_dir, "waveform5.rewrite.vcd")
-        subprocess.check_call([rewrite, target_vcd, db, new_vcd])
+        subprocess.check_call([rewrite, "-i", target_vcd, "-d", db, "-o", new_vcd])
         assert filecmp.cmp(gold_vcd, new_vcd)
 
 

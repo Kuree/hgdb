@@ -5,4 +5,6 @@ target_include_directories(hgdb-rewrite-vcd PRIVATE
         ../../include
         ../../extern/fmt/include
         ../../extern/sqlite_orm/include
-        ../../extern/sqlite/include)
+        ../../extern/sqlite/include
+        ../../extern/argparse/include)
+target_compile_definitions(hgdb-rewrite-vcd PUBLIC VERSION_NUMBER=${VERSION_NUMBER})
