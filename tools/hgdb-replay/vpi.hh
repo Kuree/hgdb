@@ -29,7 +29,8 @@ public:
     bool vpi_rewind(rewind_data *rewind_data) override;
 
     // interaction with outside world
-    void set_argv(int argc, char *argv[]);  // NOLINT
+    void set_argv(int argc, char **argv);
+    void add_argv(const std::string &arg);
     void set_on_cb_added(const std::function<void(p_cb_data)> &on_cb_added);
     void set_on_cb_removed(const std::function<void(const s_cb_data &)> &on_cb_removed);
     void set_on_reversed(const std::function<bool(rewind_data *)> &on_reversed);

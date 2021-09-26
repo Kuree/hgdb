@@ -418,6 +418,12 @@ void ReplayVPIProvider::set_argv(int argc, char **argv) {
     }
 }
 
+void ReplayVPIProvider::add_argv(const std::string &arg) {
+    argv_str_.emplace_back(arg);
+    argv_.emplace_back(const_cast<char *>(argv_str_.back().c_str()));
+}
+
+
 void ReplayVPIProvider::set_on_cb_added(const std::function<void(p_cb_data)> &on_cb_added) {
     on_cb_added_ = on_cb_added;
 }

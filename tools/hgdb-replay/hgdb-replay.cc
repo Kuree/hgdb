@@ -1,6 +1,5 @@
 #include <filesystem>
 #include <iostream>
-#include <cstdlib>
 
 #include "argparse/argparse.hpp"
 #include "engine.hh"
@@ -55,11 +54,11 @@ bool is_vcd(const std::string &filename) {
     return buffer[0] == '$';
 }
 
-void set_port(uint16_t port) {
+void set_port(hgdb::replay::ReplayVPIProvider *vpi, uint16_t port) {
     // only try to override the env when the port is not 0
     if (port > 0) {
-        auto str = std::to_string(port);
-        setenv("+DEBUG_PORT", str.c_str(), true);
+        auto str = "+DEBUG_PORT=" + std::to_string(port);
+        vpi->add_argv(str);
     }
 }
 
@@ -87,8 +86,6 @@ int main(int argc, char *argv[]) {
         log::log(log::log_level::error, "Unable to read file " + filename);
         return EXIT_FAILURE;
     }
-    // settting port if necessary
-    set_port(program->get<uint16_t>("--port"));
 
     // notice that db will lose ownership soon. use raw pointer instead
     auto *db_ptr = db.get();
@@ -98,6 +95,8 @@ int main(int argc, char *argv[]) {
 
     // set argv
     vpi->set_argv(argc, argv);
+    // set port if necessary
+    set_port(vpi.get(), program->get<uint16_t>("--port"));
 
     hgdb::replay::EmulationEngine engine(vpi.get());
 

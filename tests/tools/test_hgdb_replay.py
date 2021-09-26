@@ -57,7 +57,7 @@ def test_replay3(start_server, find_free_port, get_tools_vector_dir):
     vector_dir = get_tools_vector_dir()
     vcd_path = os.path.join(vector_dir, "waveform3.vcd")
     port = find_free_port()
-    s = start_server(port, ("tools", "hgdb-replay", "hgdb-replay"), args=[vcd_path])
+    s = start_server(port, ("tools", "hgdb-replay", "hgdb-replay"), args=[vcd_path], use_plus_arg=False)
     if s is None:
         pytest.skip("hgdb-deplay not available")
     sv = os.path.join(vector_dir, "waveform3.sv")
@@ -99,7 +99,7 @@ def test_replay4(start_server, find_free_port, get_tools_vector_dir):
     vector_dir = get_tools_vector_dir()
     vcd_path = os.path.join(vector_dir, "waveform4.vcd")
     port = find_free_port()
-    s = start_server(port, ("tools", "hgdb-replay", "hgdb-replay"), args=[vcd_path])
+    s = start_server(port, ("tools", "hgdb-replay", "hgdb-replay"), args=[vcd_path], use_plus_arg=False)
     if s is None:
         pytest.skip("hgdb-deplay not available")
     sv = os.path.join(vector_dir, "waveform4.sv")
@@ -131,7 +131,7 @@ def test_fsdb_replay(start_server, find_free_port, get_tools_vector_dir):
         pytest.skip("FSDB not available")
     port = find_free_port()
 
-    s = start_server(port, ("tools", "hgdb-replay", "hgdb-replay"), args=[fsdb_path])
+    s = start_server(port, ("tools", "hgdb-replay", "hgdb-replay"), args=[fsdb_path], use_plus_arg=False)
     if s is None:
         pytest.skip("hgdb-deplay not available")
     sv = os.path.join(vector_dir, "waveform6.sv")

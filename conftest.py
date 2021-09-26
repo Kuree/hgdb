@@ -18,7 +18,7 @@ def get_build_folder_fn():
     return build_dir
 
 
-def start_server_fn(port_num, program_name, args=None, gdbserver_port=None, stdout=True, wait=0):
+def start_server_fn(port_num, program_name, args=None, gdbserver_port=None, stdout=True, wait=0, use_plus_arg=True):
     build_dir = get_build_folder_fn()
     if isinstance(program_name, (list, tuple)):
         server_path = os.path.join(build_dir, *program_name)
@@ -29,7 +29,10 @@ def start_server_fn(port_num, program_name, args=None, gdbserver_port=None, stdo
         return None
     if args is None:
         args = []
-    args.append("+DEBUG_PORT=" + str(port_num))
+    if use_plus_arg:
+        args.append("+DEBUG_PORT=" + str(port_num))
+    else:
+        args += ["-p", str(port_num)]
     args = [server_path] + args
     if gdbserver_port is not None:
         args = ["gdbserver", "localhost:{0}".format(gdbserver_port)] + args
