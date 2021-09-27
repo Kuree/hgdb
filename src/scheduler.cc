@@ -416,6 +416,10 @@ void validate_expr(RTLSimulatorClient *rtl, DebugDatabaseClient *db, DebugExpres
         std::optional<std::string> name;
         if (breakpoint_id) {
             name = db->resolve_scoped_name_breakpoint(symbol, *breakpoint_id);
+            if (!name) {
+                // try to elevate to instance-based query
+                instance_id = db->get_instance_id(*breakpoint_id);
+            }
         }
         if (!name && instance_id) {
             name = db->resolve_scoped_name_instance(symbol, *instance_id);

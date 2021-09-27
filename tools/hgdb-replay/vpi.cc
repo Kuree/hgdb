@@ -113,6 +113,9 @@ void ReplayVPIProvider::vpi_get_value(vpiHandle expr, p_vpi_value value_p) {
         auto value = db_->get_signal_value(signal_id, current_time_);
         if (value) {
             set_value(value_p, *value, str_buffer_);
+        } else {
+            // if unable to get value, 0 should be returned
+            value_p->value.integer = 0;
         }
     } else if (array_info_.find(expr) != array_info_.end()) {
         // if there is any error, we return

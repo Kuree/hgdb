@@ -26,6 +26,7 @@ public:
     std::optional<std::string> get_instance_name_from_bp(uint32_t breakpoint_id);
     std::optional<std::string> get_instance_name(uint32_t id);
     std::optional<uint64_t> get_instance_id(const std::string &instance_name);
+    [[nodiscard]] std::optional<uint64_t> get_instance_id(uint64_t breakpoint_id);
     using ContextVariableInfo = std::pair<ContextVariable, Variable>;
     [[nodiscard]] std::vector<ContextVariableInfo> get_context_variables(
         uint32_t breakpoint_id, bool resolve_hierarchy_value = true);

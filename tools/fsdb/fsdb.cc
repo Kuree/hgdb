@@ -44,6 +44,10 @@ public:
         }
         return result;
     }
+
+    [[nodiscard]] uint64_t get_new_instance_id() const {
+        return (1ull << 63ull) | (instance_map.size());
+    }
 };
 
 static bool_T null_trace_cb(fsdbTreeCBType, void *, void *) { return true; }
@@ -63,7 +67,7 @@ static bool_T parse_var_def(fsdbTreeCBType cb_type, void *client_data, void *tre
             // get id setting
             auto full_name = info->full_name();
             full_name.append(scope->name);
-            auto id = info->instance_map.size();
+            auto id = info->get_new_instance_id();
             info->instance_map.emplace(id, WaveformInstance{id, full_name});
             info->instance_name_map.emplace(full_name, id);
             scopes.emplace_back(scope->name);
@@ -93,7 +97,7 @@ static bool_T parse_var_def(fsdbTreeCBType cb_type, void *client_data, void *tre
             // treat struct as a scope
             auto full_name = info->full_name();
             full_name.append(s->name);
-            auto id = info->instance_map.size();
+            auto id = info->get_new_instance_id();
             info->instance_map.emplace(id, WaveformInstance{id, full_name});
             info->instance_name_map.emplace(full_name, id);
             scopes.emplace_back(s->name);
@@ -167,6 +171,8 @@ static bool_T parse_var_def(fsdbTreeCBType cb_type, void *client_data, void *tre
 
     return true;
 }
+
+// hdl guard to
 
 namespace hgdb::fsdb {
 
@@ -343,8 +349,8 @@ std::optional<std::string> FSDBProvider::get_signal_value(uint64_t id, uint64_t 
 
     // we will try to jump to that particular time
     fsdbTag64 time;
-    time.H = static_cast<uint32_t>(timestamp >> 32);
-    time.L = static_cast<uint32_t>(timestamp & 0xFFFFFFFF);
+    time.H = static_cast<uint32_t>(timestamp >> 32ull);
+    time.L = static_cast<uint32_t>(timestamp & 0xFFFFFFFFull);
 
     auto res = hdl->ffrGotoXTag(&time);
     if (res != FSDB_RC_SUCCESS) {
@@ -354,7 +360,11 @@ std::optional<std::string> FSDBProvider::get_signal_value(uint64_t id, uint64_t 
     }
     // get raw data
     byte_T *vc_ptr;
-    hdl->ffrGetVC(&vc_ptr);
+    res = hdl->ffrGetVC(&vc_ptr);
+    if (res != FSDB_RC_SUCCESS) {
+        hdl->ffrFree();
+        return std::nullopt;
+    }
     // for consistency reason we convert to VCD-style string
     auto r = to_vcd_value(hdl->ffrGetBitSize(), hdl->ffrGetBytesPerBit(), vc_ptr);
     hdl->ffrFree();

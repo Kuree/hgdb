@@ -156,9 +156,11 @@ vpiHandle RTLSimulatorClient::get_handle(const std::string &name) {
         } else {
             // full back to brute-force resolving names. usually we have to
             // deal with verilator. remove []
-            auto tokens = util::get_tokens(full_name, ".[]");
-            ptr = get_handle(tokens);
-            if (ptr) handle_map_.emplace(name, ptr);
+            if (is_verilator()) {
+                auto tokens = util::get_tokens(full_name, ".[]");
+                ptr = get_handle(tokens);
+                if (ptr) handle_map_.emplace(name, ptr);
+            }
         }
         return ptr;
     }
@@ -169,10 +171,10 @@ vpiHandle RTLSimulatorClient::get_handle(const std::vector<std::string> &tokens)
         return nullptr;
     } else {
         // notice that this will be called inside the normal get_handle
-        // we we can assume that handle_map_ is well protected
+        // we can assume that handle_map_ is well protected
         // strip off the trailing tokens until it becomes a variable
 
-        // also if the last token contains ':', we need to handle slice
+        // also, if the last token contains ':', we need to handle slice
         // properly using the mock slice handle
         bool has_slice = tokens.back().find_first_of(':') != std::string::npos;
         vpiHandle ptr = nullptr;
@@ -183,7 +185,8 @@ vpiHandle RTLSimulatorClient::get_handle(const std::vector<std::string> &tokens)
         }
 
         if (!ptr) [[likely]] {
-            auto array_size_end = has_slice ? tokens.size() - 2 : tokens.size() - 1;
+            auto array_size_end =
+                static_cast<long>(has_slice ? tokens.size() - 2 : tokens.size() - 1);
 
             for (auto i = array_size_end; i > 0; i--) {
                 auto pos = tokens.begin() + i;
@@ -195,7 +198,7 @@ vpiHandle RTLSimulatorClient::get_handle(const std::vector<std::string> &tokens)
                     if (type != vpiModule) {
                         // best effort
                         // notice that we only support array indexing, since struct
-                        // access should handled by simulator properly
+                        // access should be handled by simulator properly
                         ptr = access_arrays(pos, tokens.begin() + array_size_end + 1, ptr);
                         break;
                     }
@@ -214,8 +217,7 @@ vpiHandle RTLSimulatorClient::get_handle(const std::vector<std::string> &tokens)
 }
 
 bool RTLSimulatorClient::is_valid_signal(const std::string &name) {
-    auto full_name = get_full_name(name);
-    auto *handle = get_handle(full_name);
+    auto *handle = get_handle(name);
     if (!handle) return false;
     auto type = get_vpi_type(handle);
     return type == vpiReg || type == vpiNet || type == vpiRegArray || type == vpiRegBit ||

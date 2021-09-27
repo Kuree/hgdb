@@ -131,6 +131,18 @@ std::optional<uint64_t> DebugDatabaseClient::get_instance_id(const std::string &
     }
 }
 
+std::optional<uint64_t> DebugDatabaseClient::get_instance_id(uint64_t breakpoint_id) {
+    using namespace sqlite_orm;
+    std::lock_guard guard(db_lock_);
+    auto value =
+        db_->select(columns(&BreakPoint::instance_id), where(c(&BreakPoint::id) == breakpoint_id));
+    if (!value.empty()) {
+        return *std::get<0>(value[0]);
+    } else {
+        return std::nullopt;
+    }
+}
+
 std::string get_var_value(bool is_rtl, const std::string &value, const std::string &instance_name) {
     std::string fullname;
     if (is_rtl && value.find(instance_name) == std::string::npos) {
