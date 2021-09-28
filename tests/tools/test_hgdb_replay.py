@@ -56,10 +56,10 @@ def write_out_db6(filename, sv):
 def test_replay3(start_server, find_free_port, get_tools_vector_dir):
     vector_dir = get_tools_vector_dir()
     vcd_path = os.path.join(vector_dir, "waveform3.vcd")
-    port = 8888 #find_free_port()
-    #s = start_server(port, ("tools", "hgdb-replay", "hgdb-replay"), args=[vcd_path], use_plus_arg=False)
-    #if s is None:
-    #    pytest.skip("hgdb-deplay not available")
+    port = find_free_port()
+    s = start_server(port, ("tools", "hgdb-replay", "hgdb-replay"), args=[vcd_path], use_plus_arg=False)
+    if s is None:
+        pytest.skip("hgdb-deplay not available")
     sv = os.path.join(vector_dir, "waveform3.sv")
     with tempfile.TemporaryDirectory() as tempdir:
         db = os.path.join(tempdir, "debug.db")
@@ -92,21 +92,20 @@ def test_replay3(start_server, find_free_port, get_tools_vector_dir):
             # test time jump
             await client.jump(10)
             await client.recv()
-            print("continue")
             await client.continue_()
             bp = await client.recv()
-            print(bp)
-            print("should be 15")
+            # should be 5 since 10 is within [5, 15]
+            assert bp["payload"]["time"] == 5
             await client.continue_()
             bp = await client.recv()
-            print(bp)
+            # everything should go back to normal
+            assert bp["payload"]["time"] == 15
             await client.continue_()
             bp = await client.recv()
-            print(bp)
 
         asyncio.get_event_loop().run_until_complete(test_logic())
 
-    #s.kill()
+    s.kill()
 
 
 def test_replay4(start_server, find_free_port, get_tools_vector_dir):

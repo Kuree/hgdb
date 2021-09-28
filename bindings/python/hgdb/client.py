@@ -5,14 +5,22 @@ import time
 import websockets
 
 
+def crete_debug_protocol(*args, **kwargs):
+    if "ping_interval" in kwargs:
+        kwargs.pop("ping_interval")
+    kwargs["ping_interval"] = None
+    return websockets.WebSocketClientProtocol(*args, **kwargs)
+
+
 class HGDBClient:
-    def __init__(self, uri, filename, src_mapping=None):
+    def __init__(self, uri, filename, src_mapping=None, debug=False):
         self.filename = filename
         self.uri = uri
         self.ws = None
         self.src_mapping = src_mapping
         self.token_count = 0
         self._bps = []
+        self.debug = debug
 
     async def recv(self, timeout=0):
         try:
@@ -46,7 +54,8 @@ class HGDBClient:
         start = time.time()
         while time.time() < start + 10:
             try:
-                self.ws = await websockets.connect(self.uri)
+                protocol = crete_debug_protocol if self.debug else None
+                self.ws = await websockets.connect(self.uri, create_protocol=protocol)
                 break
             except (ConnectionRefusedError, OSError):
                 time.sleep(0.5)
