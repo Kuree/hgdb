@@ -127,7 +127,10 @@ void EmulationEngine::emulation_loop() {
         // requests when the simulator is running. only when the simulator is paused is
         // the request well-defined. in this case, inside the trigger_cb call
         if (timestamp_.load() == (time - 1)) {
-            change_time(time);
+            change_time(time + 1);
+        } else {
+            // advance the timestamp a little to align the proper clock period
+            timestamp_.fetch_add(1);
         }
     }
 }
