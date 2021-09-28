@@ -619,15 +619,11 @@ std::unordered_set<std::string> RTLSimulatorClient::callback_names() {
 }
 
 bool RTLSimulatorClient::reverse_last_posedge(const std::vector<vpiHandle> &clk_handles) {
-    std::vector<vpiHandle> handles;
-    handles.reserve(clk_handles.size());
-    for (auto *const handle : clk_handles) {
-        handles.emplace_back(handle);
-    }
+    return rewind(get_simulation_time(), clk_handles);
+}
 
-    auto time = get_simulation_time();
-
-    AVPIProvider::rewind_data data{.time = time, .clock_signals = handles};
+bool RTLSimulatorClient::rewind(uint64_t time, const std::vector<vpiHandle> &clk_handles) {
+    AVPIProvider::rewind_data data{.time = time, .clock_signals = clk_handles};
 
     return vpi_->vpi_rewind(&data);
 }

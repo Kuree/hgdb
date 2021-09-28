@@ -43,7 +43,6 @@ public:
         std::vector<vpiHandle> clock_signals;
     };
     virtual bool vpi_rewind(rewind_data *reverse_data) { return false; }
-    virtual bool vpi_simulate_backward() { return false; }
 };
 
 class VPIProvider : public AVPIProvider {
@@ -123,6 +122,8 @@ public:
     // reverse simulation supported
     // given a list of clock handles, reverse the execution
     [[maybe_unused]] bool reverse_last_posedge(const std::vector<vpiHandle> &clk_handles);
+
+    [[nodiscard]] bool rewind(uint64_t time, const std::vector<vpiHandle> &clk_handles);
 
     // if the client uses some custom vpiHandle allocator, they need to set this to avoid
     // conflicts

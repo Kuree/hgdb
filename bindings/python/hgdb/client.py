@@ -122,8 +122,12 @@ class HGDBClient:
     async def reverse_continue(self):
         await self.__send_command("reverse_continue")
 
-    async def __send_command(self, command_str):
+    async def jump(self, time_val):
+        await self.__send_command("jump", time=time_val)
+
+    async def __send_command(self, command_str, **kwargs):
         payload = {"request": True, "type": "command", "payload": {"command": command_str}}
+        payload["payload"].update(**kwargs)
         await self.send(payload)
         # no care about the response
         await self.recv()

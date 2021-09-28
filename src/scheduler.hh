@@ -50,6 +50,8 @@ public:
     // breakpoint mode
     bool breakpoint_only() const;
 
+    [[nodiscard]] const std::vector<vpiHandle> &clock_handles() const { return clock_handles_; }
+
 private:
     std::unordered_set<uint32_t> evaluated_ids_;
     std::optional<uint32_t> current_breakpoint_id_;

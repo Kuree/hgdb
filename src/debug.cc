@@ -506,9 +506,8 @@ void Debugger::handle_bp_location(const BreakPointLocationRequest &req, uint64_t
 }
 
 void Debugger::handle_command(const CommandRequest &req, uint64_t conn_id) {
-    // we don't care about the response. this is just set to conform the req-resp style
-    auto resp = GenericResponse(status_code::success, req);
-    send_message(resp.str(log_enabled_), conn_id);
+    status_code status = status_code::success;
+    std::string error;
 
     switch (req.command_type()) {
         case CommandRequest::CommandType::continue_: {
@@ -547,6 +546,25 @@ void Debugger::handle_command(const CommandRequest &req, uint64_t conn_id) {
             lock_.ready();
             break;
         }
+        case CommandRequest::CommandType::jump: {
+            log_info(fmt::format("handle_command: jump ({0})", req.time()));
+            auto res = rtl_->rewind(req.time(), scheduler_->clock_handles());
+            if (!res) {
+                status = status_code::error;
+                error = "Underlying RTL simulator does not support rewind";
+                log_error(error);
+            }
+            lock_.ready();
+            break;
+        }
+    }
+
+    if (status == status_code::success) {
+        auto resp = GenericResponse(status_code::success, req);
+        send_message(resp.str(log_enabled_), conn_id);
+    } else {
+        auto resp = GenericResponse(status_code::error, req, error);
+        send_message(resp.str(log_enabled_), conn_id);
     }
 }
 

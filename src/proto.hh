@@ -201,16 +201,18 @@ private:
 
 class CommandRequest : public Request {
 public:
-    enum class CommandType { continue_, step_over, step_back, stop, reverse_continue };
+    enum class CommandType { continue_, step_over, step_back, stop, reverse_continue, jump };
 
     CommandRequest() = default;
     void parse_payload(const std::string &payload) override;
     [[nodiscard]] RequestType type() const override { return RequestType::command; }
 
     [[nodiscard]] auto command_type() const { return command_type_; }
+    [[nodiscard]] auto time() const { return time_; }
 
 private:
     CommandType command_type_ = CommandType::continue_;
+    uint64_t time_ = 0;
 };
 
 class DebuggerInformationRequest : public Request {

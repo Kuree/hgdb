@@ -10,11 +10,6 @@ public:
         }
         return can_backward;
     }
-    bool vpi_simulate_backward() override {
-        // each cycle is 2
-        if (can_backward) time_ -= 2;
-        return can_backward;
-    }
 
     bool can_backward = true;
 
