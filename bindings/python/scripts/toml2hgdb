@@ -85,7 +85,7 @@ def main():
     for top_name in tops:
         db.begin_transaction()
         write_out_design(top_name, top_name, design, db)
-        db.commit()
+        db.end_transaction()
 
 
 if __name__ == "__main__":

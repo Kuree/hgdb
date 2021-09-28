@@ -62,5 +62,5 @@ class DebugSymbolTable:
     def begin_transaction(self):
         return _hgdb.begin_transaction(self.db)
 
-    def commit(self):
-        return _hgdb.commit(self.db)
+    def end_transaction(self):
+        return _hgdb.end_transaction(self.db)
