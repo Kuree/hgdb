@@ -57,3 +57,10 @@ class DebugSymbolTable:
     # get other information
     def get_filenames(self):
         return _hgdb.get_filenames(self.db)
+
+    # transaction based insertion
+    def begin_transaction(self):
+        return _hgdb.begin_transaction(self.db)
+
+    def commit(self):
+        return _hgdb.commit(self.db)

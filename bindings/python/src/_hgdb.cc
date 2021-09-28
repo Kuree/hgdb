@@ -41,13 +41,16 @@ PYBIND11_MODULE(_hgdb, m) {
     m.def("has_variable_id", [](hgdb::DebugDatabase &db, uint32_t variable_id) -> bool {
         return has_type_id<hgdb::Variable>(db, variable_id);
     });
+    // used to speed up insertion speed
+    m.def("begin_transaction", [](hgdb::DebugDatabase &db) { db.begin_transaction(); });
+    m.def("end_transaction", [](hgdb::DebugDatabase &db) { db.commit(); });
 
     // some helper functions for other tools to digest the symbol table
     // especially the local IDE
     m.def("get_filenames", [](hgdb::DebugDatabase &db) {
         std::set<std::string> filenames;
         auto breakpoints = db.get_all<hgdb::BreakPoint>();
-        for (auto const &bp: breakpoints) {
+        for (auto const &bp : breakpoints) {
             filenames.emplace(bp.filename);
         }
         return filenames;

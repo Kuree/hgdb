@@ -156,11 +156,9 @@ vpiHandle RTLSimulatorClient::get_handle(const std::string &name) {
         } else {
             // full back to brute-force resolving names. usually we have to
             // deal with verilator. remove []
-            if (is_verilator()) {
-                auto tokens = util::get_tokens(full_name, ".[]");
-                ptr = get_handle(tokens);
-                if (ptr) handle_map_.emplace(name, ptr);
-            }
+            auto tokens = util::get_tokens(full_name, ".[]");
+            ptr = get_handle(tokens);
+            if (ptr) handle_map_.emplace(name, ptr);
         }
         return ptr;
     }

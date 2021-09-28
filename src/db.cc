@@ -1,6 +1,7 @@
 #include "db.hh"
 
 #include <filesystem>
+#include <regex>
 #include <unordered_set>
 
 #include "fmt/format.h"
@@ -308,11 +309,28 @@ std::string DebugDatabaseClient::resolve_filename_to_client(const std::string &f
     return filename;
 }
 
+std::string convert_dot_notation(const std::string &name) {
+    // conversion between two notation
+    const static std::regex dot(R"(\.(\d+))");
+    const static std::regex bracket(R"(\[(\d+)\])");
+    std::smatch match;
+    if (std::regex_search(name, match, dot)) {
+        // replace it
+        auto new_name = std::regex_replace(name, dot, R"([$1])");
+        return new_name;
+    } else if (std::regex_search(name, match, bracket)) {
+        auto new_name = std::regex_replace(name, bracket, R"(.$1)");
+        return new_name;
+    }
+    return name;
+}
+
 std::optional<std::string> DebugDatabaseClient::resolve_scoped_name_instance(
     const std::string &scoped_name, uint64_t instance_id) {
+    auto name = convert_dot_notation(scoped_name);
     auto gen_vars = get_generator_variable(instance_id);
     for (auto const &[gen_var, var] : gen_vars) {
-        if (scoped_name == gen_var.name) {
+        if (name == gen_var.name || scoped_name == gen_var.name) {
             return var.value;
         }
     }
@@ -321,10 +339,11 @@ std::optional<std::string> DebugDatabaseClient::resolve_scoped_name_instance(
 
 std::optional<std::string> DebugDatabaseClient::resolve_scoped_name_breakpoint(
     const std::string &scoped_name, uint64_t breakpoint_id) {
+    auto name = convert_dot_notation(scoped_name);
     // NOLINTNEXTLINE
     auto context_vars = get_context_variables(breakpoint_id);
     for (auto const &[context_var, var] : context_vars) {
-        if (scoped_name == context_var.name) {
+        if (name == context_var.name || scoped_name == context_var.name) {
             return var.value;
         }
     }

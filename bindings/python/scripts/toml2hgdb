@@ -83,7 +83,9 @@ def main():
     tops = get_tops(design)
     db = DebugSymbolTable(db_filename)
     for top_name in tops:
+        db.begin_transaction()
         write_out_design(top_name, top_name, design, db)
+        db.commit()
 
 
 if __name__ == "__main__":
