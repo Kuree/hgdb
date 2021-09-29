@@ -34,6 +34,7 @@ std::optional<argparse::ArgumentParser> get_args(int argc, char **argv) {
         .help("Debug port")
         .default_value<uint16_t>(0)
         .scan<'d', uint16_t>();
+    program.add_argument("--debug").implicit_value(true).default_value(false);
 
     try {
         program.parse_args(argc, argv);
@@ -58,6 +59,13 @@ void set_port(hgdb::replay::ReplayVPIProvider *vpi, uint16_t port) {
     // only try to override the env when the port is not 0
     if (port > 0) {
         auto str = "+DEBUG_PORT=" + std::to_string(port);
+        vpi->add_argv(str);
+    }
+}
+
+void set_debug_log(hgdb::replay::ReplayVPIProvider *vpi, bool enable) {
+    if (enable) {
+        auto constexpr str = "+DEBUG_LOG";
         vpi->add_argv(str);
     }
 }
@@ -97,6 +105,8 @@ int main(int argc, char *argv[]) {
     vpi->set_argv(argc, argv);
     // set port if necessary
     set_port(vpi.get(), program->get<uint16_t>("--port"));
+    // we use plus args
+    set_debug_log(vpi.get(), program->get<bool>("--debug"));
 
     hgdb::replay::EmulationEngine engine(vpi.get());
 
