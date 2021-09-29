@@ -188,7 +188,7 @@ TEST(replay, get_value_reverse) {  // NOLINT
         EXPECT_EQ(values.find(i), values.end());
     }
 
-    for (auto i = 90u; i < 200; i += 10) {
+    for (auto i = 100u; i <= 200; i += 10) {
         EXPECT_NE(values.find(i), values.end());
     }
 }

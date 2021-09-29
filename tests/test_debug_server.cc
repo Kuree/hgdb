@@ -160,11 +160,14 @@ int main(int argc, char *argv[]) {
     }
     bool should_run = false;
     bool no_eval = false;
+    bool rewind = false;
     for (auto const &arg : args) {
         if (arg == "+DEBUG_LOG") {
             should_run = true;
         } else if (arg == "+NO_EVAL") {
             no_eval = true;
+        } else if (arg == "+REWIND") {
+            rewind = true;
         }
     }
     if (!should_run) {
@@ -177,6 +180,7 @@ int main(int argc, char *argv[]) {
 
     vpi->set_argv(args);
     auto *raw_vpi = vpi.get();
+    raw_vpi->set_rewind_enabled(rewind);
 
     auto debug = hgdb::Debugger(std::move(vpi));
     debug.initialize_db(std::move(db));
@@ -186,21 +190,22 @@ int main(int argc, char *argv[]) {
     std::cout << "INFO: START RUNNING" << std::endl;
 
     // evaluate the inserted breakpoint
-    int time = 0;
+    raw_vpi->set_time(0);
     constexpr const char *mod1_e = "top.dut.e";
     using namespace std::chrono_literals;
     while (debug.is_running().load()) {
         // eval loop
         if (!no_eval) {
             debug.eval();
-            time++;
-            raw_vpi->set_time(time);
+            auto time = raw_vpi->get_time();
+            raw_vpi->set_time(time + 1);
+
             // notice that we only set dut here, so after the first breakpoint hits
             // only one will be hit later on
             raw_vpi->set_signal_value(
                 raw_vpi->vpi_handle_by_name(const_cast<char *>(mod1_e), nullptr),
-                time > 1 ? 1 : time);
-            // sleep a little bit to avoid high CPU load
+                time > 1 ? 1 : static_cast<int64_t>(time));
+            // sleep a little to avoid high CPU load
             std::this_thread::sleep_for(10ms);
         }
     }

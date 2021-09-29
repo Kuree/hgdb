@@ -203,6 +203,15 @@ public:
         return nullptr;
     }
 
+    bool vpi_rewind(rewind_data *reverse_data) override {
+        if (rewind_allowed_) {
+            time_ = reverse_data->time;
+            return true;
+        } else {
+            return false;
+        }
+    }
+
     vpiHandle get_new_handle() {
         auto *p = vpi_handle_counter_++;
         return reinterpret_cast<uint32_t *>(p);
@@ -273,6 +282,8 @@ public:
 
     void set_time(uint64_t time) { time_ = time; }
 
+    [[nodiscard]] uint64_t get_time() const { return time_; }
+
     void set_signal_value(vpiHandle handle, int64_t value) {
         bool value_changed = signal_values_.find(handle) == signal_values_.end() ||
                              signal_values_.at(handle) != value;
@@ -292,6 +303,7 @@ public:
     void set_top(vpiHandle top) { top_ = top; }
 
     [[nodiscard]] const std::vector<uint32_t> &vpi_ops() const { return vpi_ops_; }
+    void set_rewind_enabled(bool value) { rewind_allowed_ = value; }
 
 protected:
     std::string str_buffer_;
@@ -321,6 +333,8 @@ protected:
     uint64_t time_ = 0;
 
     vpiHandle top_ = nullptr;
+
+    bool rewind_allowed_ = true;
 
 public:
     constexpr static auto product = "RTLMock";

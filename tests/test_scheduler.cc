@@ -131,6 +131,7 @@ TEST_F(ScheduleTestNoReverse, test_stepback_no_rollback) {  // NOLINT
     hgdb::Scheduler scheduler(rtl_.get(), db_.get(), val1, val2);
     auto *vpi = reinterpret_cast<MockVPIProvider *>(&rtl_->vpi());
     vpi->set_time(10);
+    vpi->set_rewind_enabled(false);
 
     scheduler.set_evaluation_mode(hgdb::Scheduler::EvaluationMode::StepOver);
     std::set<uint32_t> ids;
