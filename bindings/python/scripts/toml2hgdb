@@ -68,6 +68,10 @@ def fix_variable_name(variables):
         tokens = name.split("_")
         if name[0] == "_":
             identifier = "_" + tokens[0]
+        elif tokens[0] in names:
+            # naming conflict
+            result[name] = variables[name]
+            continue
         else:
             identifier = tokens[0] + "_"
         count = 0
@@ -117,6 +121,9 @@ def write_out_locals(local_vars, db, breakpoint_index, fix_variable):
     # we hope that dictionary is in order, otherwise it's going to be bad, really bad
     if fix_variable:
         fix_variable_name(local_vars)
+    # second pass to group line numbers
+    targets = {}
+    var_id_mapping = {}
     for name, entry in local_vars.items():
         fn_info = entry[-1].replace(":", " ")
         info = tuple(fn_info.split(" "))
@@ -129,20 +136,27 @@ def write_out_locals(local_vars, db, breakpoint_index, fix_variable):
         if current_filename != filename:
             # nothing we can do
             continue
-        if pre_ln is None:
-            pre_ln = ln
-        else:
-            if (ln - pre_ln) > skip_line_threshold:
-                scope.clear()
-            pre_ln = ln
+        if info not in targets:
+            targets[info] = []
         rtl_name = entry[0]
         db.store_variable(var_count, rtl_name)
-        scope.append((name, var_count))
-        breakpoint_id = breakpoint_index[info]
-        for n, i in scope:
-            db.store_context_variable(n, breakpoint_id, i)
-
+        targets[info].append((name, rtl_name))
+        var_id_mapping[rtl_name] = var_count
         var_count += 1
+
+    # third pass to actually produce the table
+    pre_ln = None
+    for info, entries in targets.items():
+        breakpoint_id = breakpoint_index[info]
+        ln = int(info[1])
+        if pre_ln is not None and (pre_ln - ln) > skip_line_threshold:
+            scope.clear()
+        pre_ln = ln
+        for entry in entries:
+            scope.append(entry)
+        for name, rtl_name in scope:
+            var_id = var_id_mapping[rtl_name]
+            db.store_context_variable(name, breakpoint_id, var_id)
 
 
 def write_out_design(def_name, inst_name, design_data, db, fix_variable):
