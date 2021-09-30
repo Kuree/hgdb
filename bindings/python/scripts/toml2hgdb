@@ -3,7 +3,24 @@
 import toml
 import sys
 import os
+import argparse
+import collections
 from hgdb import DebugSymbolTable
+
+
+def get_args():
+    parser = argparse.ArgumentParser("Convert toml debug file to hgdb")
+    parser.add_argument("input", help="Input toml file", type=str)
+    parser.add_argument("output", help="Output symbol table file", type=str)
+    parser.add_argument("--disable-firrtl-fix", action="store_true", dest="disable_firrtl_fix",
+                        help="If set, no symbol mapping fix will be performed")
+    args = parser.parse_args()
+    if not os.path.exists(args.input):
+        print(args.input, "does not exist", file=sys.stderr)
+        exit(1)
+    if os.path.exists(args.output):
+        os.remove(args.output)
+    return args
 
 
 def parse_toml(toml_filename):
@@ -34,17 +51,115 @@ breakpoint_id_count = 0
 instance_count = 0
 
 
-def write_out_design(def_name, inst_name, design_data, db):
+def fix_variable_name(variables):
+    # notice for bundled variables (regs or node)
+    # chisel blows it up before handing it over to firrtl
+    # so we have to play with lots of heuristics
+    result = collections.OrderedDict()
+    names = list(variables.keys())
+    for name in names:
+        if "." in name or "[" in name:
+            result[name] = variables[name]
+            continue
+        if "_" not in name:
+            result[name] = variables[name]
+            continue
+        # try to merge
+        tokens = name.split("_")
+        if name[0] == "_":
+            identifier = "_" + tokens[0]
+        else:
+            identifier = tokens[0] + "_"
+        count = 0
+        for n in names:
+            if n.startswith(identifier):
+                count += 1
+        if count > 1:
+            # change _ to .
+            if name[0] == "_":
+                new_name = "_" + name[1:].replace("_", ".")
+            else:
+                new_name = name.replace("_", ".")
+            result[new_name] = variables[name]
+        else:
+            result[name] = variables[name]
+
+    variables.clear()
+    for name, entry in result.items():
+        variables[name] = entry
+
+
+def write_out_locals(local_vars, db, breakpoint_index, fix_variable):
+    global var_count
+    # first pass to determine the actual filename
+    # for some reason chisel inserts the original function
+    # call file info
+    filename_count = {}
+    for entry in local_vars.values():
+        info = entry[-1]
+        filename = info.split(" ")[0]
+        if filename not in filename_count:
+            filename_count[filename] = 0
+        filename_count[filename] += 1
+    current_filename = None
+    count = 0
+    for n, c in filename_count.items():
+        if c > count:
+            current_filename = n
+            count = c
+    if current_filename is None:
+        # nothing to be done here
+        return
+    scope = []
+    # if the line number different is more than this threshold
+    skip_line_threshold = 10
+    pre_ln = None
+    # we hope that dictionary is in order, otherwise it's going to be bad, really bad
+    if fix_variable:
+        fix_variable_name(local_vars)
+    for name, entry in local_vars.items():
+        fn_info = entry[-1].replace(":", " ")
+        info = tuple(fn_info.split(" "))
+        filename = info[0]
+        if info not in breakpoint_index:
+            continue
+        ln = int(info[1])
+        # there is a "bug"/feature in the current chisel that use the first file info, as compared
+        # to the last, which is what people what
+        if current_filename != filename:
+            # nothing we can do
+            continue
+        if pre_ln is None:
+            pre_ln = ln
+        else:
+            if (ln - pre_ln) > skip_line_threshold:
+                scope.clear()
+            pre_ln = ln
+        rtl_name = entry[0]
+        db.store_variable(var_count, rtl_name)
+        scope.append((name, var_count))
+        breakpoint_id = breakpoint_index[info]
+        for n, i in scope:
+            db.store_context_variable(n, breakpoint_id, i)
+
+        var_count += 1
+
+
+def write_out_design(def_name, inst_name, design_data, db, fix_variable):
     # this is recursive. no compression so far
     global var_count, breakpoint_id_count, instance_count
     db.store_instance(instance_count, inst_name)
     def_data = design_data[def_name]
     # create variable
     if "variables" in def_data:
+        if fix_variable:
+            fix_variable_name(def_data["variables"])
         for var_name, rtl_name in def_data["variables"].items():
             db.store_variable(var_count, rtl_name)
             db.store_generator_variable(var_name, instance_id=instance_count, variable_id=var_count)
             var_count += 1
+    breakpoint_index = {}
+
     if "breakpoints" in def_data:
         for entry in def_data["breakpoints"]:
             if len(entry) == 2:
@@ -63,28 +178,31 @@ def write_out_design(def_name, inst_name, design_data, db):
                 fn, ln, cn = info
             db.store_breakpoint(breakpoint_id_count, instance_count, fn, int(ln), column_num=int(cn),
                                 condition=cond, trigger=trigger)
+            breakpoint_index[tuple(info)] = breakpoint_id_count
             breakpoint_id_count += 1
     instance_count += 1
+
+    # handle local variables
+    # notice that firrtl doesn't have scope function for now
+    # so again, we have to play with heuristics
+    # we can approximate the scope as a hack
+    if "locals" in def_data:
+        write_out_locals(def_data["locals"], db, breakpoint_index, fix_variable)
 
     # recursively call the child instances
     if "instances" in def_data:
         for i_name, d_name in def_data["instances"].items():
-            write_out_design(d_name, f"{inst_name}.{i_name}", design_data, db)
+            write_out_design(d_name, f"{inst_name}.{i_name}", design_data, db, fix_variable)
 
 
 def main():
-    if len(sys.argv) != 3:
-        print("Usage:", sys.argv[0], "input.toml", "output.db", file=sys.stderr)
-        exit(1)
-    toml_filename = sys.argv[1]
-    assert os.path.exists(toml_filename), f"#{toml_filename} does not exist!"
-    db_filename = sys.argv[2]
-    design = parse_toml(toml_filename)
+    args = get_args()
+    design = parse_toml(args.input)
     tops = get_tops(design)
-    db = DebugSymbolTable(db_filename)
+    db = DebugSymbolTable(args.output)
     for top_name in tops:
         db.begin_transaction()
-        write_out_design(top_name, top_name, design, db)
+        write_out_design(top_name, top_name, design, db, not args.disable_firrtl_fix)
         db.end_transaction()
 
 
