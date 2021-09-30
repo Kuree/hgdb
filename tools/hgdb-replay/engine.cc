@@ -10,8 +10,7 @@ EmulationEngine::EmulationEngine(ReplayVPIProvider* vcd) : vpi_(vcd) {
     vpi_->set_on_cb_removed([this](const s_cb_data& cb_data) { on_cb_removed(cb_data); });
     vpi_->set_on_reversed([this](reverse_data* reverse_data) { return on_rewound(reverse_data); });
 
-    // set time
-    change_time(0);
+    timestamp_ = vpi_->get_timestamp();
 }
 
 void EmulationEngine::run(bool blocking) {

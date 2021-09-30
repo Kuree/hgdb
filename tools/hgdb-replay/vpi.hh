@@ -35,6 +35,7 @@ public:
     void set_on_cb_removed(const std::function<void(const s_cb_data &)> &on_cb_removed);
     void set_on_reversed(const std::function<bool(rewind_data *)> &on_reversed);
     void set_timestamp(uint64_t time) { current_time_ = time; }
+    [[nodiscard]] uint64_t get_timestamp() const { return current_time_; }
     hgdb::waveform::WaveformProvider &db() { return *db_; }
     bool is_valid_handle(vpiHandle handle) const;
     void trigger_cb(uint32_t reason) { trigger_cb(reason, nullptr, 0); }

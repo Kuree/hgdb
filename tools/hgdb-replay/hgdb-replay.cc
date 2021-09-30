@@ -35,6 +35,7 @@ std::optional<argparse::ArgumentParser> get_args(int argc, char **argv) {
         .default_value<uint16_t>(0)
         .scan<'d', uint16_t>();
     program.add_argument("--debug").implicit_value(true).default_value(false);
+    program.add_argument("--start-time", "-s").default_value<uint64_t>(0).help("When to start the replay").scan<'d', uint64_t>();
 
     try {
         program.parse_args(argc, argv);
@@ -107,6 +108,7 @@ int main(int argc, char *argv[]) {
     set_port(vpi.get(), program->get<uint16_t>("--port"));
     // we use plus args
     set_debug_log(vpi.get(), program->get<bool>("--debug"));
+    vpi->set_timestamp(program->get<uint64_t>("-s"));
 
     hgdb::replay::EmulationEngine engine(vpi.get());
 
@@ -145,5 +147,9 @@ int main(int argc, char *argv[]) {
     }
 
     log::log(log::log_level::info, "Starting HGDB replay...");
-    engine.run();
+    try {
+        engine.run();
+    } catch (websocketpp::exception &) {
+        std::cerr << "Client disconnected" << std::endl;
+    }
 }
