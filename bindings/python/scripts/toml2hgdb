@@ -87,11 +87,8 @@ def fix_variable_name(variables):
             continue
         else:
             identifier = tokens[0] + "_"
-        count = 0
-        for n in names:
-            if n.startswith(identifier):
-                count += 1
-        if count > 1:
+        has_target = any(n.startswith(identifier) for n in names if n != name)
+        if has_target:
             # change _ to .
             if name[0] == "_":
                 new_name = "_" + name[1:].replace("_", ".")
@@ -143,7 +140,6 @@ def write_out_locals(local_vars, db, breakpoint_index, fix_variable):
         filename = info[0]
         if info not in breakpoint_index:
             continue
-        ln = int(info[1])
         # there is a "bug"/feature in the current chisel that use the first file info, as compared
         # to the last, which is what people what
         if current_filename != filename:
