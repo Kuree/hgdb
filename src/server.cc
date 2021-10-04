@@ -56,7 +56,12 @@ void DebugServer::run(uint16_t port) {
 }
 
 void DebugServer::stop() {
-    server_.stop_listening();
+    try {
+        server_.stop_listening();
+    } catch (websocketpp::exception &) {
+        // don't care about the error of the websocket. just shutting it down
+    }
+
     // close all the ongoing connections
     {
         std::lock_guard guard(connections_lock_);
