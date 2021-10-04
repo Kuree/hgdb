@@ -91,6 +91,8 @@ private:
 
     // helper functions
     uint16_t get_port();
+    std::optional<std::string> get_value_plus_arg(const std::string &arg_name);
+    bool get_test_plus_arg(const std::string &arg_name);
     bool get_logging();
     static void log_error(const std::string &msg);
     void log_info(const std::string &msg) const;

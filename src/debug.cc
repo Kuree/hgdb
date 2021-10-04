@@ -72,8 +72,14 @@ void Debugger::run() {
         log_info(fmt::format("Debugging server started at :{0}", port));
         server_->run(port);
     });
-    // block this thread until we receive the continue from user
-    lock_.wait();
+    // block this thread until we receive the continue command from user
+    //
+    // by default we block the execution. but if user desires, e.g. during a benchmark
+    // we can skip the blocking
+    bool disable_blocking = get_test_plus_arg("DEBUG_DISABLE_BLOCKING");
+    if (!disable_blocking) [[likely]] {
+        lock_.wait();
+    }
 }
 
 void Debugger::stop() {
@@ -279,34 +285,43 @@ void Debugger::send_message(const std::string &message, uint64_t conn_id) {
 }
 
 uint16_t Debugger::get_port() {
-    if (!rtl_) return default_port_num;
-    auto args = rtl_->get_argv();
-    const static std::string plus_port = "+DEBUG_PORT=";
+    auto port_str = get_value_plus_arg("DEBUG_PORT");
+    if (!port_str) return default_port_num;
+    uint16_t value;
+    try {
+        value = std::stoul(*port_str);
+    } catch (const std::invalid_argument &) {
+        value = default_port_num;
+    } catch (const std::out_of_range &) {
+        value = default_port_num;
+    }
+    return value;
+}
+
+std::optional<std::string> Debugger::get_value_plus_arg(const std::string &arg_name) {
+    if (!rtl_) return std::nullopt;
+    auto const &args = rtl_->get_argv();
+    auto const plus_arg = fmt::format("+{0}=", arg_name);
     for (auto const &arg : args) {
-        if (arg.find(plus_port) != std::string::npos) {
-            auto port_str = arg.substr(plus_port.size());
-            uint16_t value;
-            try {
-                value = std::stoul(port_str);
-            } catch (const std::invalid_argument &) {
-                value = default_port_num;
-            } catch (const std::out_of_range &) {
-                value = default_port_num;
-            }
+        if (arg.find(plus_arg) != std::string::npos) {
+            auto value = arg.substr(plus_arg.size());
             return value;
         }
     }
-    return default_port_num;
+    return std::nullopt;
+}
+
+bool Debugger::get_test_plus_arg(const std::string &arg_name) {
+    if (!rtl_) return false;
+    auto const &args = rtl_->get_argv();
+    auto plus_arg = "+" + arg_name;
+    return std::any_of(args.begin(), args.end(),
+                       [&plus_arg](const auto &arg) { return arg == plus_arg; });
 }
 
 bool Debugger::get_logging() {
-    if (!rtl_) return default_logging;
-    auto args = rtl_->get_argv();
-    const static std::string plus_arg = "+DEBUG_LOG";
-    for (auto const &arg : args) {
-        if (arg == plus_arg) return true;
-    }
-    return default_logging;
+    auto logging = get_test_plus_arg("DEBUG_LOG");
+    return logging ? true : default_logging;  // NOLINT
 }
 
 void Debugger::log_error(const std::string &msg) { log::log(log::log_level::error, msg); }
