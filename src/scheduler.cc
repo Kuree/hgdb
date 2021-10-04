@@ -187,6 +187,7 @@ std::vector<DebugBreakPoint *> Scheduler::next_reverse_breakpoints() {
             } else {
                 // time reversed
                 current_breakpoint_id_ = std::nullopt;
+                target_index = breakpoints_.size() - 1;
             }
         } else {
             // find the next inserted breakpoint
@@ -206,7 +207,7 @@ std::vector<DebugBreakPoint *> Scheduler::next_reverse_breakpoints() {
         target_index = breakpoints_.size() - 1;
     }
 
-    if (!target_index) {
+    if (!target_index && target_index >= breakpoints_.size()) {
         current_breakpoint_id_ = std::nullopt;
         return {};
     }

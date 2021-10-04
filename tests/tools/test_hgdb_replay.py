@@ -102,6 +102,11 @@ def test_replay3(start_server, find_free_port, get_tools_vector_dir):
             assert bp["payload"]["time"] == 15
             await client.continue_()
             bp = await client.recv()
+            assert bp["payload"]["time"] == 25
+            # reverse continue should go back to 15
+            await client.reverse_continue()
+            bp = await client.recv()
+            assert bp["payload"]["time"] == 15
 
         asyncio.get_event_loop().run_until_complete(test_logic())
 

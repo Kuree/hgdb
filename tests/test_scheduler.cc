@@ -114,13 +114,16 @@ TEST_F(ScheduleTestReverse, test_reverse_continue) {  // NOLINT
 
     // this should be null and we revert time
     bps = scheduler.next_breakpoints();
-    EXPECT_TRUE(bps.empty());
     EXPECT_EQ(vpi->time(), 10 - 2);
+    EXPECT_EQ(bps.size(), 2);
+    for (auto const &bp : bps) {
+        EXPECT_EQ(bp->line_num, 2);
+    }
 
     bps = scheduler.next_breakpoints();
     EXPECT_EQ(bps.size(), 2);
     for (auto const &bp : bps) {
-        EXPECT_EQ(bp->line_num, 2);
+        EXPECT_EQ(bp->line_num, 1);
     }
     EXPECT_EQ(vpi->time(), 10 - 2);
 }
@@ -236,16 +239,13 @@ TEST_F(ScheduleTestNoReverse, test_continue) {  // NOLINT
     auto bps = scheduler.next_breakpoints();
     EXPECT_EQ(bps.size(), 2);
 
-    for (auto const *bp: bps)
-        EXPECT_EQ(bp->line_num, 1);
+    for (auto const *bp : bps) EXPECT_EQ(bp->line_num, 1);
 
     bps = scheduler.next_breakpoints();
     EXPECT_EQ(bps.size(), 2);
 
-    for (auto const *bp: bps)
-        EXPECT_EQ(bp->line_num, 2);
+    for (auto const *bp : bps) EXPECT_EQ(bp->line_num, 2);
 
     bps = scheduler.next_breakpoints();
     EXPECT_TRUE(bps.empty());
 }
-
