@@ -1003,7 +1003,8 @@ void Debugger::setup_init_breakpoint_from_env() {
             break;
         }
         // need to parse the actual filename and conditions
-        auto tokens = util::get_tokens(bp, "-");
+        // don't think @ is a normal filename, so use it to delimit string
+        auto tokens = util::get_tokens(bp, "@");
         if (tokens.empty()) {
             std::cerr << "Invalid breakpoint expression " << breakpoint_name << std::endl;
             continue;
