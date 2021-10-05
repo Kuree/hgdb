@@ -152,6 +152,8 @@ class BreakPointRequest : public Request {
 public:
     enum class action { add, remove };
     BreakPointRequest() = default;
+    BreakPointRequest(BreakPoint &bp, action bp_action)
+        : bp_(std::move(bp)), bp_action_(bp_action) {}
     void parse_payload(const std::string &payload) override;
     [[nodiscard]] const auto &breakpoint() const { return bp_; }
     [[nodiscard]] auto bp_action() const { return bp_action_; }

@@ -25,10 +25,10 @@ def is_killed(s):
     return killed
 
 
-def setup_server(start_server, find_free_port, no_eval=False, stdout=False):
+def setup_server(start_server, find_free_port, no_eval=False, stdout=False, env=None):
     port = find_free_port()
     args = ["+DEBUG_LOG", "+NO_EVAL"] if no_eval else ["+DEBUG_LOG"]
-    s = start_server(port, "test_debug_server", args, stdout=stdout)
+    s = start_server(port, "test_debug_server", args, stdout=stdout, env=env)
     assert s.poll() is None
     uri = "ws://localhost:{0}".format(port)
     return s, uri
@@ -379,10 +379,25 @@ def test_special_value(start_server, find_free_port):
     kill_server(s)
 
 
+def test_debug_env_value(start_server, find_free_port):
+    env = {"DEBUG_BREAKPOINT0": "/tmp/test.py:1-$instance == 1"}
+    s, uri = setup_server(start_server, find_free_port, env=env, stdout=True)
+
+    async def test_logic():
+        async with hgdb.HGDBClient(uri, None) as client:
+            await client.connect()
+            for i in range(5):
+                await client.continue_()
+                bp = await client.recv_bp()
+                assert bp["payload"]["instances"][0]["instance_id"] == 1
+    asyncio.get_event_loop().run_until_complete(test_logic())
+    kill_server(s)
+
+
 if __name__ == "__main__":
     import sys
 
     sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
     from conftest import start_server_fn, find_free_port_fn
 
-    test_special_value(start_server_fn, find_free_port_fn)
+    test_debug_env_value(start_server_fn, find_free_port_fn)

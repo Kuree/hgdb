@@ -140,6 +140,10 @@ private:
 
     // callbacks
     std::optional<std::function<void(hgdb::DebugDatabaseClient &)>> on_client_connected_;
+
+    // performance benchmark functions
+    // only used to initialize the debugger to certain state, not for normal usage
+    void setup_init_breakpoint_from_env();
 };
 
 }  // namespace hgdb

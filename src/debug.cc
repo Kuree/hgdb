@@ -60,6 +60,9 @@ void Debugger::initialize_db(std::unique_ptr<DebugDatabaseClient> db) {
     if (on_client_connected_) {
         (*on_client_connected_)(*db_);
     }
+
+    // setup breakpoints from env
+    setup_init_breakpoint_from_env();
 }
 
 void Debugger::run() {
@@ -988,6 +991,53 @@ void Debugger::eval_breakpoint(DebugBreakPoint *bp, std::vector<bool> &result, u
 void Debugger::start_breakpoint_evaluation() {
     scheduler_->start_breakpoint_evaluation();
     cached_signal_values_.clear();
+}
+
+void Debugger::setup_init_breakpoint_from_env() {
+    constexpr auto BREAKPOINT_NAME = "DEBUG_BREAKPOINT{0}";
+    uint64_t i = 0;
+    while (true) {
+        auto breakpoint_name = fmt::format(BREAKPOINT_NAME, i++);
+        auto const *bp = std::getenv(breakpoint_name.c_str());
+        if (!bp) {
+            break;
+        }
+        // need to parse the actual filename and conditions
+        auto tokens = util::get_tokens(bp, "-");
+        if (tokens.empty()) {
+            std::cerr << "Invalid breakpoint expression " << breakpoint_name << std::endl;
+            continue;
+        }
+        auto const &filename_lin_num = tokens[0];
+        auto fn_ln = util::get_tokens(filename_lin_num, ":");
+        if (fn_ln.size() != 2 && fn_ln.size() != 3) {
+            std::cerr << "Invalid breakpoint expression " << breakpoint_name << std::endl;
+            continue;
+        }
+        BreakPoint breakpoint;
+        breakpoint.filename = fn_ln[0];
+        auto ln = util::stoul(fn_ln[1]);
+        if (!ln) {
+            std::cerr << "Invalid breakpoint expression " << breakpoint_name << std::endl;
+            continue;
+        }
+        breakpoint.line_num = *ln;
+        if (fn_ln.size() == 3) {
+            auto cn = util::stoul(fn_ln[2]);
+            if (!cn) {
+                std::cerr << "Invalid breakpoint expression " << breakpoint_name << std::endl;
+                continue;
+            }
+            breakpoint.column_num = *cn;
+        }
+        if (tokens.size() > 1) {
+            breakpoint.condition = tokens[1];
+        }
+
+        BreakPointRequest req(breakpoint, BreakPointRequest::action::add);
+        // use max channel ID just in case. in
+        handle_breakpoint(req, std::numeric_limits<uint64_t>::max());
+    }
 }
 
 }  // namespace hgdb
