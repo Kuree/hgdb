@@ -76,7 +76,8 @@ void Debugger::run() {
     //
     // by default we block the execution. but if user desires, e.g. during a benchmark
     // we can skip the blocking
-    bool disable_blocking = get_test_plus_arg("DEBUG_DISABLE_BLOCKING");
+    // rocket chip doesn't like plus args. Need to
+    bool disable_blocking = get_test_plus_arg("DEBUG_DISABLE_BLOCKING", true);
     if (!disable_blocking) [[likely]] {
         lock_.wait();
     }
@@ -311,8 +312,14 @@ std::optional<std::string> Debugger::get_value_plus_arg(const std::string &arg_n
     return std::nullopt;
 }
 
-bool Debugger::get_test_plus_arg(const std::string &arg_name) {
+bool Debugger::get_test_plus_arg(const std::string &arg_name, bool check_env) {
     if (!rtl_) return false;
+    // check env as well if allowed
+    if (check_env) {
+        if (std::getenv(arg_name.c_str())) {
+            return true;
+        }
+    }
     auto const &args = rtl_->get_argv();
     auto plus_arg = "+" + arg_name;
     return std::any_of(args.begin(), args.end(),
