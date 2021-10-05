@@ -264,8 +264,8 @@ void set_member(K &json_value, A &allocator, const char *name, const T &value) {
         json_value.AddMember(key.Move(), v_copy.Move(), allocator);
     } else if constexpr (std::is_same<T, std::map<std::string, std::string>>::value) {
         rapidjson::Value v(rapidjson::kObjectType);
-        for (auto const &[name, value_] : value) {
-            set_member(v, allocator, name.c_str(), value_);
+        for (auto const &[n, value_] : value) {
+            set_member(v, allocator, n.c_str(), value_);
         }
         json_value.AddMember(key.Move(), v.Move(), allocator);
     } else {

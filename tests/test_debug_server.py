@@ -380,7 +380,7 @@ def test_special_value(start_server, find_free_port):
 
 
 def test_debug_env_value(start_server, find_free_port):
-    env = {"DEBUG_BREAKPOINT0": "/tmp/test.py:1-$instance == 1"}
+    env = {"DEBUG_BREAKPOINT0": "/tmp/test.py:1@$instance == 1"}
     s, uri = setup_server(start_server, find_free_port, env=env, stdout=True)
 
     async def test_logic():
