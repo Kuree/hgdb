@@ -10,6 +10,9 @@
 
 namespace fs = std::filesystem;
 
+constexpr auto DISABLE_BLOCKING_ENV = "DEBUG_DISABLE_BLOCKING";
+constexpr auto DATABASE_FILENAME_ENV = "DEBUG_DATABASE_FILENAME";
+
 namespace hgdb {
 Debugger::Debugger() : Debugger(nullptr) {}
 
@@ -80,10 +83,14 @@ void Debugger::run() {
     // by default we block the execution. but if user desires, e.g. during a benchmark
     // we can skip the blocking
     // rocket chip doesn't like plus args. Need to
-    bool disable_blocking = get_test_plus_arg("DEBUG_DISABLE_BLOCKING", true);
+    bool disable_blocking = get_test_plus_arg(DISABLE_BLOCKING_ENV, true);
     if (!disable_blocking) [[likely]] {
         lock_.wait();
     }
+    // we also allow users to preload the database directly without a user connection
+    // from the environment variable
+    // this is only used for benchmark!
+    preload_db_from_env();
 }
 
 void Debugger::stop() {
@@ -1039,6 +1046,14 @@ void Debugger::setup_init_breakpoint_from_env() {
         // use max channel ID just in case. in
         handle_breakpoint(req, std::numeric_limits<uint64_t>::max());
     }
+}
+
+void Debugger::preload_db_from_env() {
+    auto const *db_name = std::getenv(DATABASE_FILENAME_ENV);
+    if (!db_name) [[likely]] {
+        return;
+    }
+    initialize_db(db_name);
 }
 
 }  // namespace hgdb
