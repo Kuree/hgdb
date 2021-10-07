@@ -123,7 +123,7 @@ int main(int argc, char *argv[]) {
     debugger->rtl_client()->set_vpi_allocator([vpi_]() { return vpi_->get_new_handle(); });
 
     // set callback on client connected
-    debugger->set_on_client_connected([vpi_, debugger](hgdb::DebugDatabaseClient &table) {
+    debugger->set_on_client_connected([vpi_, debugger](hgdb::SymbolTableProvider &table) {
         auto names = table.get_all_signal_names();
         std::vector<std::string> full_names;
         full_names.reserve(names.size());

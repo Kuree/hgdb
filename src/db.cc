@@ -9,7 +9,7 @@
 
 namespace hgdb {
 
-DebugDatabaseClient::DebugDatabaseClient(const std::string &filename) {
+DBSymbolTableProvider::DBSymbolTableProvider(const std::string &filename) {
     db_ = std::make_unique<DebugDatabase>(init_debug_db(filename));
     db_->sync_schema();
 
@@ -17,7 +17,7 @@ DebugDatabaseClient::DebugDatabaseClient(const std::string &filename) {
     compute_use_base_name();
 }
 
-DebugDatabaseClient::DebugDatabaseClient(std::unique_ptr<DebugDatabase> db) {
+DBSymbolTableProvider::DBSymbolTableProvider(std::unique_ptr<DebugDatabase> db) {
     // this will transfer ownership
     db_ = std::move(db);
     // NOLINTNEXTLINE
@@ -25,15 +25,16 @@ DebugDatabaseClient::DebugDatabaseClient(std::unique_ptr<DebugDatabase> db) {
     compute_use_base_name();
 }
 
-void DebugDatabaseClient::close() {
+void DBSymbolTableProvider::close() {
     if (!is_closed_) [[likely]] {
         db_.reset();
         is_closed_ = true;
     }
 }
 
-std::vector<BreakPoint> DebugDatabaseClient::get_breakpoints(const std::string &filename,
-                                                             uint32_t line_num, uint32_t col_num) {
+std::vector<BreakPoint> DBSymbolTableProvider::get_breakpoints(const std::string &filename,
+                                                               uint32_t line_num,
+                                                               uint32_t col_num) {
     using namespace sqlite_orm;
     std::vector<BreakPoint> bps;
     auto resolved_filename = resolve_filename_to_db(filename);
@@ -65,7 +66,7 @@ std::vector<BreakPoint> DebugDatabaseClient::get_breakpoints(const std::string &
     return bps;
 }
 
-std::vector<BreakPoint> DebugDatabaseClient::get_breakpoints(const std::string &filename) {
+std::vector<BreakPoint> DBSymbolTableProvider::get_breakpoints(const std::string &filename) {
     auto resolved_filename = resolve_filename_to_db(filename);
     if (use_base_name_) {  // NOLINT
         std::filesystem::path p = resolved_filename;
@@ -75,7 +76,7 @@ std::vector<BreakPoint> DebugDatabaseClient::get_breakpoints(const std::string &
     return get_breakpoints(resolved_filename, 0, 0);
 }
 
-std::optional<BreakPoint> DebugDatabaseClient::get_breakpoint(uint32_t breakpoint_id) {
+std::optional<BreakPoint> DBSymbolTableProvider::get_breakpoint(uint32_t breakpoint_id) {
     std::lock_guard guard(db_lock_);
     auto ptr = db_->get_pointer<BreakPoint>(breakpoint_id);  // NOLINT
     if (ptr) {
@@ -95,7 +96,8 @@ std::optional<BreakPoint> DebugDatabaseClient::get_breakpoint(uint32_t breakpoin
     }
 }
 
-std::optional<std::string> DebugDatabaseClient::get_instance_name_from_bp(uint32_t breakpoint_id) {
+std::optional<std::string> DBSymbolTableProvider::get_instance_name_from_bp(
+    uint32_t breakpoint_id) {
     using namespace sqlite_orm;
     std::lock_guard guard(db_lock_);
     auto value = db_->select(
@@ -107,7 +109,7 @@ std::optional<std::string> DebugDatabaseClient::get_instance_name_from_bp(uint32
         return std::get<0>(value[0]);
 }
 
-std::optional<std::string> DebugDatabaseClient::get_instance_name(uint32_t id) {
+std::optional<std::string> DBSymbolTableProvider::get_instance_name(uint32_t id) {
     using namespace sqlite_orm;
     std::lock_guard guard(db_lock_);
     // NOLINTNEXTLINE
@@ -119,7 +121,7 @@ std::optional<std::string> DebugDatabaseClient::get_instance_name(uint32_t id) {
     }
 }
 
-std::optional<uint64_t> DebugDatabaseClient::get_instance_id(const std::string &instance_name) {
+std::optional<uint64_t> DBSymbolTableProvider::get_instance_id(const std::string &instance_name) {
     using namespace sqlite_orm;
     std::lock_guard guard(db_lock_);
     // although instance_name is not indexed, it will be only used when the simulator
@@ -132,7 +134,7 @@ std::optional<uint64_t> DebugDatabaseClient::get_instance_id(const std::string &
     }
 }
 
-std::optional<uint64_t> DebugDatabaseClient::get_instance_id(uint64_t breakpoint_id) {
+std::optional<uint64_t> DBSymbolTableProvider::get_instance_id(uint64_t breakpoint_id) {
     using namespace sqlite_orm;
     std::lock_guard guard(db_lock_);
     auto value =
@@ -154,10 +156,10 @@ std::string get_var_value(bool is_rtl, const std::string &value, const std::stri
     return fullname;
 }
 
-std::vector<DebugDatabaseClient::ContextVariableInfo> DebugDatabaseClient::get_context_variables(
-    uint32_t breakpoint_id, bool resolve_hierarchy_value) {
+std::vector<DBSymbolTableProvider::ContextVariableInfo>
+DBSymbolTableProvider::get_context_variables(uint32_t breakpoint_id, bool resolve_hierarchy_value) {
     using namespace sqlite_orm;
-    std::vector<DebugDatabaseClient::ContextVariableInfo> result;
+    std::vector<DBSymbolTableProvider::ContextVariableInfo> result;
     std::lock_guard guard(db_lock_);
     // NOLINTNEXTLINE
     auto values = db_->select(
@@ -180,10 +182,10 @@ std::vector<DebugDatabaseClient::ContextVariableInfo> DebugDatabaseClient::get_c
     return result;
 }
 
-std::vector<DebugDatabaseClient::GeneratorVariableInfo> DebugDatabaseClient::get_generator_variable(
-    uint32_t instance_id, bool resolve_hierarchy_value) {
+std::vector<DBSymbolTableProvider::GeneratorVariableInfo>
+DBSymbolTableProvider::get_generator_variable(uint32_t instance_id, bool resolve_hierarchy_value) {
     using namespace sqlite_orm;
-    std::vector<DebugDatabaseClient::GeneratorVariableInfo> result;
+    std::vector<DBSymbolTableProvider::GeneratorVariableInfo> result;
     std::lock_guard guard(db_lock_);
     // NOLINTNEXTLINE
     auto values = db_->select(columns(&GeneratorVariable::variable_id, &GeneratorVariable::name,
@@ -205,7 +207,7 @@ std::vector<DebugDatabaseClient::GeneratorVariableInfo> DebugDatabaseClient::get
     return result;
 }
 
-std::vector<std::string> DebugDatabaseClient::get_instance_names() {
+std::vector<std::string> DBSymbolTableProvider::get_instance_names() {
     using namespace sqlite_orm;
     std::lock_guard guard(db_lock_);
     auto instances = db_->get_all<Instance>();  // NOLINT
@@ -217,7 +219,7 @@ std::vector<std::string> DebugDatabaseClient::get_instance_names() {
     return result;
 }
 
-std::vector<std::string> DebugDatabaseClient::get_annotation_values(const std::string &name) {
+std::vector<std::string> DBSymbolTableProvider::get_annotation_values(const std::string &name) {
     using namespace sqlite_orm;
     std::lock_guard guard(db_lock_);
     auto values = db_->select(columns(&Annotation::value), where(c(&Annotation::name) == name));
@@ -229,7 +231,7 @@ std::vector<std::string> DebugDatabaseClient::get_annotation_values(const std::s
     return result;
 }
 
-std::unordered_map<std::string, int64_t> DebugDatabaseClient::get_context_static_values(
+std::unordered_map<std::string, int64_t> DBSymbolTableProvider::get_context_static_values(
     uint32_t breakpoint_id) {
     // only integer values allowed
     std::unordered_map<std::string, int64_t> result;
@@ -250,7 +252,7 @@ std::unordered_map<std::string, int64_t> DebugDatabaseClient::get_context_static
     return result;
 }
 
-std::vector<std::string> DebugDatabaseClient::get_all_signal_names() {
+std::vector<std::string> DBSymbolTableProvider::get_all_signal_names() {
     using namespace sqlite_orm;
     if (!db_) return {};
     std::set<std::string> names;
@@ -277,13 +279,13 @@ std::vector<std::string> DebugDatabaseClient::get_all_signal_names() {
     return r;
 }
 
-DebugDatabaseClient::~DebugDatabaseClient() { close(); }
+DBSymbolTableProvider::~DBSymbolTableProvider() { close(); }
 
-void DebugDatabaseClient::set_src_mapping(const std::map<std::string, std::string> &mapping) {
+void DBSymbolTableProvider::set_src_mapping(const std::map<std::string, std::string> &mapping) {
     src_remap_ = mapping;
 }
 
-std::string DebugDatabaseClient::resolve_filename_to_db(const std::string &filename) const {
+std::string DBSymbolTableProvider::resolve_filename_to_db(const std::string &filename) const {
     namespace fs = std::filesystem;
     // optimize for local use case
     if (src_remap_.empty()) [[likely]]
@@ -296,7 +298,7 @@ std::string DebugDatabaseClient::resolve_filename_to_db(const std::string &filen
     return filename;
 }
 
-std::string DebugDatabaseClient::resolve_filename_to_client(const std::string &filename) const {
+std::string DBSymbolTableProvider::resolve_filename_to_client(const std::string &filename) const {
     namespace fs = std::filesystem;
     // optimize for local use case
     if (src_remap_.empty()) [[likely]]
@@ -325,7 +327,7 @@ std::string convert_dot_notation(const std::string &name) {
     return name;
 }
 
-std::optional<std::string> DebugDatabaseClient::resolve_scoped_name_instance(
+std::optional<std::string> DBSymbolTableProvider::resolve_scoped_name_instance(
     const std::string &scoped_name, uint64_t instance_id) {
     auto name = convert_dot_notation(scoped_name);
     auto gen_vars = get_generator_variable(instance_id);
@@ -337,7 +339,7 @@ std::optional<std::string> DebugDatabaseClient::resolve_scoped_name_instance(
     return std::nullopt;
 }
 
-std::optional<std::string> DebugDatabaseClient::resolve_scoped_name_breakpoint(
+std::optional<std::string> DBSymbolTableProvider::resolve_scoped_name_breakpoint(
     const std::string &scoped_name, uint64_t breakpoint_id) {
     auto name = convert_dot_notation(scoped_name);
     // NOLINTNEXTLINE
@@ -350,7 +352,7 @@ std::optional<std::string> DebugDatabaseClient::resolve_scoped_name_breakpoint(
     return std::nullopt;
 }
 
-void DebugDatabaseClient::setup_execution_order() {
+void DBSymbolTableProvider::setup_execution_order() {
     auto scopes = db_->get_all<Scope>();
     if (scopes.empty()) {
         build_execution_order_from_bp();
@@ -366,7 +368,7 @@ void DebugDatabaseClient::setup_execution_order() {
     }
 }
 
-void DebugDatabaseClient::build_execution_order_from_bp() {
+void DBSymbolTableProvider::build_execution_order_from_bp() {
     // use map's ordered ability
     std::map<std::string, std::map<uint32_t, std::vector<uint32_t>>> bp_ids;
     std::lock_guard guard(db_lock_);
@@ -382,8 +384,8 @@ void DebugDatabaseClient::build_execution_order_from_bp() {
     }
 }
 
-std::string DebugDatabaseClient::resolve(const std::string &src_path, const std::string &dst_path,
-                                         const std::string &target) {
+std::string DBSymbolTableProvider::resolve(const std::string &src_path, const std::string &dst_path,
+                                           const std::string &target) {
     namespace fs = std::filesystem;
     if (target.starts_with(src_path)) [[likely]] {
         std::error_code ec;
@@ -398,7 +400,7 @@ std::string DebugDatabaseClient::resolve(const std::string &src_path, const std:
     }
 }
 
-void DebugDatabaseClient::compute_use_base_name() {
+void DBSymbolTableProvider::compute_use_base_name() {
     // if there is any filename that's not absolute path
     // we have to report that
     using namespace sqlite_orm;

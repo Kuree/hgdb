@@ -1,6 +1,7 @@
 #include "../src/scheduler.hh"
 #include "fmt/format.h"
 #include "test_util.hh"
+#include "../src/db.hh"
 
 class ReverseMockVPIProvider : public MockVPIProvider {
 public:
@@ -41,7 +42,7 @@ template <bool reverse>
 class ScheduleTestBase : public ::testing::Test {
 protected:
     std::unique_ptr<hgdb::RTLSimulatorClient> rtl_;
-    std::unique_ptr<hgdb::DebugDatabaseClient> db_;
+    std::unique_ptr<hgdb::SymbolTableProvider> db_;
 
     void SetUp() override {
         vpi_ = reverse ? std::make_unique<ReverseMockVPIProvider>()
@@ -75,7 +76,7 @@ protected:
         }
 
         rtl_ = std::make_unique<hgdb::RTLSimulatorClient>(std::move(vpi_));
-        db_ = std::make_unique<hgdb::DebugDatabaseClient>(std::move(db));
+        db_ = std::make_unique<hgdb::DBSymbolTableProvider>(std::move(db));
     }
 
 private:

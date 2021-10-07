@@ -11,7 +11,7 @@ TEST_F(DBTest, test_scope_biuld) {  // NOLINT
     constexpr uint32_t scope_id = 42;
     hgdb::store_scope(*db, scope_id, 1u, 2u, 3u, 4u);
     // transfer the db ownership
-    hgdb::DebugDatabaseClient client(std::move(db));
+    hgdb::DBSymbolTableProvider client(std::move(db));
     auto const &bps = client.execution_bp_orders();
     EXPECT_EQ(bps.size(), 4);
     for (uint32_t i = 1; i < 5; i++) {
@@ -30,7 +30,7 @@ TEST_F(DBTest, test_scope_biuld_raw) {  // NOLINT
     }
 
     // transfer the db ownership
-    hgdb::DebugDatabaseClient client(std::move(db));
+    hgdb::DBSymbolTableProvider client(std::move(db));
     auto const &bps = client.execution_bp_orders();
     EXPECT_EQ(bps.size(), 4);
     for (uint32_t i = 0; i < 4; i++) {
@@ -50,7 +50,7 @@ TEST_F(DBTest, test_get_breakpoints) {  // NOLINT
     }
 
     // transfer the db ownership
-    hgdb::DebugDatabaseClient client(std::move(db));
+    hgdb::DBSymbolTableProvider client(std::move(db));
 
     auto bps = client.get_breakpoints(__FILE__, line_num);
     EXPECT_EQ(bps.size(), num_breakpoints);
@@ -71,7 +71,7 @@ TEST_F(DBTest, test_get_breakpoint) {  // NOLINT
     hgdb::store_breakpoint(*db, breakpoint_id, instance_id, __FILE__, __LINE__);
 
     // transfer the db ownership
-    hgdb::DebugDatabaseClient client(std::move(db));
+    hgdb::DBSymbolTableProvider client(std::move(db));
 
     auto bp = client.get_breakpoint(breakpoint_id);
     EXPECT_TRUE(bp);
@@ -93,7 +93,7 @@ TEST_F(DBTest, test_get_context_variable) {  // NOLINT
     }
 
     // transfer the db ownership
-    hgdb::DebugDatabaseClient client(std::move(db));
+    hgdb::DBSymbolTableProvider client(std::move(db));
 
     auto values = client.get_context_variables(breakpoint_id);
     EXPECT_EQ(values.size(), num_variables);
@@ -116,7 +116,7 @@ TEST_F(DBTest, test_get_generator_variable) {  // NOLINT
     }
 
     // transfer the db ownership
-    hgdb::DebugDatabaseClient client(std::move(db));
+    hgdb::DBSymbolTableProvider client(std::move(db));
 
     auto values = client.get_generator_variable(instance_id);
     EXPECT_EQ(values.size(), num_variables);
@@ -136,7 +136,7 @@ TEST_F(DBTest, test_get_annotation_values) {  // NOLINT
     }
 
     // transfer the db ownership
-    hgdb::DebugDatabaseClient client(std::move(db));
+    hgdb::DBSymbolTableProvider client(std::move(db));
 
     auto a_values = client.get_annotation_values(name);
     for (auto const &value : values) {
@@ -166,7 +166,7 @@ TEST_F(DBTest, test_get_variable_prefix) {  // NOLINT
     }
 
     // transfer the db ownership
-    hgdb::DebugDatabaseClient client(std::move(db));
+    hgdb::DBSymbolTableProvider client(std::move(db));
 
     auto gen_values = client.get_generator_variable(instance_id);
     EXPECT_EQ(gen_values.size(), num_variables);
@@ -186,7 +186,7 @@ TEST_F(DBTest, test_get_variable_prefix) {  // NOLINT
 
 TEST_F(DBTest, resolve_path) {  // NOLINT
     std::map<std::string, std::string> remap = {{"/abc", "/tmp/abc"}, {"/a/", "/a/abc"}};
-    hgdb::DebugDatabaseClient client(std::move(db));
+    hgdb::DBSymbolTableProvider client(std::move(db));
 
     client.set_src_mapping(remap);
 
@@ -218,7 +218,7 @@ TEST_F(DBTest, get_all_signal_name) {   // NOLINT
     hgdb::store_breakpoint(*db, 0, 0, "test.cc", 1);
     hgdb::store_context_variable(*db, "e", 0, 1);
 
-    hgdb::DebugDatabaseClient client(std::move(db));
+    hgdb::DBSymbolTableProvider client(std::move(db));
     auto names = client.get_all_signal_names();
     EXPECT_EQ(names.size(), 2);
     EXPECT_EQ(names[0], "a.b");
@@ -229,7 +229,7 @@ TEST_F(DBTest, basename) {  // NOLINT
     hgdb::store_instance(*db, 0, "mod");
     hgdb::store_breakpoint(*db, 0, 0, "test.sv", 1);
 
-    hgdb::DebugDatabaseClient client(std::move(db));
+    hgdb::DBSymbolTableProvider client(std::move(db));
     EXPECT_TRUE(client.use_base_name());
 
     auto bps = client.get_breakpoints("/test/test.sv");

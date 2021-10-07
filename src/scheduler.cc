@@ -6,7 +6,7 @@
 
 namespace hgdb {
 
-Scheduler::Scheduler(RTLSimulatorClient *rtl, DebugDatabaseClient *db,
+Scheduler::Scheduler(RTLSimulatorClient *rtl, SymbolTableProvider *db,
                      const bool &single_thread_mode, const bool &log_enabled)
     : rtl_(rtl), db_(db), single_thread_mode_(single_thread_mode), log_enabled_(log_enabled) {
     // compute the look up table
@@ -401,7 +401,7 @@ void Scheduler::scan_breakpoints(uint64_t ref_index, bool forward,
 }
 
 namespace util {
-void validate_expr(RTLSimulatorClient *rtl, DebugDatabaseClient *db, DebugExpression *expr,
+void validate_expr(RTLSimulatorClient *rtl, SymbolTableProvider *db, DebugExpression *expr,
                    std::optional<uint32_t> breakpoint_id, std::optional<uint32_t> instance_id) {
     auto context_static_values = breakpoint_id ? db->get_context_static_values(*breakpoint_id)
                                                : std::unordered_map<std::string, int64_t>{};
@@ -448,7 +448,7 @@ void validate_expr(RTLSimulatorClient *rtl, DebugDatabaseClient *db, DebugExpres
     }
 }
 
-std::vector<std::string> get_clock_signals(RTLSimulatorClient *rtl, DebugDatabaseClient *db) {
+std::vector<std::string> get_clock_signals(RTLSimulatorClient *rtl, SymbolTableProvider *db) {
     if (!rtl) return {};
     std::vector<std::string> result;
     if (db) {

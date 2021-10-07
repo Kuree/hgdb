@@ -19,7 +19,7 @@ public:
     explicit Debugger(std::unique_ptr<AVPIProvider> vpi);
 
     bool initialize_db(const std::string &filename);
-    void initialize_db(std::unique_ptr<DebugDatabaseClient> db);
+    void initialize_db(std::unique_ptr<SymbolTableProvider> db);
     void run();
     void stop();
     void eval();
@@ -42,13 +42,13 @@ public:
     void set_option(const std::string &name, bool value);
 
     // set callbacks
-    void set_on_client_connected(const std::function<void(hgdb::DebugDatabaseClient &)> &func);
+    void set_on_client_connected(const std::function<void(hgdb::SymbolTableProvider &)> &func);
 
     ~Debugger();
 
 private:
     std::unique_ptr<RTLSimulatorClient> rtl_;
-    std::unique_ptr<DebugDatabaseClient> db_;
+    std::unique_ptr<SymbolTableProvider> db_;
     std::unique_ptr<DebugServer> server_;
     // logging
     bool log_enabled_ = default_logging;
@@ -139,7 +139,7 @@ private:
     std::string get_full_name(uint64_t instance_id, const std::string &var_name);
 
     // callbacks
-    std::optional<std::function<void(hgdb::DebugDatabaseClient &)>> on_client_connected_;
+    std::optional<std::function<void(hgdb::SymbolTableProvider &)>> on_client_connected_;
 
     // performance benchmark functions
     // only used to initialize the debugger to certain state, not for normal usage

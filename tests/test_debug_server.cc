@@ -3,7 +3,7 @@
 
 #include "../src/debug.hh"
 #include "fmt/format.h"
-#include "schema.hh"
+#include "../src/db.hh"
 #include "test_util.hh"
 
 /*
@@ -141,7 +141,7 @@ auto setup_db_vpi(MockVPIProvider &vpi) {
         // don't set e here but in the loop
     }
 
-    auto db_client = std::make_unique<hgdb::DebugDatabaseClient>(std::move(db));
+    auto db_client = std::make_unique<hgdb::DBSymbolTableProvider>(std::move(db));
     return db_client;
 }
 

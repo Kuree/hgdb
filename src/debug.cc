@@ -43,11 +43,11 @@ bool Debugger::initialize_db(const std::string &filename) {
         return false;
     }
     log_info(fmt::format("Debug database set to {0}", filename));
-    initialize_db(std::make_unique<DebugDatabaseClient>(filename));
+    initialize_db(create_symbol_table(filename));
     return true;
 }
 
-void Debugger::initialize_db(std::unique_ptr<DebugDatabaseClient> db) {
+void Debugger::initialize_db(std::unique_ptr<SymbolTableProvider> db) {
     if (!db) return;
     db_ = std::move(db);
     // get all the instance names
@@ -168,7 +168,7 @@ void Debugger::set_option(const std::string &name, bool value) {
 }
 
 void Debugger::set_on_client_connected(
-    const std::function<void(hgdb::DebugDatabaseClient &)> &func) {
+    const std::function<void(hgdb::SymbolTableProvider &)> &func) {
     on_client_connected_ = func;
 }
 

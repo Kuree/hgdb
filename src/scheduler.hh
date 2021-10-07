@@ -3,9 +3,9 @@
 
 #include <mutex>
 
-#include "db.hh"
 #include "eval.hh"
 #include "rtl.hh"
+#include "symbol.hh"
 
 namespace hgdb {
 
@@ -26,7 +26,7 @@ struct DebugBreakPoint {
 
 class Scheduler {
 public:
-    Scheduler(RTLSimulatorClient *rtl, DebugDatabaseClient *db, const bool &single_thread_mode,
+    Scheduler(RTLSimulatorClient *rtl, SymbolTableProvider *db, const bool &single_thread_mode,
               const bool &log_enabled);
     enum class EvaluationMode { BreakPointOnly, StepOver, StepBack, ReverseBreakpointOnly, None };
     std::vector<DebugBreakPoint *> next_breakpoints();
@@ -69,7 +69,7 @@ private:
 
     // get it from the debugger. no ownership
     RTLSimulatorClient *rtl_;
-    DebugDatabaseClient *db_;
+    SymbolTableProvider *db_;
 
     // some settings are directly shared from the debugger
     const bool &single_thread_mode_;
@@ -92,9 +92,9 @@ namespace util {
 constexpr auto time_var_name = "$time";
 constexpr auto instance_var_name = "$instance";
 
-void validate_expr(RTLSimulatorClient *rtl, DebugDatabaseClient *db, DebugExpression *expr,
+void validate_expr(RTLSimulatorClient *rtl, SymbolTableProvider *db, DebugExpression *expr,
                    std::optional<uint32_t> breakpoint_id, std::optional<uint32_t> instance_id);
-std::vector<std::string> get_clock_signals(RTLSimulatorClient *rtl, DebugDatabaseClient *db);
+std::vector<std::string> get_clock_signals(RTLSimulatorClient *rtl, SymbolTableProvider *db);
 
 }  // namespace util
 
