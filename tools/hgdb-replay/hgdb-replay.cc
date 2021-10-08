@@ -152,4 +152,5 @@ int main(int argc, char *argv[]) {
     } catch (websocketpp::exception &) {
         std::cerr << "Client disconnected" << std::endl;
     }
+    return EXIT_SUCCESS;
 }

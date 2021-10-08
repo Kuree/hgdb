@@ -371,4 +371,5 @@ int main(int argc, char *argv[]) {
         std::cerr << "ERROR: " << rewriter.error_msg() << std::endl;
         return EXIT_FAILURE;
     }
+    return EXIT_SUCCESS;
 }

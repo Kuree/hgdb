@@ -6,6 +6,7 @@
 #include "fmt/format.h"
 #include "gtest/gtest.h"
 #include "rtl.hh"
+#include "debug.hh"
 #include "schema.hh"
 
 class DBTestHelper : public ::testing::Test {
@@ -26,7 +27,7 @@ public:
     void vpi_get_value(vpiHandle expr, p_vpi_value value_p) override {
         if (signal_values_.find(expr) != signal_values_.end()) {
             if (value_p->format == vpiIntVal) {
-                value_p->value.integer = signal_values_.at(expr);
+                value_p->value.integer = static_cast<int>(signal_values_.at(expr));
             } else if (value_p->format == vpiHexStrVal) {
                 str_buffer_ = fmt::format("{0:X}", signal_values_.at(expr));
                 value_p->value.str = const_cast<char *>(str_buffer_.c_str());
@@ -39,6 +40,20 @@ public:
                 value_p->value.integer = 0;
             } else if (value_p->format == vpiHexStrVal || value_p->format == vpiBinStrVal) {
                 value_p->value.str = nullptr;
+            }
+        }
+    }
+
+    void stop() {
+        // need to find debugger instance
+        // assume there is no shutdown events
+        for (auto const &iter: callbacks_) {
+            auto const &cb = iter.second;
+            if (cb.data.reason == cbEndOfSimulation) {
+                auto *ptr = cb.data.user_data;
+                auto *debugger = reinterpret_cast<hgdb::Debugger*>(ptr);
+                debugger->stop();
+                return;
             }
         }
     }
