@@ -1,6 +1,7 @@
 #include "symbol.hh"
 
 #include <atomic>
+#include <filesystem>
 #include <mutex>
 
 #include "asio.hpp"
@@ -13,6 +14,54 @@
 
 auto constexpr TCP_SCHEMA = "tcp://";
 auto constexpr WS_SCHEMA = "ws://";
+
+namespace hgdb {
+
+std::string resolve(const std::string &src_path, const std::string &dst_path,
+                    const std::string &target) {
+    namespace fs = std::filesystem;
+    if (target.starts_with(src_path)) [[likely]] {
+        std::error_code ec;
+        auto path = fs::relative(target, src_path, ec);
+        if (ec.value()) [[unlikely]]
+            return target;
+        fs::path start = dst_path;
+        auto r = start / path;
+        return r;
+    } else {
+        return target;
+    }
+}
+
+void SymbolTableProvider::set_src_mapping(const std::map<std::string, std::string> &mapping) {
+    src_remap_ = mapping;
+}
+
+std::string SymbolTableProvider::resolve_filename_to_db(const std::string &filename) {
+    namespace fs = std::filesystem;
+    // optimize for local use case
+    if (src_remap_.empty()) [[likely]]
+        return filename;
+    for (auto const &[src_path, dst_path] : src_remap_) {
+        if (filename.starts_with(src_path)) {
+            return resolve(src_path, dst_path, filename);
+        }
+    }
+    return filename;
+}
+
+std::string SymbolTableProvider::resolve_filename_to_client(const std::string &filename) {
+    namespace fs = std::filesystem;
+    // optimize for local use case
+    if (src_remap_.empty()) [[likely]]
+        return filename;
+    for (auto const &[dst_path, src_path] : src_remap_) {
+        if (filename.starts_with(src_path)) {
+            return resolve(src_path, dst_path, filename);
+        }
+    }
+    return filename;
+}
 
 // abstract out ws and tcp connections
 class NetworkProvider {
@@ -123,8 +172,6 @@ private:
     std::thread bg_client_thread_;
     websocketpp::connection_hdl connection_handle_;
 };
-
-namespace hgdb {
 
 class NetworkSymbolTableProvider : public SymbolTableProvider {
 public:
@@ -242,30 +289,6 @@ public:
 
         auto resp = get_resp(req);
         return resp.str_results;
-    }
-
-    // resolve filename or symbol names
-    void set_src_mapping(const std::map<std::string, std::string> &mapping) override {
-        SymbolRequest req(SymbolRequest::request_type::set_src_mapping);
-        req.mapping = mapping;
-
-        auto resp = get_resp(req);
-    }
-
-    [[nodiscard]] std::string resolve_filename_to_db(const std::string &filename) override {
-        SymbolRequest req(SymbolRequest::request_type::resolve_filename_to_db);
-        req.filename = filename;
-
-        auto resp = get_resp(req);
-        return resp.str_result ? *resp.str_result : "";
-    }
-
-    [[nodiscard]] std::string resolve_filename_to_client(const std::string &filename) override {
-        SymbolRequest req(SymbolRequest::request_type::resolve_filename_to_client);
-        req.filename = filename;
-
-        auto resp = get_resp(req);
-        return resp.str_result ? *resp.str_result : "";
     }
 
     [[nodiscard]] std::optional<std::string> resolve_scoped_name_breakpoint(

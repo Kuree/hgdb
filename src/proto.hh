@@ -335,9 +335,6 @@ public:
         get_annotation_values,
         get_context_static_values,
         get_all_array_names,
-        set_src_mapping,
-        resolve_filename_to_db,
-        resolve_filename_to_client,
         resolve_scoped_name_breakpoint,
         resolve_scoped_name_instance,
         get_execution_bp_orders
@@ -359,7 +356,6 @@ public:
     uint32_t column_num = 0;
     std::string instance_name;
     std::string name;
-    std::map<std::string, std::string> mapping;
     std::string scoped_name;
 
 private:

@@ -43,10 +43,6 @@ public:
 
     ~DBSymbolTableProvider() override;
 
-    // resolve filename or symbol names
-    void set_src_mapping(const std::map<std::string, std::string> &mapping) override;
-    [[nodiscard]] std::string resolve_filename_to_db(const std::string &filename) override;
-    [[nodiscard]] std::string resolve_filename_to_client(const std::string &filename) override;
     [[nodiscard]] std::optional<std::string> resolve_scoped_name_breakpoint(
         const std::string &scoped_name, uint64_t breakpoint_id) override;
     [[nodiscard]] std::optional<std::string> resolve_scoped_name_instance(
@@ -68,16 +64,9 @@ private:
     // we compute the execution order as we initialize the client, which is defined by the scope
     std::vector<uint32_t> execution_bp_orders_;
 
-    // we handle the source remap here
-    std::map<std::string, std::string> src_remap_;
-
     void setup_execution_order();
     // scope table not provided - build from heuristics
     void build_execution_order_from_bp();
-
-    static std::string resolve(const std::string &src_path, const std::string &dst_path,
-                               const std::string &target);
-    [[nodiscard]] bool has_src_remap() const { return !src_remap_.empty(); }
 
     void compute_use_base_name();
 };

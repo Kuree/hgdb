@@ -1,6 +1,8 @@
 #ifndef HGDB_SYMBOL_HH
 #define HGDB_SYMBOL_HH
 
+#include <map>
+
 #include "schema.hh"
 
 namespace hgdb {
@@ -36,9 +38,9 @@ public:
     virtual ~SymbolTableProvider() = default;
 
     // resolve filename or symbol names
-    virtual void set_src_mapping(const std::map<std::string, std::string> &mapping) = 0;
-    [[nodiscard]] virtual std::string resolve_filename_to_db(const std::string &filename) = 0;
-    [[nodiscard]] virtual std::string resolve_filename_to_client(const std::string &filename) = 0;
+    void set_src_mapping(const std::map<std::string, std::string> &mapping);
+    [[nodiscard]] std::string resolve_filename_to_db(const std::string &filename);
+    [[nodiscard]] std::string resolve_filename_to_client(const std::string &filename);
     [[nodiscard]] virtual std::optional<std::string> resolve_scoped_name_breakpoint(
         const std::string &scoped_name, uint64_t breakpoint_id) = 0;
     [[nodiscard]] virtual std::optional<std::string> resolve_scoped_name_instance(
@@ -46,6 +48,13 @@ public:
 
     // accessors
     [[nodiscard]] virtual const std::vector<uint32_t> &execution_bp_orders() = 0;
+
+protected:
+    [[nodiscard]] bool has_src_remap() const { return !src_remap_.empty(); }
+
+private:
+    // we handle the source remap here
+    std::map<std::string, std::string> src_remap_;
 };
 
 // based on the schema we make different symbol table

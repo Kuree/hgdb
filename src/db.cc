@@ -279,36 +279,6 @@ std::vector<std::string> DBSymbolTableProvider::get_all_array_names() {
 
 DBSymbolTableProvider::~DBSymbolTableProvider() { close(); }
 
-void DBSymbolTableProvider::set_src_mapping(const std::map<std::string, std::string> &mapping) {
-    src_remap_ = mapping;
-}
-
-std::string DBSymbolTableProvider::resolve_filename_to_db(const std::string &filename) {
-    namespace fs = std::filesystem;
-    // optimize for local use case
-    if (src_remap_.empty()) [[likely]]
-        return filename;
-    for (auto const &[src_path, dst_path] : src_remap_) {
-        if (filename.starts_with(src_path)) {
-            return resolve(src_path, dst_path, filename);
-        }
-    }
-    return filename;
-}
-
-std::string DBSymbolTableProvider::resolve_filename_to_client(const std::string &filename) {
-    namespace fs = std::filesystem;
-    // optimize for local use case
-    if (src_remap_.empty()) [[likely]]
-        return filename;
-    for (auto const &[dst_path, src_path] : src_remap_) {
-        if (filename.starts_with(src_path)) {
-            return resolve(src_path, dst_path, filename);
-        }
-    }
-    return filename;
-}
-
 std::string convert_dot_notation(const std::string &name) {
     // conversion between two notation
     const static std::regex dot(R"(\.(\d+))");
@@ -379,22 +349,6 @@ void DBSymbolTableProvider::build_execution_order_from_bp() {
         for (auto const &iter_ : iter.second) {
             for (auto const bp : iter_.second) execution_bp_orders_.emplace_back(bp);
         }
-    }
-}
-
-std::string DBSymbolTableProvider::resolve(const std::string &src_path, const std::string &dst_path,
-                                           const std::string &target) {
-    namespace fs = std::filesystem;
-    if (target.starts_with(src_path)) [[likely]] {
-        std::error_code ec;
-        auto path = fs::relative(target, src_path, ec);
-        if (ec.value()) [[unlikely]]
-            return target;
-        fs::path start = dst_path;
-        auto r = start / path;
-        return r;
-    } else {
-        return target;
     }
 }
 

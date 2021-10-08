@@ -966,13 +966,6 @@ std::string SymbolRequest::str() const {
         case request_type::get_annotation_values:
             set_member(payload, allocator, "name", name);
             break;
-        case request_type::set_src_mapping:
-            set_member(payload, allocator, "mapping", mapping);
-            break;
-        case request_type::resolve_filename_to_db:
-        case request_type::resolve_filename_to_client:
-            set_member(payload, allocator, "filename", filename);
-            break;
         case request_type::resolve_scoped_name_breakpoint:
             set_member(payload, allocator, "scoped_name", scoped_name);
             set_member(payload, allocator, "breakpoint_id", breakpoint_id);
@@ -1083,8 +1076,6 @@ void SymbolResponse::parse(const std::string &str) {
         }
         case SymbolRequest::request_type::resolve_scoped_name_breakpoint:
         case SymbolRequest::request_type::resolve_scoped_name_instance:
-        case SymbolRequest::request_type::resolve_filename_to_db:
-        case SymbolRequest::request_type::resolve_filename_to_client:
         case SymbolRequest::request_type::get_instance_name:
         case SymbolRequest::request_type::get_instance_name_from_bp: {
             if (!result.IsString()) return;
@@ -1152,9 +1143,6 @@ void SymbolResponse::parse(const std::string &str) {
                 map_result.emplace(name.GetString(), v);
             }
         }
-        case SymbolRequest::request_type::set_src_mapping:
-            // nothing
-            break;
     }
 }
 
