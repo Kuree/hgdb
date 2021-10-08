@@ -157,7 +157,7 @@ std::string get_var_value(bool is_rtl, const std::string &value, const std::stri
 }
 
 std::vector<DBSymbolTableProvider::ContextVariableInfo>
-DBSymbolTableProvider::get_context_variables(uint32_t breakpoint_id, bool resolve_hierarchy_value) {
+DBSymbolTableProvider::get_context_variables(uint32_t breakpoint_id) {
     using namespace sqlite_orm;
     std::vector<DBSymbolTableProvider::ContextVariableInfo> result;
     std::lock_guard guard(db_lock_);
@@ -171,8 +171,7 @@ DBSymbolTableProvider::get_context_variables(uint32_t breakpoint_id, bool resolv
     result.reserve(values.size());
     for (auto const &[variable_id, name, value, is_rtl, instance_name] : values) {
         auto id = *variable_id;
-        auto actual_value =
-            resolve_hierarchy_value ? get_var_value(is_rtl, value, instance_name) : value;
+        auto actual_value = get_var_value(is_rtl, value, instance_name);
         result.emplace_back(std::make_pair(
             ContextVariable{.name = name,
                             .breakpoint_id = std::make_unique<uint32_t>(breakpoint_id),
@@ -183,7 +182,7 @@ DBSymbolTableProvider::get_context_variables(uint32_t breakpoint_id, bool resolv
 }
 
 std::vector<DBSymbolTableProvider::GeneratorVariableInfo>
-DBSymbolTableProvider::get_generator_variable(uint32_t instance_id, bool resolve_hierarchy_value) {
+DBSymbolTableProvider::get_generator_variable(uint32_t instance_id) {
     using namespace sqlite_orm;
     std::vector<DBSymbolTableProvider::GeneratorVariableInfo> result;
     std::lock_guard guard(db_lock_);
@@ -196,8 +195,7 @@ DBSymbolTableProvider::get_generator_variable(uint32_t instance_id, bool resolve
     result.reserve(values.size());
     for (auto const &[variable_id, name, value, is_rtl, instance_name] : values) {
         auto id = *variable_id;
-        auto actual_value =
-            resolve_hierarchy_value ? get_var_value(is_rtl, value, instance_name) : value;
+        auto actual_value = get_var_value(is_rtl, value, instance_name);
         result.emplace_back(
             std::make_pair(GeneratorVariable{.name = name,
                                              .instance_id = std::make_unique<uint32_t>(instance_id),

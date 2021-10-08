@@ -22,12 +22,8 @@ public:
     using ContextVariableInfo = std::pair<ContextVariable, Variable>;
     [[nodiscard]] virtual std::vector<ContextVariableInfo> get_context_variables(
         uint32_t breakpoint_id) = 0;
-    [[nodiscard]] virtual std::vector<ContextVariableInfo> get_context_variables(
-        uint32_t breakpoint_id, bool resolve_hierarchy_value) = 0;
 
     using GeneratorVariableInfo = std::pair<GeneratorVariable, Variable>;
-    [[nodiscard]] virtual std::vector<GeneratorVariableInfo> get_generator_variable(
-        uint32_t instance_id, bool resolve_hierarchy_value) = 0;
     [[nodiscard]] virtual std::vector<GeneratorVariableInfo> get_generator_variable(
         uint32_t instance_id) = 0;
     [[nodiscard]] virtual std::vector<std::string> get_instance_names() = 0;

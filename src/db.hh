@@ -32,17 +32,9 @@ public:
     std::optional<uint64_t> get_instance_id(const std::string &instance_name) override;
     [[nodiscard]] std::optional<uint64_t> get_instance_id(uint64_t breakpoint_id) override;
     [[nodiscard]] std::vector<ContextVariableInfo> get_context_variables(
-        uint32_t breakpoint_id) override {
-        return get_context_variables(breakpoint_id, true);
-    }
-    [[nodiscard]] std::vector<ContextVariableInfo> get_context_variables(
-        uint32_t breakpoint_id, bool resolve_hierarchy_value) override;
+        uint32_t breakpoint_id) override;
     [[nodiscard]] std::vector<GeneratorVariableInfo> get_generator_variable(
-        uint32_t instance_id) override {
-        return get_generator_variable(instance_id, true);
-    }
-    [[nodiscard]] std::vector<GeneratorVariableInfo> get_generator_variable(
-        uint32_t instance_id, bool resolve_hierarchy_value) override;
+        uint32_t instance_id) override;
     [[nodiscard]] std::vector<std::string> get_instance_names() override;
     [[nodiscard]] std::vector<std::string> get_annotation_values(const std::string &name) override;
     std::unordered_map<std::string, int64_t> get_context_static_values(

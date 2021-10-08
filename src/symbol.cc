@@ -198,16 +198,8 @@ public:
 
     [[nodiscard]] std::vector<ContextVariableInfo> get_context_variables(
         uint32_t breakpoint_id) override {
-        return get_context_variables(breakpoint_id, true);
-    }
-
-    [[nodiscard]] std::vector<ContextVariableInfo> get_context_variables(
-        uint32_t breakpoint_id, bool resolve_hierarchy_value) override {
         SymbolRequest req(SymbolRequest::request_type::get_context_variables);
         req.breakpoint_id = breakpoint_id;
-        // TODO:
-        //  refactor this
-        (void)(resolve_hierarchy_value);
 
         auto resp = get_resp(req);
         return std::move(resp.context_vars_result);
@@ -215,16 +207,8 @@ public:
 
     [[nodiscard]] std::vector<GeneratorVariableInfo> get_generator_variable(
         uint32_t instance_id) override {
-        return get_generator_variable(instance_id, true);
-    }
-
-    [[nodiscard]] std::vector<GeneratorVariableInfo> get_generator_variable(
-        uint32_t instance_id, bool resolve_hierarchy_value) override {
         SymbolRequest req(SymbolRequest::request_type::get_generator_variables);
         req.instance_id = instance_id;
-        // TODO:
-        //  refactor this
-        (void)(resolve_hierarchy_value);
 
         auto resp = get_resp(req);
         return std::move(resp.gen_vars_result);
