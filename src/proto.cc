@@ -986,35 +986,174 @@ std::string SymbolRequest::str() const {
     return to_string(document, false);
 }
 
+template <typename T>
+bool get_value(const rapidjson::Value &value, const char *name, T &str) {
+    std::string error;
+    auto v = get_member<T>(value, name, error, false, true);
+    if (v) str = *v;
+    return v.has_value();
+}
+
 std::optional<BreakPoint> parse_breakpoint(const rapidjson::Value &value) {
     BreakPoint bp;
-    std::string error;
-    auto id = get_member<uint32_t>(value, "id", error, true, true);
-    if (!id) return std::nullopt;
-    bp.id = *id;
-    auto instance_id = get_member<uint32_t>(value, "instance_id", error, true, true);
-    if (!instance_id) return std::nullopt;
-    bp.instance_id = std::make_unique<uint32_t>(*instance_id);
-    auto filename = get_member<std::string>(value, "filename", error, true, true);
-    if (!filename) return std::nullopt;
+    if (!get_value(value, "id", bp.id)) return std::nullopt;
+
+    uint32_t instance_id;
+    if (!get_value(value, "instance_id", instance_id)) return std::nullopt;
+    bp.instance_id = std::make_unique<uint32_t>(instance_id);
+
+    if (!get_value(value, "filename", bp.filename)) return std::nullopt;
+
+    if (!get_value(value, "line_num", bp.line_num)) return std::nullopt;
+
+    if (!get_value(value, "column_num", bp.column_num)) return std::nullopt;
+
+    if (!get_value(value, "condition", bp.condition)) return std::nullopt;
+
+    if (!get_value(value, "trigger", bp.trigger)) return std::nullopt;
 
     return std::move(bp);
 }
 
+std::optional<Variable> parse_variable(const rapidjson::Value &value) {
+    Variable v;
+
+    if (!get_value(value, "id", v.id)) return std::nullopt;
+    if (!get_value(value, "value", v.value)) return std::nullopt;
+    if (!get_value(value, "is_rtl", v.value)) return std::nullopt;
+
+    return std::move(v);
+}
+
+std::optional<ContextVariable> parse_context_variable(const rapidjson::Value &value) {
+    ContextVariable v;
+
+    if (!get_value(value, "name", v.name)) return std::nullopt;
+    uint32_t id;
+    if (!get_value(value, "breakpoint_id", id)) return std::nullopt;
+    v.breakpoint_id = std::make_unique<uint32_t>(id);
+    if (!get_value(value, "variable_id", id)) return std::nullopt;
+    v.variable_id = std::make_unique<uint32_t>(id);
+
+    return std::move(v);
+}
+
+std::optional<GeneratorVariable> parse_generator_variable(const rapidjson::Value &value) {
+    GeneratorVariable v;
+
+    if (!get_value(value, "name", v.name)) return std::nullopt;
+    uint32_t id;
+    if (!get_value(value, "instance_id", id)) return std::nullopt;
+    v.instance_id = std::make_unique<uint32_t>(id);
+    if (!get_value(value, "variable_id", id)) return std::nullopt;
+    v.variable_id = std::make_unique<uint32_t>(id);
+    // annotation is optional
+    get_value(value, "annotation", v.annotation);
+
+    return std::move(v);
+}
+
+// NOLINTNEXTLINE
 void SymbolResponse::parse(const std::string &str) {
     using namespace rapidjson;
     Document document;
     document.Parse(str.c_str());
     if (document.HasParseError()) return;
 
+    if (!document.HasMember("result")) return;
+    auto const &result = document["result"];
+
     // we ignore type since it's a single thread model
     switch (type_) {
-        case SymbolRequest::request_type::get_breakpoint:
-            if (document.HasMember("result")) {
-                auto const &v = document["result"];
-                (void)v;
+        case SymbolRequest::request_type::get_breakpoint: {
+            if (!result.IsObject()) return;
+            auto bp = parse_breakpoint(result);
+            bp_result = std::move(bp);
+            break;
+        }
+        case SymbolRequest::request_type::get_breakpoints: {
+            if (!result.IsArray()) return;
+            for (auto const &entry : result.GetArray()) {
+                auto bp = parse_breakpoint(entry);
+                if (bp) {
+                    bp_results.emplace_back(std::move(*bp));
+                }
             }
-        default:
+            break;
+        }
+        case SymbolRequest::request_type::resolve_scoped_name_breakpoint:
+        case SymbolRequest::request_type::resolve_scoped_name_instance:
+        case SymbolRequest::request_type::resolve_filename_to_db:
+        case SymbolRequest::request_type::resolve_filename_to_client:
+        case SymbolRequest::request_type::get_instance_name:
+        case SymbolRequest::request_type::get_instance_name_from_bp: {
+            if (!result.IsString()) return;
+            str_result = result.GetString();
+            break;
+        }
+        case SymbolRequest::request_type::get_instance_id: {
+            if (!result.IsNumber()) return;
+            uint64_t_result = result.GetUint64();
+            break;
+        }
+        case SymbolRequest::request_type::get_context_variables: {
+            if (!result.IsArray()) return;
+            for (auto const &entry : result.GetArray()) {
+                if (!entry.IsArray()) return;
+                if (entry.GetArray().Size() != 2) return;
+                auto const &c = entry[0];
+                auto const &v = entry[1];
+                auto c_opt = parse_context_variable(c);
+                if (!c_opt) return;
+                auto v_opt = parse_variable(v);
+                if (!v_opt) return;
+                context_vars_result.emplace_back(std::make_pair(std::move(*c_opt), *v_opt));
+            }
+            break;
+        }
+        case SymbolRequest::request_type::get_generator_variables: {
+            if (!result.IsArray()) return;
+            for (auto const &entry : result.GetArray()) {
+                if (!entry.IsArray()) return;
+                if (entry.GetArray().Size() != 2) return;
+                auto const &g = entry[0];
+                auto const &v = entry[1];
+                auto g_opt = parse_generator_variable(g);
+                if (!g_opt) return;
+                auto v_opt = parse_variable(v);
+                if (!v_opt) return;
+                gen_vars_result.emplace_back(std::make_pair(std::move(*g_opt), *v_opt));
+            }
+            break;
+        }
+        case SymbolRequest::request_type::get_all_array_names:
+        case SymbolRequest::request_type::get_annotation_values:
+        case SymbolRequest::request_type::get_instance_names: {
+            if (!result.IsArray()) return;
+            for (auto const &entry : result.GetArray()) {
+                if (!entry.IsString()) return;
+                str_results.emplace_back(entry.GetString());
+            }
+            break;
+        }
+        case SymbolRequest::request_type::get_execution_bp_orders: {
+            if (!result.IsArray()) return;
+            for (auto const &entry : result.GetArray()) {
+                if (!entry.IsNumber()) return;
+                uint64_t_results.emplace_back(entry.GetUint64());
+            }
+            break;
+        }
+        case SymbolRequest::request_type::get_context_static_values: {
+            if (result.IsObject()) return;
+            for (auto const &[name, value] : result.GetObject()) {
+                if (!value.IsNumber()) return;
+                auto v = value.GetInt64();
+                map_result.emplace(name.GetString(), v);
+            }
+        }
+        case SymbolRequest::request_type::set_src_mapping:
+            // nothing
             break;
     }
 }

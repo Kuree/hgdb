@@ -426,8 +426,9 @@ public:
     std::optional<uint64_t> uint64_t_result;
     std::vector<ContextVariableInfo> context_vars_result;
     std::vector<GeneratorVariableInfo> gen_vars_result;
-    std::vector<std::string> string_results;
+    std::vector<std::string> str_results;
     std::unordered_map<std::string, int64_t> map_result;
+    std::vector<uint32_t> uint64_t_results;
 
 private:
     SymbolRequest::request_type type_;

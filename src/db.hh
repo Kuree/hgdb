@@ -61,7 +61,7 @@ public:
         const std::string &scoped_name, uint64_t instance_id) override;
 
     // accessors
-    [[nodiscard]] const std::vector<uint32_t> &execution_bp_orders() const override {
+    [[nodiscard]] const std::vector<uint32_t> &execution_bp_orders() override {
         return execution_bp_orders_;
     }
     [[nodiscard]] bool use_base_name() const { return use_base_name_; }

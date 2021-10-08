@@ -234,7 +234,7 @@ public:
         SymbolRequest req(SymbolRequest::request_type::get_instance_names);
 
         auto resp = get_resp(req);
-        return resp.string_results;
+        return resp.str_results;
     }
 
     [[nodiscard]] std::vector<std::string> get_annotation_values(const std::string &name) override {
@@ -242,7 +242,7 @@ public:
         req.name = name;
 
         auto resp = get_resp(req);
-        return resp.string_results;
+        return resp.str_results;
     }
     std::unordered_map<std::string, int64_t> get_context_static_values(
         uint32_t breakpoint_id) override {
@@ -257,7 +257,7 @@ public:
         SymbolRequest req(SymbolRequest::request_type::get_all_array_names);
 
         auto resp = get_resp(req);
-        return resp.string_results;
+        return resp.str_results;
     }
 
     // resolve filename or symbol names
@@ -305,8 +305,13 @@ public:
     }
 
     // accessors
-    [[nodiscard]] const std::vector<uint32_t> &execution_bp_orders() const override {
+    [[nodiscard]] const std::vector<uint32_t> &execution_bp_orders() override {
         // will be cached to avoid network round trip
+        if (execution_bp_orders_.empty()) {
+            SymbolRequest req(SymbolRequest::request_type::get_execution_bp_orders);
+            auto resp = get_resp(req);
+            execution_bp_orders_ = resp.uint64_t_results;
+        }
         return execution_bp_orders_;
     }
 
