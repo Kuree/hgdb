@@ -6,6 +6,7 @@
 #include "asio.hpp"
 #include "db.hh"
 #include "log.hh"
+#include "proto.hh"
 #include "util.hh"
 #include "websocketpp/client.hpp"
 #include "websocketpp/config/asio_no_tls_client.hpp"
@@ -104,7 +105,10 @@ public:
         return payload_;
     }
 
-    ~WSNetworkProvider() override = default;
+    ~WSNetworkProvider() override {
+        client_->stop();
+        bg_client_thread_.join();
+    }
 
 private:
     using Client = websocketpp::client<websocketpp::config::asio_client>;
@@ -133,42 +137,172 @@ public:
         return get_breakpoints(filename, line_num, 0);
     }
     std::vector<BreakPoint> get_breakpoints(const std::string &filename, uint32_t line_num,
-                                            uint32_t col_num) override {}
-    std::vector<BreakPoint> get_breakpoints(const std::string &filename) override {}
-    std::optional<BreakPoint> get_breakpoint(uint32_t breakpoint_id) override {}
-    std::optional<std::string> get_instance_name_from_bp(uint32_t breakpoint_id) override {}
-    std::optional<std::string> get_instance_name(uint32_t id) override {}
-    std::optional<uint64_t> get_instance_id(const std::string &instance_name) override {}
-    [[nodiscard]] std::optional<uint64_t> get_instance_id(uint64_t breakpoint_id) override {}
+                                            uint32_t col_num) override {
+        SymbolRequest req(SymbolRequest::request_type::get_breakpoints);
+        req.filename = filename;
+        req.line_num = line_num;
+        req.column_num = col_num;
+
+        auto resp = get_resp(req);
+
+        return std::move(resp.bp_results);
+    }
+
+    std::vector<BreakPoint> get_breakpoints(const std::string &filename) override {
+        SymbolRequest req(SymbolRequest::request_type::get_breakpoints);
+        req.filename = filename;
+
+        auto resp = get_resp(req);
+        return std::move(resp.bp_results);
+    }
+
+    std::optional<BreakPoint> get_breakpoint(uint32_t breakpoint_id) override {
+        SymbolRequest req(SymbolRequest::request_type::get_breakpoint);
+        req.breakpoint_id = breakpoint_id;
+
+        auto resp = get_resp(req);
+        return std::move(resp.bp_result);
+    }
+
+    std::optional<std::string> get_instance_name_from_bp(uint32_t breakpoint_id) override {
+        SymbolRequest req(SymbolRequest::request_type::get_instance_name_from_bp);
+        req.breakpoint_id = breakpoint_id;
+
+        auto resp = get_resp(req);
+        return resp.str_result;
+    }
+
+    std::optional<std::string> get_instance_name(uint32_t id) override {
+        SymbolRequest req(SymbolRequest::request_type::get_instance_name);
+        req.instance_id = id;
+
+        auto resp = get_resp(req);
+        return resp.str_result;
+    }
+
+    std::optional<uint64_t> get_instance_id(const std::string &instance_name) override {
+        SymbolRequest req(SymbolRequest::request_type::get_instance_id);
+        req.instance_name = instance_name;
+
+        auto resp = get_resp(req);
+        return resp.uint64_t_result;
+    }
+
+    [[nodiscard]] std::optional<uint64_t> get_instance_id(uint64_t breakpoint_id) override {
+        SymbolRequest req(SymbolRequest::request_type::get_instance_id);
+        req.breakpoint_id = breakpoint_id;
+
+        auto resp = get_resp(req);
+        return resp.uint64_t_result;
+    }
+
     [[nodiscard]] std::vector<ContextVariableInfo> get_context_variables(
         uint32_t breakpoint_id) override {
         return get_context_variables(breakpoint_id, true);
     }
+
     [[nodiscard]] std::vector<ContextVariableInfo> get_context_variables(
-        uint32_t breakpoint_id, bool resolve_hierarchy_value) override {}
+        uint32_t breakpoint_id, bool resolve_hierarchy_value) override {
+        SymbolRequest req(SymbolRequest::request_type::get_context_variables);
+        req.breakpoint_id = breakpoint_id;
+        // TODO:
+        //  refactor this
+        (void)(resolve_hierarchy_value);
+
+        auto resp = get_resp(req);
+        return std::move(resp.context_vars_result);
+    }
+
     [[nodiscard]] std::vector<GeneratorVariableInfo> get_generator_variable(
         uint32_t instance_id) override {
         return get_generator_variable(instance_id, true);
     }
-    [[nodiscard]] std::vector<GeneratorVariableInfo> get_generator_variable(
-        uint32_t instance_id, bool resolve_hierarchy_value) override {}
-    [[nodiscard]] std::vector<std::string> get_instance_names() override {}
-    [[nodiscard]] std::vector<std::string> get_annotation_values(const std::string &name) override {
 
+    [[nodiscard]] std::vector<GeneratorVariableInfo> get_generator_variable(
+        uint32_t instance_id, bool resolve_hierarchy_value) override {
+        SymbolRequest req(SymbolRequest::request_type::get_generator_variables);
+        req.instance_id = instance_id;
+        // TODO:
+        //  refactor this
+        (void)(resolve_hierarchy_value);
+
+        auto resp = get_resp(req);
+        return std::move(resp.gen_vars_result);
+    }
+
+    [[nodiscard]] std::vector<std::string> get_instance_names() override {
+        SymbolRequest req(SymbolRequest::request_type::get_instance_names);
+
+        auto resp = get_resp(req);
+        return resp.string_results;
+    }
+
+    [[nodiscard]] std::vector<std::string> get_annotation_values(const std::string &name) override {
+        SymbolRequest req(SymbolRequest::request_type::get_annotation_values);
+        req.name = name;
+
+        auto resp = get_resp(req);
+        return resp.string_results;
     }
     std::unordered_map<std::string, int64_t> get_context_static_values(
-        uint32_t breakpoint_id) override {}
-    std::vector<std::string> get_all_signal_names() override {}
+        uint32_t breakpoint_id) override {
+        SymbolRequest req(SymbolRequest::request_type::get_context_static_values);
+        req.breakpoint_id = breakpoint_id;
+
+        auto resp = get_resp(req);
+        return resp.map_result;
+    }
+
+    std::vector<std::string> get_all_array_names() override {
+        SymbolRequest req(SymbolRequest::request_type::get_all_array_names);
+
+        auto resp = get_resp(req);
+        return resp.string_results;
+    }
 
     // resolve filename or symbol names
-    void set_src_mapping(const std::map<std::string, std::string> &mapping) override {}
-    [[nodiscard]] std::string resolve_filename_to_db(const std::string &filename) const override {}
-    [[nodiscard]] std::string resolve_filename_to_client(
-        const std::string &filename) const override {}
+    void set_src_mapping(const std::map<std::string, std::string> &mapping) override {
+        SymbolRequest req(SymbolRequest::request_type::set_src_mapping);
+        req.mapping = mapping;
+
+        auto resp = get_resp(req);
+    }
+
+    [[nodiscard]] std::string resolve_filename_to_db(const std::string &filename) override {
+        SymbolRequest req(SymbolRequest::request_type::resolve_filename_to_db);
+        req.filename = filename;
+
+        auto resp = get_resp(req);
+        return resp.str_result ? *resp.str_result : "";
+    }
+
+    [[nodiscard]] std::string resolve_filename_to_client(const std::string &filename) override {
+        SymbolRequest req(SymbolRequest::request_type::resolve_filename_to_client);
+        req.filename = filename;
+
+        auto resp = get_resp(req);
+        return resp.str_result ? *resp.str_result : "";
+    }
+
     [[nodiscard]] std::optional<std::string> resolve_scoped_name_breakpoint(
-        const std::string &scoped_name, uint64_t breakpoint_id) override {}
+        const std::string &scoped_name, uint64_t breakpoint_id) override {
+        SymbolRequest req(SymbolRequest::request_type::resolve_scoped_name_breakpoint);
+        req.scoped_name = scoped_name;
+        req.breakpoint_id = breakpoint_id;
+
+        auto resp = get_resp(req);
+        return resp.str_result;
+    }
+
     [[nodiscard]] std::optional<std::string> resolve_scoped_name_instance(
-        const std::string &scoped_name, uint64_t instance_id) override {}
+        const std::string &scoped_name, uint64_t instance_id) override {
+        SymbolRequest req(SymbolRequest::request_type::resolve_scoped_name_instance);
+        req.scoped_name = scoped_name;
+        req.instance_id = instance_id;
+
+        auto resp = get_resp(req);
+        return resp.str_result;
+    }
 
     // accessors
     [[nodiscard]] const std::vector<uint32_t> &execution_bp_orders() const override {
@@ -182,6 +316,17 @@ private:
     std::unique_ptr<NetworkProvider> network_;
 
     std::vector<uint32_t> execution_bp_orders_;
+
+    hgdb::SymbolResponse get_resp(const hgdb::SymbolRequest &req) {
+        SymbolResponse resp(req.req_type());
+        if (network_) {
+            network_->send(req.str());
+            auto str = network_->receive();
+            resp.parse(str);
+        }
+
+        return resp;
+    }
 };
 
 std::unique_ptr<SymbolTableProvider> create_symbol_table(const std::string &filename) {

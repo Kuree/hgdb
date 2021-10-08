@@ -51,7 +51,7 @@ public:
 
         // need to set up all the callback functions
         parser_.set_on_meta_info([this](const hgdb::vcd::VCDMetaInfo &info) {
-            // we don't touch serialize information
+            // we don't touch str information
             serialize(info);
         });
 
@@ -284,7 +284,7 @@ private:
         }
         stream_ << std::endl;
 
-        // recursively call serialize
+        // recursively call str
         for (auto const *s : scope->scopes) {
             if (s) serialize(s);
         }

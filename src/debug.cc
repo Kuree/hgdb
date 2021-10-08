@@ -280,6 +280,11 @@ void Debugger::on_message(const std::string &message, uint64_t conn_id) {
             handle_error(*r, conn_id);
             break;
         }
+        case RequestType::symbol: {
+            auto *r = reinterpret_cast<SymbolRequest *>(req.get());
+            handle_symbol(*r, conn_id);
+            break;
+        }
     }
 }
 
@@ -815,6 +820,10 @@ void Debugger::handle_set_value(const SetValueRequest &req, uint64_t conn_id) { 
 }
 
 void Debugger::handle_error(const ErrorRequest &req, uint64_t) {}
+
+void Debugger::handle_symbol(const SymbolRequest &, uint64_t) {
+    // we don't deal with symbol stuff in the debugger
+}
 
 void Debugger::send_breakpoint_hit(const std::vector<const DebugBreakPoint *> &bps) {
     // we send it here to avoid a round trip of client asking for context and send send it

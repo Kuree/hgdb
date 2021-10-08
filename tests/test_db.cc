@@ -219,7 +219,7 @@ TEST_F(DBTest, get_all_signal_name) {   // NOLINT
     hgdb::store_context_variable(*db, "e", 0, 1);
 
     hgdb::DBSymbolTableProvider client(std::move(db));
-    auto names = client.get_all_signal_names();
+    auto names = client.get_all_array_names();
     EXPECT_EQ(names.size(), 2);
     EXPECT_EQ(names[0], "a.b");
     EXPECT_EQ(names[1], "a.c");

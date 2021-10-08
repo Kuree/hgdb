@@ -163,7 +163,8 @@ namespace hgdb {
  *
  */
 
-static bool check_member(rapidjson::Document &document, const char *member_name, std::string &error,
+template <typename T>
+static bool check_member(T &document, const char *member_name, std::string &error,
                          bool set_error = true) {
     if (!document.HasMember(member_name)) {
         if (set_error) error = fmt::format("Unable to find member {0}", member_name);
@@ -172,10 +173,9 @@ static bool check_member(rapidjson::Document &document, const char *member_name,
     return true;
 }
 
-template <typename T>
-static std::optional<T> get_member(rapidjson::Document &document, const char *member_name,
-                                   std::string &error, bool set_error = true,
-                                   bool check_type = true) {
+template <typename T, typename K>
+static std::optional<T> get_member(K &document, const char *member_name, std::string &error,
+                                   bool set_error = true, bool check_type = true) {
     if (!check_member(document, member_name, error, set_error)) return std::nullopt;
     if constexpr (std::is_same<T, std::string>::value) {
         if (document[member_name].IsString()) {
@@ -239,6 +239,8 @@ std::string to_string(RequestType type) noexcept {
             return "monitor";
         case RequestType::set_value:
             return "set-value";
+        case RequestType::symbol:
+            return "symbol";
     }
     return "error";
 }
@@ -586,7 +588,7 @@ std::unique_ptr<Request> Request::parse_request(const std::string &str) {
 
     // get payload string
     auto &payload_member = document["payload"];
-    // notice that we serialize it again. ideally we shouldn't, but since the json parser is
+    // notice that we str it again. ideally we shouldn't, but since the json parser is
     // fast, it should not be a major concern for our use cases
     StringBuffer buffer;
     Writer writer(buffer);
@@ -921,6 +923,100 @@ void SetValueRequest::parse_payload(const std::string &payload) {
     // optional values
     instance_id_ = get_member<uint64_t>(document, "instance_id", error_reason_, false);
     breakpoint_id_ = get_member<uint64_t>(document, "breakpoint_id", error_reason_, false);
+}
+
+std::string SymbolRequest::str() const {
+    using namespace rapidjson;
+    Document document;
+    auto &allocator = document.GetAllocator();
+    set_member(document, "request", true);
+    set_member(document, "type", "symbol");
+
+    Value payload(kObjectType);
+
+    switch (req_type_) {
+        case request_type::get_breakpoints:
+            set_member(payload, allocator, "filename", filename);
+            set_member(payload, allocator, "line_num", line_num);
+            set_member(payload, allocator, "col_num", column_num);
+            break;
+        case request_type::get_instance_name:
+        case request_type::get_generator_variables:
+            set_member(payload, allocator, "instance_id", instance_id);
+            break;
+        case request_type::get_breakpoint:
+        case request_type::get_instance_name_from_bp:
+        case request_type::get_context_variables:
+        case request_type ::get_context_static_values:
+            set_member(payload, allocator, "breakpoint_id", breakpoint_id);
+            break;
+        case request_type::get_instance_id: {
+            if (instance_name.empty()) {
+                set_member(payload, allocator, "breakpoint_id", breakpoint_id);
+            } else {
+                set_member(payload, allocator, "instance_name", instance_name);
+            }
+            break;
+        }
+        case request_type::get_instance_names:
+        case request_type::get_all_array_names:
+        case request_type::get_execution_bp_orders:
+            // nothing
+            break;
+        case request_type::get_annotation_values:
+            set_member(payload, allocator, "name", name);
+            break;
+        case request_type::set_src_mapping:
+            set_member(payload, allocator, "mapping", mapping);
+            break;
+        case request_type::resolve_filename_to_db:
+        case request_type::resolve_filename_to_client:
+            set_member(payload, allocator, "filename", filename);
+            break;
+        case request_type::resolve_scoped_name_breakpoint:
+            set_member(payload, allocator, "scoped_name", scoped_name);
+            set_member(payload, allocator, "breakpoint_id", breakpoint_id);
+            break;
+        case request_type::resolve_scoped_name_instance:
+            set_member(payload, allocator, "scoped_name", scoped_name);
+            set_member(payload, allocator, "instance_id", instance_id);
+            break;
+    }
+    set_member(document, "payload", payload);
+    return to_string(document, false);
+}
+
+std::optional<BreakPoint> parse_breakpoint(const rapidjson::Value &value) {
+    BreakPoint bp;
+    std::string error;
+    auto id = get_member<uint32_t>(value, "id", error, true, true);
+    if (!id) return std::nullopt;
+    bp.id = *id;
+    auto instance_id = get_member<uint32_t>(value, "instance_id", error, true, true);
+    if (!instance_id) return std::nullopt;
+    bp.instance_id = std::make_unique<uint32_t>(*instance_id);
+    auto filename = get_member<std::string>(value, "filename", error, true, true);
+    if (!filename) return std::nullopt;
+
+    return std::move(bp);
+}
+
+void SymbolResponse::parse(const std::string &str) {
+    using namespace rapidjson;
+    Document document;
+    document.Parse(str.c_str());
+    if (document.HasParseError()) return;
+
+    // we ignore type since it's a single thread model
+    switch (type_) {
+        case SymbolRequest::request_type::get_breakpoint:
+            if (document.HasMember("result")) {
+                auto const &v = document["result"];
+                (void)v;
+            }
+        default:
+            break;
+    }
 }
 
 }  // namespace hgdb

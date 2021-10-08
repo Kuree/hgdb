@@ -252,7 +252,7 @@ std::unordered_map<std::string, int64_t> DBSymbolTableProvider::get_context_stat
     return result;
 }
 
-std::vector<std::string> DBSymbolTableProvider::get_all_signal_names() {
+std::vector<std::string> DBSymbolTableProvider::get_all_array_names() {
     using namespace sqlite_orm;
     if (!db_) return {};
     std::set<std::string> names;
@@ -285,7 +285,7 @@ void DBSymbolTableProvider::set_src_mapping(const std::map<std::string, std::str
     src_remap_ = mapping;
 }
 
-std::string DBSymbolTableProvider::resolve_filename_to_db(const std::string &filename) const {
+std::string DBSymbolTableProvider::resolve_filename_to_db(const std::string &filename) {
     namespace fs = std::filesystem;
     // optimize for local use case
     if (src_remap_.empty()) [[likely]]
@@ -298,7 +298,7 @@ std::string DBSymbolTableProvider::resolve_filename_to_db(const std::string &fil
     return filename;
 }
 
-std::string DBSymbolTableProvider::resolve_filename_to_client(const std::string &filename) const {
+std::string DBSymbolTableProvider::resolve_filename_to_client(const std::string &filename) {
     namespace fs = std::filesystem;
     // optimize for local use case
     if (src_remap_.empty()) [[likely]]

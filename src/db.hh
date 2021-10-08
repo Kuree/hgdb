@@ -47,15 +47,14 @@ public:
     [[nodiscard]] std::vector<std::string> get_annotation_values(const std::string &name) override;
     std::unordered_map<std::string, int64_t> get_context_static_values(
         uint32_t breakpoint_id) override;
-    std::vector<std::string> get_all_signal_names() override;
+    std::vector<std::string> get_all_array_names() override;
 
     ~DBSymbolTableProvider() override;
 
     // resolve filename or symbol names
     void set_src_mapping(const std::map<std::string, std::string> &mapping) override;
-    [[nodiscard]] std::string resolve_filename_to_db(const std::string &filename) const override;
-    [[nodiscard]] std::string resolve_filename_to_client(
-        const std::string &filename) const override;
+    [[nodiscard]] std::string resolve_filename_to_db(const std::string &filename) override;
+    [[nodiscard]] std::string resolve_filename_to_client(const std::string &filename) override;
     [[nodiscard]] std::optional<std::string> resolve_scoped_name_breakpoint(
         const std::string &scoped_name, uint64_t breakpoint_id) override;
     [[nodiscard]] std::optional<std::string> resolve_scoped_name_instance(

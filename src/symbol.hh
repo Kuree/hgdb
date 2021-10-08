@@ -35,15 +35,14 @@ public:
         const std::string &name) = 0;
     virtual std::unordered_map<std::string, int64_t> get_context_static_values(
         uint32_t breakpoint_id) = 0;
-    virtual std::vector<std::string> get_all_signal_names() = 0;
+    virtual std::vector<std::string> get_all_array_names() = 0;
 
     virtual ~SymbolTableProvider() = default;
 
     // resolve filename or symbol names
     virtual void set_src_mapping(const std::map<std::string, std::string> &mapping) = 0;
-    [[nodiscard]] virtual std::string resolve_filename_to_db(const std::string &filename) const = 0;
-    [[nodiscard]] virtual std::string resolve_filename_to_client(
-        const std::string &filename) const = 0;
+    [[nodiscard]] virtual std::string resolve_filename_to_db(const std::string &filename) = 0;
+    [[nodiscard]] virtual std::string resolve_filename_to_client(const std::string &filename) = 0;
     [[nodiscard]] virtual std::optional<std::string> resolve_scoped_name_breakpoint(
         const std::string &scoped_name, uint64_t breakpoint_id) = 0;
     [[nodiscard]] virtual std::optional<std::string> resolve_scoped_name_instance(

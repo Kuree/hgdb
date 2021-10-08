@@ -24,7 +24,8 @@ enum class RequestType {
     evaluation,
     option_change,
     monitor,
-    set_value
+    set_value,
+    symbol
 };
 
 [[nodiscard]] std::string to_string(RequestType type) noexcept;
@@ -320,6 +321,51 @@ private:
     std::optional<uint64_t> breakpoint_id_;
 };
 
+class SymbolRequest : public Request {
+public:
+    enum class request_type {
+        get_breakpoint,
+        get_breakpoints,
+        get_instance_name,
+        get_instance_name_from_bp,
+        get_instance_id,
+        get_context_variables,
+        get_generator_variables,
+        get_instance_names,
+        get_annotation_values,
+        get_context_static_values,
+        get_all_array_names,
+        set_src_mapping,
+        resolve_filename_to_db,
+        resolve_filename_to_client,
+        resolve_scoped_name_breakpoint,
+        resolve_scoped_name_instance,
+        get_execution_bp_orders
+    };
+
+    explicit SymbolRequest(request_type req_type) : req_type_(req_type) {}
+    // won't do anything since we don't expect parsing it from our side
+    void parse_payload(const std::string &) override {}
+
+    [[nodiscard]] RequestType type() const override { return RequestType::symbol; }
+    [[nodiscard]] request_type req_type() const { return req_type_; }
+
+    [[nodiscard]] std::string str() const;
+
+    uint64_t instance_id = 0;
+    uint64_t breakpoint_id = 0;
+    std::string filename;
+    uint32_t line_num = 0;
+    uint32_t column_num = 0;
+    std::string instance_name;
+    std::string name;
+    std::map<std::string, std::string> mapping;
+    std::string scoped_name;
+
+private:
+    request_type req_type_;
+};
+
 class DebuggerInformationResponse : public Response {
 public:
     explicit DebuggerInformationResponse(std::string status);
@@ -361,6 +407,30 @@ public:
 private:
     uint64_t track_id_;
     std::string value_;
+};
+
+class SymbolResponse : public Response {
+public:
+    using ContextVariableInfo = std::pair<ContextVariable, Variable>;
+    using GeneratorVariableInfo = std::pair<GeneratorVariable, Variable>;
+    explicit SymbolResponse(SymbolRequest::request_type type) : type_(type) {}
+
+    void parse(const std::string &str);
+
+    [[nodiscard]] std::string str(bool pretty_print) const override { return {}; }
+    [[nodiscard]] std::string type() const override { return to_string(RequestType::symbol); }
+
+    std::optional<std::string> str_result;
+    std::vector<BreakPoint> bp_results;
+    std::optional<BreakPoint> bp_result;
+    std::optional<uint64_t> uint64_t_result;
+    std::vector<ContextVariableInfo> context_vars_result;
+    std::vector<GeneratorVariableInfo> gen_vars_result;
+    std::vector<std::string> string_results;
+    std::unordered_map<std::string, int64_t> map_result;
+
+private:
+    SymbolRequest::request_type type_;
 };
 
 }  // namespace hgdb
