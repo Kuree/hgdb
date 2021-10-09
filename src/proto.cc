@@ -956,6 +956,7 @@ std::string to_string(SymbolRequest::request_type type) {
         case SymbolRequest::request_type::get_execution_bp_orders:
             return "get_execution_bp_orders";
     }
+    throw std::runtime_error("Invalid request type");
 }
 
 std::string SymbolRequest::str() const {
