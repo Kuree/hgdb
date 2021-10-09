@@ -925,6 +925,39 @@ void SetValueRequest::parse_payload(const std::string &payload) {
     breakpoint_id_ = get_member<uint64_t>(document, "breakpoint_id", error_reason_, false);
 }
 
+std::string to_string(SymbolRequest::request_type type) {
+    switch (type) {
+        case SymbolRequest::request_type::get_breakpoint:
+            return "get_breakpoint";
+        case SymbolRequest::request_type::get_breakpoints:
+            return "get_breakpoints";
+        case SymbolRequest::request_type::get_instance_name:
+            return "get_instance_name";
+        case SymbolRequest::request_type::get_instance_name_from_bp:
+            return "get_instance_name_from_bp";
+        case SymbolRequest::request_type::get_instance_id:
+            return "get_instance_id";
+        case SymbolRequest::request_type::get_context_variables:
+            return "get_context_variables";
+        case SymbolRequest::request_type::get_generator_variables:
+            return "get_generator_variables";
+        case SymbolRequest::request_type::get_instance_names:
+            return "get_instance_names";
+        case SymbolRequest::request_type::get_annotation_values:
+            return "get_annotation_values";
+        case SymbolRequest::request_type::get_context_static_values:
+            return "get_context_static_values";
+        case SymbolRequest::request_type::get_all_array_names:
+            return "get_all_array_names";
+        case SymbolRequest::request_type::resolve_scoped_name_breakpoint:
+            return "resolve_scoped_name_breakpoint";
+        case SymbolRequest::request_type::resolve_scoped_name_instance:
+            return "resolve_scoped_name_instance";
+        case SymbolRequest::request_type::get_execution_bp_orders:
+            return "get_execution_bp_orders";
+    }
+}
+
 std::string SymbolRequest::str() const {
     using namespace rapidjson;
     Document document;
@@ -933,6 +966,8 @@ std::string SymbolRequest::str() const {
     set_member(document, "type", "symbol");
 
     Value payload(kObjectType);
+
+    set_member(payload, allocator, "type", to_string(req_type_));
 
     switch (req_type_) {
         case request_type::get_breakpoints:
