@@ -30,7 +30,7 @@ class SymbolTableProvider:
     """Pure python implementation of the symbol table provider.
     This is the reference implementation"""
 
-    def __init__(self, hostname="localhost", port=8889):
+    def __init__(self, hostname="127.0.0.1", port=8889):
         self.hostname = hostname
         self.port = port
 
