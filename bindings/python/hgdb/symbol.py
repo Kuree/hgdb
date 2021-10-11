@@ -2,6 +2,8 @@ import abc
 import asyncio
 import collections
 import json
+import time
+import multiprocessing
 from typing import List, Tuple, Dict, Union
 
 import websockets
@@ -32,8 +34,9 @@ class SymbolTableProvider:
         self.hostname = hostname
         self.port = port
 
-        self.__loop = asyncio.get_running_loop()
-        self.__stop = self.__loop.create_future()
+        self.loop = asyncio.new_event_loop()
+        self.__stop = self.loop.create_future()
+        self.__thread: Union[None, multiprocessing.Process] = None
 
     async def _on_message(self, websocket, _):
         async for message in websocket:
@@ -85,18 +88,26 @@ class SymbolTableProvider:
             res = {}
         else:
             res = {"result": _to_dict(obj)}
-        ws.send(json.dumps(res))
+        await ws.send(json.dumps(res))
 
     async def _main(self):
         async with websockets.serve(self._on_message, self.hostname, self.port):
             await self.__stop
 
-    def run(self):
-        asyncio.run(self._main())
+    def run(self, blocking=True):
+        if blocking:
+            self.loop.run_until_complete(self._main())
+        else:
+            def run():
+                self.loop.run_until_complete(self._main())
+            self.__thread = multiprocessing.Process(target=run)
+            self.__thread.start()
 
     def stop(self):
-        self.__stop.done()
-        self.__loop.stop()
+        self.__stop.cancel()
+        self.loop.stop()
+        if self.__thread:
+            self.__thread.kill()
 
     # abstract functions
     @abc.abstractmethod

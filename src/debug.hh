@@ -98,7 +98,7 @@ private:
     void log_info(const std::string &msg) const;
     bool has_cli_flag(const std::string &flag);
     [[nodiscard]] static std::string get_monitor_topic(uint64_t watch_id);
-    std::string get_var_value(const Variable &var);
+    std::string get_var_value(const std::string &var_name, bool is_rtl);
     std::optional<std::string> resolve_var_name(const std::string &var_name,
                                                 const std::optional<uint64_t> &instance_id,
                                                 const std::optional<uint64_t> &breakpoint_id);

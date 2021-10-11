@@ -271,7 +271,7 @@ void set_member(K &json_value, A &allocator, const char *name, const T &value) {
         }
         json_value.AddMember(key.Move(), v.Move(), allocator);
     } else {
-        throw std::runtime_error(fmt::format("Unable type for {0}", name));
+        throw std::runtime_error(fmt::format("Unknown type for {0}", name));
     }
 }
 
@@ -961,10 +961,10 @@ std::string to_string(SymbolRequest::request_type type) {
 
 std::string SymbolRequest::str() const {
     using namespace rapidjson;
-    Document document;
+    Document document(rapidjson::kObjectType);
     auto &allocator = document.GetAllocator();
     set_member(document, "request", true);
-    set_member(document, "type", "symbol");
+    set_member(document, "type", std::string("symbol"));
 
     Value payload(kObjectType);
 
@@ -1049,7 +1049,7 @@ std::optional<Variable> parse_variable(const rapidjson::Value &value) {
 
     if (!get_value(value, "id", v.id)) return std::nullopt;
     if (!get_value(value, "value", v.value)) return std::nullopt;
-    if (!get_value(value, "is_rtl", v.value)) return std::nullopt;
+    if (!get_value(value, "is_rtl", v.is_rtl)) return std::nullopt;
 
     return std::move(v);
 }

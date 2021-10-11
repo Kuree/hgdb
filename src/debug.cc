@@ -36,15 +36,9 @@ Debugger::Debugger(std::unique_ptr<AVPIProvider> vpi) {
 }
 
 bool Debugger::initialize_db(const std::string &filename) {
-    // we cannot accept in-memory database since in the debug mode,
-    // it is readonly
-    if (!fs::exists(filename)) {
-        log_error(fmt::format("{0} does not exist", filename));
-        return false;
-    }
     log_info(fmt::format("Debug database set to {0}", filename));
     initialize_db(create_symbol_table(filename));
-    return true;
+    return db_ != nullptr;
 }
 
 void Debugger::initialize_db(std::unique_ptr<SymbolTableProvider> db) {
@@ -52,7 +46,6 @@ void Debugger::initialize_db(std::unique_ptr<SymbolTableProvider> db) {
     db_ = std::move(db);
     // get all the instance names
     auto instances = db_->get_instance_names();
-    log_info("Compute instance mapping");
     rtl_->initialize_instance_mapping(instances);
 
     // set up the scheduler
@@ -364,10 +357,10 @@ std::string Debugger::get_monitor_topic(uint64_t watch_id) {
     return fmt::format("watch-{0}", watch_id);
 }
 
-std::string Debugger::get_var_value(const Variable &var) {
+std::string Debugger::get_var_value(const std::string &var_name, bool is_rtl) {
     std::string value_str;
-    if (var.is_rtl) {
-        auto full_name = rtl_->get_full_name(var.value);
+    if (is_rtl) {
+        auto full_name = rtl_->get_full_name(var_name);
         if (!use_hex_str_) {
             auto value = rtl_->get_value(full_name);
             value_str = value ? std::to_string(*value) : error_value_str;
@@ -377,7 +370,7 @@ std::string Debugger::get_var_value(const Variable &var) {
         }
 
     } else {
-        value_str = var.value;
+        value_str = var_name;
     }
     return value_str;
 }
@@ -844,13 +837,24 @@ void Debugger::send_breakpoint_hit(const std::vector<const DebugBreakPoint *> &b
 
         using namespace std::string_literals;
         for (auto const &[gen_var, var] : generator_values) {
-            std::string value_str = get_var_value(var);
+            // maybe need to resolve the name based on the variable
+            std::string name = var.value;
+            if (name.find_first_of('.') == std::string::npos) {
+                auto v = db_->resolve_scoped_name_instance(name, bp->instance_id);
+                if (v) name = *v;
+            }
+            std::string value_str = get_var_value(name, var.is_rtl);
             auto var_name = gen_var.name;
             scope.add_generator_value(var_name, value_str);
         }
 
         for (auto const &[gen_var, var] : context_values) {
-            std::string value_str = get_var_value(var);
+            std::string name = var.value;
+            if (name.find_first_of('.') == std::string::npos) {
+                auto v = db_->resolve_scoped_name_breakpoint(name, bp->id);
+                if (v) name = *v;
+            }
+            std::string value_str = get_var_value(name, var.is_rtl);
             auto var_name = gen_var.name;
             scope.add_local_value(var_name, value_str);
         }

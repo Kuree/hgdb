@@ -181,6 +181,10 @@ std::optional<uint64_t> VCDDatabase::get_prev_value_change_time(uint64_t signal_
 
 std::pair<std::string, std::string> VCDDatabase::compute_instance_mapping(
     const std::unordered_set<std::string> &instance_names) {
+    if (instance_names.empty()) {
+        log::log(log::log_level::error, "Empty instance names");
+        return {};
+    }
     // first get the longest instance name
     std::string instance_name;
     for (auto const &name : instance_names) {

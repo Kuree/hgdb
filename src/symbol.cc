@@ -8,6 +8,7 @@
 #include "db.hh"
 #include "log.hh"
 #include "proto.hh"
+#include "thread.hh"
 #include "util.hh"
 #include "websocketpp/client.hpp"
 #include "websocketpp/config/asio_no_tls_client.hpp"
@@ -109,17 +110,21 @@ public:
     // single thread model
     explicit WSNetworkProvider(const std::string &uri) {
         client_ = std::make_unique<Client>();
+        client_->clear_access_channels(websocketpp::log::alevel::all);
         client_->init_asio();
 
         auto on_message = [this](const websocketpp::connection_hdl &, const MessagePtr &msg) {
             payload_ = msg->get_payload();
-            has_message_ = true;
+            has_message_.ready();
         };
 
         client_->set_message_handler(on_message);
 
-        auto on_open = [this](const websocketpp::connection_hdl &handle) {
+        RuntimeLock l;
+
+        auto on_open = [this, &l](const websocketpp::connection_hdl &handle) {
             connection_handle_ = handle;
+            l.ready();
         };
 
         client_->set_open_handler(on_open);
@@ -135,6 +140,9 @@ public:
 
         // run the client in the background
         bg_client_thread_ = std::thread([this]() { client_->run(); });
+
+        // block until it's properly connected
+        l.wait();
     }
 
     void send(const std::string &msg) override {
@@ -147,10 +155,7 @@ public:
 
     std::string receive() override {
         std::lock_guard guard(lock);
-        bool v = true;
-        // spin lock on has_message
-        while (has_message_.compare_exchange_strong(v, false))
-            ;
+        has_message_.wait();
         return payload_;
     }
 
@@ -166,7 +171,7 @@ private:
 
     // synchronization using a spin lock
     std::mutex lock;
-    std::atomic<bool> has_message_ = false;
+    RuntimeLock has_message_;
     std::string payload_;
 
     std::thread bg_client_thread_;
@@ -263,7 +268,6 @@ public:
 
     [[nodiscard]] std::vector<std::string> get_instance_names() override {
         SymbolRequest req(SymbolRequest::request_type::get_instance_names);
-
         auto resp = get_resp(req);
         return resp.str_results;
     }
@@ -369,6 +373,11 @@ std::unique_ptr<SymbolTableProvider> create_symbol_table(const std::string &file
         }
         return std::make_unique<NetworkSymbolTableProvider>(std::move(ws));
     } else {
+        // make sure the filename exists
+        if (!std::filesystem::exists(filename)) {
+            log::log(log::log_level::error, "Unable to find " + filename);
+            return nullptr;
+        }
         return std::make_unique<DBSymbolTableProvider>(filename);
     }
 }
