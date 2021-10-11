@@ -961,7 +961,7 @@ std::string to_string(SymbolRequest::request_type type) {
 
 std::string SymbolRequest::str() const {
     using namespace rapidjson;
-    Document document(rapidjson::kObjectType);
+    Document document(rapidjson::kObjectType);  // NOLINT
     auto &allocator = document.GetAllocator();
     set_member(document, "request", true);
     set_member(document, "type", std::string("symbol"));
