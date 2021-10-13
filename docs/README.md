@@ -154,7 +154,13 @@ value.b.d[3] -> signal6
 For tagged union, you can generated different representation that points to the same signal. Since scope information is linked to each breakpoint, you can even switch to different representation in different lines!
 
 ## Interact with hgdb symbol table
-The symbol table is implemented in SQLite3, which is the most efficient standalone relational database and has language bindings from all popular programming languages. The relational aspect of the database makes querying the symbol table much easier.
+hgdb offers several ways to interact with the symbol table:
+- native SQLite3
+- `toml` description, which can be converted to native SQLite3 database
+- RPC-based symbol table provider. Currently support TCP and WebSocket-based protocols.
+
+### Native symbol table
+The native symbol table is implemented in SQLite3, which is the most efficient standalone relational database and has language bindings from all popular programming languages. The relational aspect of the database makes querying the symbol table much easier.
 
 Below shows the schema of the database. It's highly recommended to read the [schema documentation](https://github.com/Kuree/hgdb/blob/master/include/schema.hh) if you want to interact with the symbol table.
 
@@ -175,6 +181,16 @@ CREATE TABLE IF NOT EXISTS 'breakpoint' ( 'id' INTEGER PRIMARY KEY NOT NULL , 'i
 ```
 
 hgdb offers C++ and Python bindings to interact with the symbol table. Feel free to contribute to bindings from other languages.
+
+
+### RPC-based symbol table provider
+If the filename is provided is a URI, hgdb will try to parse the schema and decides which protocol to use:
+- `tcp://hostname:port` will be handled by TCP-based symbol table provider
+- `ws://hostname:port` will be handled by WebSocket-based symbol table provider.
+
+Notice that SSL-based network layer is currently not supported.
+
+The RPC protocol uses JSON as packet format. To see more details, you can check out this pure-Python implementation of a reference symbol table provider [here](https://github.com/Kuree/hgdb/blob/master/tests/tools/test_sym_provider.py#L15-L84), which implements a WebSocket-based symbol table provider.
 
 ## Breakpoint emulation loop
 hgdb is designed to emulate breakpoints as fast as possible. By design, if there is no breakpoints inserted, there should not be any noticeable performance slow down. The only overhead would be taking control of the simulator at the `posedge` of the clock then exit immediately.
