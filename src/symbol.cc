@@ -82,7 +82,8 @@ public:
         s_ = std::make_unique<asio::ip::tcp::socket>(*io_context_);
         asio::ip::tcp::resolver resolver(*io_context_);
         try {
-            asio::connect(*s_, resolver.resolve(hostname, std::to_string(port)));
+            auto endpoint = resolver.resolve(hostname, std::to_string(port))->endpoint();
+            s_->connect(endpoint);
         } catch (asio::system_error &e) {
             has_error = true;
         }
