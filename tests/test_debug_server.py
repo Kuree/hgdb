@@ -387,6 +387,7 @@ def test_debug_env_value(start_server, find_free_port):
     async def test_logic():
         async with hgdb.HGDBClient(uri, None) as client:
             await client.connect()
+            time.sleep(0.5)
             for i in range(5):
                 await client.continue_()
                 bp = await client.recv_bp()
