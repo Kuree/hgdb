@@ -198,7 +198,7 @@ class VCSTester(Tester):
         self._run(["./simv"] + flags, self.cwd, env, blocking)
 
     def __get_flag(self):
-        return ["-debug_acc+all", "-sverilog", "-load", os.path.basename(self.lib_path)]
+        return ["-debug_access+class", "-sverilog", "-load", os.path.basename(self.lib_path)]
 
     @staticmethod
     def available():
