@@ -422,11 +422,8 @@ void Debugger::handle_connection(const ConnectionRequest &req, uint64_t conn_id)
 
     // if success, need to register call backs on the clocks
     // Verilator is handled differently
-    if (success && rtl_ && !rtl_->is_verilator()) {
-        // only trigger eval at the posedge clk
-        auto clock_signals = util::get_clock_signals(rtl_.get(), db_.get());
-        bool r = rtl_->monitor_signals(clock_signals, eval_hgdb_on_clk, this);
-        if (!r || clock_signals.empty()) log_error("Failed to register evaluation callback");
+    if (success) {
+        add_cb_clocks();
     }
 
     // need to set the remap
@@ -1013,6 +1010,15 @@ void Debugger::start_breakpoint_evaluation() {
     cached_signal_values_.clear();
 }
 
+void Debugger::add_cb_clocks() {
+    if (rtl_ && !rtl_->is_verilator()) {
+        // only trigger eval at the posedge clk
+        auto clock_signals = util::get_clock_signals(rtl_.get(), db_.get());
+        bool r = rtl_->monitor_signals(clock_signals, eval_hgdb_on_clk, this);
+        if (!r || clock_signals.empty()) log_error("Failed to register evaluation callback");
+    }
+}
+
 void Debugger::setup_init_breakpoint_from_env() {
     constexpr auto BREAKPOINT_NAME = "DEBUG_BREAKPOINT{0}";
     uint64_t i = 0;
@@ -1067,6 +1073,8 @@ void Debugger::preload_db_from_env() {
         return;
     }
     initialize_db(db_name);
+    // also need to load clock signals
+    add_cb_clocks();
 }
 
 }  // namespace hgdb

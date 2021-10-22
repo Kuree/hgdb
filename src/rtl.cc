@@ -590,12 +590,18 @@ bool RTLSimulatorClient::monitor_signals(const std::vector<std::string> &signals
         // get full name if not yet already
         auto full_name = get_full_name(name);
         auto *handle = vpi_->vpi_handle_by_name(const_cast<char *>(full_name.c_str()), nullptr);
+        bool error = true;
         if (handle) {
             // only add valid callback to avoid simulator errors
             auto callback_name = "Monitor " + full_name;
-            add_call_back(callback_name, cbValueChange, cb_func, handle, user_data);
-            added_handles.emplace_back(callback_name);
-        } else {
+            auto const *r = add_call_back(callback_name, cbValueChange, cb_func, handle, user_data);
+            if (r) {
+                added_handles.emplace_back(callback_name);
+                error = false;
+            }
+        }
+
+        if (error) {
             log::log(log::log_level::error,
                      fmt::format("Unable to register callback to monitor signal {0}", full_name));
             // well rollback

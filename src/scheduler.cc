@@ -401,6 +401,11 @@ void Scheduler::scan_breakpoints(uint64_t ref_index, bool forward,
 }
 
 namespace util {
+// gcc 11.2.0 seems to have this bug
+// https://gcc.gnu.org/bugzilla/show_bug.cgi?id=80635
+// disable this warning for now
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wmaybe-uninitialized"
 void validate_expr(RTLSimulatorClient *rtl, SymbolTableProvider *db, DebugExpression *expr,
                    std::optional<uint32_t> breakpoint_id, std::optional<uint32_t> instance_id) {
     auto context_static_values = breakpoint_id ? db->get_context_static_values(*breakpoint_id)
@@ -447,6 +452,7 @@ void validate_expr(RTLSimulatorClient *rtl, SymbolTableProvider *db, DebugExpres
         expr->set_resolved_symbol_name(symbol, full_name);
     }
 }
+#pragma GCC diagnostic pop
 
 std::vector<std::string> get_clock_signals(RTLSimulatorClient *rtl, SymbolTableProvider *db) {
     if (!rtl) return {};

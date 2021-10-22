@@ -141,6 +141,7 @@ private:
 
     // callbacks
     std::optional<std::function<void(hgdb::SymbolTableProvider &)>> on_client_connected_;
+    void add_cb_clocks();
 
     // performance benchmark functions
     // only used to initialize the debugger to certain state, not for normal usage
