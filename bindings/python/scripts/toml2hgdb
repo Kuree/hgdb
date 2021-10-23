@@ -19,6 +19,8 @@ def get_args():
     parser.add_argument("output", help="Output symbol table file", type=str)
     parser.add_argument("--disable-firrtl-fix", action="store_true", dest="disable_firrtl_fix",
                         help="If set, no symbol mapping fix will be performed")
+    parser.add_argument("--detail", help="If set, creates variables for child instances as well",
+                        type=str, default="", required=False)
     args = parser.parse_args()
     if not os.path.exists(args.input):
         print(args.input, "does not exist", file=sys.stderr)
@@ -127,7 +129,6 @@ def write_out_locals(local_vars, db, breakpoint_index, fix_variable):
     scope = []
     # if the line number different is more than this threshold
     skip_line_threshold = 10
-    pre_ln = None
     # we hope that dictionary is in order, otherwise it's going to be bad, really bad
     if fix_variable:
         fix_variable_name(local_vars)
@@ -169,20 +170,33 @@ def write_out_locals(local_vars, db, breakpoint_index, fix_variable):
             db.store_context_variable(name, breakpoint_id, var_id)
 
 
-def write_out_design(def_name, inst_name, design_data, db, fix_variable):
+def write_out_variables(db, variables, fix_variables, prefix=""):
+    global var_count, instance_count
+    if fix_variables:
+        fix_variable_name(variables)
+    for var_name, rtl_name in variables.items():
+        var_name = prefix + var_name
+        rtl_name = escape_rtl_name(rtl_name)
+        db.store_variable(var_count, rtl_name)
+        db.store_generator_variable(var_name, instance_id=instance_count, variable_id=var_count)
+        var_count += 1
+
+
+def write_out_design(def_name, inst_name, design_data, db, fix_variable, detailed_def_name):
     # this is recursive. no compression so far
     global var_count, breakpoint_id_count, instance_count
     db.store_instance(instance_count, inst_name)
     def_data = design_data[def_name]
     # create variable
     if "variables" in def_data:
-        if fix_variable:
-            fix_variable_name(def_data["variables"])
-        for var_name, rtl_name in def_data["variables"].items():
-            rtl_name = escape_rtl_name(rtl_name)
-            db.store_variable(var_count, rtl_name)
-            db.store_generator_variable(var_name, instance_id=instance_count, variable_id=var_count)
-            var_count += 1
+        write_out_variables(db, def_data["variables"], fix_variable)
+        if def_name == detailed_def_name and "instances" in def_data:
+            instances = def_data["instances"]
+            for d_name, inst_name in instances.items():
+                inst_def = design_data[d_name]
+                if "variables" in inst_def:
+                    write_out_variables(db, inst_def["variables"], fix_variable, prefix=inst_name + ".")
+
     breakpoint_index = {}
 
     if "breakpoints" in def_data:
@@ -213,11 +227,12 @@ def write_out_design(def_name, inst_name, design_data, db, fix_variable):
     # we can approximate the scope as a hack
     if "locals" in def_data:
         write_out_locals(def_data["locals"], db, breakpoint_index, fix_variable)
+        # need to write out instances variables
 
     # recursively call the child instances
     if "instances" in def_data:
         for i_name, d_name in def_data["instances"].items():
-            write_out_design(d_name, f"{inst_name}.{i_name}", design_data, db, fix_variable)
+            write_out_design(d_name, f"{inst_name}.{i_name}", design_data, db, fix_variable, detailed_def_name)
 
 
 def main():
@@ -227,7 +242,8 @@ def main():
     db = DebugSymbolTable(args.output)
     for top_name in tops:
         db.begin_transaction()
-        write_out_design(top_name, top_name, design, db, not args.disable_firrtl_fix)
+        write_out_design(top_name, top_name, design, db, not args.disable_firrtl_fix,
+                         detailed_def_name=args.detail)
         db.end_transaction()
 
 
