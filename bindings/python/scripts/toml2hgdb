@@ -56,6 +56,7 @@ def get_tops(design):
 var_count = 0
 breakpoint_id_count = 0
 instance_count = 0
+scope_count = 0
 
 
 # that's firrtl name scheme
@@ -105,11 +106,7 @@ def fix_variable_name(variables):
         variables[name] = entry
 
 
-def write_out_locals(local_vars, db, breakpoint_index, fix_variable):
-    global var_count
-    # first pass to determine the actual filename
-    # for some reason chisel inserts the original function
-    # call file info
+def get_filename(local_vars):
     filename_count = {}
     for entry in local_vars.values():
         info = entry[-1]
@@ -123,6 +120,62 @@ def write_out_locals(local_vars, db, breakpoint_index, fix_variable):
         if c > count:
             current_filename = n
             count = c
+    return current_filename
+
+
+def write_out_local_scope(local_vars, db, breakpoint_index, fix_variable):
+    global var_count, scope_count
+    # since the compiler already gives us the scope information, we don't need
+    # to create guess work any more
+    # well we still need to compute the file name, since compilers such as Chisel doesn't give
+    # proper names
+    current_filename = get_filename(local_vars)
+    if current_filename is None:
+        # nothing to be done here
+        return
+    # we hope that dictionary is in order, otherwise it's going to be bad, really bad
+    if fix_variable:
+        fix_variable_name(local_vars)
+
+    breakpoint_ids = []
+    var_id_mapping = {}
+    scope = {}
+    for name, entry in local_vars.items():
+        fn_info = entry[-1].replace(":", " ")
+        info = tuple(fn_info.split(" "))
+        # there is no guess work so we simply try to match with declared breakpoints
+        ln = int(info[1])
+        # find matched breakpoint index
+        for bp_info, bp_id in breakpoint_index.items():
+            bp_ln = int(bp_info[1])
+            if bp_ln >= ln:
+                # it's a match
+                if bp_id not in breakpoint_ids:
+                    breakpoint_ids.append(bp_id)
+                    scope[bp_id] = []
+                rtl_name = entry[0]
+                rtl_name = escape_rtl_name(rtl_name)
+                db.store_variable(var_count, rtl_name)
+                var_id_mapping[rtl_name] = var_count
+                scope[bp_id].append((name, bp_id, var_count))
+                var_count += 1
+
+    for breakpoint_id, (n, var_id) in scope.items():
+        db.store_context_variable(n, breakpoint_id, var_id)
+
+    # store local scopes as well
+    # assume the breakpoints are created in order
+    breakpoint_ids.sort()
+    db.store_scope(scope_count, *breakpoint_ids)
+    scope_count += 1
+
+
+def write_out_locals(local_vars, db, breakpoint_index, fix_variable):
+    global var_count
+    # first pass to determine the actual filename
+    # for some reason chisel inserts the original function
+    # call file info
+    current_filename = get_filename(local_vars)
     if current_filename is None:
         # nothing to be done here
         return
@@ -236,7 +289,14 @@ def write_out_design(def_name, inst_name, design_data, db, fix_variable, detaile
     # we can approximate the scope as a hack
     if "locals" in def_data:
         write_out_locals(def_data["locals"], db, breakpoint_index, fix_variable)
-        # need to write out instances variables
+    # could be scoped as well
+    local_id = 0
+    while True:
+        local_name = "locals" + str(local_id)
+        if local_name not in def_data:
+            break
+        write_out_local_scope(def_data[local_name], db, breakpoint_index, fix_variable)
+        local_id += 1
 
     # recursively call the child instances
     if "instances" in def_data:
