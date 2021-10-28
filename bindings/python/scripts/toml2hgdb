@@ -132,6 +132,14 @@ def write_out_locals(local_vars, db, breakpoint_index, fix_variable):
     # we hope that dictionary is in order, otherwise it's going to be bad, really bad
     if fix_variable:
         fix_variable_name(local_vars)
+    # compute range since not all of the variables creation has direct correspondence to
+    # a breakpoint
+    bp_lines = set()
+    for info in breakpoint_index:
+        ln = int(info[1])
+        start_idx = max(0, ln - skip_line_threshold)
+        for i in range(start_idx, ln):
+            bp_lines.add(i)
     # second pass to group line numbers
     targets = {}
     var_id_mapping = {}
@@ -139,7 +147,8 @@ def write_out_locals(local_vars, db, breakpoint_index, fix_variable):
         fn_info = entry[-1].replace(":", " ")
         info = tuple(fn_info.split(" "))
         filename = info[0]
-        if info not in breakpoint_index:
+        ln = int(info[1])
+        if ln not in bp_lines:
             continue
         # there is a "bug"/feature in the current chisel that use the first file info, as compared
         # to the last, which is what people what
@@ -176,7 +185,7 @@ def write_out_variables(db, variables, fix_variables, prefix=""):
         fix_variable_name(variables)
     for var_name, rtl_name in variables.items():
         var_name = prefix + var_name
-        rtl_name = escape_rtl_name(rtl_name)
+        rtl_name = prefix + escape_rtl_name(rtl_name)
         db.store_variable(var_count, rtl_name)
         db.store_generator_variable(var_name, instance_id=instance_count, variable_id=var_count)
         var_count += 1
@@ -192,7 +201,7 @@ def write_out_design(def_name, inst_name, design_data, db, fix_variable, detaile
         write_out_variables(db, def_data["variables"], fix_variable)
         if def_name == detailed_def_name and "instances" in def_data:
             instances = def_data["instances"]
-            for d_name, inst_name in instances.items():
+            for inst_name, d_name in instances.items():
                 inst_def = design_data[d_name]
                 if "variables" in inst_def:
                     write_out_variables(db, inst_def["variables"], fix_variable, prefix=inst_name + ".")
