@@ -120,7 +120,10 @@ def test_toml_scope_parsing():
         c.execute("SELECT * FROM context_variable WHERE breakpoint_id = 2")
         r = c.fetchall()
         assert len(r) == 5
-
+        c.execute("SELECT * FROM scope")
+        r = c.fetchall()
+        assert len(r) == 1
+        assert r[0][-1] == " ".join(["0", "1", "2"])
         conn.close()
 
 
