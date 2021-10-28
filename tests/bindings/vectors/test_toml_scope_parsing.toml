@@ -1,0 +1,19 @@
+[mod1]
+breakpoints = [
+["mod1.sv 2:1", "1"],
+["mod1.sv 5:1", "1"],
+["mod1.sv 6:1", "1"],
+]
+[mod1.variables]
+"clock" = "clock"
+"reset" = "reset"
+"io.a" = "io_a"
+"io.b" = "io_b"
+"io.c" = "io_c"
+"value" = "value"
+[mod1.locals0]
+"a" = ["io_a","mod1.sv 1:1"]
+"a0" = ["io_b","mod1.sv 1:2"]
+"b" = ["io_b","mod1.sv 2:1"]
+"b0" = ["io_b","mod1.sv 2:2"]
+"c" = ["io_c","mod1.sv 5:1"]

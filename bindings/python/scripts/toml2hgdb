@@ -148,7 +148,9 @@ def write_out_local_scope(local_vars, db, breakpoint_index, fix_variable):
         # find matched breakpoint index
         for bp_info, bp_id in breakpoint_index.items():
             bp_ln = int(bp_info[1])
-            if bp_ln >= ln:
+            # notice that we don't do == since we assume when the breakpoint hits,
+            # the variable hasn't been declared yet
+            if bp_ln > ln:
                 # it's a match
                 if bp_id not in breakpoint_ids:
                     breakpoint_ids.append(bp_id)
@@ -157,11 +159,12 @@ def write_out_local_scope(local_vars, db, breakpoint_index, fix_variable):
                 rtl_name = escape_rtl_name(rtl_name)
                 db.store_variable(var_count, rtl_name)
                 var_id_mapping[rtl_name] = var_count
-                scope[bp_id].append((name, bp_id, var_count))
+                scope[bp_id].append((name, var_count))
                 var_count += 1
 
-    for breakpoint_id, (n, var_id) in scope.items():
-        db.store_context_variable(n, breakpoint_id, var_id)
+    for breakpoint_id, entries in scope.items():
+        for n, var_id in entries:
+            db.store_context_variable(n, breakpoint_id, var_id)
 
     # store local scopes as well
     # assume the breakpoints are created in order

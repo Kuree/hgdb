@@ -3,6 +3,7 @@ import tempfile
 import hgdb
 import os
 import pytest
+import subprocess
 
 
 def get_conn_cursor(db_name):
@@ -101,5 +102,27 @@ def test_store_scope():
         conn.close()
 
 
+def test_toml_scope_parsing():
+    root = os.path.dirname(os.path.abspath(__file__))
+    vectors_dir = os.path.join(root, "vectors")
+    t = os.path.join(vectors_dir, "test_toml_scope_parsing.toml")
+    with tempfile.TemporaryDirectory() as temp:
+        db_name = os.path.join(temp, "debug.db")
+        subprocess.check_call(["toml2hgdb", t, db_name])
+
+        conn, c = get_conn_cursor(db_name)
+        c.execute("SELECT * FROM context_variable WHERE breakpoint_id = 0")
+        r = c.fetchall()
+        assert len(r) == 2
+        c.execute("SELECT * FROM context_variable WHERE breakpoint_id = 1")
+        r = c.fetchall()
+        assert len(r) == 4
+        c.execute("SELECT * FROM context_variable WHERE breakpoint_id = 2")
+        r = c.fetchall()
+        assert len(r) == 5
+
+        conn.close()
+
+
 if __name__ == "__main__":
-    test_store_scope()
+    test_toml_scope_parsing()
