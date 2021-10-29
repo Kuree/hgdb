@@ -129,6 +129,12 @@ def write_out_local_scope(local_vars, db, breakpoint_index, fix_variable):
     # to create guess work any more
     # well we still need to compute the file name, since compilers such as Chisel doesn't give
     # proper names
+    # notice that local scope must specify line number range
+    if "#range" not in local_vars:
+        raise Exception("Local scope must specify line number range")
+    ln_min, ln_max = local_vars["#range"]
+    ln_range = range(ln_min, ln_max + 1)
+    local_vars.pop("#range")
     current_filename = get_filename(local_vars)
     if current_filename is None:
         # nothing to be done here
@@ -150,7 +156,7 @@ def write_out_local_scope(local_vars, db, breakpoint_index, fix_variable):
             bp_ln = int(bp_info[1])
             # notice that we don't do == since we assume when the breakpoint hits,
             # the variable hasn't been declared yet
-            if bp_ln > ln:
+            if bp_ln > ln and bp_ln in ln_range:
                 # it's a match
                 if bp_id not in breakpoint_ids:
                     breakpoint_ids.append(bp_id)

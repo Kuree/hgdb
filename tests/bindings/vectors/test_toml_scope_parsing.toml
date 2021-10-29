@@ -17,3 +17,4 @@ breakpoints = [
 "b" = ["io_b","mod1.sv 2:1"]
 "b0" = ["io_b","mod1.sv 2:2"]
 "c" = ["io_c","mod1.sv 5:1"]
+"#range" = [1, 8]
