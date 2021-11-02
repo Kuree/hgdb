@@ -179,7 +179,7 @@ def write_out_local_scope(local_vars, db, breakpoint_index, fix_variable):
     scope_count += 1
 
 
-def write_out_locals(local_vars, db, breakpoint_index, fix_variable):
+def write_out_locals(local_vars, db, breakpoint_index, fix_variable, detailed_local):
     global var_count
     # first pass to determine the actual filename
     # for some reason chisel inserts the original function
@@ -190,7 +190,7 @@ def write_out_locals(local_vars, db, breakpoint_index, fix_variable):
         return
     scope = []
     # if the line number different is more than this threshold
-    skip_line_threshold = 10
+    skip_line_threshold = 100 if detailed_local else 10
     # we hope that dictionary is in order, otherwise it's going to be bad, really bad
     if fix_variable:
         fix_variable_name(local_vars)
@@ -228,17 +228,31 @@ def write_out_locals(local_vars, db, breakpoint_index, fix_variable):
 
     # third pass to actually produce the table
     pre_ln = None
+    ln_set = set()
     for info, entries in targets.items():
-        breakpoint_id = breakpoint_index[info]
         ln = int(info[1])
-        if pre_ln is not None and (pre_ln - ln) > skip_line_threshold:
-            scope.clear()
-        pre_ln = ln
-        for entry in entries:
-            scope.append(entry)
-        for name, rtl_name in scope:
-            var_id = var_id_mapping[rtl_name]
-            db.store_context_variable(name, breakpoint_id, var_id)
+        fn = info[0]
+        for bp_info, breakpoint_id in breakpoint_index.items():
+            bp_ln = int(bp_info[1])
+            bp_fn = bp_info[0]
+            if bp_fn != fn:
+                continue
+            if bp_ln >= ln or (bp_ln - ln) > skip_line_threshold:
+                continue
+            # FIXME: change the implementation such that we define
+            #   a scope if not defined and then we add the variables up in the runtime
+            #   instead of storing them in the database
+            if not detailed_local and bp_ln in ln_set:
+                continue
+            ln_set.add(bp_ln)
+            if pre_ln is not None and (pre_ln - ln) > skip_line_threshold:
+                scope.clear()
+            pre_ln = ln
+            for entry in entries:
+                scope.append(entry)
+            for name, rtl_name in scope:
+                var_id = var_id_mapping[rtl_name]
+                db.store_context_variable(name, breakpoint_id, var_id)
 
 
 def write_out_variables(db, variables, fix_variables, prefix=""):
@@ -297,7 +311,7 @@ def write_out_design(def_name, inst_name, design_data, db, fix_variable, detaile
     # so again, we have to play with heuristics
     # we can approximate the scope as a hack
     if "locals" in def_data:
-        write_out_locals(def_data["locals"], db, breakpoint_index, fix_variable)
+        write_out_locals(def_data["locals"], db, breakpoint_index, fix_variable, detailed_def_name == def_name)
     # could be scoped as well
     local_id = 0
     while True:
