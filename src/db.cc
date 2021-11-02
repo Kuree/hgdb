@@ -13,15 +13,12 @@ DBSymbolTableProvider::DBSymbolTableProvider(const std::string &filename) {
     db_ = std::make_unique<DebugDatabase>(init_debug_db(filename));
     db_->sync_schema();
 
-    setup_execution_order();
     compute_use_base_name();
 }
 
 DBSymbolTableProvider::DBSymbolTableProvider(std::unique_ptr<DebugDatabase> db) {
     // this will transfer ownership
     db_ = std::move(db);
-    // NOLINTNEXTLINE
-    setup_execution_order();
     compute_use_base_name();
 }
 
@@ -320,23 +317,25 @@ std::optional<std::string> DBSymbolTableProvider::resolve_scoped_name_breakpoint
     return std::nullopt;
 }
 
-void DBSymbolTableProvider::setup_execution_order() {
+std::vector<uint32_t> DBSymbolTableProvider::execution_bp_orders() {
+    // NOLINTNEXTLINE
     auto scopes = db_->get_all<Scope>();
     if (scopes.empty()) {
-        build_execution_order_from_bp();
-        return;
+        return build_execution_order_from_bp();
     }
+    std::vector<uint32_t> result;
     for (auto const &scope : scopes) {
         auto const &ids = scope.breakpoints;
         auto id_tokens = util::get_tokens(ids, " ");
         for (auto const &s_id : id_tokens) {
             auto id = std::stoul(s_id);
-            execution_bp_orders_.emplace_back(id);
+            result.emplace_back(id);
         }
     }
+    return result;
 }
 
-void DBSymbolTableProvider::build_execution_order_from_bp() {
+std::vector<uint32_t> DBSymbolTableProvider::build_execution_order_from_bp() {
     // use map's ordered ability
     std::map<std::string, std::map<uint32_t, std::vector<uint32_t>>> bp_ids;
     std::lock_guard guard(db_lock_);
@@ -344,12 +343,14 @@ void DBSymbolTableProvider::build_execution_order_from_bp() {
     for (auto const &bp : bps) {
         bp_ids[bp.filename][bp.line_num].emplace_back(bp.id);
     }
+    std::vector<uint32_t> result;
     for (auto &iter : bp_ids) {
-        execution_bp_orders_.reserve(execution_bp_orders_.size() + iter.second.size());
+        result.reserve(result.size() + iter.second.size());
         for (auto const &iter_ : iter.second) {
-            for (auto const bp : iter_.second) execution_bp_orders_.emplace_back(bp);
+            for (auto const bp : iter_.second) result.emplace_back(bp);
         }
     }
+    return result;
 }
 
 void DBSymbolTableProvider::compute_use_base_name() {

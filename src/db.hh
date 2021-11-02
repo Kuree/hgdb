@@ -48,10 +48,7 @@ public:
     [[nodiscard]] std::optional<std::string> resolve_scoped_name_instance(
         const std::string &scoped_name, uint64_t instance_id) override;
 
-    // accessors
-    [[nodiscard]] const std::vector<uint32_t> &execution_bp_orders() override {
-        return execution_bp_orders_;
-    }
+    [[nodiscard]] std::vector<uint32_t> execution_bp_orders() override;
     [[nodiscard]] bool use_base_name() const { return use_base_name_; }
 
 private:
@@ -60,13 +57,8 @@ private:
     std::mutex db_lock_;
 
     bool use_base_name_ = false;
-
-    // we compute the execution order as we initialize the client, which is defined by the scope
-    std::vector<uint32_t> execution_bp_orders_;
-
-    void setup_execution_order();
     // scope table not provided - build from heuristics
-    void build_execution_order_from_bp();
+    std::vector<uint32_t> build_execution_order_from_bp();
 
     void compute_use_base_name();
 };

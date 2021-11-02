@@ -11,9 +11,9 @@ Scheduler::Scheduler(RTLSimulatorClient *rtl, SymbolTableProvider *db,
     : rtl_(rtl), db_(db), single_thread_mode_(single_thread_mode), log_enabled_(log_enabled) {
     // compute the look up table
     log_info("Compute breakpoint look up table");
-    auto const &bp_ordering = db_->execution_bp_orders();
-    for (auto i = 0u; i < bp_ordering.size(); i++) {
-        bp_ordering_table_.emplace(bp_ordering[i], i);
+    bp_ordering_ = db_->execution_bp_orders();
+    for (auto i = 0u; i < bp_ordering_.size(); i++) {
+        bp_ordering_table_.emplace(bp_ordering_[i], i);
     }
 
     // compute clock signals
@@ -57,18 +57,17 @@ std::vector<DebugBreakPoint *> Scheduler::next_breakpoints() {
 
 DebugBreakPoint *Scheduler::next_step_over_breakpoint() {
     // need to get the actual ordering table
-    auto const &orders = db_->execution_bp_orders();
     std::optional<uint32_t> next_breakpoint_id;
     if (!current_breakpoint_id_) [[unlikely]] {
         // need to grab the first one, doesn't matter which one
-        if (!orders.empty()) next_breakpoint_id = orders[0];
+        if (!bp_ordering_.empty()) next_breakpoint_id = bp_ordering_[0];
     } else {
         auto current_id = *current_breakpoint_id_;
-        auto pos = std::find(orders.begin(), orders.end(), current_id);
-        if (pos != orders.end()) {
-            auto index = static_cast<uint64_t>(std::distance(orders.begin(), pos));
-            if (index != (orders.size() - 1)) {
-                next_breakpoint_id = orders[index + 1];
+        auto pos = std::find(bp_ordering_.begin(), bp_ordering_.end(), current_id);
+        if (pos != bp_ordering_.end()) {
+            auto index = static_cast<uint64_t>(std::distance(bp_ordering_.begin(), pos));
+            if (index != (bp_ordering_.size() - 1)) {
+                next_breakpoint_id = bp_ordering_[index + 1];
             }
         }
     }
@@ -126,18 +125,16 @@ std::vector<DebugBreakPoint *> Scheduler::next_normal_breakpoints() {
 }
 
 DebugBreakPoint *Scheduler::next_step_back_breakpoint() {
-    // need to get the actual ordering table
-    auto const &orders = db_->execution_bp_orders();
     std::optional<uint32_t> next_breakpoint_id;
     if (!current_breakpoint_id_) [[unlikely]] {
         // can't roll back if the current breakpoint id is not set
         return nullptr;
     } else {
         auto current_id = *current_breakpoint_id_;
-        auto pos = std::find(orders.begin(), orders.end(), current_id);
-        auto index = static_cast<uint64_t>(std::distance(orders.begin(), pos));
+        auto pos = std::find(bp_ordering_.begin(), bp_ordering_.end(), current_id);
+        auto index = static_cast<uint64_t>(std::distance(bp_ordering_.begin(), pos));
         if (index != 0) {
-            next_breakpoint_id = orders[index - 1];
+            next_breakpoint_id = bp_ordering_[index - 1];
         } else {
             // you get stuck at this breakpoint since we can't technically go back any
             // more
@@ -147,10 +144,10 @@ DebugBreakPoint *Scheduler::next_step_back_breakpoint() {
             auto const &handles = clock_handles_;
             if (rtl_->reverse_last_posedge(handles)) {
                 // we successfully reverse the time
-                next_breakpoint_id = orders.back();
+                next_breakpoint_id = bp_ordering_.back();
             } else {
                 // fail to reverse time, use the first one
-                next_breakpoint_id = orders[0];
+                next_breakpoint_id = bp_ordering_[0];
             }
         }
     }

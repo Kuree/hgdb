@@ -317,22 +317,17 @@ public:
     }
 
     // accessors
-    [[nodiscard]] const std::vector<uint32_t> &execution_bp_orders() override {
-        // will be cached to avoid network round trip
-        if (execution_bp_orders_.empty()) {
-            SymbolRequest req(SymbolRequest::request_type::get_execution_bp_orders);
-            auto resp = get_resp(req);
-            execution_bp_orders_ = resp.uint64_t_results;
-        }
-        return execution_bp_orders_;
+    [[nodiscard]] std::vector<uint32_t> execution_bp_orders() override {
+        // this function is only called once
+        SymbolRequest req(SymbolRequest::request_type::get_execution_bp_orders);
+        auto resp = get_resp(req);
+        return resp.uint64_t_results;
     }
 
     ~NetworkSymbolTableProvider() override = default;
 
 private:
     std::unique_ptr<NetworkProvider> network_;
-
-    std::vector<uint32_t> execution_bp_orders_;
 
     hgdb::SymbolResponse get_resp(const hgdb::SymbolRequest &req) {
         SymbolResponse resp(req.req_type());

@@ -62,6 +62,7 @@ private:
     std::unordered_set<uint32_t> inserted_breakpoints_;
     // look up table for ordering of breakpoints
     std::unordered_map<uint32_t, uint64_t> bp_ordering_table_;
+    std::vector<uint32_t> bp_ordering_;
     // need to ensure there is no concurrent modification
     std::mutex breakpoint_lock_;
     // holder for step over breakpoint, not used for normal purpose

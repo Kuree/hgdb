@@ -47,7 +47,7 @@ public:
         const std::string &scoped_name, uint64_t instance_id) = 0;
 
     // accessors
-    [[nodiscard]] virtual const std::vector<uint32_t> &execution_bp_orders() = 0;
+    [[nodiscard]] virtual std::vector<uint32_t> execution_bp_orders() = 0;
 
 protected:
     [[nodiscard]] bool has_src_remap() const { return !src_remap_.empty(); }
