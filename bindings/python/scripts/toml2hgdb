@@ -2,6 +2,7 @@
 
 import argparse
 import collections
+import fnmatch
 import os
 import sys
 
@@ -20,7 +21,7 @@ def get_args():
     parser.add_argument("--disable-firrtl-fix", action="store_true", dest="disable_firrtl_fix",
                         help="If set, no symbol mapping fix will be performed")
     parser.add_argument("--detail", help="If set, creates variables for child instances as well",
-                        type=str, default="", required=False)
+                        type=str, nargs='+', required=False)
     args = parser.parse_args()
     if not os.path.exists(args.input):
         print(args.input, "does not exist", file=sys.stderr)
@@ -28,6 +29,15 @@ def get_args():
     if os.path.exists(args.output):
         os.remove(args.output)
     return args
+
+
+def match_name(def_name, detail_names):
+    if detail_names is None:
+        return False
+    for n in detail_names:
+        if fnmatch.fnmatch(def_name, n):
+            return True
+    return False
 
 
 def parse_toml(toml_filename):
@@ -267,7 +277,7 @@ def write_out_variables(db, variables, fix_variables, prefix=""):
         var_count += 1
 
 
-def write_out_design(def_name, inst_name, design_data, db, fix_variable, detailed_def_name):
+def write_out_design(def_name, inst_name, design_data, db, fix_variable, detailed_def_names):
     # this is recursive. no compression so far
     global var_count, breakpoint_id_count, instance_count
     db.store_instance(instance_count, inst_name)
@@ -275,7 +285,7 @@ def write_out_design(def_name, inst_name, design_data, db, fix_variable, detaile
     # create variable
     if "variables" in def_data:
         write_out_variables(db, def_data["variables"], fix_variable)
-        if def_name == detailed_def_name and "instances" in def_data:
+        if match_name(def_name, detailed_def_names) and "instances" in def_data:
             instances = def_data["instances"]
             for inst_name, d_name in instances.items():
                 inst_def = design_data[d_name]
@@ -311,7 +321,8 @@ def write_out_design(def_name, inst_name, design_data, db, fix_variable, detaile
     # so again, we have to play with heuristics
     # we can approximate the scope as a hack
     if "locals" in def_data:
-        write_out_locals(def_data["locals"], db, breakpoint_index, fix_variable, detailed_def_name == def_name)
+        write_out_locals(def_data["locals"], db, breakpoint_index, fix_variable,
+                         match_name(def_name, detailed_def_names))
     # could be scoped as well
     local_id = 0
     while True:
@@ -324,7 +335,7 @@ def write_out_design(def_name, inst_name, design_data, db, fix_variable, detaile
     # recursively call the child instances
     if "instances" in def_data:
         for i_name, d_name in def_data["instances"].items():
-            write_out_design(d_name, f"{inst_name}.{i_name}", design_data, db, fix_variable, detailed_def_name)
+            write_out_design(d_name, f"{inst_name}.{i_name}", design_data, db, fix_variable, detailed_def_names)
 
 
 def main():
@@ -335,7 +346,7 @@ def main():
     for top_name in tops:
         db.begin_transaction()
         write_out_design(top_name, top_name, design, db, not args.disable_firrtl_fix,
-                         detailed_def_name=args.detail)
+                         detailed_def_names=args.detail)
         db.end_transaction()
 
 
