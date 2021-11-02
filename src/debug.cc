@@ -12,6 +12,8 @@ namespace fs = std::filesystem;
 
 constexpr auto DISABLE_BLOCKING_ENV = "DEBUG_DISABLE_BLOCKING";
 constexpr auto DATABASE_FILENAME_ENV = "DEBUG_DATABASE_FILENAME";
+constexpr auto DEBUG_LOGGING_ENV = "DEBUG_HGDB_LOG";
+constexpr auto DEBUG_LOG_PLUS_ARG = "DEBUG_LOG";
 
 namespace hgdb {
 Debugger::Debugger() : Debugger(nullptr) {}
@@ -335,7 +337,8 @@ bool Debugger::get_test_plus_arg(const std::string &arg_name, bool check_env) {
 }
 
 bool Debugger::get_logging() {
-    auto logging = get_test_plus_arg("DEBUG_LOG");
+    auto logging =
+        get_test_plus_arg(DEBUG_LOGGING_ENV, true) || get_test_plus_arg(DEBUG_LOG_PLUS_ARG);
     return logging ? true : default_logging;  // NOLINT
 }
 
