@@ -116,7 +116,23 @@ def fix_variable_name(variables):
         variables[name] = entry
 
 
-def get_filename(local_vars):
+def levenshtein_distance(s1, s2):
+    if len(s1) > len(s2):
+        s1, s2 = s2, s1
+
+    distances = range(len(s1) + 1)
+    for i2, c2 in enumerate(s2):
+        distances_ = [i2+1]
+        for i1, c1 in enumerate(s1):
+            if c1 == c2:
+                distances_.append(distances[i1])
+            else:
+                distances_.append(1 + min((distances[i1], distances[i1 + 1], distances_[-1])))
+        distances = distances_
+    return distances[-1]
+
+
+def get_filename(def_name, local_vars):
     filename_count = {}
     for entry in local_vars.values():
         info = entry[-1]
@@ -124,16 +140,28 @@ def get_filename(local_vars):
         if filename not in filename_count:
             filename_count[filename] = 0
         filename_count[filename] += 1
-    current_filename = None
-    count = 0
+    filename_counts = []
     for n, c in filename_count.items():
-        if c > count:
-            current_filename = n
-            count = c
-    return current_filename
+        filename_counts.append((n, c))
+    filename_counts.sort(key=lambda x: x[-1])
+    # if there is only one
+    # we are good
+    if len(filename_counts) == 1:
+        return filename_counts[0][0]
+    # pick top 2
+    targets = filename_counts[-2:]
+    # compute the edit distance
+
+    target_dist = []
+    for n, _ in targets:
+        dist = levenshtein_distance(def_name, n)
+        target_dist.append((n, dist))
+    # use the one with smallest distance
+    target_dist.sort(key=lambda x: x[-1])
+    return target_dist[0][0]
 
 
-def write_out_local_scope(local_vars, db, breakpoint_index, fix_variable):
+def write_out_local_scope(def_name, local_vars, db, breakpoint_index, fix_variable):
     global var_count, scope_count
     # since the compiler already gives us the scope information, we don't need
     # to create guess work any more
@@ -145,7 +173,7 @@ def write_out_local_scope(local_vars, db, breakpoint_index, fix_variable):
     ln_min, ln_max = local_vars["#range"]
     ln_range = range(ln_min, ln_max + 1)
     local_vars.pop("#range")
-    current_filename = get_filename(local_vars)
+    current_filename = get_filename(def_name, local_vars)
     if current_filename is None:
         # nothing to be done here
         return
@@ -189,18 +217,18 @@ def write_out_local_scope(local_vars, db, breakpoint_index, fix_variable):
     scope_count += 1
 
 
-def write_out_locals(local_vars, db, breakpoint_index, fix_variable, detailed_local):
+def write_out_locals(def_name, local_vars, db, breakpoint_index, fix_variable, detailed_local):
     global var_count
     # first pass to determine the actual filename
     # for some reason chisel inserts the original function
     # call file info
-    current_filename = get_filename(local_vars)
+    current_filename = get_filename(def_name, local_vars)
     if current_filename is None:
         # nothing to be done here
         return
     scope = []
     # if the line number different is more than this threshold
-    skip_line_threshold = 100 if detailed_local else 10
+    skip_line_threshold = 10000 if detailed_local else 10
     # we hope that dictionary is in order, otherwise it's going to be bad, really bad
     if fix_variable:
         fix_variable_name(local_vars)
@@ -236,13 +264,19 @@ def write_out_locals(local_vars, db, breakpoint_index, fix_variable, detailed_lo
         var_id_mapping[rtl_name] = var_count
         var_count += 1
 
+    # reorder breakpoint index based on line number. I believe this is due to different nodes in FIRRTL?
+    breakpoint_index_ = []
+    for bp_info, breakpoint_id in breakpoint_index.items():
+        breakpoint_index_.append((bp_info, breakpoint_id))
+    breakpoint_index_.sort(key=lambda x: int(x[0][1]))
+
     # third pass to actually produce the table
     pre_ln = None
     ln_set = set()
     for info, entries in targets.items():
         ln = int(info[1])
         fn = info[0]
-        for bp_info, breakpoint_id in breakpoint_index.items():
+        for bp_info, breakpoint_id in breakpoint_index_:
             bp_ln = int(bp_info[1])
             bp_fn = bp_info[0]
             if bp_fn != fn:
@@ -321,7 +355,7 @@ def write_out_design(def_name, inst_name, design_data, db, fix_variable, detaile
     # so again, we have to play with heuristics
     # we can approximate the scope as a hack
     if "locals" in def_data:
-        write_out_locals(def_data["locals"], db, breakpoint_index, fix_variable,
+        write_out_locals(def_name, def_data["locals"], db, breakpoint_index, fix_variable,
                          match_name(def_name, detailed_def_names))
     # could be scoped as well
     local_id = 0
@@ -329,7 +363,7 @@ def write_out_design(def_name, inst_name, design_data, db, fix_variable, detaile
         local_name = "locals" + str(local_id)
         if local_name not in def_data:
             break
-        write_out_local_scope(def_data[local_name], db, breakpoint_index, fix_variable)
+        write_out_local_scope(def_name, def_data[local_name], db, breakpoint_index, fix_variable)
         local_id += 1
 
     # recursively call the child instances
