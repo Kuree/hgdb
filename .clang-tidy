@@ -180,5 +180,7 @@ CheckOptions:
     value:           '0'
   - key:             modernize-use-using.IgnoreMacros
     value:           '1'
+  - key:             readability-identifier-length.MinimumVariableNameLength
+    value:           '0'
 ...
 
