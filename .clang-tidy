@@ -182,5 +182,9 @@ CheckOptions:
     value:           '1'
   - key:             readability-identifier-length.MinimumVariableNameLength
     value:           '0'
+  - key:             readability-identifier-length.MinimumParameterNameLength
+    value:           '0'
+  - key:             bugprone-easily-swappable-parameters.MinimumLength
+    value:           '4'
 ...
 
