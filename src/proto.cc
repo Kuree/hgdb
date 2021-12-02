@@ -107,6 +107,12 @@ namespace hgdb {
  *     breakpoint_id: [optional] - uint64_t
  * # instance_id and breakpoint_id can be used to scope var_name
  *
+ * Data Breakpoint Request
+ * type: data_breakpoint
+ * payload:
+ *     action: [required] - string, of "add", "clear"
+ *     var_name: [required for add] - string
+ *     breakpoint: [required for add] - uint64_t
  *
  * Generic Response
  * type: generic
@@ -241,6 +247,8 @@ std::string to_string(RequestType type) noexcept {
             return "set-value";
         case RequestType::symbol:
             return "symbol";
+        case RequestType::data_breakpoint:
+            return "data-breakpoint";
     }
     return "error";
 }
@@ -582,6 +590,8 @@ std::unique_ptr<Request> Request::parse_request(const std::string &str) {
         result = std::make_unique<MonitorRequest>();
     } else if (type_str == "set-value") {
         result = std::make_unique<SetValueRequest>();
+    } else if (type_str == "data-breakpoint") {
+        result = std::make_unique<DataBreakpointRequest>();
     } else {
         result = std::make_unique<ErrorRequest>("Unknown request");
     }
@@ -1013,6 +1023,39 @@ std::string SymbolRequest::str() const {
     }
     set_member(document, "payload", payload);
     return to_string(document, false);
+}
+
+void DataBreakpointRequest::parse_payload(const std::string &payload) {
+    using namespace rapidjson;
+    Document document;
+    document.Parse(payload.c_str());
+    if (!check_json(document, status_code_, error_reason_)) return;
+
+    auto action = get_member<std::string>(document, "action", error_reason_);
+    if (!action) {
+        status_code_ = status_code::error;
+        error_reason_ = "action not defined";
+        return;
+    }
+
+    if (action == "clear") {
+        action_ = Action::clear;
+    } else {
+        if (action != "add") {
+            status_code_ = status_code::error;
+            error_reason_ = "Only 'add' or 'clear' allowed";
+            return;
+        }
+
+        auto var_name_opt = get_member<std::string>(document, "var_name", error_reason_);
+        auto bp_id_opt = get_member<uint64_t>(document, "breakpoint_id", error_reason_);
+        if (!bp_id_opt || !var_name_opt) {
+            status_code_ = status_code::error;
+            return;
+        }
+        variable_name_ = *var_name_opt;
+        breakpoint_id_ = *bp_id_opt;
+    }
 }
 
 template <typename T>

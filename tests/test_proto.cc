@@ -349,6 +349,29 @@ TEST(proto, set_value_request) { // NOLINT
     EXPECT_EQ(*req->breakpoint_id(), 44);
 }
 
+
+TEST(proto, data_breakpoint_request) { // NOLINT
+    const auto *req_str = R"({
+    "request": true,
+    "type": "data-breakpoint",
+    "payload": {
+        "var_name": "a",
+        "action": "add",
+        "breakpoint_id": 42
+    }
+}
+)";
+    auto r = hgdb::Request::parse_request(req_str);
+    EXPECT_EQ(r->status(), hgdb::status_code::success);
+    auto *req = dynamic_cast<hgdb::DataBreakpointRequest *>(r.get());
+    EXPECT_NE(req, nullptr);
+
+    EXPECT_EQ(req->var_name(), "a");
+    EXPECT_EQ(req->breakpoint_id(), 42);
+    EXPECT_EQ(req->action(), hgdb::DataBreakpointRequest::Action::add);
+}
+
+
 TEST(proto, generic_response) {  // NOLINT
     auto res =
         hgdb::GenericResponse(hgdb::status_code::error, hgdb::RequestType::error, "TEST_ERROR");

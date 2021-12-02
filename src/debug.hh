@@ -117,6 +117,7 @@ private:
     void handle_set_value(const SetValueRequest &req, uint64_t conn_id);
     void handle_error(const ErrorRequest &req, uint64_t conn_id);
     void handle_symbol(const SymbolRequest &req, uint64_t conn_id);
+    void handle_data_breakpoint(const DataBreakpointRequest &req, uint64_t conn_id);
 
     // send functions
     void send_breakpoint_hit(const std::vector<const DebugBreakPoint *> &bps);

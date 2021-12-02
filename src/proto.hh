@@ -25,7 +25,8 @@ enum class RequestType {
     option_change,
     monitor,
     set_value,
-    symbol
+    symbol,
+    data_breakpoint
 };
 
 [[nodiscard]] std::string to_string(RequestType type) noexcept;
@@ -360,6 +361,23 @@ public:
 
 private:
     request_type req_type_;
+};
+
+class DataBreakpointRequest : public Request {
+public:
+    enum class Action { add, clear };
+    DataBreakpointRequest() = default;
+    void parse_payload(const std::string &payload) override;
+    [[nodiscard]] RequestType type() const override { return RequestType::data_breakpoint; }
+
+    [[nodiscard]] uint64_t breakpoint_id() const { return breakpoint_id_; }
+    [[nodiscard]] const std::string &var_name() const { return variable_name_; }
+    [[nodiscard]] Action action() const { return action_; }
+
+private:
+    uint64_t breakpoint_id_ = 0;
+    std::string variable_name_;
+    Action action_ = Action::add;
 };
 
 class DebuggerInformationResponse : public Response {
