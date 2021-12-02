@@ -1055,6 +1055,12 @@ void DataBreakpointRequest::parse_payload(const std::string &payload) {
         }
         variable_name_ = *var_name_opt;
         breakpoint_id_ = *bp_id_opt;
+
+        // condition can be null
+        auto condition_opt = get_member<std::string>(document, "condition", error_reason_, false);
+        if (condition_opt) {
+            condition_ = *condition_opt;
+        }
     }
 }
 

@@ -24,6 +24,12 @@ struct DebugBreakPoint {
     std::unordered_map<std::string, int64_t> trigger_values;
 };
 
+struct DataBreakPoint {
+    uint64_t id;
+    std::unique_ptr<DebugExpression> var;
+    DebugBreakPoint bp;
+};
+
 class Scheduler {
 public:
     Scheduler(RTLSimulatorClient *rtl, SymbolTableProvider *db, const bool &single_thread_mode,
@@ -35,6 +41,8 @@ public:
     DebugBreakPoint *next_step_back_breakpoint();
     std::vector<DebugBreakPoint *> next_reverse_breakpoints();
     void start_breakpoint_evaluation();
+    [[nodiscard]] std::vector<DataBreakPoint *> get_data_breakpoints() const;
+    [[nodiscard]] uint64_t num_data_breakpoints() const { return data_breakpoints_.size(); }
 
     // change scheduling semantics
     void set_evaluation_mode(EvaluationMode mode);
@@ -46,6 +54,9 @@ public:
     void remove_breakpoint(const BreakPoint &bp);
     // getter. not exposing all the information
     std::vector<BreakPoint> get_current_breakpoints();
+    bool add_data_breakpoint(const std::string &var_name, const std::string &expression,
+                             const BreakPoint &db_bp);
+    void clear_data_breakpoints();
 
     // breakpoint mode
     bool breakpoint_only() const;
@@ -67,6 +78,8 @@ private:
     std::mutex breakpoint_lock_;
     // holder for step over breakpoint, not used for normal purpose
     DebugBreakPoint next_temp_breakpoint_;
+    // used for data breakpoint
+    std::unordered_map<uint64_t, std::unique_ptr<DataBreakPoint>> data_breakpoints_;
 
     // get it from the debugger. no ownership
     RTLSimulatorClient *rtl_;

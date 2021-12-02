@@ -372,11 +372,13 @@ public:
 
     [[nodiscard]] uint64_t breakpoint_id() const { return breakpoint_id_; }
     [[nodiscard]] const std::string &var_name() const { return variable_name_; }
+    [[nodiscard]] const std::string &condition() const { return condition_; }
     [[nodiscard]] Action action() const { return action_; }
 
 private:
     uint64_t breakpoint_id_ = 0;
     std::string variable_name_;
+    std::string condition_;
     Action action_ = Action::add;
 };
 
