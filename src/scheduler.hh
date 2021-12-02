@@ -10,24 +10,27 @@
 namespace hgdb {
 
 struct DebugBreakPoint {
-    uint32_t id;
-    uint32_t instance_id;
+    enum class Type { normal = 1 << 0, data = 1 << 1 };
+    uint32_t id = 0;
+    uint32_t instance_id = 0;
     std::unique_ptr<DebugExpression> expr;
     std::unique_ptr<DebugExpression> enable_expr;
     std::string filename;
-    uint32_t line_num;
-    uint32_t column_num;
+    uint32_t line_num = 0;
+    uint32_t column_num = 0;
     // this is to match with the always_comb semantics
     // first table stores the overall symbols that triggers
     // second table stores the seen value
     std::vector<std::string> trigger_symbols;
     std::unordered_map<std::string, int64_t> trigger_values;
-};
 
-struct DataBreakPoint {
-    uint64_t id;
-    std::unique_ptr<DebugExpression> var;
-    DebugBreakPoint bp;
+    // used for data breakpoint
+    Type type = Type::normal;
+    std::unique_ptr<DebugExpression> variable;
+
+    [[nodiscard]] inline bool has_type_flag(Type type_) const {
+        return static_cast<uint64_t>(type) & static_cast<uint64_t>(type_);
+    }
 };
 
 class Scheduler {
@@ -41,21 +44,20 @@ public:
     DebugBreakPoint *next_step_back_breakpoint();
     std::vector<DebugBreakPoint *> next_reverse_breakpoints();
     void start_breakpoint_evaluation();
-    [[nodiscard]] std::vector<DataBreakPoint *> get_data_breakpoints() const;
-    [[nodiscard]] uint64_t num_data_breakpoints() const { return data_breakpoints_.size(); }
 
     // change scheduling semantics
     void set_evaluation_mode(EvaluationMode mode);
     void clear();
 
     // handle breakpoints
-    void add_breakpoint(const BreakPoint &bp_info, const BreakPoint &db_bp);
+    DebugBreakPoint *add_breakpoint(const BreakPoint &bp_info, const BreakPoint &db_bp,
+                                    DebugBreakPoint::Type bp_type = DebugBreakPoint::Type::normal);
     void reorder_breakpoints();
     void remove_breakpoint(const BreakPoint &bp);
     // getter. not exposing all the information
     std::vector<BreakPoint> get_current_breakpoints();
-    bool add_data_breakpoint(const std::string &var_name, const std::string &expression,
-                             const BreakPoint &db_bp);
+    DebugBreakPoint *add_data_breakpoint(const std::string &var_name, const std::string &expression,
+                                         const BreakPoint &db_bp);
     void clear_data_breakpoints();
 
     // breakpoint mode
@@ -78,8 +80,6 @@ private:
     std::mutex breakpoint_lock_;
     // holder for step over breakpoint, not used for normal purpose
     DebugBreakPoint next_temp_breakpoint_;
-    // used for data breakpoint
-    std::unordered_map<uint64_t, std::unique_ptr<DataBreakPoint>> data_breakpoints_;
 
     // get it from the debugger. no ownership
     RTLSimulatorClient *rtl_;

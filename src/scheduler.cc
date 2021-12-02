@@ -241,16 +241,6 @@ void Scheduler::start_breakpoint_evaluation() {
     current_breakpoint_id_ = std::nullopt;
 }
 
-std::vector<DataBreakPoint *> Scheduler::get_data_breakpoints() const {
-    std::vector<DataBreakPoint *> result;
-    result.reserve(data_breakpoints_.size());
-    for (auto const &iter : data_breakpoints_) {
-        result.emplace_back(iter.second.get());
-    }
-
-    return result;
-}
-
 void Scheduler::set_evaluation_mode(EvaluationMode mode) {
     if (evaluation_mode_ != mode) {
         evaluated_ids_.clear();
@@ -261,7 +251,6 @@ void Scheduler::set_evaluation_mode(EvaluationMode mode) {
 void Scheduler::clear() {
     inserted_breakpoints_.clear();
     breakpoints_.clear();
-    data_breakpoints_.clear();
 }
 
 // functions that compute the trigger values
@@ -271,7 +260,8 @@ std::vector<std::string> compute_trigger_symbol(const BreakPoint &bp) {
     return tokens;
 }
 
-void Scheduler::add_breakpoint(const BreakPoint &bp_info, const BreakPoint &db_bp) {
+DebugBreakPoint *Scheduler::add_breakpoint(const BreakPoint &bp_info, const BreakPoint &db_bp,
+                                           DebugBreakPoint::Type bp_type) {
     // add them to the eval vector
     std::string cond = "1";
     if (!db_bp.condition.empty()) cond = db_bp.condition;
@@ -289,18 +279,20 @@ void Scheduler::add_breakpoint(const BreakPoint &bp_info, const BreakPoint &db_b
         bp->line_num = db_bp.line_num;
         bp->column_num = db_bp.column_num;
         bp->trigger_symbols = compute_trigger_symbol(db_bp);
-        breakpoints_.emplace_back(std::move(bp));
+        bp->type = bp_type;
+        auto &ptr = breakpoints_.emplace_back(std::move(bp));
         inserted_breakpoints_.emplace(db_bp.id);
-        util::validate_expr(rtl_, db_, breakpoints_.back()->expr.get(), db_bp.id,
-                            *db_bp.instance_id);
+        util::validate_expr(rtl_, db_, ptr->expr.get(), db_bp.id, *db_bp.instance_id);
         if (!breakpoints_.back()->expr->correct()) [[unlikely]] {
             log_error("Unable to validate breakpoint expression: " + cond);
+            return nullptr;
         }
-        util::validate_expr(rtl_, db_, breakpoints_.back()->enable_expr.get(), db_bp.id,
-                            *db_bp.instance_id);
-        if (!breakpoints_.back()->enable_expr->correct()) [[unlikely]] {
+        util::validate_expr(rtl_, db_, ptr->enable_expr.get(), db_bp.id, *db_bp.instance_id);
+        if (!ptr->enable_expr->correct()) [[unlikely]] {
             log_error("Unable to validate breakpoint expression: " + cond);
+            return nullptr;
         }
+        return ptr.get();
     } else {
         // update breakpoint entry
         for (auto &b : breakpoints_) {
@@ -310,56 +302,56 @@ void Scheduler::add_breakpoint(const BreakPoint &bp_info, const BreakPoint &db_b
                 if (!b->expr->correct()) [[unlikely]] {
                     log_error("Unable to validate breakpoint expression: " + cond);
                 }
-                return;
+                // need to update the bp type flag
+                b->type = static_cast<DebugBreakPoint::Type>(static_cast<int>(b->type) |
+                                                             static_cast<int>(bp_type));
+                return b.get();
             }
         }
+        return nullptr;
     }
 }
 
-bool Scheduler::add_data_breakpoint(const std::string &var_name, const std::string &expression,
-                                    const BreakPoint &db_bp) {
-    log_info(fmt::format("Data breakpoint {0} inserted into {1}:{2}", expression, db_bp.filename,
-                         db_bp.line_num));
-    // need to make sure it's a valid expression
-    std::string cond = "1";
-    if (!expression.empty()) cond = expression;
-    if (!db_bp.condition.empty()) cond = cond + " && " + db_bp.condition;
-    auto bp = std::make_unique<DataBreakPoint>();
-    bp->bp.id = db_bp.id;
-    bp->bp.instance_id = *db_bp.instance_id;
-    // we don't need to distinguish between normal expr and the actual enable condition since there
-    // is no conditional breakpoint
-    bp->bp.expr = nullptr;
-    bp->bp.enable_expr = std::make_unique<DebugExpression>(cond);
-    bp->bp.filename = db_bp.filename;
-    bp->bp.line_num = db_bp.line_num;
-    bp->bp.column_num = db_bp.column_num;
-    bp->bp.trigger_symbols = compute_trigger_symbol(db_bp);
-
-    util::validate_expr(rtl_, db_, bp->bp.enable_expr.get(), db_bp.id, *db_bp.instance_id);
-
-    if (!bp->bp.enable_expr->correct()) {
-        log_error("Unable to validate breakpoint expression: " + cond);
-        return false;
+DebugBreakPoint *Scheduler::add_data_breakpoint(const std::string &var_name,
+                                                const std::string &expression,
+                                                const BreakPoint &db_bp) {
+    // we use the same add breakpoint function with different flags on
+    BreakPoint bp;
+    bp.condition = expression;
+    auto *data_bp = add_breakpoint(bp, db_bp, DebugBreakPoint::Type::data);
+    if (!data_bp) return nullptr;
+    data_bp->variable = std::make_unique<DebugExpression>(var_name);
+    util::validate_expr(rtl_, db_, data_bp->variable.get(), db_bp.id, *db_bp.instance_id);
+    if (!data_bp->variable->correct()) {
+        log_error("Unable to validate variable in data breakpoint: " + var_name);
+        return nullptr;
     }
-
-    // need to validate the var expression as well
-    bp->var = std::make_unique<DebugExpression>(var_name);
-    util::validate_expr(rtl_, db_, bp->var.get(), db_bp.id, *db_bp.instance_id);
-    if (!bp->var->correct()) {
-        log_error("Unable to validate data breakpoint variable " + var_name);
-        return false;
-    }
-
-    std::lock_guard guard(breakpoint_lock_);
-    bp->id = data_breakpoints_.size();
-    data_breakpoints_.emplace(bp->id, std::move(bp));
-    return true;
+    return data_bp;
 }
 
 void Scheduler::clear_data_breakpoints() {
     std::lock_guard guard(breakpoint_lock_);
-    data_breakpoints_.clear();
+    // if it has both data breakpoints and normal breakpoints, clear the flag
+    // else remove this breakpoint
+    std::unordered_set<uint32_t> bps;
+    for (auto &bp : breakpoints_) {
+        if (bp->has_type_flag(DebugBreakPoint::Type::data)) {
+            if (bp->has_type_flag(DebugBreakPoint::Type::normal)) {
+                bp->type = DebugBreakPoint::Type::normal;
+            } else {
+                // remove this breakpoint
+                bps.emplace(bp->id);
+            }
+        }
+    }
+    for (auto id : bps) {
+        auto pos = std::find_if(breakpoints_.begin(), breakpoints_.end(),
+                                [id](auto const &bp) { return bp->id == id; });
+        if (pos != breakpoints_.end()) {
+            breakpoints_.erase(pos);
+            inserted_breakpoints_.erase(id);
+        }
+    }
 }
 
 void Scheduler::reorder_breakpoints() {
