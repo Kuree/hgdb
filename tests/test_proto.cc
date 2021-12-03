@@ -444,7 +444,6 @@ TEST(proto, breakpoint_response) {  // NOLINT
     scope.add_local_value("d", "5");
     res.add_scope(scope);
     auto s = res.str(true);
-    printf("%s\n", s.c_str());
     constexpr auto expected_value = R"({
     "request": false,
     "type": "breakpoint",

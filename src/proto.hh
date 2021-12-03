@@ -103,6 +103,7 @@ public:
         uint64_t instance_id;
         uint64_t breakpoint_id;
         std::string instance_name;
+        std::string bp_type;
         std::map<std::string, std::string> local_values;
         std::map<std::string, std::string> generator_values;
 

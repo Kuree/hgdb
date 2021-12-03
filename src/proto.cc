@@ -396,6 +396,10 @@ std::string BreakPointResponse::str(bool pretty_print) const {
         set_member(entry, allocator, "local", scope.local_values);
         set_member(entry, allocator, "generator", scope.generator_values);
 
+        if (!scope.bp_type.empty()) {
+            set_member(entry, allocator, "bp_type", scope.bp_type);
+        }
+
         instances.PushBack(entry, allocator);
     }
     set_member(payload, allocator, "instances", instances);

@@ -850,7 +850,7 @@ void Debugger::handle_data_breakpoint(const DataBreakpointRequest &req, uint64_t
 }
 
 void Debugger::send_breakpoint_hit(const std::vector<const DebugBreakPoint *> &bps) {
-    // we send it here to avoid a round trip of client asking for context and send send it
+    // we send it here to avoid a round trip of client asking for context and send it
     // back
     auto const *first_bp = bps.front();
     BreakPointResponse resp(rtl_->get_simulation_time(), first_bp->filename, first_bp->line_num,
@@ -865,6 +865,14 @@ void Debugger::send_breakpoint_hit(const std::vector<const DebugBreakPoint *> &b
         auto instance_name_str = instance_name ? *instance_name : "";
 
         BreakPointResponse::Scope scope(bp->instance_id, instance_name_str, bp_id);
+        switch (bp->type) {
+            case DebugBreakPoint::Type::normal:
+                scope.bp_type = "normal";
+                break;
+            case DebugBreakPoint::Type::data:
+                scope.bp_type = "data";
+                break;
+        }
 
         using namespace std::string_literals;
         for (auto const &[gen_var, var] : generator_values) {
