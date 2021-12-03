@@ -824,28 +824,35 @@ void Debugger::handle_symbol(const SymbolRequest &, uint64_t) {
 }
 
 void Debugger::handle_data_breakpoint(const DataBreakpointRequest &req, uint64_t conn_id) {
-    if (req.action() == DataBreakpointRequest::Action::clear) {
-        scheduler_->clear_data_breakpoints();
-        auto resp = GenericResponse(status_code::success, req);
-        send_message(resp.str(log_enabled_), conn_id);
-    } else {
-        // it's an add
-        auto db_bp = db_->get_breakpoint(req.breakpoint_id());
-        if (!db_bp) {
-            auto error = GenericResponse(status_code::error, req, "Invalid breakpoint id");
-            send_message(error.str(log_enabled_), conn_id);
-            return;
+    switch (req.action()) {
+        case DataBreakpointRequest::Action::clear: {
+            scheduler_->clear_data_breakpoints();
+            auto resp = GenericResponse(status_code::success, req);
+            send_message(resp.str(log_enabled_), conn_id);
+            break;
         }
-        auto *bp = scheduler_->add_data_breakpoint(req.var_name(), req.condition(), *db_bp);
-        if (!bp) {
-            auto error = GenericResponse(status_code::error, req,
-                                         "Invalid data breakpoint expression/condition");
-            send_message(error.str(log_enabled_), conn_id);
-            return;
+        case DataBreakpointRequest::Action::add: {
+            // it's an add
+            auto db_bp = db_->get_breakpoint(req.breakpoint_id());
+            if (!db_bp) {
+                auto error = GenericResponse(status_code::error, req, "Invalid breakpoint id");
+                send_message(error.str(log_enabled_), conn_id);
+                return;
+            }
+            auto *bp = scheduler_->add_data_breakpoint(req.var_name(), req.condition(), *db_bp);
+            if (!bp) {
+                auto error = GenericResponse(status_code::error, req,
+                                             "Invalid data breakpoint expression/condition");
+                send_message(error.str(log_enabled_), conn_id);
+                return;
+            }
+            // tell client we're good
+            auto success_resp = GenericResponse(status_code::success, req);
+            send_message(success_resp.str(log_enabled_), conn_id);
         }
-        // tell client we're good
-        auto success_resp = GenericResponse(status_code::success, req);
-        send_message(success_resp.str(log_enabled_), conn_id);
+        case DataBreakpointRequest::Action::info: {
+            // TODO
+        }
     }
 }
 

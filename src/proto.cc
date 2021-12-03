@@ -1045,19 +1045,30 @@ void DataBreakpointRequest::parse_payload(const std::string &payload) {
     if (action == "clear") {
         action_ = Action::clear;
     } else {
-        if (action != "add") {
-            status_code_ = status_code::error;
-            error_reason_ = "Only 'add' or 'clear' allowed";
-            return;
-        }
-
         auto var_name_opt = get_member<std::string>(document, "var_name", error_reason_);
-        auto bp_id_opt = get_member<uint64_t>(document, "breakpoint_id", error_reason_);
-        if (!bp_id_opt || !var_name_opt) {
+        if (!var_name_opt) {
             status_code_ = status_code::error;
             return;
         }
         variable_name_ = *var_name_opt;
+
+        if (action == "info") {
+            action_ = Action::info;
+            return;
+        }
+
+        if (action != "add") {
+            status_code_ = status_code::error;
+            error_reason_ = "Only 'add', 'clear', and 'info' are allowed";
+            return;
+        }
+
+        auto bp_id_opt = get_member<uint64_t>(document, "breakpoint_id", error_reason_);
+        if (!bp_id_opt) {
+            status_code_ = status_code::error;
+            return;
+        }
+
         breakpoint_id_ = *bp_id_opt;
 
         // condition can be null
