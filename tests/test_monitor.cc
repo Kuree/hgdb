@@ -2,24 +2,33 @@
 #include "gtest/gtest.h"
 
 TEST(monitor, get_watched_values) {  // NOLINT
-    int64_t value_a = 42, value_b = 43;
-    auto get_value = [&value_a, &value_b](const std::string &name) -> int64_t {
+    int64_t value_a = 42, value_b = 43, value_c = 44;
+    auto get_value = [&value_a, &value_b, &value_c](const std::string &name) -> int64_t {
         if (name == "a") return value_a;
         if (name == "b") return value_b;
+        if (name == "c") return value_c;
         return 0;
     };
     hgdb::Monitor monitor(get_value);
     monitor.add_monitor_variable("a", hgdb::Monitor::WatchType::breakpoint);
     monitor.add_monitor_variable("b", hgdb::Monitor::WatchType::clock_edge);
+    monitor.add_monitor_variable("c", hgdb::Monitor::WatchType::changed);
     {
-        auto values = monitor.get_watched_values(true);
+        auto values = monitor.get_watched_values(hgdb::Monitor::WatchType::breakpoint);
         EXPECT_EQ(values.size(), 1);
         EXPECT_EQ(values.begin()->second, "42");
     }
     {
-        auto values = monitor.get_watched_values(false);
+        auto values = monitor.get_watched_values(hgdb::Monitor::WatchType::clock_edge);
         EXPECT_EQ(values.size(), 1);
         EXPECT_EQ(values.begin()->second, "43");
+    }
+    {
+        auto values = monitor.get_watched_values(hgdb::Monitor::WatchType::changed);
+        EXPECT_EQ(values.size(), 1);
+        EXPECT_EQ(values.begin()->second, "44");
+        values = monitor.get_watched_values(hgdb::Monitor::WatchType::changed);
+        EXPECT_EQ(values.size(), 0);
     }
 }
 
