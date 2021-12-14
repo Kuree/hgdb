@@ -31,40 +31,39 @@ void Monitor::remove_monitor_variable(uint64_t watch_id) {
     }
 }
 
-std::vector<std::pair<uint64_t, std::string>> Monitor::get_watched_values(bool has_breakpoint) {
+std::vector<std::pair<uint64_t, std::string>> Monitor::get_watched_values(WatchType type) {
     std::vector<std::pair<uint64_t, std::string>> result;
     // this is the maximum size
     result.reserve(watched_variables_.size());
 
     for (auto& [watch_id, watch_var] : watched_variables_) {
+        if (watch_var.type != type) continue;
         switch (watch_var.type) {
-            case WatchType::breakpoint: {
-                // only if we hit a breakpoint
-                if (has_breakpoint) {
-                    auto value = get_value(watch_var.full_name);
-                    std::string str_value;
-                    if (value) {
-                        str_value = std::to_string(*value);
-                    } else {
-                        str_value = Debugger::error_value_str;
-                    }
-                    result.emplace_back(std::make_pair(watch_id, str_value));
+            case WatchType::breakpoint:
+            case WatchType::clock_edge: {
+                auto value = get_value(watch_var.full_name);
+                std::string str_value;
+                if (value) {
+                    str_value = std::to_string(*value);
+                } else {
+                    str_value = Debugger::error_value_str;
                 }
+                result.emplace_back(std::make_pair(watch_id, str_value));
                 break;
             }
-            case WatchType::clock_edge: {
-                // only if we are not in a breakpoint
-                if (!has_breakpoint) {
-                    auto value = get_value(watch_var.full_name);
-                    std::string str_value;
-                    if (value) {
-                        str_value = std::to_string(*value);
-                    } else {
-                        str_value = Debugger::error_value_str;
+            case WatchType::changed: {
+                // only if values are changed
+                auto value = get_value(watch_var.full_name);
+                if (value) {
+                    bool changed = false;
+                    if (!watch_var.value || *watch_var.value != *value) changed = true;
+                    if (changed) {
+                        watch_var.value = value;
+                        auto str_value = std::to_string(*value);
+                        result.emplace_back(std::make_pair(watch_id, str_value));
                     }
-                    result.emplace_back(std::make_pair(watch_id, str_value));
-                    break;
                 }
+                break;
             }
         }
     }

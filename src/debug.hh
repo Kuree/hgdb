@@ -121,7 +121,7 @@ private:
 
     // send functions
     void send_breakpoint_hit(const std::vector<const DebugBreakPoint *> &bps);
-    void send_monitor_values(bool has_breakpoint);
+    void send_monitor_values(MonitorRequest::MonitorType type);
 
     // options
     [[nodiscard]] util::Options get_options();

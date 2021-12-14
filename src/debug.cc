@@ -142,12 +142,16 @@ void Debugger::eval() {
             // send the breakpoint hit information
             send_breakpoint_hit(result);
             // also send any breakpoint values
-            send_monitor_values(true);
+            send_monitor_values(MonitorRequest::MonitorType::breakpoint);
             // then pause the execution
             lock_.wait();
         }
     }
-    send_monitor_values(false);
+
+    if (!monitor_.empty()) [[unlikely]] {
+        send_monitor_values(MonitorRequest::MonitorType::clock_edge);
+        send_monitor_values(MonitorRequest::MonitorType::changed);
+    }
 }
 
 [[maybe_unused]] bool Debugger::is_verilator() {
@@ -911,11 +915,11 @@ void Debugger::send_breakpoint_hit(const std::vector<const DebugBreakPoint *> &b
     send_message(str);
 }
 
-void Debugger::send_monitor_values(bool has_breakpoint) {
+void Debugger::send_monitor_values(MonitorRequest::MonitorType type) {
     //  optimize for no monitored value
     if (monitor_.empty()) [[likely]]
         return;
-    auto values = monitor_.get_watched_values(has_breakpoint);
+    auto values = monitor_.get_watched_values(type);
     for (auto const &[id, value] : values) {
         auto topic = get_monitor_topic(id);
         auto resp = MonitorResponse(id, value);

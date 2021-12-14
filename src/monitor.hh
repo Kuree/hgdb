@@ -17,7 +17,7 @@ public:
     void remove_monitor_variable(uint64_t watch_id);
     // called every cycle
     // compute a list of signals that need to be sent
-    std::vector<std::pair<uint64_t, std::string>> get_watched_values(bool has_breakpoint);
+    std::vector<std::pair<uint64_t, std::string>> get_watched_values(WatchType type);
 
     [[nodiscard]] bool empty() const { return watched_variables_.empty(); }
     [[nodiscard]] uint64_t num_watches(const std::string& name, WatchType type) const;
@@ -30,8 +30,8 @@ private:
 
     struct WatchVariable {
         WatchType type;
-        std::string full_name;  // RTL name
-        int64_t value;          // actual value
+        std::string full_name;         // RTL name
+        std::optional<int64_t> value;  // actual value
     };
 
     uint64_t watch_id_count_ = 0;

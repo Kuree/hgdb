@@ -893,6 +893,8 @@ void MonitorRequest::parse_payload(const std::string &payload) {
             monitor_type_ = MonitorType::breakpoint;
         } else if (*monitor_type == "clock_edge") {
             monitor_type_ = MonitorType::clock_edge;
+        } else if (*monitor_type == "changed") {
+            monitor_type_ = MonitorType::changed;
         } else {
             status_code_ = status_code::error;
             return;
