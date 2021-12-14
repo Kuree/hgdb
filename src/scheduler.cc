@@ -109,8 +109,8 @@ std::vector<DebugBreakPoint *> Scheduler::next_normal_breakpoints() {
 
     std::vector<DebugBreakPoint *> result{breakpoints_[index].get()};
 
-    // by default we generates as many breakpoints as possible to evaluate
-    // this can be turned of by client's request (changed via option-change request)
+    // by default, we generate as many breakpoints as possible to evaluate
+    // this can be turned off by client's request (changed via option-change request)
     if (!single_thread_mode_) {
         scan_breakpoints(index, true, result);
     }
@@ -412,6 +412,10 @@ void Scheduler::scan_breakpoints(uint64_t ref_index, bool forward,
                                  std::vector<DebugBreakPoint *> &result) {
     auto const &ref_bp = breakpoints_[ref_index];
     auto const &target_expr = ref_bp->enable_expr->expression();
+
+    // notice that if the reference is a data breakpoint, we're done here, since we only allow
+    // one data breakpoint triggerred at a time
+    if (ref_bp->has_type_flag(DebugBreakPoint::Type::data)) return;
 
     // once we have a hit index, scanning down the list to see if we have more
     // hits if it shares the same fn/ln/cn tuple
