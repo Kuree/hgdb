@@ -319,6 +319,11 @@ struct AssignmentInfo {
      * The breakpoint ID corresponds to the assignment
      */
     std::unique_ptr<uint32_t> breakpoint_id;
+    /**
+     * The scope ID corresponds to scope id. Ideally this can be omitted, since the scope table
+     * already stores all the information. Include here to make search easy
+     */
+    std::unique_ptr<uint32_t> scope_id;
 };
 
 auto inline init_debug_db(const std::string &filename) {
@@ -450,10 +455,11 @@ inline void store_event(DebugDatabase &db, const std::string &name, const std::s
     // NOLINTNEXTLINE
 }
 
-inline void store_assignment(DebugDatabase &db, const std::string &var_name,
-                             uint32_t breakpoint_id) {
+inline void store_assignment(DebugDatabase &db, const std::string &var_name, uint32_t breakpoint_id,
+                             uint32_t scope_id) {
     db.replace(AssignmentInfo{.name = var_name,
-                              .breakpoint_id = std::make_unique<uint32_t>(breakpoint_id)});
+                              .breakpoint_id = std::make_unique<uint32_t>(breakpoint_id),
+                              .scope_id = std::make_unique<uint32_t>(scope_id)});
     // NOLINTNEXTLINE
 }
 

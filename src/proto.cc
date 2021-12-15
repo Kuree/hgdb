@@ -971,6 +971,8 @@ std::string to_string(SymbolRequest::request_type type) {
             return "resolve_scoped_name_instance";
         case SymbolRequest::request_type::get_execution_bp_orders:
             return "get_execution_bp_orders";
+        case SymbolRequest::request_type::get_assigned_breakpoints:
+            return "get_assigned_breakpoints";
     }
     throw std::runtime_error("Invalid request type");
 }
@@ -1025,6 +1027,10 @@ std::string SymbolRequest::str() const {
         case request_type::resolve_scoped_name_instance:
             set_member(payload, allocator, "scoped_name", scoped_name);
             set_member(payload, allocator, "instance_id", instance_id);
+            break;
+        case request_type::get_assigned_breakpoints:
+            set_member(payload, allocator, "name", name);
+            set_member(payload, allocator, "breakpoint_id", breakpoint_id);
             break;
     }
     set_member(document, "payload", payload);
@@ -1238,11 +1244,18 @@ void SymbolResponse::parse(const std::string &str) {
             break;
         }
         case SymbolRequest::request_type::get_context_static_values: {
-            if (result.IsObject()) return;
+            if (!result.IsObject()) return;
             for (auto const &[name, value] : result.GetObject()) {
                 if (!value.IsNumber()) return;
                 auto v = value.GetInt64();
                 map_result.emplace(name.GetString(), v);
+            }
+        }
+        case SymbolRequest::request_type::get_assigned_breakpoints: {
+            if (!result.IsArray()) return;
+            for (auto const &v : result.GetArray()) {
+                if (!v.IsNumber()) return;
+                uint64_t_results.emplace_back(v.GetUint64());
             }
         }
     }

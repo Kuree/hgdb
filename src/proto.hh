@@ -339,7 +339,8 @@ public:
         get_all_array_names,
         resolve_scoped_name_breakpoint,
         resolve_scoped_name_instance,
-        get_execution_bp_orders
+        get_execution_bp_orders,
+        get_assigned_breakpoints
     };
 
     explicit SymbolRequest(request_type req_type) : req_type_(req_type) {}

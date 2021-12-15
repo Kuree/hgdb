@@ -1,9 +1,9 @@
 #include <chrono>
 #include <thread>
 
+#include "../src/db.hh"
 #include "../src/debug.hh"
 #include "fmt/format.h"
-#include "../src/db.hh"
 #include "test_util.hh"
 
 /*
@@ -108,16 +108,20 @@ auto setup_db_vpi(MockVPIProvider &vpi) {
         // assign c_0 = ~a; // a = a  en: a           -> c = ~a
         store_breakpoint(*db, 0 + base_id, dut_id, filename, 2, 0, "a");
         store_context_variable(*db, "a", 0 + base_id, variable_ids.at("a"));
+        store_assignment(*db, "c", 0 + base_id, 0);
         // assign c_1 = 0;  // a = a  en: ~a          -> c = 0
         store_breakpoint(*db, 1 + base_id, dut_id, filename, 4, 0, "!a");
         store_context_variable(*db, "a", 1 + base_id, variable_ids.at("a"));
+        store_assignment(*db, "c", 1 + base_id, 0);
         // assign c_2 = a? c_0: c_1; // a = a en: 1   -> if (a)
         store_breakpoint(*db, 2 + base_id, dut_id, filename, 1, 0, "1");
         store_context_variable(*db, "a", 2 + base_id, variable_ids.at("a"));
+        store_assignment(*db, "c", 2 + base_id, 0);
         // assign c_3 = a; // a = a, c = c_2 en: 1     -> c = a
         store_breakpoint(*db, 3 + base_id, dut_id, filename, 5, 0, "1");
         store_context_variable(*db, "a", 3 + base_id, variable_ids.at("a"));
         store_context_variable(*db, "c", 3 + base_id, variable_ids.at("c_2"));
+        store_assignment(*db, "c", 3 + base_id, 0);
         // assign d = e;
         store_breakpoint(*db, 4 + base_id, dut_id, filename, 6, 0, "", "e");
         store_context_variable(*db, "d", 4 + base_id, variable_ids.at("d"));

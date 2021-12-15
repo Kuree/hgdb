@@ -843,6 +843,7 @@ void Debugger::handle_data_breakpoint(const DataBreakpointRequest &req, uint64_t
                 send_message(error.str(log_enabled_), conn_id);
                 return;
             }
+            // need to query the breakpoint based on the variable name mapping
             auto *bp = scheduler_->add_data_breakpoint(req.var_name(), req.condition(), *db_bp);
             if (!bp) {
                 auto error = GenericResponse(status_code::error, req,

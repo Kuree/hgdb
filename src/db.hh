@@ -40,6 +40,8 @@ public:
     std::unordered_map<std::string, int64_t> get_context_static_values(
         uint32_t breakpoint_id) override;
     std::vector<std::string> get_all_array_names() override;
+    [[nodiscard]] std::vector<uint32_t> get_assigned_breakpoints(const std::string &var_name,
+                                                                 uint32_t breakpoint_id) override;
 
     ~DBSymbolTableProvider() override;
 
