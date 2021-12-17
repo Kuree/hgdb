@@ -397,10 +397,28 @@ def test_debug_env_value(start_server, find_free_port):
     kill_server(s)
 
 
+def test_data_breakpoint(start_server, find_free_port):
+    s, uri = setup_server(start_server, find_free_port, stdout=True)
+
+    async def test_logic():
+        async with hgdb.HGDBClient(uri, None) as client:
+            await client.connect()
+            await client.set_data_breakpoint(0, "a")
+            await client.continue_()
+            bp = await client.recv_bp()
+            await client.continue_()
+            bp = await client.recv_bp()
+            await client.continue_()
+            bp = await client.recv_bp()
+            await client.continue_()
+    asyncio.get_event_loop().run_until_complete(test_logic())
+    kill_server(s)
+
+
 if __name__ == "__main__":
     import sys
 
     sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
     from conftest import start_server_fn, find_free_port_fn
 
-    test_debug_env_value(start_server_fn, find_free_port_fn)
+    test_data_breakpoint(start_server_fn, find_free_port_fn)

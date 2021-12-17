@@ -357,7 +357,7 @@ TEST(proto, data_breakpoint_request) { // NOLINT
     "payload": {
         "var_name": "a",
         "action": "add",
-        "breakpoint_id": 42
+        "breakpoint-id": 42
     }
 }
 )";

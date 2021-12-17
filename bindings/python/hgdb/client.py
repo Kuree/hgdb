@@ -91,8 +91,8 @@ class HGDBClient:
         return await self.__send_check(payload, check_error)
 
     async def set_data_breakpoint(self, breakpoint_id, var_name, token="", cond="", check_error=True):
-        payload = {"request": True, "type": "data_breakpoint", "token": token,
-                   "payload": {"var_name": var_name, "breakpoint": breakpoint_id, "action": "add"}}
+        payload = {"request": True, "type": "data-breakpoint", "token": token,
+                   "payload": {"var_name": var_name, "breakpoint-id": breakpoint_id, "action": "add"}}
         if len(cond) > 0:
             payload["payload"]["condition"] = cond
         return await self.__send_check(payload, check_error)

@@ -1072,7 +1072,7 @@ void DataBreakpointRequest::parse_payload(const std::string &payload) {
             return;
         }
 
-        auto bp_id_opt = get_member<uint64_t>(document, "breakpoint_id", error_reason_);
+        auto bp_id_opt = get_member<uint64_t>(document, "breakpoint-id", error_reason_);
         if (!bp_id_opt) {
             status_code_ = status_code::error;
             return;
