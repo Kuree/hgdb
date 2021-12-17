@@ -278,19 +278,35 @@ std::vector<uint32_t> DBSymbolTableProvider::get_assigned_breakpoints(const std:
                                                                       uint32_t breakpoint_id) {
     using namespace sqlite_orm;
     if (!db_) return {};
+    // need to get reference breakpoint
+    auto ref_bp = get_breakpoint(breakpoint_id);
+    if (!ref_bp) return {};
     auto ref_assignments =
         db_->get_all<AssignmentInfo>(where(c(&AssignmentInfo::breakpoint_id) == breakpoint_id));
     if (ref_assignments.empty()) return {};
     auto const &ref_assignment = ref_assignments[0];
     if (ref_assignment.name != var_name) return {};
-    auto res = db_->select(columns(&AssignmentInfo::breakpoint_id),
-                           where(c(&AssignmentInfo::scope_id) == *ref_assignment.scope_id) &&
-                               c(&AssignmentInfo::name) == var_name);
     std::vector<uint32_t> result;
+    std::vector<std::tuple<std::unique_ptr<uint32_t>>> res;
+    if (ref_assignment.scope_id) {
+        res = db_->select(columns(&AssignmentInfo::breakpoint_id),
+                          where(c(&AssignmentInfo::scope_id) == *ref_assignment.scope_id &&
+                                c(&AssignmentInfo::name) == var_name &&
+                                c(&BreakPoint::id) == (&AssignmentInfo::breakpoint_id) &&
+                                c(&BreakPoint::instance_id) == *ref_bp->instance_id));
+
+    } else {
+        // no scope, search all variable information
+        res = db_->select(columns(&AssignmentInfo::breakpoint_id),
+                          where(c(&AssignmentInfo::name) == var_name &&
+                                c(&BreakPoint::id) == (&AssignmentInfo::breakpoint_id) &&
+                                c(&BreakPoint::instance_id) == *ref_bp->instance_id));
+    }
     result.reserve(res.size());
     for (auto const &r : res) {
         result.emplace_back(*std::get<0>(r));
     }
+
     return result;
 }
 

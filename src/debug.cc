@@ -843,14 +843,30 @@ void Debugger::handle_data_breakpoint(const DataBreakpointRequest &req, uint64_t
                 send_message(error.str(log_enabled_), conn_id);
                 return;
             }
-            // need to query the breakpoint based on the variable name mapping
-            auto *bp = scheduler_->add_data_breakpoint(req.var_name(), req.condition(), *db_bp);
-            if (!bp) {
-                auto error = GenericResponse(status_code::error, req,
-                                             "Invalid data breakpoint expression/condition");
-                send_message(error.str(log_enabled_), conn_id);
+            // this is not very efficient, but good enough for now
+            auto bp_ids = db_->get_assigned_breakpoints(req.var_name(), req.breakpoint_id());
+            if (bp_ids.empty()) {
+                auto err = GenericResponse(status_code::error, req, "Internal symbol table error");
+                send_message(err.str(log_enabled_), conn_id);
                 return;
             }
+            for (auto const id : bp_ids) {
+                auto bp_opt = db_->get_breakpoint(id);
+                if (!bp_opt) {
+                    auto error = GenericResponse(status_code::error, req, "Invalid breakpoint id");
+                    send_message(error.str(log_enabled_), conn_id);
+                    return;
+                }
+                auto *bp =
+                    scheduler_->add_data_breakpoint(req.var_name(), req.condition(), *bp_opt);
+                if (!bp) {
+                    auto error = GenericResponse(status_code::error, req,
+                                                 "Invalid data breakpoint expression/condition");
+                    send_message(error.str(log_enabled_), conn_id);
+                    return;
+                }
+            }
+
             // tell client we're good
             auto success_resp = GenericResponse(status_code::success, req);
             send_message(success_resp.str(log_enabled_), conn_id);
