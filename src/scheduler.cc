@@ -111,7 +111,10 @@ std::vector<DebugBreakPoint *> Scheduler::next_normal_breakpoints() {
 
     // by default, we generate as many breakpoints as possible to evaluate
     // this can be turned off by client's request (changed via option-change request)
-    if (!single_thread_mode_) {
+    // notice that we only allow one data breakpoint being triggered for now
+    // also notice that since data breakpoint can be mixed with the normal breakpoint, we only
+    // disable scanning if it's data breakpoint only
+    if (!single_thread_mode_ && result[0]->type != DebugBreakPoint::Type::data) {
         scan_breakpoints(index, true, result);
     }
 
@@ -430,6 +433,10 @@ void Scheduler::scan_breakpoints(uint64_t ref_index, bool forward,
         if (next_bp->line_num != ref_bp->line_num || next_bp->filename != ref_bp->filename ||
             next_bp->column_num != ref_bp->column_num) {
             return false;
+        }
+        // if we see a data breakpoint, don't stop, just skip it
+        if (next_bp->type == DebugBreakPoint::Type::data) {
+            return true;
         }
         // same enable expression but different instance id
         if (next_bp->instance_id != ref_bp->instance_id &&

@@ -1052,23 +1052,32 @@ void Debugger::eval_breakpoint(DebugBreakPoint *bp, std::vector<bool> &result, u
     if (!bp_expr->correct()) return;
     // since at this point we have checked everything, just used the resolved name
     auto const &symbol_full_names = bp_expr->resolved_symbol_names();
-    std::unordered_map<std::string, int64_t> values;
-    for (auto const &[symbol_name, full_name] : symbol_full_names) {
-        if (symbol_name == util::instance_var_name) [[unlikely]] {
-            values.emplace(symbol_name, bp->instance_id);
-            continue;
-        }
-        auto v = get_value(full_name);
-        if (!v) break;
-        values.emplace(symbol_name, *v);
-    }
+    auto values = get_expr_values(bp_expr.get(), bp->instance_id);
     if (values.size() != symbol_full_names.size()) {
         // something went wrong with the querying symbol
         log_error(fmt::format("Unable to evaluate breakpoint {0}", bp->id));
     } else {
         auto eval_result = bp_expr->eval(values);
         auto trigger_result = should_trigger(bp);
-        if (eval_result && trigger_result) {
+        bool data_bp = true;
+        if (bp->type == DebugBreakPoint::Type::data) {
+            // first time it's always triggering
+            auto const &data_full_names = bp->variable->resolved_symbol_names();
+            values = get_expr_values(bp->variable.get(), bp->instance_id);
+            if (values.size() != data_full_names.size()) {
+                log_error(fmt::format("Unable to evaluate data breakpoint {0}", bp->id));
+                return;
+            }
+            auto v = bp->variable->eval(values);
+            if (!bp->data_value) {
+                bp->data_value = v;
+            } else {
+                if (v != *bp->data_value) {
+                    data_bp = false;
+                }
+            }
+        }
+        if (eval_result && trigger_result && data_bp) {
             // trigger a breakpoint!
             result[index] = true;
         }
@@ -1145,6 +1154,22 @@ void Debugger::preload_db_from_env() {
     initialize_db(db_name);
     // also need to load clock signals
     add_cb_clocks();
+}
+
+std::unordered_map<std::string, int64_t> Debugger::get_expr_values(const DebugExpression *expr,
+                                                                   uint32_t instance_id) {
+    auto const &symbol_full_names = expr->resolved_symbol_names();
+    std::unordered_map<std::string, int64_t> values;
+    for (auto const &[symbol_name, full_name] : symbol_full_names) {
+        if (symbol_name == util::instance_var_name) [[unlikely]] {
+            values.emplace(symbol_name, instance_id);
+            continue;
+        }
+        auto v = get_value(full_name);
+        if (!v) break;
+        values.emplace(symbol_name, *v);
+    }
+    return values;
 }
 
 }  // namespace hgdb

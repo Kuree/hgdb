@@ -148,6 +148,9 @@ private:
     // only used to initialize the debugger to certain state, not for normal usage
     void setup_init_breakpoint_from_env();
     void preload_db_from_env();
+
+    std::unordered_map<std::string, int64_t> get_expr_values(const DebugExpression *expr,
+                                                             uint32_t instance_id);
 };
 
 }  // namespace hgdb

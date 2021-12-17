@@ -27,6 +27,7 @@ struct DebugBreakPoint {
     // used for data breakpoint
     Type type = Type::normal;
     std::unique_ptr<DebugExpression> variable;
+    std::optional<int64_t> data_value;
 
     [[nodiscard]] inline bool has_type_flag(Type type_) const {
         return static_cast<uint64_t>(type) & static_cast<uint64_t>(type_);
