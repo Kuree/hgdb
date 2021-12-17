@@ -113,6 +113,7 @@ namespace hgdb {
  *     action: [required] - string, of "add", "clear"
  *     var_name: [required for add] - string
  *     breakpoint: [required for add] - uint64_t
+ *     condition: [optional] - string
  *
  * Generic Response
  * type: generic
