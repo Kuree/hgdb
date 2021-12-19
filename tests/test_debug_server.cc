@@ -99,7 +99,7 @@ auto setup_db_vpi(MockVPIProvider &vpi) {
             variable_handles[name] = handle;
             // this is still valid variable, just not showing up in the context/generator map
             store_variable(*db, var_id, var_name);
-            variable_ids[name] = var_id;
+            variable_ids[name] = var_id++;
         }
 
         // now we need to deal with breakpoints
