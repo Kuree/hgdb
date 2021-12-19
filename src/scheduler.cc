@@ -323,12 +323,14 @@ DebugBreakPoint *Scheduler::add_data_breakpoint(const std::string &var_name,
     bp.condition = expression;
     auto *data_bp = add_breakpoint(bp, db_bp, DebugBreakPoint::Type::data);
     if (!data_bp) return nullptr;
-    data_bp->variable = std::make_unique<DebugExpression>(var_name);
-    util::validate_expr(rtl_, db_, data_bp->variable.get(), db_bp.id, *db_bp.instance_id);
-    if (!data_bp->variable->correct()) {
+    auto expr = DebugExpression(var_name);
+    util::validate_expr(rtl_, db_, &expr, db_bp.id, *db_bp.instance_id);
+    auto const &full_names = expr.resolved_symbol_names();
+    if (!expr.correct() || full_names.size() != 1) {
         log_error("Unable to validate variable in data breakpoint: " + var_name);
         return nullptr;
     }
+    data_bp->full_rtl_var_name = full_names.begin()->second;
     return data_bp;
 }
 

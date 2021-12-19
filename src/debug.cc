@@ -108,6 +108,10 @@ void Debugger::eval() {
     // breakpoints_.
     log_info("Start breakpoint evaluation...");
     start_breakpoint_evaluation();  // clean the state
+    // fetch data breakpoints
+    auto changed_watch_ids = monitor_.get_changed_watch_ids();
+
+    // main loop to fetch breakpoints
     while (true) {
         auto bps = scheduler_->next_breakpoints();
         if (bps.empty()) break;
@@ -121,15 +125,16 @@ void Debugger::eval() {
             for (auto i = 0u; i < bps.size(); i++) {
                 auto *bp = bps[i];
                 // lock-free map
-                threads.emplace_back(
-                    std::thread([bp, i, &hits, this]() { this->eval_breakpoint(bp, hits, i); }));
+                threads.emplace_back(std::thread([bp, i, &hits, this, changed_watch_ids]() {
+                    this->eval_breakpoint(bp, hits, i, changed_watch_ids);
+                }));
             }
             for (auto &t : threads) t.join();
 
         } else {
             // directly evaluate it in the current thread to avoid creating threads
             // overhead
-            this->eval_breakpoint(bps[0], hits, 0);
+            this->eval_breakpoint(bps[0], hits, 0, changed_watch_ids);
         }
 
         std::vector<const DebugBreakPoint *> result;
@@ -859,6 +864,9 @@ void Debugger::handle_data_breakpoint(const DataBreakpointRequest &req, uint64_t
                 }
                 auto *bp =
                     scheduler_->add_data_breakpoint(req.var_name(), req.condition(), *bp_opt);
+                // add it to the monitor
+                bp->watch_id = monitor_.add_monitor_variable(req.var_name(),
+                                                             MonitorRequest::MonitorType::changed);
                 if (!bp) {
                     auto error = GenericResponse(status_code::error, req,
                                                  "Invalid data breakpoint expression/condition");
@@ -1046,7 +1054,8 @@ std::optional<int64_t> Debugger::get_value(const std::string &signal_name) {
     }
 }
 
-void Debugger::eval_breakpoint(DebugBreakPoint *bp, std::vector<bool> &result, uint32_t index) {
+void Debugger::eval_breakpoint(DebugBreakPoint *bp, std::vector<bool> &result, uint32_t index,
+                               const std::unordered_set<uint64_t> &watch_ids) {
     const auto &bp_expr = scheduler_->breakpoint_only() ? bp->expr : bp->enable_expr;
     // if not correct just always enable
     if (!bp_expr->correct()) return;
@@ -1061,20 +1070,8 @@ void Debugger::eval_breakpoint(DebugBreakPoint *bp, std::vector<bool> &result, u
         auto trigger_result = should_trigger(bp);
         bool data_bp = true;
         if (bp->type == DebugBreakPoint::Type::data) {
-            // first time it's always triggering
-            auto const &data_full_names = bp->variable->resolved_symbol_names();
-            values = get_expr_values(bp->variable.get(), bp->instance_id);
-            if (values.size() != data_full_names.size()) {
-                log_error(fmt::format("Unable to evaluate data breakpoint {0}", bp->id));
-                return;
-            }
-            auto v = bp->variable->eval(values);
-            if (!bp->data_value) {
-                bp->data_value = v;
-            } else {
-                if (v != *bp->data_value) {
-                    data_bp = false;
-                }
+            if (watch_ids.find(bp->watch_id) == watch_ids.end()) {
+                data_bp = false;
             }
         }
         if (eval_result && trigger_result && data_bp) {
