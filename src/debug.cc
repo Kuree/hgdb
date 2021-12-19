@@ -109,7 +109,7 @@ void Debugger::eval() {
     log_info("Start breakpoint evaluation...");
     start_breakpoint_evaluation();  // clean the state
     // fetch data breakpoints
-    auto changed_watch_ids = monitor_.get_changed_watch_ids();
+    auto changed_watch_ids = monitor_.get_data_watch_ids();
 
     // main loop to fetch breakpoints
     while (true) {
@@ -864,8 +864,8 @@ void Debugger::handle_data_breakpoint(const DataBreakpointRequest &req, uint64_t
                 auto *bp =
                     scheduler_->add_data_breakpoint(req.var_name(), req.condition(), *bp_opt);
                 // add it to the monitor
-                bp->watch_id = monitor_.add_monitor_variable(req.var_name(),
-                                                             MonitorRequest::MonitorType::changed);
+                bp->watch_id = monitor_.add_monitor_variable(bp->full_rtl_var_name,
+                                                             MonitorRequest::MonitorType::data);
                 if (!bp) {
                     auto error = GenericResponse(status_code::error, req,
                                                  "Invalid data breakpoint expression/condition");

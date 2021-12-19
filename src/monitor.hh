@@ -24,7 +24,7 @@ public:
     [[nodiscard]] uint64_t num_watches(const std::string& name, WatchType type) const;
 
     // this should be called once per clock edge, i.e. eval()
-    std::unordered_set<uint64_t> get_changed_watch_ids();
+    std::unordered_set<uint64_t> get_data_watch_ids();
 
 private:
     // notice that monitor itself doesn't care how to get values

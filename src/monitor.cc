@@ -21,7 +21,8 @@ uint64_t Monitor::add_monitor_variable(const std::string& full_name, WatchType w
         }
     }
     watched_variables_.emplace(
-        watch_id_count_, WatchVariable{.type = watch_type, .full_name = full_name, .value = 0});
+        watch_id_count_,
+        WatchVariable{.type = watch_type, .full_name = full_name, .value = std::nullopt});
     return watch_id_count_++;
 }
 
@@ -51,6 +52,7 @@ std::vector<std::pair<uint64_t, std::string>> Monitor::get_watched_values(WatchT
                 result.emplace_back(std::make_pair(watch_id, str_value));
                 break;
             }
+            case WatchType::data:
             case WatchType::changed: {
                 // only if values are changed
                 auto value = get_value(watch_var.full_name);
@@ -82,10 +84,10 @@ uint64_t Monitor::num_watches(const std::string& name, WatchType type) const {
     return result;
 }
 
-std::unordered_set<uint64_t> Monitor::get_changed_watch_ids() {
+std::unordered_set<uint64_t> Monitor::get_data_watch_ids() {
     if (empty()) return {};
     std::unordered_set<uint64_t> result;
-    auto res = get_watched_values(WatchType::changed);
+    auto res = get_watched_values(WatchType::data);
     for (auto const& [id, _] : res) {
         result.emplace(id);
     }
