@@ -403,14 +403,16 @@ def test_data_breakpoint(start_server, find_free_port):
     async def test_logic():
         async with hgdb.HGDBClient(uri, None) as client:
             await client.connect()
-            await client.set_data_breakpoint(0, "a")
+            await client.set_data_breakpoint(0, "c")
             await client.continue_()
-            bp = await client.recv_bp()
+            await client.recv_bp()
             await client.continue_()
-            bp = await client.recv_bp()
+            await client.recv_bp()
             await client.continue_()
-            bp = await client.recv_bp()
-            await client.continue_()
+            await client.recv_bp()
+            await client.continue_(timeout=0.2)
+            bp = await client.recv_bp(timeout=0.2)
+            assert bp is None
     asyncio.get_event_loop().run_until_complete(test_logic())
     kill_server(s)
 

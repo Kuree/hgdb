@@ -31,7 +31,8 @@ class HGDBClient:
             if res["type"] == "breakpoint":
                 self._bps.append(res)
             return res
-        except (asyncio.exceptions.IncompleteReadError, websockets.exceptions.ConnectionClosedError):
+        except (asyncio.exceptions.IncompleteReadError, websockets.exceptions.ConnectionClosedError,
+                asyncio.exceptions.TimeoutError):
             return None
 
     async def recv_bp(self, timeout=0):
