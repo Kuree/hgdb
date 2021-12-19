@@ -196,16 +196,13 @@ def test_trigger(start_server, find_free_port):
         await client.recv()
         await client.continue_()
         # set with timeout
-        await client.recv(0.5)
+        data = await client.recv(0.5)
+        assert data is None
 
     # should not trigger any more since things are stable
     # as a result the simulation should finish
 
-    try:
-        asyncio.get_event_loop().run_until_complete(test_logic())
-        assert False, "Should not receive breakpoint"
-    except asyncio.TimeoutError:
-        pass
+    asyncio.get_event_loop().run_until_complete(test_logic())
 
     kill_server(s)
 
@@ -423,4 +420,4 @@ if __name__ == "__main__":
     sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
     from conftest import start_server_fn, find_free_port_fn
 
-    test_data_breakpoint(start_server_fn, find_free_port_fn)
+    test_trigger(start_server_fn, find_free_port_fn)
