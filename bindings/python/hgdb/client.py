@@ -123,30 +123,30 @@ class HGDBClient:
             payload["payload"]["column_num"] = column_num
         return await self.__send_check(payload)
 
-    async def continue_(self):
-        await self.__send_command("continue")
+    async def continue_(self, timeout=0):
+        await self.__send_command("continue", timeout=timeout)
 
-    async def stop(self):
-        await self.__send_command("stop")
+    async def stop(self, timeout=0):
+        await self.__send_command("stop", timeout=timeout)
 
-    async def step_over(self):
-        await self.__send_command("step_over")
+    async def step_over(self, timeout=0):
+        await self.__send_command("step_over", timeout=timeout)
 
-    async def step_back(self):
-        await self.__send_command("step_back")
+    async def step_back(self, timeout=0):
+        await self.__send_command("step_back", timeout=timeout)
 
-    async def reverse_continue(self):
-        await self.__send_command("reverse_continue")
+    async def reverse_continue(self, timeout=0):
+        await self.__send_command("reverse_continue", timeout=timeout)
 
-    async def jump(self, time_val):
-        return await self.__send_command("jump", time=time_val)
+    async def jump(self, time_val, timeout=0):
+        return await self.__send_command("jump", time=time_val, timeout=timeout)
 
-    async def __send_command(self, command_str, **kwargs):
+    async def __send_command(self, command_str, timeout=0, **kwargs):
         payload = {"request": True, "type": "command", "payload": {"command": command_str}}
         payload["payload"].update(**kwargs)
         await self.send(payload)
         # in case the downstream is interested about the response
-        return await self.recv()
+        return await self.recv(timeout=timeout)
 
     async def get_info(self, status_command="breakpoints", check_error=True):
         payload = {"request": True, "type": "debugger-info", "payload": {"command": status_command}}
