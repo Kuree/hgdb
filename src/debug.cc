@@ -155,7 +155,6 @@ void Debugger::eval() {
 
     if (!monitor_.empty()) [[unlikely]] {
         send_monitor_values(MonitorRequest::MonitorType::clock_edge);
-        send_monitor_values(MonitorRequest::MonitorType::changed);
     }
 }
 

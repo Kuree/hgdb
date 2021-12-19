@@ -83,6 +83,7 @@ uint64_t Monitor::num_watches(const std::string& name, WatchType type) const {
 }
 
 std::unordered_set<uint64_t> Monitor::get_changed_watch_ids() {
+    if (empty()) return {};
     std::unordered_set<uint64_t> result;
     auto res = get_watched_values(WatchType::changed);
     for (auto const& [id, _] : res) {
