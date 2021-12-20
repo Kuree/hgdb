@@ -500,17 +500,20 @@ void validate_expr(RTLSimulatorClient *rtl, SymbolTableProvider *db, DebugExpres
         std::string full_name;
         if (name) [[likely]] {
             full_name = rtl->get_full_name(*name);
-        } else {
-            // best effort
-            full_name = rtl->get_full_name(symbol);
         }
         // see if it's a valid signal
         bool valid = rtl->is_valid_signal(full_name);
         if (!valid) {
+            // try the raw one
+            // best effort
+            valid = rtl->is_valid_signal(symbol);
+            full_name = symbol;
+        }
+        if (!valid) {
             expr->set_error();
             return;
         }
-        expr->set_resolved_symbol_name(symbol, full_name);
+        expr->set_resolved_symbol_name(symbol, full_name);  // NOLINT
     }
 }
 #ifndef __clang__

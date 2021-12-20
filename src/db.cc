@@ -283,7 +283,9 @@ std::map<uint32_t, std::string> DBSymbolTableProvider::get_assigned_breakpoints(
     if (!ref_bp) return {};
     auto ref_assignments =
         db_->get_all<AssignmentInfo>(where(c(&AssignmentInfo::breakpoint_id) == breakpoint_id));
-    if (ref_assignments.empty()) return {};
+    auto inst = get_instance_name_from_bp(breakpoint_id);
+    if (ref_assignments.empty() || !inst) return {};
+    // get instance as well
     auto const &ref_assignment = ref_assignments[0];
     if (ref_assignment.name != var_name) return {};
     std::map<uint32_t, std::string> result;
@@ -303,7 +305,8 @@ std::map<uint32_t, std::string> DBSymbolTableProvider::get_assigned_breakpoints(
                                 c(&BreakPoint::instance_id) == *ref_bp->instance_id));
     }
     for (auto const &r : res) {
-        result.emplace(*std::get<0>(r), std::get<1>(r));
+        auto name = fmt::format("{0}.{1}", *inst, std::get<1>(r));
+        result.emplace(*std::get<0>(r), name);
     }
 
     return result;

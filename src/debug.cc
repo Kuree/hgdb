@@ -861,16 +861,18 @@ void Debugger::handle_data_breakpoint(const DataBreakpointRequest &req, uint64_t
                     send_message(error.str(log_enabled_), conn_id);
                     return;
                 }
-                auto *bp = scheduler_->add_data_breakpoint(var_name, req.condition(), *bp_opt);
-                // add it to the monitor
-                bp->watch_id = monitor_.add_monitor_variable(bp->full_rtl_var_name,
-                                                             MonitorRequest::MonitorType::data);
+                auto full_name = rtl_->get_full_name(var_name);
+                auto *bp = scheduler_->add_data_breakpoint(full_name, req.condition(), *bp_opt);
                 if (!bp) {
                     auto error = GenericResponse(status_code::error, req,
                                                  "Invalid data breakpoint expression/condition");
                     send_message(error.str(log_enabled_), conn_id);
                     return;
                 }
+
+                // add it to the monitor
+                bp->watch_id = monitor_.add_monitor_variable(bp->full_rtl_var_name,
+                                                             MonitorRequest::MonitorType::data);
             }
 
             // tell client we're good
