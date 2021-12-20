@@ -45,7 +45,7 @@ public:
         const std::string &scoped_name, uint64_t breakpoint_id) = 0;
     [[nodiscard]] virtual std::optional<std::string> resolve_scoped_name_instance(
         const std::string &scoped_name, uint64_t instance_id) = 0;
-    [[nodiscard]] virtual std::vector<uint32_t> get_assigned_breakpoints(
+    [[nodiscard]] virtual std::map<uint32_t, std::string> get_assigned_breakpoints(
         const std::string &var_name, uint32_t breakpoint_id) = 0;
 
     // accessors

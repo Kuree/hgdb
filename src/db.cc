@@ -274,8 +274,8 @@ std::vector<std::string> DBSymbolTableProvider::get_all_array_names() {
     return r;
 }
 
-std::vector<uint32_t> DBSymbolTableProvider::get_assigned_breakpoints(const std::string &var_name,
-                                                                      uint32_t breakpoint_id) {
+std::map<uint32_t, std::string> DBSymbolTableProvider::get_assigned_breakpoints(
+    const std::string &var_name, uint32_t breakpoint_id) {
     using namespace sqlite_orm;
     if (!db_) return {};
     // need to get reference breakpoint
@@ -286,10 +286,10 @@ std::vector<uint32_t> DBSymbolTableProvider::get_assigned_breakpoints(const std:
     if (ref_assignments.empty()) return {};
     auto const &ref_assignment = ref_assignments[0];
     if (ref_assignment.name != var_name) return {};
-    std::vector<uint32_t> result;
-    std::vector<std::tuple<std::unique_ptr<uint32_t>>> res;
+    std::map<uint32_t, std::string> result;
+    std::vector<std::tuple<std::unique_ptr<uint32_t>, std::string>> res;
     if (ref_assignment.scope_id) {
-        res = db_->select(columns(&AssignmentInfo::breakpoint_id),
+        res = db_->select(columns(&AssignmentInfo::breakpoint_id, &AssignmentInfo::value),
                           where(c(&AssignmentInfo::scope_id) == *ref_assignment.scope_id &&
                                 c(&AssignmentInfo::name) == var_name &&
                                 c(&BreakPoint::id) == (&AssignmentInfo::breakpoint_id) &&
@@ -297,14 +297,13 @@ std::vector<uint32_t> DBSymbolTableProvider::get_assigned_breakpoints(const std:
 
     } else {
         // no scope, search all variable information
-        res = db_->select(columns(&AssignmentInfo::breakpoint_id),
+        res = db_->select(columns(&AssignmentInfo::breakpoint_id, &AssignmentInfo::value),
                           where(c(&AssignmentInfo::name) == var_name &&
                                 c(&BreakPoint::id) == (&AssignmentInfo::breakpoint_id) &&
                                 c(&BreakPoint::instance_id) == *ref_bp->instance_id));
     }
-    result.reserve(res.size());
     for (auto const &r : res) {
-        result.emplace_back(*std::get<0>(r));
+        result.emplace(*std::get<0>(r), std::get<1>(r));
     }
 
     return result;

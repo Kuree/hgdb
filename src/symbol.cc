@@ -324,13 +324,13 @@ public:
         return resp.uint64_t_results;
     }
 
-    [[nodiscard]] std::vector<uint32_t> get_assigned_breakpoints(const std::string &var_name,
-                                                                 uint32_t breakpoint_id) override {
+    [[nodiscard]] std::map<uint32_t, std::string> get_assigned_breakpoints(
+        const std::string &var_name, uint32_t breakpoint_id) override {
         SymbolRequest req(SymbolRequest::request_type::get_assigned_breakpoints);
         req.name = var_name;
         req.breakpoint_id = breakpoint_id;
         auto resp = get_resp(req);
-        return resp.uint64_t_results;
+        return resp.var_result;
     }
 
     ~NetworkSymbolTableProvider() override = default;

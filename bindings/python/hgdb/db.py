@@ -44,10 +44,10 @@ class DebugSymbolTable:
             raise DebugSymbolTableException(f"Variable {variable_id} does not exist!")
         _hgdb.store_generator_variable(self.db, name, instance_id, variable_id, annotation)
 
-    def store_assignment(self, name:str, breakpoint_id: int):
+    def store_assignment(self, name: str, value: str, breakpoint_id: int):
         if not self.has_breakpoint_id(breakpoint_id):
             raise DebugSymbolTableException(f"Breakpoint {breakpoint_id} does not exist!")
-        _hgdb.store_assignment(self.db, name, breakpoint_id)
+        _hgdb.store_assignment(self.db, name, value, breakpoint_id)
 
     # checkers
     def has_instance_id(self, id_):

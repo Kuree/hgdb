@@ -854,15 +854,14 @@ void Debugger::handle_data_breakpoint(const DataBreakpointRequest &req, uint64_t
                 send_message(err.str(log_enabled_), conn_id);
                 return;
             }
-            for (auto const id : bp_ids) {
+            for (auto const &[id, var_name] : bp_ids) {
                 auto bp_opt = db_->get_breakpoint(id);
                 if (!bp_opt) {
                     auto error = GenericResponse(status_code::error, req, "Invalid breakpoint id");
                     send_message(error.str(log_enabled_), conn_id);
                     return;
                 }
-                auto *bp =
-                    scheduler_->add_data_breakpoint(req.var_name(), req.condition(), *bp_opt);
+                auto *bp = scheduler_->add_data_breakpoint(var_name, req.condition(), *bp_opt);
                 // add it to the monitor
                 bp->watch_id = monitor_.add_monitor_variable(bp->full_rtl_var_name,
                                                              MonitorRequest::MonitorType::data);

@@ -1253,10 +1253,10 @@ void SymbolResponse::parse(const std::string &str) {
             }
         }
         case SymbolRequest::request_type::get_assigned_breakpoints: {
-            if (!result.IsArray()) return;
-            for (auto const &v : result.GetArray()) {
-                if (!v.IsNumber()) return;
-                uint64_t_results.emplace_back(v.GetUint64());
+            if (!result.IsObject()) return;
+            for (auto const &[key, value] : result.GetObject()) {
+                if (!key.IsNumber() || !value.IsString()) return;
+                var_result.emplace(key.GetUint64(), value.GetString());
             }
         }
     }

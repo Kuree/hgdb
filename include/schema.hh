@@ -312,9 +312,13 @@ struct Event {
 struct AssignmentInfo {
     /**
      * Variable name, if not found in the context, will be searched as generator variable name.
-     * User "$generator." prefix to search generator directly
+     * Use "$generator." prefix to search generator directly
      */
     std::string name;
+    /**
+     * RTL names for
+     */
+    std::string value;
     /**
      * The breakpoint ID corresponds to the assignment
      */
@@ -366,6 +370,7 @@ auto inline init_debug_db(const std::string &filename) {
                    make_column("breakpoint_id", &Event::breakpoint_id),
                    foreign_key(&Event::breakpoint_id).references(&BreakPoint::id)),
         make_table("assignment", make_column("name", &AssignmentInfo::name),
+                   make_column("value", &AssignmentInfo::value),
                    make_column("breakpoint_id", &AssignmentInfo::breakpoint_id),
                    foreign_key(&AssignmentInfo::breakpoint_id).references(&BreakPoint::id)));
 
@@ -455,9 +460,11 @@ inline void store_event(DebugDatabase &db, const std::string &name, const std::s
     // NOLINTNEXTLINE
 }
 
-inline void store_assignment(DebugDatabase &db, const std::string &var_name, uint32_t breakpoint_id,
+inline void store_assignment(DebugDatabase &db, const std::string &var_name,
+                             const std::string &var_value, uint32_t breakpoint_id,
                              uint32_t scope_id) {
     db.replace(AssignmentInfo{.name = var_name,
+                              .value = var_value,
                               .breakpoint_id = std::make_unique<uint32_t>(breakpoint_id),
                               .scope_id = std::make_unique<uint32_t>(scope_id)});
     // NOLINTNEXTLINE
