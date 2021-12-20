@@ -20,10 +20,10 @@ uint64_t Monitor::add_monitor_variable(const std::string& full_name, WatchType w
             return id;
         }
     }
-    watched_variables_.emplace(watch_id_count_,
-                               WatchVariable{.type = watch_type,
-                                             .full_name = full_name,
-                                             .value = std::make_shared<std::optional<int64_t>>()});
+    // old clang-tidy reports memory leak for .value = make_shared
+    auto value_ptr = std::make_shared<std::optional<int64_t>>();
+    auto w = WatchVariable{.type = watch_type, .full_name = full_name, .value = value_ptr};
+    watched_variables_.emplace(watch_id_count_, w);
     return watch_id_count_++;
 }
 
