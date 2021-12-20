@@ -15,6 +15,8 @@ public:
     Monitor();
     explicit Monitor(std::function<std::optional<int64_t>(const std::string&)> get_value);
     uint64_t add_monitor_variable(const std::string& full_name, WatchType watch_type);
+    uint64_t add_monitor_variable(const std::string& full_name, WatchType watch_type,
+                                  std::shared_ptr<std::optional<int64_t>> value);
     void remove_monitor_variable(uint64_t watch_id);
     // called every cycle
     // compute a list of signals that need to be sent
@@ -34,8 +36,8 @@ private:
 
     struct WatchVariable {
         WatchType type;
-        std::string full_name;         // RTL name
-        std::optional<int64_t> value;  // actual value
+        std::string full_name;                          // RTL name
+        std::shared_ptr<std::optional<int64_t>> value;  // actual value
     };
 
     uint64_t watch_id_count_ = 0;

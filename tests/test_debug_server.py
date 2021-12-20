@@ -4,10 +4,10 @@
 
 import asyncio
 import os
-import time
 
 import hgdb
 import pytest
+import time
 
 
 def kill_server(s):
@@ -373,6 +373,7 @@ def test_special_value(start_server, find_free_port):
                 assert bp["payload"]["instances"][0]["instance_id"] == 1
             res = await client.evaluate("0", "$time + 1")
             assert res["payload"]["result"] == "5"
+
     asyncio.get_event_loop().run_until_complete(test_logic())
     kill_server(s)
 
@@ -390,26 +391,33 @@ def test_debug_env_value(start_server, find_free_port):
                 await client.continue_()
                 bp = await client.recv_bp()
                 assert bp["payload"]["instances"][0]["instance_id"] == 1
+
     asyncio.get_event_loop().run_until_complete(test_logic())
     kill_server(s)
 
 
 def test_data_breakpoint(start_server, find_free_port):
     s, uri = setup_server(start_server, find_free_port, stdout=True)
+    # c_0 = 1
+    # c_1 = 0
+    # c_2 = 0
+    # c_3 = 1
 
     async def test_logic():
+        times = {0: 0, 1: 0, 2: 0, 3: 0, 4: 0}
         async with hgdb.HGDBClient(uri, None) as client:
             await client.connect()
             await client.set_data_breakpoint(0, "c")
             await client.continue_()
-            await client.recv_bp()
-            await client.continue_()
-            await client.recv_bp()
-            await client.continue_()
-            await client.recv_bp()
-            await client.continue_(timeout=0.2)
-            bp = await client.recv_bp(timeout=0.2)
-            assert bp is None
+            for i in range(9):
+                bp = await client.recv_bp(timeout=0.5)
+                t = bp["payload"]["time"]
+                times[t] += 1
+                await client.continue_()
+        assert times[0] == 3
+        assert times[1] == 2
+        assert times[2] == 2
+
     asyncio.get_event_loop().run_until_complete(test_logic())
     kill_server(s)
 
@@ -420,4 +428,4 @@ if __name__ == "__main__":
     sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
     from conftest import start_server_fn, find_free_port_fn
 
-    test_trigger(start_server_fn, find_free_port_fn)
+    test_data_breakpoint(start_server_fn, find_free_port_fn)

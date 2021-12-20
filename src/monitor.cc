@@ -20,10 +20,18 @@ uint64_t Monitor::add_monitor_variable(const std::string& full_name, WatchType w
             return id;
         }
     }
-    watched_variables_.emplace(
-        watch_id_count_,
-        WatchVariable{.type = watch_type, .full_name = full_name, .value = std::nullopt});
+    watched_variables_.emplace(watch_id_count_,
+                               WatchVariable{.type = watch_type,
+                                             .full_name = full_name,
+                                             .value = std::make_shared<std::optional<int64_t>>()});
     return watch_id_count_++;
+}
+
+uint64_t Monitor::add_monitor_variable(const std::string& full_name, WatchType watch_type,
+                                       std::shared_ptr<std::optional<int64_t>> value) {
+    auto v = add_monitor_variable(full_name, watch_type);
+    watched_variables_.at(v).value = std::move(value);
+    return v;
 }
 
 void Monitor::remove_monitor_variable(uint64_t watch_id) {
@@ -58,9 +66,10 @@ std::vector<std::pair<uint64_t, std::string>> Monitor::get_watched_values(WatchT
                 auto value = get_value(watch_var.full_name);
                 if (value) {
                     bool changed = false;
-                    if (!watch_var.value || *watch_var.value != *value) changed = true;
+                    if (!watch_var.value->has_value() || watch_var.value->value() != *value)
+                        changed = true;
                     if (changed) {
-                        watch_var.value = value;
+                        *watch_var.value = value;
                         auto str_value = std::to_string(*value);
                         result.emplace_back(std::make_pair(watch_id, str_value));
                     }

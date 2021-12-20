@@ -854,6 +854,8 @@ void Debugger::handle_data_breakpoint(const DataBreakpointRequest &req, uint64_t
                 send_message(err.str(log_enabled_), conn_id);
                 return;
             }
+            // they share the same variable
+            auto value_ptr = std::make_shared<std::optional<int64_t>>();
             for (auto const &[id, var_name] : bp_ids) {
                 auto bp_opt = db_->get_breakpoint(id);
                 if (!bp_opt) {
@@ -871,8 +873,8 @@ void Debugger::handle_data_breakpoint(const DataBreakpointRequest &req, uint64_t
                 }
 
                 // add it to the monitor
-                bp->watch_id = monitor_.add_monitor_variable(bp->full_rtl_var_name,
-                                                             MonitorRequest::MonitorType::data);
+                bp->watch_id = monitor_.add_monitor_variable(
+                    bp->full_rtl_var_name, MonitorRequest::MonitorType::data, value_ptr);
             }
 
             // tell client we're good
