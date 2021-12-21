@@ -108,8 +108,6 @@ void Debugger::eval() {
     // breakpoints_.
     log_info("Start breakpoint evaluation...");
     start_breakpoint_evaluation();  // clean the state
-    // fetch data breakpoints
-    auto changed_watch_ids = monitor_.get_data_watch_ids();
 
     // main loop to fetch breakpoints
     while (true) {
@@ -125,16 +123,15 @@ void Debugger::eval() {
             for (auto i = 0u; i < bps.size(); i++) {
                 auto *bp = bps[i];
                 // lock-free map
-                threads.emplace_back(std::thread([bp, i, &hits, this, changed_watch_ids]() {
-                    this->eval_breakpoint(bp, hits, i, changed_watch_ids);
-                }));
+                threads.emplace_back(
+                    std::thread([bp, i, &hits, this]() { this->eval_breakpoint(bp, hits, i); }));
             }
             for (auto &t : threads) t.join();
 
         } else {
             // directly evaluate it in the current thread to avoid creating threads
             // overhead
-            this->eval_breakpoint(bps[0], hits, 0, changed_watch_ids);
+            this->eval_breakpoint(bps[0], hits, 0);
         }
 
         std::vector<const DebugBreakPoint *> result;
@@ -1056,8 +1053,7 @@ std::optional<int64_t> Debugger::get_value(const std::string &signal_name) {
     }
 }
 
-void Debugger::eval_breakpoint(DebugBreakPoint *bp, std::vector<bool> &result, uint32_t index,
-                               const std::unordered_set<uint64_t> &watch_ids) {
+void Debugger::eval_breakpoint(DebugBreakPoint *bp, std::vector<bool> &result, uint32_t index) {
     const auto &bp_expr = scheduler_->breakpoint_only() ? bp->expr : bp->enable_expr;
     // if not correct just always enable
     if (!bp_expr->correct()) return;
@@ -1071,12 +1067,12 @@ void Debugger::eval_breakpoint(DebugBreakPoint *bp, std::vector<bool> &result, u
         auto eval_result = bp_expr->eval(values);
         auto trigger_result = should_trigger(bp);
         bool data_bp = true;
-        if (bp->type == DebugBreakPoint::Type::data) {
-            if (watch_ids.find(bp->watch_id) == watch_ids.end()) {
-                data_bp = false;
-            }
+        bool enabled = eval_result && trigger_result;
+        if (bp->type == DebugBreakPoint::Type::data && enabled) {
+            auto [changed, _] = monitor_.var_changed(bp->watch_id);
+            data_bp = changed;
         }
-        if (eval_result && trigger_result && data_bp) {
+        if (enabled && data_bp) {
             // trigger a breakpoint!
             result[index] = true;
         }

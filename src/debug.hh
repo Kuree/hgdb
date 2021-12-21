@@ -133,8 +133,7 @@ private:
 
     // scheduler
     bool should_trigger(DebugBreakPoint *bp);
-    void eval_breakpoint(DebugBreakPoint *bp, std::vector<bool> &result, uint32_t index,
-                         const std::unordered_set<uint64_t> &watch_ids);
+    void eval_breakpoint(DebugBreakPoint *bp, std::vector<bool> &result, uint32_t index);
     void start_breakpoint_evaluation();
 
     // cached wrapper

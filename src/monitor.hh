@@ -25,8 +25,8 @@ public:
     [[nodiscard]] bool empty() const { return watched_variables_.empty(); }
     [[nodiscard]] uint64_t num_watches(const std::string& name, WatchType type) const;
 
-    // this should be called once per clock edge, i.e. eval()
-    std::unordered_set<uint64_t> get_data_watch_ids();
+    // notice that each call will change the internal stored value
+    std::pair<bool, std::optional<int64_t>> var_changed(uint64_t id);
 
 private:
     // notice that monitor itself doesn't care how to get values

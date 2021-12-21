@@ -63,16 +63,10 @@ std::vector<std::pair<uint64_t, std::string>> Monitor::get_watched_values(WatchT
             case WatchType::data:
             case WatchType::changed: {
                 // only if values are changed
-                auto value = get_value(watch_var.full_name);
-                if (value) {
-                    bool changed = false;
-                    if (!watch_var.value->has_value() || watch_var.value->value() != *value)
-                        changed = true;
-                    if (changed) {
-                        *watch_var.value = value;
-                        auto str_value = std::to_string(*value);
-                        result.emplace_back(std::make_pair(watch_id, str_value));
-                    }
+                auto [changed, value] = var_changed(watch_id);
+                if (changed) {
+                    auto str_value = std::to_string(*value);
+                    result.emplace_back(std::make_pair(watch_id, str_value));
                 }
                 break;
             }
@@ -93,14 +87,21 @@ uint64_t Monitor::num_watches(const std::string& name, WatchType type) const {
     return result;
 }
 
-std::unordered_set<uint64_t> Monitor::get_data_watch_ids() {
-    if (empty()) return {};
-    std::unordered_set<uint64_t> result;
-    auto res = get_watched_values(WatchType::data);
-    for (auto const& [id, _] : res) {
-        result.emplace(id);
+std::pair<bool, std::optional<int64_t>> Monitor::var_changed(uint64_t id) {
+    if (watched_variables_.find(id) == watched_variables_.end()) [[unlikely]] {
+        return {false, {}};
     }
-    return result;
+    auto& watch_var = watched_variables_.at(id);
+    auto value = get_value(watch_var.full_name);
+    if (value) {
+        bool changed = false;
+        if (!watch_var.value->has_value() || watch_var.value->value() != *value) changed = true;
+        if (changed) {
+            *watch_var.value = value;
+        }
+        return {changed, value};
+    }
+    return {false, {}};
 }
 
 }  // namespace hgdb
