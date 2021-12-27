@@ -31,7 +31,15 @@ PYBIND11_MODULE(_hgdb, m) {
     });
     m.def("store_instance", &hgdb::store_instance);
     m.def("store_annotation", &hgdb::store_annotation);
-    m.def("store_assignment", &hgdb::store_assignment);
+    m.def("store_assignment",
+          py::overload_cast<hgdb::DebugDatabase &, const std::string &, const std::string &,
+                            uint32_t>(&hgdb::store_assignment));
+    m.def("store_assignment",
+          py::overload_cast<hgdb::DebugDatabase &, const std::string &, const std::string &,
+                            uint32_t, const std::string &>(&hgdb::store_assignment));
+    m.def("store_assignment",
+          py::overload_cast<hgdb::DebugDatabase &, const std::string &, const std::string &,
+                            uint32_t, const std::string &, uint32_t>(&hgdb::store_assignment));
     // checkers
     m.def("has_instance_id", [](hgdb::DebugDatabase &db, uint32_t instance_id) -> bool {
         return has_type_id<hgdb::Instance>(db, instance_id);

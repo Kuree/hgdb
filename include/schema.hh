@@ -324,6 +324,11 @@ struct AssignmentInfo {
      */
     std::unique_ptr<uint32_t> breakpoint_id;
     /**
+     * Additional enable condition not encoded by the breakpoint. Mostly it is empty, but it can be
+     * very useful for assignments that requires flattened information, such as register array
+     */
+    std::string condition;
+    /**
      * The scope ID corresponds to scope id. Ideally this can be omitted, since the scope table
      * already stores all the information. Include here to make search easy
      */
@@ -372,7 +377,10 @@ auto inline init_debug_db(const std::string &filename) {
         make_table("assignment", make_column("name", &AssignmentInfo::name),
                    make_column("value", &AssignmentInfo::value),
                    make_column("breakpoint_id", &AssignmentInfo::breakpoint_id),
-                   foreign_key(&AssignmentInfo::breakpoint_id).references(&BreakPoint::id)));
+                   make_column("condition", &AssignmentInfo::condition),
+                   make_column("scope_id", &AssignmentInfo::scope_id),
+                   foreign_key(&AssignmentInfo::breakpoint_id).references(&BreakPoint::id),
+                   foreign_key(&AssignmentInfo::scope_id).references(&Scope::id)));
 
     storage.sync_schema();
     return storage;
@@ -461,11 +469,32 @@ inline void store_event(DebugDatabase &db, const std::string &name, const std::s
 }
 
 inline void store_assignment(DebugDatabase &db, const std::string &var_name,
-                             const std::string &var_value, uint32_t breakpoint_id,
-                             uint32_t scope_id) {
+                             const std::string &var_value, uint32_t breakpoint_id) {
     db.replace(AssignmentInfo{.name = var_name,
                               .value = var_value,
                               .breakpoint_id = std::make_unique<uint32_t>(breakpoint_id),
+                              .scope_id = nullptr});
+    // NOLINTNEXTLINE
+}
+
+inline void store_assignment(DebugDatabase &db, const std::string &var_name,
+                             const std::string &var_value, uint32_t breakpoint_id,
+                             const std::string &condition) {
+    db.replace(AssignmentInfo{.name = var_name,
+                              .value = var_value,
+                              .breakpoint_id = std::make_unique<uint32_t>(breakpoint_id),
+                              .condition = condition,
+                              .scope_id = nullptr});
+    // NOLINTNEXTLINE
+}
+
+inline void store_assignment(DebugDatabase &db, const std::string &var_name,
+                             const std::string &var_value, uint32_t breakpoint_id,
+                             const std::string &condition, uint32_t scope_id) {
+    db.replace(AssignmentInfo{.name = var_name,
+                              .value = var_value,
+                              .breakpoint_id = std::make_unique<uint32_t>(breakpoint_id),
+                              .condition = condition,
                               .scope_id = std::make_unique<uint32_t>(scope_id)});
     // NOLINTNEXTLINE
 }
