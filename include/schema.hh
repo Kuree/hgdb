@@ -468,12 +468,14 @@ inline void store_event(DebugDatabase &db, const std::string &name, const std::s
     // NOLINTNEXTLINE
 }
 
-inline void store_assignment(DebugDatabase &db, const std::string &var_name,
-                             const std::string &var_value, uint32_t breakpoint_id) {
+[[maybe_unused]] inline void store_assignment(DebugDatabase &db, const std::string &var_name,
+                                              const std::string &var_value, uint32_t breakpoint_id,
+                                              const std::string &condition, uint32_t scope_id) {
     db.replace(AssignmentInfo{.name = var_name,
                               .value = var_value,
                               .breakpoint_id = std::make_unique<uint32_t>(breakpoint_id),
-                              .scope_id = nullptr});
+                              .condition = condition,
+                              .scope_id = std::make_unique<uint32_t>(scope_id)});
     // NOLINTNEXTLINE
 }
 
@@ -489,13 +491,8 @@ inline void store_assignment(DebugDatabase &db, const std::string &var_name,
 }
 
 inline void store_assignment(DebugDatabase &db, const std::string &var_name,
-                             const std::string &var_value, uint32_t breakpoint_id,
-                             const std::string &condition, uint32_t scope_id) {
-    db.replace(AssignmentInfo{.name = var_name,
-                              .value = var_value,
-                              .breakpoint_id = std::make_unique<uint32_t>(breakpoint_id),
-                              .condition = condition,
-                              .scope_id = std::make_unique<uint32_t>(scope_id)});
+                             const std::string &var_value, uint32_t breakpoint_id) {
+    store_assignment(db, var_name, var_value, breakpoint_id, "");
     // NOLINTNEXTLINE
 }
 
