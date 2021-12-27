@@ -264,14 +264,15 @@ std::vector<std::string> compute_trigger_symbol(const BreakPoint &bp) {
 }
 
 DebugBreakPoint *Scheduler::add_breakpoint(const BreakPoint &bp_info, const BreakPoint &db_bp,
-                                           DebugBreakPoint::Type bp_type) {
+                                           DebugBreakPoint::Type bp_type, bool allow_duplicated) {
     // add them to the eval vector
     std::string cond = "1";
     if (!db_bp.condition.empty()) cond = db_bp.condition;
-    if (!bp_info.condition.empty()) cond.append(" && " + bp_info.condition);
-    log_info(fmt::format("Breakpoint inserted into {0}:{1}", db_bp.filename, db_bp.line_num));
-    std::lock_guard guard(breakpoint_lock_);
-    if (inserted_breakpoints_.find(db_bp.id) == inserted_breakpoints_.end()) {
+    if (!bp_info.condition.empty()) {
+        cond.append(" && " + bp_info.condition);
+    }
+
+    auto insert_bp = [bp_type, this, &db_bp, cond]() -> DebugBreakPoint * {
         auto bp = std::make_unique<DebugBreakPoint>();
         bp->id = db_bp.id;
         bp->instance_id = *db_bp.instance_id;
@@ -296,22 +297,32 @@ DebugBreakPoint *Scheduler::add_breakpoint(const BreakPoint &bp_info, const Brea
             return nullptr;
         }
         return ptr.get();
-    } else {
-        // update breakpoint entry
-        for (auto &b : breakpoints_) {
-            if (db_bp.id == b->id) {
-                b->expr = std::make_unique<DebugExpression>(cond);
-                util::validate_expr(rtl_, db_, b->expr.get(), db_bp.id, *db_bp.instance_id);
-                if (!b->expr->correct()) [[unlikely]] {
-                    log_error("Unable to validate breakpoint expression: " + cond);
+    };
+
+    log_info(fmt::format("Breakpoint inserted into {0}:{1}", db_bp.filename, db_bp.line_num));
+    std::lock_guard guard(breakpoint_lock_);
+    if (!allow_duplicated) [[likely]] {
+        if (inserted_breakpoints_.find(db_bp.id) == inserted_breakpoints_.end()) {
+            return insert_bp();
+        } else {
+            // update breakpoint entry
+            for (auto &b : breakpoints_) {
+                if (db_bp.id == b->id) {
+                    b->expr = std::make_unique<DebugExpression>(cond);
+                    util::validate_expr(rtl_, db_, b->expr.get(), db_bp.id, *db_bp.instance_id);
+                    if (!b->expr->correct()) [[unlikely]] {
+                        log_error("Unable to validate breakpoint expression: " + cond);
+                    }
+                    // need to update the bp type flag
+                    b->type = static_cast<DebugBreakPoint::Type>(static_cast<int>(b->type) |
+                                                                 static_cast<int>(bp_type));
+                    return b.get();
                 }
-                // need to update the bp type flag
-                b->type = static_cast<DebugBreakPoint::Type>(static_cast<int>(b->type) |
-                                                             static_cast<int>(bp_type));
-                return b.get();
             }
+            return nullptr;
         }
-        return nullptr;
+    } else {
+        return insert_bp();
     }
 }
 
@@ -321,7 +332,8 @@ DebugBreakPoint *Scheduler::add_data_breakpoint(const std::string &var_name,
     // we use the same add breakpoint function with different flags on
     BreakPoint bp;
     bp.condition = expression;
-    auto *data_bp = add_breakpoint(bp, db_bp, DebugBreakPoint::Type::data);
+    // we allow duplicated breakpoints to be inserted here
+    auto *data_bp = add_breakpoint(bp, db_bp, DebugBreakPoint::Type::data, true);
     if (!data_bp) return nullptr;
     auto expr = DebugExpression(var_name);
     util::validate_expr(rtl_, db_, &expr, db_bp.id, *db_bp.instance_id);

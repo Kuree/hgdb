@@ -52,7 +52,8 @@ public:
 
     // handle breakpoints
     DebugBreakPoint *add_breakpoint(const BreakPoint &bp_info, const BreakPoint &db_bp,
-                                    DebugBreakPoint::Type bp_type = DebugBreakPoint::Type::normal);
+                                    DebugBreakPoint::Type bp_type = DebugBreakPoint::Type::normal,
+                                    bool allow_duplicated = false);
     void reorder_breakpoints();
     void remove_breakpoint(const BreakPoint &bp);
     // getter. not exposing all the information
