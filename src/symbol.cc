@@ -324,8 +324,8 @@ public:
         return resp.uint64_t_results;
     }
 
-    [[nodiscard]] std::map<uint32_t, std::string> get_assigned_breakpoints(
-        const std::string &var_name, uint32_t breakpoint_id) override {
+    [[nodiscard]] std::vector<std::tuple<uint32_t, std::string, std::string>>
+    get_assigned_breakpoints(const std::string &var_name, uint32_t breakpoint_id) override {
         SymbolRequest req(SymbolRequest::request_type::get_assigned_breakpoints);
         req.name = var_name;
         req.breakpoint_id = breakpoint_id;

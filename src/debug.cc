@@ -853,7 +853,7 @@ void Debugger::handle_data_breakpoint(const DataBreakpointRequest &req, uint64_t
             }
             // they share the same variable
             auto value_ptr = std::make_shared<std::optional<int64_t>>();
-            for (auto const &[id, var_name] : bp_ids) {
+            for (auto const &[id, var_name, data_condition] : bp_ids) {
                 auto bp_opt = db_->get_breakpoint(id);
                 if (!bp_opt) {
                     auto error = GenericResponse(status_code::error, req, "Invalid breakpoint id");
@@ -861,10 +861,20 @@ void Debugger::handle_data_breakpoint(const DataBreakpointRequest &req, uint64_t
                     return;
                 }
                 auto full_name = rtl_->get_full_name(var_name);
-                auto *bp = scheduler_->add_data_breakpoint(full_name, req.condition(), *bp_opt);
+                // merge data_condition
+                std::string bp_condition;
+                if (req.condition().empty())
+                    bp_condition = data_condition;
+                else if (bp_condition.empty())
+                    bp_condition = req.condition();
+                else
+                    // merge these two
+                    bp_condition = fmt::format("{0} && {1}", req.condition(), data_condition);
+                auto *bp = scheduler_->add_data_breakpoint(full_name, bp_condition, *bp_opt);
                 if (!bp) {
-                    auto error = GenericResponse(status_code::error, req,
-                                                 "Invalid data breakpoint expression/condition");
+                    auto error =
+                        GenericResponse(status_code::error, req,
+                                        "Invalid data breakpoint expression/data_condition");
                     send_message(error.str(log_enabled_), conn_id);
                     return;
                 }

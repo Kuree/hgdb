@@ -447,7 +447,7 @@ public:
     std::vector<std::string> str_results;
     std::unordered_map<std::string, int64_t> map_result;
     std::vector<uint32_t> uint64_t_results;
-    std::map<uint32_t, std::string> var_result;
+    std::vector<std::tuple<uint32_t, std::string, std::string>> var_result;
 
 private:
     SymbolRequest::request_type type_;

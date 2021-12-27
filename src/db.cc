@@ -274,8 +274,9 @@ std::vector<std::string> DBSymbolTableProvider::get_all_array_names() {
     return r;
 }
 
-std::map<uint32_t, std::string> DBSymbolTableProvider::get_assigned_breakpoints(
-    const std::string &var_name, uint32_t breakpoint_id) {
+std::vector<std::tuple<uint32_t, std::string, std::string>>
+DBSymbolTableProvider::get_assigned_breakpoints(const std::string &var_name,
+                                                uint32_t breakpoint_id) {
     using namespace sqlite_orm;
     if (!db_) return {};
     // need to get reference breakpoint
@@ -288,10 +289,11 @@ std::map<uint32_t, std::string> DBSymbolTableProvider::get_assigned_breakpoints(
     // get instance as well
     auto const &ref_assignment = ref_assignments[0];
     if (ref_assignment.name != var_name) return {};
-    std::map<uint32_t, std::string> result;
-    std::vector<std::tuple<std::unique_ptr<uint32_t>, std::string>> res;
+    std::vector<std::tuple<uint32_t, std::string, std::string>> result;
+    std::vector<std::tuple<std::unique_ptr<uint32_t>, std::string, std::string>> res;
     if (ref_assignment.scope_id) {
-        res = db_->select(columns(&AssignmentInfo::breakpoint_id, &AssignmentInfo::value),
+        res = db_->select(columns(&AssignmentInfo::breakpoint_id, &AssignmentInfo::value,
+                                  &AssignmentInfo::condition),
                           where(c(&AssignmentInfo::scope_id) == *ref_assignment.scope_id &&
                                 c(&AssignmentInfo::name) == var_name &&
                                 c(&BreakPoint::id) == (&AssignmentInfo::breakpoint_id) &&
@@ -299,14 +301,15 @@ std::map<uint32_t, std::string> DBSymbolTableProvider::get_assigned_breakpoints(
 
     } else {
         // no scope, search all variable information
-        res = db_->select(columns(&AssignmentInfo::breakpoint_id, &AssignmentInfo::value),
+        res = db_->select(columns(&AssignmentInfo::breakpoint_id, &AssignmentInfo::value,
+                                  &AssignmentInfo::condition),
                           where(c(&AssignmentInfo::name) == var_name &&
                                 c(&BreakPoint::id) == (&AssignmentInfo::breakpoint_id) &&
                                 c(&BreakPoint::instance_id) == *ref_bp->instance_id));
     }
     for (auto const &r : res) {
         auto name = fmt::format("{0}.{1}", *inst, std::get<1>(r));
-        result.emplace(*std::get<0>(r), name);
+        result.emplace_back(std::make_tuple(*std::get<0>(r), name, std::get<2>(r)));
     }
 
     return result;

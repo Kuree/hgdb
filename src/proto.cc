@@ -1253,10 +1253,28 @@ void SymbolResponse::parse(const std::string &str) {
             }
         }
         case SymbolRequest::request_type::get_assigned_breakpoints: {
-            if (!result.IsObject()) return;
-            for (auto const &[key, value] : result.GetObject()) {
-                if (!key.IsNumber() || !value.IsString()) return;
-                var_result.emplace(key.GetUint64(), value.GetString());
+            if (!result.IsArray()) return;
+            for (auto const &entry : result.GetArray()) {
+                if (!entry.IsObject()) {
+                    return;
+                }
+                std::optional<uint32_t> breakpoint_id;
+                std::optional<std::string> var_name, condition;
+                for (auto const &[key, value] : entry.GetObject()) {
+                    if ((key == "id" || key == "breakpoint_id") && value.IsNumber()) {
+                        breakpoint_id = value.GetUint64();
+                    } else if ((key == "var" || key == "value" || key == "var_name" ||
+                                key == "variable_name") ||
+                               value.IsString()) {
+                        var_name = value.GetString();
+                    } else if ((key == "condition" || key == "cond") && value.IsString()) {
+                        condition = value.GetString();
+                    }
+                }
+                if (!breakpoint_id || !var_name) return;
+                // condition is optional
+                if (!condition) condition = "";
+                var_result.emplace_back(std::make_tuple(*breakpoint_id, *var_name, *condition));
             }
         }
     }
