@@ -156,7 +156,7 @@ private:
     std::mutex cached_vpi_size_lock_;
 
     // cached module signals
-    // this is to avoid to loop through instances repeatedly
+    // this is to avoid looping through instances repeatedly
     std::unordered_map<std::string, ModuleSignals> module_signals_cache_;
 
     // notice that to my best knowledge, there is no command VPI routine that shared by all

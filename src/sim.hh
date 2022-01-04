@@ -12,7 +12,7 @@ __attribute__((visibility("default"))) void initialize_hgdb_runtime();
 namespace hgdb {
 // cxx version is used for verilator
 void initialize_hgdb_runtime_cxx(bool start_server);
-void initialize_hgdb_runtime_cxx() { initialize_hgdb_runtime_cxx(true); }
+[[maybe_unused]] void initialize_hgdb_runtime_cxx();
 void initialize_hgdb_runtime_vpi(std::unique_ptr<AVPIProvider> vpi);
 Debugger* initialize_hgdb_runtime_vpi(std::unique_ptr<AVPIProvider> vpi, bool start_server);
 }  // namespace hgdb

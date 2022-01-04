@@ -12,6 +12,7 @@ std::vector<std::string> get_tokens(const std::string &line, const std::string &
         }
         prev = pos + 1;
     }
+    // NOLINTNEXTLINE
     if (prev < line.length()) tokens.emplace_back(line.substr(prev, std::string::npos));
     // remove empty ones
     std::vector<std::string> result;

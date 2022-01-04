@@ -169,7 +169,7 @@ private:
             if (!next) break;
             auto current_op = node->op;
             auto next_op = next->op;
-            // if both ops exist in the map and we have low precedence before high precedence
+            // if both ops exist in the map, and we have low precedence before high precedence
             // do a tree rotation
             if (precedence.find(current_op) != precedence.end() &&
                 precedence.find(next_op) != precedence.end() &&

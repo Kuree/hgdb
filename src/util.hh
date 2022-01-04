@@ -14,7 +14,7 @@ std::vector<std::string> get_tokens(const std::string &line, const std::string &
 template <typename T>
 std::string join(T begin, T end, const std::string &sep) {
     std::ostringstream stream;
-    // more efficient way will be using ostream_joiner
+    // more efficient way will be using ostream_joiner,
     // but it is still experimental
     auto it = begin;
     stream << *it;

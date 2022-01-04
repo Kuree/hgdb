@@ -603,7 +603,7 @@ std::unique_ptr<Request> Request::parse_request(const std::string &str) {
 
     // get payload string
     auto &payload_member = document["payload"];
-    // notice that we str it again. ideally we shouldn't, but since the json parser is
+    // notice that we stringify it again. ideally we shouldn't, but since the json parser is
     // fast, it should not be a major concern for our use cases
     StringBuffer buffer;
     Writer writer(buffer);

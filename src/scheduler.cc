@@ -9,7 +9,7 @@ namespace hgdb {
 Scheduler::Scheduler(RTLSimulatorClient *rtl, SymbolTableProvider *db,
                      const bool &single_thread_mode, const bool &log_enabled)
     : rtl_(rtl), db_(db), single_thread_mode_(single_thread_mode), log_enabled_(log_enabled) {
-    // compute the look up table
+    // compute the look-up table
     log_info("Compute breakpoint look up table");
     bp_ordering_ = db_->execution_bp_orders();
     for (auto i = 0u; i < bp_ordering_.size(); i++) {
@@ -191,7 +191,7 @@ std::vector<DebugBreakPoint *> Scheduler::next_reverse_breakpoints() {
             }
         } else {
             // find the next inserted breakpoint
-            // notice that breakpoints are already ordered
+            // notice that breakpoints are already ordered,
             // so we search from the beginning
             for (auto i = breakpoints_.size() - 1; i >= 1; i--) {
                 auto id = breakpoints_[i]->id;
@@ -440,7 +440,7 @@ void Scheduler::scan_breakpoints(uint64_t ref_index, bool forward,
     // - same enable condition
     // - different instance id
 
-    auto match = [&](int64_t i) -> bool {
+    auto match = [&](uint64_t i) -> bool {
         auto const &next_bp = breakpoints_[i];
         // if fn/ln/cn tuple doesn't match, stop
         // reorder the comparison in a way that exploits short circuit

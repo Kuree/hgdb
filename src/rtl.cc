@@ -178,7 +178,8 @@ vpiHandle RTLSimulatorClient::get_handle(const std::vector<std::string> &tokens)
         vpiHandle ptr = nullptr;
         if (has_slice) [[unlikely]] {
             // if it's a slice, last chance to get it right
-            auto handle_name = util::join(tokens.begin(), tokens.begin() + tokens.size() - 1, ".");
+            auto handle_name = util::join(
+                tokens.begin(), tokens.begin() + static_cast<uint32_t>(tokens.size()) - 1, ".");
             ptr = get_handle_raw(handle_name);
         }
 
@@ -230,7 +231,7 @@ vpiHandle RTLSimulatorClient::access_arrays(StringIterator begin, StringIterator
         if (!std::all_of(idx.begin(), idx.end(), ::isdigit)) {
             return nullptr;
         }
-        auto index_value = std::stoll(idx);
+        auto index_value = std::stoi(idx);
         var_handle = vpi_->vpi_handle_by_index(var_handle, index_value);
         if (!var_handle) return nullptr;
         it++;
@@ -343,10 +344,10 @@ std::optional<std::string> RTLSimulatorClient::get_str_value(vpiHandle handle) {
 bool RTLSimulatorClient::set_value(vpiHandle handle, int64_t value) {
     if (!handle) return false;
     s_vpi_value vpi_value;
-    vpi_value.value.integer = value;
+    vpi_value.value.integer = static_cast<int>(value);
     vpi_value.format = vpiIntVal;
 
-    // If the flags argument also has the bit mask vpiReturnEvent,
+    // If the flag argument also has the bit mask vpiReturnEvent,
     // vpi_put_value() shall return a handle of type vpiSchedEvent to the newly scheduled event,
     // provided there is some form of a delay and an event is scheduled.
     // If the bit mask is not used, or if no delay is used, or if an event is not scheduled,
@@ -376,7 +377,7 @@ std::unordered_map<std::string, vpiHandle> RTLSimulatorClient::get_module_signal
 
     std::unordered_map<std::string, vpiHandle> result;
     // get all net from that particular module
-    auto *net_iter = vpi_->vpi_iterate(vpi_net_target_, module_handle);
+    auto *net_iter = vpi_->vpi_iterate(static_cast<int>(vpi_net_target_), module_handle);
     if (!net_iter) return {};
     vpiHandle net_handle;
     while ((net_handle = vpi_->vpi_scan(net_iter)) != nullptr) {
@@ -393,7 +394,7 @@ std::unordered_map<std::string, vpiHandle> RTLSimulatorClient::get_module_signal
 std::string RTLSimulatorClient::get_full_name(const std::string &name) const {
     auto const [top, path] = get_path(name);
     if (hierarchy_name_prefix_map_.find(top) == hierarchy_name_prefix_map_.end()) {
-        // we haven't seen this top. it has to be an error since we requires top name
+        // we haven't seen this top. it has to be an error since we require top name
         // setup in the constructor. return the original name
         return name;
     } else {

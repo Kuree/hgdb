@@ -104,7 +104,7 @@ void Debugger::eval() {
     // the function that actually triggers breakpoints!
     // notice that there is a hidden race condition
     // when we trigger the breakpoint, the runtime (simulation side) will be paused via a lock.
-    // however, the server side can still takes breakpoint requests, hence modifying the
+    // however, the server side can still take breakpoint requests, hence modifying the
     // breakpoints_.
     log_info("Start breakpoint evaluation...");
     start_breakpoint_evaluation();  // clean the state
@@ -210,7 +210,7 @@ void Debugger::detach() {
 }
 
 void Debugger::on_message(const std::string &message, uint64_t conn_id) {
-    // server can only receives request
+    // server can only receive request
     auto req = Request::parse_request(message);
     if (req->status() != status_code::success) {
         // send back error message
@@ -459,7 +459,7 @@ void Debugger::handle_connection(const ConnectionRequest &req, uint64_t conn_id)
 void Debugger::handle_breakpoint(const BreakPointRequest &req, uint64_t conn_id) {
     if (!check_send_db_error(req.type(), conn_id)) return;
 
-    // depends on whether it is add or remove
+    // depends on whether it is "add" or "remove"
     auto const &bp_info = req.breakpoint();
     if (req.bp_action() == BreakPointRequest::action::add) {
         // we need to figure out the ordering and where to insert it
@@ -499,7 +499,7 @@ void Debugger::handle_breakpoint(const BreakPointRequest &req, uint64_t conn_id)
 
 void Debugger::handle_breakpoint_id(const BreakPointIDRequest &req, uint64_t conn_id) {
     if (!check_send_db_error(req.type(), conn_id)) return;
-    // depends on whether it is add or remove
+    // depends on whether it is "add" or "remove"
     auto const &bp_info = req.breakpoint();
     if (req.bp_action() == BreakPointRequest::action::add) {
         // need to query the db to get the actual breakpoint

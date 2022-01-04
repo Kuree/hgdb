@@ -45,6 +45,8 @@ void initialize_hgdb_runtime_cxx(bool start_server) {
     initialize_hgdb_runtime_vpi(nullptr, start_server);
 }
 
+[[maybe_unused]] void initialize_hgdb_runtime_cxx() { initialize_hgdb_runtime_cxx(true); }
+
 void initialize_hgdb_runtime_vpi(std::unique_ptr<AVPIProvider> vpi) {
     initialize_hgdb_runtime_vpi(std::move(vpi), false);
 }
