@@ -116,6 +116,11 @@ class HGDBClient:
                    "payload": {"id": bp_id, "action": "remove"}}
         return await self.__send_check(payload, check_error)
 
+    async def remove_data_breakpoint(self, bp_id, token="", check_error=True):
+        payload = {"request": True, "type": "data-breakpoint", "token": token,
+                   "payload": {"breakpoint-id": bp_id, "action": "remove"}}
+        return await self.__send_check(payload, check_error)
+
     async def request_breakpoint_location(self, filename, line_num=None, column_num=None):
         payload = {"request": True, "type": "bp-location", "payload": {"filename": filename}}
         if line_num is not None:

@@ -239,6 +239,17 @@ DebugBreakPoint *Scheduler::create_next_breakpoint(const std::optional<BreakPoin
     return &next_temp_breakpoint_;
 }
 
+void Scheduler::remove_breakpoint(uint64_t bp_id) {
+    // notice that removal doesn't need reordering
+    for (auto pos = breakpoints_.begin(); pos != breakpoints_.end(); pos++) {
+        if ((*pos)->id == bp_id) {
+            breakpoints_.erase(pos);
+            inserted_breakpoints_.erase(bp_id);
+            break;
+        }
+    }
+}
+
 void Scheduler::start_breakpoint_evaluation() {
     evaluated_ids_.clear();
     current_breakpoint_id_ = std::nullopt;
@@ -385,12 +396,24 @@ void Scheduler::reorder_breakpoints() {
 
 void Scheduler::remove_breakpoint(const BreakPoint &bp) {
     std::lock_guard guard(breakpoint_lock_);
-    // notice that removal doesn't need reordering
-    for (auto pos = breakpoints_.begin(); pos != breakpoints_.end(); pos++) {
-        if ((*pos)->id == bp.id) {
-            breakpoints_.erase(pos);
-            inserted_breakpoints_.erase(bp.id);
-            break;
+    remove_breakpoint(bp.id);
+}
+
+void Scheduler::remove_data_breakpoint(uint64_t bp_id) {
+    std::lock_guard guard(breakpoint_lock_);
+    for (auto const &bp_ptr : breakpoints_) {
+        if (bp_ptr->id == bp_id) {
+            if (bp_ptr->has_type_flag(DebugBreakPoint::Type::data)) {
+                if (bp_ptr->type == DebugBreakPoint::Type::data) {
+                    // remove this breakpoint
+                    remove_breakpoint(bp_id);
+                    // we are done
+                    return;
+                } else {
+                    // change it to normal breakpoint
+                    bp_ptr->type = DebugBreakPoint::Type::normal;
+                }
+            }
         }
     }
 }

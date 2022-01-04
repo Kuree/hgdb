@@ -61,6 +61,7 @@ public:
     DebugBreakPoint *add_data_breakpoint(const std::string &var_name, const std::string &expression,
                                          const BreakPoint &db_bp);
     void clear_data_breakpoints();
+    void remove_data_breakpoint(uint64_t bp_id);
 
     // breakpoint mode
     bool breakpoint_only() const;
@@ -95,6 +96,7 @@ private:
     std::vector<vpiHandle> clock_handles_;
 
     DebugBreakPoint *create_next_breakpoint(const std::optional<BreakPoint> &bp_info);
+    void remove_breakpoint(uint64_t bp_id);
 
     // log
     static void log_error(const std::string &msg);

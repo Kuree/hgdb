@@ -110,7 +110,7 @@ namespace hgdb {
  * Data Breakpoint Request
  * type: data_breakpoint
  * payload:
- *     action: [required] - string, of "add", "clear"
+ *     action: [required] - string, of "add", "clear", "info", and "remove"
  *     var_name: [required for add] - string
  *     breakpoint: [required for add] - uint64_t
  *     condition: [optional] - string
@@ -1047,13 +1047,24 @@ void DataBreakpointRequest::parse_payload(const std::string &payload) {
     auto action = get_member<std::string>(document, "action", error_reason_);
     if (!action) {
         status_code_ = status_code::error;
-        error_reason_ = "action not defined";
         return;
     }
 
     if (action == "clear") {
         action_ = Action::clear;
+    } else if (action == "remove") {
+        action_ = Action::remove;
+    } else if (action == "info") {
+        action_ = Action::info;
+        auto bp_id_opt = get_member<uint64_t>(document, "breakpoint-id", error_reason_);
+        if (!bp_id_opt) {
+            status_code_ = status_code::error;
+            return;
+        }
+        breakpoint_id_ = *bp_id_opt;
+        return;
     } else {
+        // add
         auto var_name_opt = get_member<std::string>(document, "var_name", error_reason_);
         if (!var_name_opt) {
             status_code_ = status_code::error;
@@ -1061,14 +1072,9 @@ void DataBreakpointRequest::parse_payload(const std::string &payload) {
         }
         variable_name_ = *var_name_opt;
 
-        if (action == "info") {
-            action_ = Action::info;
-            return;
-        }
-
         if (action != "add") {
             status_code_ = status_code::error;
-            error_reason_ = "Only 'add', 'clear', and 'info' are allowed";
+            error_reason_ = "Only 'add', 'clear', 'remove', and 'info' are allowed";
             return;
         }
 
