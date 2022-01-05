@@ -888,9 +888,6 @@ void Debugger::handle_data_breakpoint(const DataBreakpointRequest &req, uint64_t
             auto success_resp = GenericResponse(status_code::success, req);
             send_message(success_resp.str(log_enabled_), conn_id);
         }
-        case DataBreakpointRequest::Action::info: {
-            // TODO
-        }
         case DataBreakpointRequest::Action::remove: {
             scheduler_->remove_data_breakpoint(req.breakpoint_id());
             // tell client we're good

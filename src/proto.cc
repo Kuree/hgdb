@@ -110,7 +110,7 @@ namespace hgdb {
  * Data Breakpoint Request
  * type: data_breakpoint
  * payload:
- *     action: [required] - string, of "add", "clear", "info", and "remove"
+ *     action: [required] - string, of "add", "clear", and "remove"
  *     var_name: [required for add] - string
  *     breakpoint: [required for add] - uint64_t
  *     condition: [optional] - string
@@ -1054,8 +1054,6 @@ void DataBreakpointRequest::parse_payload(const std::string &payload) {
         action_ = Action::clear;
     } else if (action == "remove") {
         action_ = Action::remove;
-    } else if (action == "info") {
-        action_ = Action::info;
         auto bp_id_opt = get_member<uint64_t>(document, "breakpoint-id", error_reason_);
         if (!bp_id_opt) {
             status_code_ = status_code::error;
@@ -1074,7 +1072,7 @@ void DataBreakpointRequest::parse_payload(const std::string &payload) {
 
         if (action != "add") {
             status_code_ = status_code::error;
-            error_reason_ = "Only 'add', 'clear', 'remove', and 'info' are allowed";
+            error_reason_ = "Only 'add', 'clear', and 'remove' are allowed";
             return;
         }
 
