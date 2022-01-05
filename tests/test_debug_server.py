@@ -429,7 +429,7 @@ def test_data_breakpoint(start_server, find_free_port):
             res = await client.get_current_data_breakpoints()
             assert len(res) == 3
             await client.set_data_breakpoint(0, "c")
-            print(res)
+            res = await client.get_current_data_breakpoints()
             assert len(res) == 4
 
             await client.continue_()

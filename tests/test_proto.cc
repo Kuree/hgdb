@@ -1,4 +1,5 @@
 #include "../src/proto.hh"
+#include "../src/scheduler.hh"
 #include "gtest/gtest.h"
 
 TEST(proto, token_passing) {  // NOLINT
@@ -326,7 +327,7 @@ TEST(proto, request_parse_monitor) {  // NOLINT
     EXPECT_EQ(req->var_name(), "hgdb");
 }
 
-TEST(proto, set_value_request) { // NOLINT
+TEST(proto, set_value_request) {  // NOLINT
     const auto *req_str = R"({
     "request": true,
     "type": "set-value",
@@ -349,8 +350,7 @@ TEST(proto, set_value_request) { // NOLINT
     EXPECT_EQ(*req->breakpoint_id(), 44);
 }
 
-
-TEST(proto, data_breakpoint_request) { // NOLINT
+TEST(proto, data_breakpoint_request) {  // NOLINT
     const auto *req_str = R"({
     "request": true,
     "type": "data-breakpoint",
@@ -370,7 +370,6 @@ TEST(proto, data_breakpoint_request) { // NOLINT
     EXPECT_EQ(req->breakpoint_id(), 42);
     EXPECT_EQ(req->action(), hgdb::DataBreakpointRequest::Action::add);
 }
-
 
 TEST(proto, generic_response) {  // NOLINT
     auto res =
@@ -472,8 +471,8 @@ TEST(proto, breakpoint_response) {  // NOLINT
 }
 
 TEST(proto, debugger_info_response_breakpoint) {  // NOLINT
-    auto bp = hgdb::BreakPoint{.id = 42, .filename = "/tmp/a", .line_num = 1, .column_num = 1};
-    std::vector<hgdb::BreakPoint *> bps = {&bp};
+    auto bp = hgdb::DebugBreakPoint{.id = 42, .filename = "/tmp/a", .line_num = 1, .column_num = 1};
+    std::vector<const hgdb::DebugBreakPoint *> bps = {&bp};
     auto res = hgdb::DebuggerInformationResponse(bps);
     auto s = res.str(true);
     constexpr auto expected_value = R"({
@@ -487,7 +486,8 @@ TEST(proto, debugger_info_response_breakpoint) {  // NOLINT
                 "id": 42,
                 "filename": "/tmp/a",
                 "line_num": 1,
-                "column_num": 1
+                "column_num": 1,
+                "type": 1
             }
         ]
     }

@@ -339,7 +339,7 @@ DebugBreakPoint *Scheduler::add_breakpoint(const BreakPoint &bp_info, const Brea
         for (auto const &b : breakpoints_) {
             if (b->id == db_bp.id && b->has_type_flag(DebugBreakPoint::Type::data)) {
                 // check if it's data breakpoint as well
-                if (b->full_rtl_var_name == target_var) {
+                if (b->full_rtl_var_name == target_var && b->expr->expression() == cond) {
                     // no need to insert
                     return b.get();
                 }
