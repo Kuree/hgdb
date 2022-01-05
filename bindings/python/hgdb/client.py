@@ -12,6 +12,11 @@ def crete_debug_protocol(*args, **kwargs):
     return websockets.WebSocketClientProtocol(*args, **kwargs)
 
 
+class HGDBClientException(RuntimeError):
+    def __init__(self, *args):
+        super(HGDBClientException, self).__init__(*args)
+
+
 class HGDBClient:
     def __init__(self, uri, filename, src_mapping=None, debug=False):
         self.filename = filename
@@ -227,4 +232,4 @@ class HGDBClient:
     @staticmethod
     def __check_status(res):
         if res["status"] != "success":
-            raise Exception(res["payload"]["reason"])
+            raise HGDBClientException(res["payload"]["reason"])

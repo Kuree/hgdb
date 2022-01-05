@@ -1,5 +1,5 @@
 try:
-    from .client import HGDBClient
+    from .client import HGDBClient, HGDBClientException
     from .symbol import (SymbolTableProvider, VariableSymbol, GeneratorVariableSymbol, ContextVariableSymbol,
                          BreakpointSymbol)
 except ImportError:

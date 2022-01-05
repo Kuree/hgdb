@@ -44,6 +44,8 @@ bool Debugger::initialize_db(const std::string &filename) {
 }
 
 void Debugger::initialize_db(std::unique_ptr<SymbolTableProvider> db) {
+    // reset db_ for every new connection
+    db_ = nullptr;
     if (!db) return;
     db_ = std::move(db);
     // get all the instance names
