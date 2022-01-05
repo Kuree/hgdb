@@ -214,6 +214,13 @@ std::vector<std::string> DBSymbolTableProvider::get_instance_names() {
     return result;
 }
 
+std::vector<std::string> DBSymbolTableProvider::get_filenames() {
+    using namespace sqlite_orm;
+    std::lock_guard guard(db_lock_);
+    auto names = db_->select(distinct(&BreakPoint::filename));  // NOLINT
+    return names;
+}
+
 std::vector<std::string> DBSymbolTableProvider::get_annotation_values(const std::string &name) {
     using namespace sqlite_orm;
     std::lock_guard guard(db_lock_);

@@ -20,6 +20,7 @@ public:
     virtual std::optional<std::string> get_instance_name(uint32_t instance_id) = 0;
     virtual std::optional<uint64_t> get_instance_id(const std::string &instance_name) = 0;
     [[nodiscard]] virtual std::optional<uint64_t> get_instance_id(uint64_t breakpoint_id) = 0;
+    virtual std::vector<std::string> get_filenames() = 0;
 
     using ContextVariableInfo = std::pair<ContextVariable, Variable>;
     [[nodiscard]] virtual std::vector<ContextVariableInfo> get_context_variables(

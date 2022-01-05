@@ -296,6 +296,13 @@ public:
         return resp.str_results;
     }
 
+    std::vector<std::string> get_filenames() override {
+        SymbolRequest req(SymbolRequest::request_type::get_filenames);
+
+        auto resp = get_resp(req);
+        return resp.str_results;
+    }
+
     [[nodiscard]] std::optional<std::string> resolve_scoped_name_breakpoint(
         const std::string &scoped_name, uint64_t breakpoint_id) override {
         SymbolRequest req(SymbolRequest::request_type::resolve_scoped_name_breakpoint);

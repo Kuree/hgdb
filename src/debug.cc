@@ -653,6 +653,13 @@ void Debugger::handle_debug_info(const DebuggerInformationRequest &req, uint64_t
             send_message(resp.str(log_enabled_), conn_id);
             return;
         }
+        case DebuggerInformationRequest::CommandType::filename: {
+            auto filenames = db_->get_filenames();
+            auto resp = DebuggerInformationResponse(filenames);
+            req.set_token(resp);
+            send_message(resp.str(log_enabled_), conn_id);
+            return;
+        }
     }
 }
 

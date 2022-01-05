@@ -36,6 +36,7 @@ public:
     [[nodiscard]] std::vector<GeneratorVariableInfo> get_generator_variable(
         uint32_t instance_id) override;
     [[nodiscard]] std::vector<std::string> get_instance_names() override;
+    [[nodiscard]] std::vector<std::string> get_filenames() override;
     [[nodiscard]] std::vector<std::string> get_annotation_values(const std::string &name) override;
     std::unordered_map<std::string, int64_t> get_context_static_values(
         uint32_t breakpoint_id) override;

@@ -441,6 +441,10 @@ DebuggerInformationResponse::DebuggerInformationResponse(
     std::unordered_map<std::string, std::string> design)
     : command_type_(DebuggerInformationRequest::CommandType::design), design_(std::move(design)) {}
 
+DebuggerInformationResponse::DebuggerInformationResponse(std::vector<std::string> filenames)
+    : command_type_(DebuggerInformationRequest::CommandType::filename),
+      filenames_(std::move(filenames)) {}
+
 std::string DebuggerInformationResponse::str(bool pretty_print) const {
     using namespace rapidjson;
     Document document(rapidjson::kObjectType);  // NOLINT
@@ -460,6 +464,10 @@ std::string DebuggerInformationResponse::str(bool pretty_print) const {
                 set_member(entry, allocator, "filename", bp->filename);
                 set_member(entry, allocator, "line_num", bp->line_num);
                 set_member(entry, allocator, "column_num", bp->column_num);
+                if (!bp->full_rtl_var_name.empty()) {
+                    // only if the variable is set
+                    set_member(entry, allocator, "var", bp->full_rtl_var_name);
+                }
                 // type information
                 // 1 for normal, 2 for data, 3 for both
                 auto flag = static_cast<uint32_t>(bp->type);
@@ -494,6 +502,16 @@ std::string DebuggerInformationResponse::str(bool pretty_print) const {
             set_member(payload, allocator, "design", design);
             break;
         }
+        case DebuggerInformationRequest::CommandType::filename: {
+            Value array(kArrayType);
+            for (auto const &filename : filenames_) {
+                Value v(kStringType);
+                v = StringRef(filename.c_str(), filename.length());
+                array.PushBack(v, allocator);
+            }
+            set_member(payload, allocator, "filenames", array);
+            break;
+        }
     }
 
     set_member(document, "payload", payload);
@@ -514,6 +532,9 @@ std::string DebuggerInformationResponse::get_command_str() const {
         }
         case DebuggerInformationRequest::CommandType::design: {
             return "design";
+        }
+        case DebuggerInformationRequest::CommandType::filename: {
+            return "filename";
         }
     }
     return "";
@@ -803,6 +824,8 @@ void DebuggerInformationRequest::parse_payload(const std::string &payload) {
         command_type_ = CommandType::options;
     } else if (command == "design") {
         command_type_ = CommandType::design;
+    } else if (command == "filename") {
+        command_type_ = CommandType::filename;
     } else {
         status_code_ = status_code::error;
         error_reason_ = "Unknown command type " + command;
@@ -979,6 +1002,8 @@ std::string to_string(SymbolRequest::request_type type) {
             return "get_execution_bp_orders";
         case SymbolRequest::request_type::get_assigned_breakpoints:
             return "get_assigned_breakpoints";
+        case SymbolRequest::request_type::get_filenames:
+            return "get_filenames";
     }
     throw std::runtime_error("Invalid request type");
 }
@@ -1020,6 +1045,7 @@ std::string SymbolRequest::str() const {
         }
         case request_type::get_instance_names:
         case request_type::get_all_array_names:
+        case request_type::get_filenames:
         case request_type::get_execution_bp_orders:
             // nothing
             break;
@@ -1237,6 +1263,7 @@ void SymbolResponse::parse(const std::string &str) {
         }
         case SymbolRequest::request_type::get_all_array_names:
         case SymbolRequest::request_type::get_annotation_values:
+        case SymbolRequest::request_type::get_filenames:
         case SymbolRequest::request_type::get_instance_names: {
             if (!result.IsArray()) return;
             for (auto const &entry : result.GetArray()) {
