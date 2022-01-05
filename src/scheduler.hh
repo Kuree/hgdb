@@ -53,11 +53,11 @@ public:
     // handle breakpoints
     DebugBreakPoint *add_breakpoint(const BreakPoint &bp_info, const BreakPoint &db_bp,
                                     DebugBreakPoint::Type bp_type = DebugBreakPoint::Type::normal,
-                                    bool allow_duplicated = false);
+                                    bool data_breakpoint = false,
+                                    const std::string &target_var = "");
     void reorder_breakpoints();
     void remove_breakpoint(const BreakPoint &bp);
-    // getter. not exposing all the information
-    std::vector<BreakPoint> get_current_breakpoints();
+    std::vector<const DebugBreakPoint *> get_current_breakpoints();
     DebugBreakPoint *add_data_breakpoint(const std::string &var_name, const std::string &expression,
                                          const BreakPoint &db_bp);
     void clear_data_breakpoints();

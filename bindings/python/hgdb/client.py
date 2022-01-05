@@ -158,6 +158,22 @@ class HGDBClient:
         payload = {"request": True, "type": "debugger-info", "payload": {"command": status_command}}
         return await self.__send_check(payload, check_error)
 
+    async def __get_current_breakpoints(self, flag):
+        # helper function
+        info = await self.get_info()
+        bps = info["payload"]["breakpoints"]
+        result = []
+        for bp in bps:
+            if bp["type"] & flag:
+                result.append(bp)
+        return result
+
+    async def get_current_normal_breakpoints(self):
+        return await self.__get_current_breakpoints(1)
+
+    async def get_current_data_breakpoints(self):
+        return await self.__get_current_breakpoints(2)
+
     async def evaluate(self, scope, expression, is_context=True, check_error=True):
         payload = {"request": True, "type": "evaluation",
                    "payload": {"scope": scope, "expression": expression, "is_context": is_context}}

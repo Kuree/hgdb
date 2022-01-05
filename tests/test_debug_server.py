@@ -414,11 +414,24 @@ def test_data_breakpoint(start_server, find_free_port):
     # assign c_2 = a? c_0: c_1; // a = a en: 1   -> if (a)  | ln: 1
     # assign c_3 = a; // a = a c = c_2 en: 1     -> c = a   | ln: 5
 
+    # uri = "ws://localhost:8888"
+
     async def test_logic():
         times = {0: 0, 1: 0, 2: 0, 3: 0, 4: 0}
         async with hgdb.HGDBClient(uri, None) as client:
             await client.connect()
             await client.set_data_breakpoint(0, "c")
+            res = await client.get_current_normal_breakpoints()
+            assert len(res) == 0
+            res = await client.get_current_data_breakpoints()
+            assert len(res) == 4
+            await client.remove_data_breakpoint(res[0]["id"])
+            res = await client.get_current_data_breakpoints()
+            assert len(res) == 3
+            await client.set_data_breakpoint(0, "c")
+            print(res)
+            assert len(res) == 4
+
             await client.continue_()
             for i in range(7):
                 bp = await client.recv_bp(timeout=0.5)

@@ -8,6 +8,7 @@
 #include "rapidjson/prettywriter.h"
 #include "rapidjson/stringbuffer.h"
 #include "rapidjson/writer.h"
+#include "scheduler.hh"
 
 namespace hgdb {
 
@@ -425,7 +426,7 @@ void BreakPointResponse::Scope::add_generator_value(const std::string &name,
     generator_values.emplace(name, value);
 }
 
-DebuggerInformationResponse::DebuggerInformationResponse(std::vector<BreakPoint *> bps)
+DebuggerInformationResponse::DebuggerInformationResponse(std::vector<const DebugBreakPoint *> bps)
     : command_type_(DebuggerInformationRequest::CommandType::breakpoints), bps_(std::move(bps)) {}
 
 DebuggerInformationResponse::DebuggerInformationResponse(std::string status)
@@ -453,12 +454,16 @@ std::string DebuggerInformationResponse::str(bool pretty_print) const {
     switch (command_type_) {
         case DebuggerInformationRequest::CommandType::breakpoints: {
             Value array(kArrayType);
-            for (auto *bp : bps_) {
+            for (auto const *bp : bps_) {
                 Value entry(kObjectType);
                 set_member(entry, allocator, "id", bp->id);
                 set_member(entry, allocator, "filename", bp->filename);
                 set_member(entry, allocator, "line_num", bp->line_num);
                 set_member(entry, allocator, "column_num", bp->column_num);
+                // type information
+                // 1 for normal, 2 for data, 3 for both
+                auto flag = static_cast<uint32_t>(bp->type);
+                set_member(entry, allocator, "type", flag);
                 array.PushBack(entry, allocator);
             }
             set_member(payload, allocator, "breakpoints", array);

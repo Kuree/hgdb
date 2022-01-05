@@ -274,8 +274,10 @@ std::vector<std::string> compute_trigger_symbol(const BreakPoint &bp) {
     return tokens;
 }
 
+// NOLINTNEXTLINE
 DebugBreakPoint *Scheduler::add_breakpoint(const BreakPoint &bp_info, const BreakPoint &db_bp,
-                                           DebugBreakPoint::Type bp_type, bool allow_duplicated) {
+                                           DebugBreakPoint::Type bp_type, bool data_breakpoint,
+                                           const std::string &target_var) {
     // add them to the eval vector
     std::string cond = "1";
     if (!db_bp.condition.empty()) cond = db_bp.condition;
@@ -312,7 +314,7 @@ DebugBreakPoint *Scheduler::add_breakpoint(const BreakPoint &bp_info, const Brea
 
     log_info(fmt::format("Breakpoint inserted into {0}:{1}", db_bp.filename, db_bp.line_num));
     std::lock_guard guard(breakpoint_lock_);
-    if (!allow_duplicated) [[likely]] {
+    if (!data_breakpoint) [[likely]] {
         if (inserted_breakpoints_.find(db_bp.id) == inserted_breakpoints_.end()) {
             return insert_bp();
         } else {
@@ -333,7 +335,26 @@ DebugBreakPoint *Scheduler::add_breakpoint(const BreakPoint &bp_info, const Brea
             return nullptr;
         }
     } else {
-        return insert_bp();
+        // we skip insertion if everything matches
+        for (auto const &b : breakpoints_) {
+            if (b->id == db_bp.id && b->has_type_flag(DebugBreakPoint::Type::data)) {
+                // check if it's data breakpoint as well
+                if (b->full_rtl_var_name == target_var) {
+                    // no need to insert
+                    return b.get();
+                }
+            }
+        }
+        auto *data_bp = insert_bp();
+        auto expr = DebugExpression(target_var);
+        util::validate_expr(rtl_, db_, &expr, db_bp.id, *db_bp.instance_id);
+        auto const &full_names = expr.resolved_symbol_names();
+        if (!expr.correct() || full_names.size() != 1) {
+            log_error("Unable to validate variable in data breakpoint: " + target_var);
+            return nullptr;
+        }
+        data_bp->full_rtl_var_name = full_names.begin()->second;
+        return data_bp;
     }
 }
 
@@ -344,16 +365,7 @@ DebugBreakPoint *Scheduler::add_data_breakpoint(const std::string &var_name,
     BreakPoint bp;
     bp.condition = expression;
     // we allow duplicated breakpoints to be inserted here
-    auto *data_bp = add_breakpoint(bp, db_bp, DebugBreakPoint::Type::data, true);
-    if (!data_bp) return nullptr;
-    auto expr = DebugExpression(var_name);
-    util::validate_expr(rtl_, db_, &expr, db_bp.id, *db_bp.instance_id);
-    auto const &full_names = expr.resolved_symbol_names();
-    if (!expr.correct() || full_names.size() != 1) {
-        log_error("Unable to validate variable in data breakpoint: " + var_name);
-        return nullptr;
-    }
-    data_bp->full_rtl_var_name = full_names.begin()->second;
+    auto *data_bp = add_breakpoint(bp, db_bp, DebugBreakPoint::Type::data, true, var_name);
     return data_bp;
 }
 
@@ -418,19 +430,12 @@ void Scheduler::remove_data_breakpoint(uint64_t bp_id) {
     }
 }
 
-std::vector<BreakPoint> Scheduler::get_current_breakpoints() {
-    std::vector<BreakPoint> bps;
+std::vector<const DebugBreakPoint *> Scheduler::get_current_breakpoints() {
+    std::vector<const DebugBreakPoint *> bps;
     std::lock_guard guard(breakpoint_lock_);
     bps.reserve(breakpoints_.size());
     for (auto const &bp : breakpoints_) {
-        auto bp_id = bp->id;
-        auto bp_info = db_->get_breakpoint(bp_id);
-        if (bp_info) {
-            bps.emplace_back(BreakPoint{.id = bp_info->id,
-                                        .filename = bp_info->filename,
-                                        .line_num = bp_info->line_num,
-                                        .column_num = bp_info->column_num});
-        }
+        bps.emplace_back(bp.get());
     }
     return bps;
 }

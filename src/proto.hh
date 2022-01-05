@@ -384,10 +384,11 @@ private:
     Action action_ = Action::add;
 };
 
+struct DebugBreakPoint;
 class DebuggerInformationResponse : public Response {
 public:
     explicit DebuggerInformationResponse(std::string status);
-    explicit DebuggerInformationResponse(std::vector<BreakPoint *> bps);
+    explicit DebuggerInformationResponse(std::vector<const DebugBreakPoint *> bps);
     explicit DebuggerInformationResponse(std::map<std::string, std::string> options);
     explicit DebuggerInformationResponse(std::unordered_map<std::string, std::string> design);
 
@@ -399,7 +400,7 @@ public:
 private:
     DebuggerInformationRequest::CommandType command_type_;
     std::string status_str_;
-    std::vector<BreakPoint *> bps_;
+    std::vector<const DebugBreakPoint *> bps_;
     std::map<std::string, std::string> options_;
     std::unordered_map<std::string, std::string> design_;
     [[nodiscard]] std::string get_command_str() const;

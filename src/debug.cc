@@ -611,10 +611,10 @@ void Debugger::handle_command(const CommandRequest &req, uint64_t conn_id) {
 void Debugger::handle_debug_info(const DebuggerInformationRequest &req, uint64_t conn_id) {
     switch (req.command_type()) {
         case DebuggerInformationRequest::CommandType::breakpoints: {
-            std::vector<BreakPoint> bps = scheduler_->get_current_breakpoints();
-            std::vector<BreakPoint *> bps_;
+            auto bps = scheduler_->get_current_breakpoints();
+            std::vector<const DebugBreakPoint *> bps_;
             bps_.reserve(bps.size());
-            for (auto &bp : bps) bps_.emplace_back(&bp);
+            for (auto &bp : bps) bps_.emplace_back(bp);
 
             auto resp = DebuggerInformationResponse(bps_);
             req.set_token(resp);
@@ -887,12 +887,14 @@ void Debugger::handle_data_breakpoint(const DataBreakpointRequest &req, uint64_t
             // tell client we're good
             auto success_resp = GenericResponse(status_code::success, req);
             send_message(success_resp.str(log_enabled_), conn_id);
+            break;
         }
         case DataBreakpointRequest::Action::remove: {
             scheduler_->remove_data_breakpoint(req.breakpoint_id());
             // tell client we're good
             auto success_resp = GenericResponse(status_code::success, req);
             send_message(success_resp.str(log_enabled_), conn_id);
+            break;
         }
     }
 }
