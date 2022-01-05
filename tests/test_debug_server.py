@@ -450,10 +450,25 @@ def test_data_breakpoint(start_server, find_free_port):
     kill_server(s)
 
 
+def test_debug_get_filenames(start_server, find_free_port):
+    s, uri = setup_server(start_server, find_free_port)
+
+    async def test_logic():
+        async with hgdb.HGDBClient(uri, None) as client:
+            await client.connect()
+            time.sleep(0.5)
+            filenames = await client.get_filenames()
+            assert len(filenames) > 0
+            assert filenames[0] == "/tmp/test.py"
+
+    asyncio.get_event_loop().run_until_complete(test_logic())
+    kill_server(s)
+
+
 if __name__ == "__main__":
     import sys
 
     sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
     from conftest import start_server_fn, find_free_port_fn
 
-    test_data_breakpoint(start_server_fn, find_free_port_fn)
+    test_debug_get_filenames(start_server_fn, find_free_port_fn)

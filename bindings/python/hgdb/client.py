@@ -174,6 +174,10 @@ class HGDBClient:
     async def get_current_data_breakpoints(self):
         return await self.__get_current_breakpoints(2)
 
+    async def get_filenames(self):
+        info = await self.get_info("filename")
+        return info["payload"]["filenames"]
+
     async def evaluate(self, scope, expression, is_context=True, check_error=True):
         payload = {"request": True, "type": "evaluation",
                    "payload": {"scope": scope, "expression": expression, "is_context": is_context}}
