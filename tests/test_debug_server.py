@@ -398,10 +398,21 @@ def test_debug_env_value(start_server, find_free_port):
 
 def test_data_breakpoint(start_server, find_free_port):
     s, uri = setup_server(start_server, find_free_port, stdout=True)
-    # c_0 = 1
-    # c_1 = 0
-    # c_2 = 0
-    # c_3 = 1
+    # c_0 = 1  -> 2
+    # c_1 = 0  -> 4
+    # c_2 = 0  -> 1
+    # c_3 = 1  -> 5
+
+    # if (a)
+    #    c = ~a;
+    # else
+    #    c = 0;
+    # c = a;
+    # logic c, c_0, c_1, c_2, c_3,;
+    # assign c_0 = ~a; // a = a  en: a           -> c = ~a  | ln: 2
+    # assign c_1 = 0;  // a = a  en: ~a          -> c = 0   | ln: 4
+    # assign c_2 = a? c_0: c_1; // a = a en: 1   -> if (a)  | ln: 1
+    # assign c_3 = a; // a = a c = c_2 en: 1     -> c = a   | ln: 5
 
     async def test_logic():
         times = {0: 0, 1: 0, 2: 0, 3: 0, 4: 0}
@@ -409,12 +420,16 @@ def test_data_breakpoint(start_server, find_free_port):
             await client.connect()
             await client.set_data_breakpoint(0, "c")
             await client.continue_()
-            for i in range(9):
+            for i in range(7):
                 bp = await client.recv_bp(timeout=0.5)
                 t = bp["payload"]["time"]
                 times[t] += 1
                 await client.continue_()
-        assert times[0] == 3
+
+        # c = 0 <- c = ~a;
+        # c = 1 <- c = a;
+        # regardless of the cycle
+        assert times[0] == 2
         assert times[1] == 2
         assert times[2] == 2
 
