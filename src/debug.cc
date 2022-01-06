@@ -887,6 +887,7 @@ void Debugger::handle_data_breakpoint(const DataBreakpointRequest &req, uint64_t
                     send_message(error.str(log_enabled_), conn_id);
                     return;
                 }
+                bp->target_rtl_var_name = req.var_name();
 
                 // add it to the monitor
                 bp->watch_id = monitor_.add_monitor_variable(
@@ -925,11 +926,12 @@ void Debugger::send_breakpoint_hit(const std::vector<const DebugBreakPoint *> &b
 
         BreakPointResponse::Scope scope(bp->instance_id, instance_name_str, bp_id);
         switch (bp->type) {
-            case DebugBreakPoint::Type::normal:
-                scope.bp_type = "normal";
-                break;
             case DebugBreakPoint::Type::data:
                 scope.bp_type = "data";
+                break;
+            case DebugBreakPoint::Type::normal:
+            default:
+                scope.bp_type = "normal";
                 break;
         }
 

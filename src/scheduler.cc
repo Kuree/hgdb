@@ -354,18 +354,19 @@ DebugBreakPoint *Scheduler::add_breakpoint(const BreakPoint &bp_info, const Brea
             return nullptr;
         }
         data_bp->full_rtl_var_name = full_names.begin()->second;
+        data_bp->target_rtl_var_name = target_var;
         return data_bp;
     }
 }
 
-DebugBreakPoint *Scheduler::add_data_breakpoint(const std::string &var_name,
+DebugBreakPoint *Scheduler::add_data_breakpoint(const std::string &full_name,
                                                 const std::string &expression,
                                                 const BreakPoint &db_bp) {
     // we use the same add breakpoint function with different flags on
     BreakPoint bp;
     bp.condition = expression;
     // we allow duplicated breakpoints to be inserted here
-    auto *data_bp = add_breakpoint(bp, db_bp, DebugBreakPoint::Type::data, true, var_name);
+    auto *data_bp = add_breakpoint(bp, db_bp, DebugBreakPoint::Type::data, true, full_name);
     return data_bp;
 }
 

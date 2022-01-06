@@ -464,9 +464,9 @@ std::string DebuggerInformationResponse::str(bool pretty_print) const {
                 set_member(entry, allocator, "filename", bp->filename);
                 set_member(entry, allocator, "line_num", bp->line_num);
                 set_member(entry, allocator, "column_num", bp->column_num);
-                if (!bp->full_rtl_var_name.empty()) {
+                if (!bp->target_rtl_var_name.empty()) {
                     // only if the variable is set
-                    set_member(entry, allocator, "var", bp->full_rtl_var_name);
+                    set_member(entry, allocator, "var", bp->target_rtl_var_name);
                 }
                 // type information
                 // 1 for normal, 2 for data, 3 for both

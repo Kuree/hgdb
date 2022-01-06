@@ -27,6 +27,7 @@ struct DebugBreakPoint {
     // used for data breakpoint
     Type type = Type::normal;
     std::string full_rtl_var_name;
+    std::string target_rtl_var_name;
     uint64_t watch_id = 0;
 
     [[nodiscard]] inline bool has_type_flag(Type type_) const {
@@ -58,8 +59,8 @@ public:
     void reorder_breakpoints();
     void remove_breakpoint(const BreakPoint &bp);
     std::vector<const DebugBreakPoint *> get_current_breakpoints();
-    DebugBreakPoint *add_data_breakpoint(const std::string &var_name, const std::string &expression,
-                                         const BreakPoint &db_bp);
+    DebugBreakPoint *add_data_breakpoint(const std::string &full_name,
+                                         const std::string &expression, const BreakPoint &db_bp);
     void clear_data_breakpoints();
     void remove_data_breakpoint(uint64_t bp_id);
 
