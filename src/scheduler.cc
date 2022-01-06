@@ -277,7 +277,7 @@ std::vector<std::string> compute_trigger_symbol(const BreakPoint &bp) {
 // NOLINTNEXTLINE
 DebugBreakPoint *Scheduler::add_breakpoint(const BreakPoint &bp_info, const BreakPoint &db_bp,
                                            DebugBreakPoint::Type bp_type, bool data_breakpoint,
-                                           const std::string &target_var) {
+                                           const std::string &target_var, bool dry_run) {
     // add them to the eval vector
     std::string cond = "1";
     if (!db_bp.condition.empty()) cond = db_bp.condition;
@@ -285,7 +285,7 @@ DebugBreakPoint *Scheduler::add_breakpoint(const BreakPoint &bp_info, const Brea
         cond.append(" && " + bp_info.condition);
     }
 
-    auto insert_bp = [bp_type, this, &db_bp, cond]() -> DebugBreakPoint * {
+    auto insert_bp = [bp_type, this, &db_bp, cond, dry_run]() -> DebugBreakPoint * {
         auto bp = std::make_unique<DebugBreakPoint>();
         bp->id = db_bp.id;
         bp->instance_id = *db_bp.instance_id;
@@ -297,19 +297,27 @@ DebugBreakPoint *Scheduler::add_breakpoint(const BreakPoint &bp_info, const Brea
         bp->column_num = db_bp.column_num;
         bp->trigger_symbols = compute_trigger_symbol(db_bp);
         bp->type = bp_type;
-        auto &ptr = breakpoints_.emplace_back(std::move(bp));
-        inserted_breakpoints_.emplace(db_bp.id);
-        util::validate_expr(rtl_, db_, ptr->expr.get(), db_bp.id, *db_bp.instance_id);
-        if (!breakpoints_.back()->expr->correct()) [[unlikely]] {
+        util::validate_expr(rtl_, db_, bp->expr.get(), db_bp.id, *db_bp.instance_id);
+        if (!bp->expr->correct()) [[unlikely]] {
             log_error("Unable to validate breakpoint expression: " + cond);
             return nullptr;
         }
-        util::validate_expr(rtl_, db_, ptr->enable_expr.get(), db_bp.id, *db_bp.instance_id);
-        if (!ptr->enable_expr->correct()) [[unlikely]] {
+        util::validate_expr(rtl_, db_, bp->enable_expr.get(), db_bp.id, *db_bp.instance_id);
+        if (!bp->enable_expr->correct()) [[unlikely]] {
             log_error("Unable to validate breakpoint expression: " + cond);
             return nullptr;
         }
-        return ptr.get();
+
+        if (dry_run) {
+            // just need a memory holder
+            static std::unique_ptr<DebugBreakPoint> holder;
+            holder = std::move(bp);
+            return holder.get();
+        } else {
+            auto &ptr = breakpoints_.emplace_back(std::move(bp));
+            inserted_breakpoints_.emplace(db_bp.id);
+            return ptr.get();
+        }
     };
 
     log_info(fmt::format("Breakpoint inserted into {0}:{1}", db_bp.filename, db_bp.line_num));
@@ -361,12 +369,13 @@ DebugBreakPoint *Scheduler::add_breakpoint(const BreakPoint &bp_info, const Brea
 
 DebugBreakPoint *Scheduler::add_data_breakpoint(const std::string &full_name,
                                                 const std::string &expression,
-                                                const BreakPoint &db_bp) {
+                                                const BreakPoint &db_bp, bool dry_run) {
     // we use the same add breakpoint function with different flags on
     BreakPoint bp;
     bp.condition = expression;
     // we allow duplicated breakpoints to be inserted here
-    auto *data_bp = add_breakpoint(bp, db_bp, DebugBreakPoint::Type::data, true, full_name);
+    auto *data_bp =
+        add_breakpoint(bp, db_bp, DebugBreakPoint::Type::data, true, full_name, dry_run);
     return data_bp;
 }
 

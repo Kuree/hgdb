@@ -1101,9 +1101,13 @@ void DataBreakpointRequest::parse_payload(const std::string &payload) {
         }
         variable_name_ = *var_name_opt;
 
-        if (action != "add") {
+        if (action == "add") {
+            action_ = Action::add;
+        } else if (action == "info") {
+            action_ = Action::info;
+        } else {
             status_code_ = status_code::error;
-            error_reason_ = "Only 'add', 'clear', and 'remove' are allowed";
+            error_reason_ = "Only 'add', 'clear', 'info', and 'remove' are allowed";
             return;
         }
 

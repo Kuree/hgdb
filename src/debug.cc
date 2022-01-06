@@ -845,8 +845,9 @@ void Debugger::handle_data_breakpoint(const DataBreakpointRequest &req, uint64_t
             send_message(resp.str(log_enabled_), conn_id);
             break;
         }
+        case DataBreakpointRequest::Action::info:
         case DataBreakpointRequest::Action::add: {
-            // it's an add
+            bool dry_run = req.action() == DataBreakpointRequest::Action::info;
             auto db_bp = db_->get_breakpoint(req.breakpoint_id());
             if (!db_bp) {
                 auto error = GenericResponse(status_code::error, req, "Invalid breakpoint id");
@@ -879,7 +880,8 @@ void Debugger::handle_data_breakpoint(const DataBreakpointRequest &req, uint64_t
                 else
                     // merge these two
                     bp_condition = fmt::format("{0} && {1}", req.condition(), data_condition);
-                auto *bp = scheduler_->add_data_breakpoint(full_name, bp_condition, *bp_opt);
+                auto *bp =
+                    scheduler_->add_data_breakpoint(full_name, bp_condition, *bp_opt, dry_run);
                 if (!bp) {
                     auto error =
                         GenericResponse(status_code::error, req,
@@ -890,8 +892,10 @@ void Debugger::handle_data_breakpoint(const DataBreakpointRequest &req, uint64_t
                 bp->target_rtl_var_name = req.var_name();
 
                 // add it to the monitor
-                bp->watch_id = monitor_.add_monitor_variable(
-                    bp->full_rtl_var_name, MonitorRequest::MonitorType::data, value_ptr);
+                if (!dry_run) {
+                    bp->watch_id = monitor_.add_monitor_variable(
+                        bp->full_rtl_var_name, MonitorRequest::MonitorType::data, value_ptr);
+                }
             }
 
             // tell client we're good

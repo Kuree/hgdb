@@ -103,6 +103,14 @@ class HGDBClient:
             payload["payload"]["condition"] = cond
         return await self.__send_check(payload, check_error)
 
+    async def valid_data_breakpoint(self, breakpoint_id, var_name, token="", cond=""):
+        payload = {"request": True, "type": "data-breakpoint", "token": token,
+                   "payload": {"var_name": var_name, "breakpoint-id": breakpoint_id, "action": "info"}}
+        if len(cond) > 0:
+            payload["payload"]["condition"] = cond
+        res = await self.__send_check(payload, False)
+        return res["status"] == "success"
+
     async def set_breakpoint_id(self, bp_id, cond="", token="", check_error=True):
         payload = {"request": True, "type": "breakpoint-id", "token": token,
                    "payload": {"id": bp_id, "action": "add"}}
@@ -110,11 +118,11 @@ class HGDBClient:
             payload["payload"]["condition"] = cond
         return await self.__send_check(payload, check_error)
 
-    async def remove_breakpoint(self, filename, line_num, column_num=0, token="", check_error=True):
+    async def remove_breakpoint(self, filename, line_num, column_num=0, token=""):
         payload = {"request": True, "type": "breakpoint", "token": token,
                    "payload": {"filename": filename, "line_num": line_num, "column_num": column_num,
                                "action": "remove"}}
-        return await self.__send_check(payload, check_error)
+        return await self.__send_check(payload)
 
     async def remove_breakpoint_id(self, bp_id, token="", check_error=True):
         payload = {"request": True, "type": "breakpoint-id", "token": token,

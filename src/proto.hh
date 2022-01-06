@@ -368,7 +368,7 @@ private:
 
 class DataBreakpointRequest : public Request {
 public:
-    enum class Action { add, clear, remove };
+    enum class Action { add, clear, remove, info };
     DataBreakpointRequest() = default;
     void parse_payload(const std::string &payload) override;
     [[nodiscard]] RequestType type() const override { return RequestType::data_breakpoint; }

@@ -414,12 +414,16 @@ def test_data_breakpoint(start_server, find_free_port):
     # assign c_2 = a? c_0: c_1; // a = a en: 1   -> if (a)  | ln: 1
     # assign c_3 = a; // a = a c = c_2 en: 1     -> c = a   | ln: 5
 
-    # uri = "ws://localhost:8888"
-
     async def test_logic():
         times = {0: 0, 1: 0, 2: 0, 3: 0, 4: 0}
         async with hgdb.HGDBClient(uri, None) as client:
             await client.connect()
+            res = await client.valid_data_breakpoint(0, "abc")
+            assert not res
+            res = await client.valid_data_breakpoint(0, "c")
+            assert res
+            res = await client.get_current_data_breakpoints()
+            assert len(res) == 0
             await client.set_data_breakpoint(0, "c")
             res = await client.get_current_normal_breakpoints()
             assert len(res) == 0
@@ -471,4 +475,4 @@ if __name__ == "__main__":
     sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
     from conftest import start_server_fn, find_free_port_fn
 
-    test_debug_get_filenames(start_server_fn, find_free_port_fn)
+    test_data_breakpoint(start_server_fn, find_free_port_fn)

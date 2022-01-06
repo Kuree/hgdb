@@ -55,12 +55,13 @@ public:
     DebugBreakPoint *add_breakpoint(const BreakPoint &bp_info, const BreakPoint &db_bp,
                                     DebugBreakPoint::Type bp_type = DebugBreakPoint::Type::normal,
                                     bool data_breakpoint = false,
-                                    const std::string &target_var = "");
+                                    const std::string &target_var = "", bool dry_run = false);
     void reorder_breakpoints();
     void remove_breakpoint(const BreakPoint &bp);
     std::vector<const DebugBreakPoint *> get_current_breakpoints();
     DebugBreakPoint *add_data_breakpoint(const std::string &full_name,
-                                         const std::string &expression, const BreakPoint &db_bp);
+                                         const std::string &expression, const BreakPoint &db_bp,
+                                         bool dry_run);
     void clear_data_breakpoints();
     void remove_data_breakpoint(uint64_t bp_id);
 
