@@ -63,7 +63,8 @@ public:
                                          const std::string &expression, const BreakPoint &db_bp,
                                          bool dry_run);
     void clear_data_breakpoints();
-    void remove_data_breakpoint(uint64_t bp_id);
+    // also return associated monitor id, if any
+    std::optional<uint64_t> remove_data_breakpoint(uint64_t bp_id);
 
     // breakpoint mode
     bool breakpoint_only() const;

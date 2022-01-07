@@ -904,7 +904,11 @@ void Debugger::handle_data_breakpoint(const DataBreakpointRequest &req, uint64_t
             break;
         }
         case DataBreakpointRequest::Action::remove: {
-            scheduler_->remove_data_breakpoint(req.breakpoint_id());
+            auto watch_id = scheduler_->remove_data_breakpoint(req.breakpoint_id());
+            // remove from monitor as well
+            if (watch_id) {
+                monitor_.remove_monitor_variable(*watch_id);
+            }
             // tell client we're good
             auto success_resp = GenericResponse(status_code::success, req);
             send_message(success_resp.str(log_enabled_), conn_id);

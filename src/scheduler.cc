@@ -421,16 +421,17 @@ void Scheduler::remove_breakpoint(const BreakPoint &bp) {
     remove_breakpoint(bp.id);
 }
 
-void Scheduler::remove_data_breakpoint(uint64_t bp_id) {
+std::optional<uint64_t> Scheduler::remove_data_breakpoint(uint64_t bp_id) {
     std::lock_guard guard(breakpoint_lock_);
     for (auto const &bp_ptr : breakpoints_) {
         if (bp_ptr->id == bp_id) {
             if (bp_ptr->has_type_flag(DebugBreakPoint::Type::data)) {
                 if (bp_ptr->type == DebugBreakPoint::Type::data) {
+                    auto watch_id = bp_ptr->watch_id;
                     // remove this breakpoint
                     remove_breakpoint(bp_id);
                     // we are done
-                    return;
+                    return watch_id;
                 } else {
                     // change it to normal breakpoint
                     bp_ptr->type = DebugBreakPoint::Type::normal;
@@ -438,6 +439,7 @@ void Scheduler::remove_data_breakpoint(uint64_t bp_id) {
             }
         }
     }
+    return std::nullopt;
 }
 
 std::vector<const DebugBreakPoint *> Scheduler::get_current_breakpoints() {
