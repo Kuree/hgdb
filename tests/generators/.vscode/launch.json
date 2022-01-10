@@ -1,0 +1,13 @@
+{
+    "version": "0.0.5",
+    "configurations": [
+        {
+            "type": "hgdb",
+            "request": "launch",
+            "name": "HGDB Debugger",
+            "program": "${workspaceFolder}/${command:AskForProgramName}",
+            "runtimeIP": "0.0.0.0",
+            "runtimePort": 8888
+          }
+    ]
+}
