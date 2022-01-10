@@ -491,7 +491,7 @@ void Debugger::handle_breakpoint(const BreakPointRequest &req, uint64_t conn_id)
 
         // notice that removal doesn't need reordering
         for (auto const &bp : bps) {
-            scheduler_->remove_breakpoint(bp);
+            scheduler_->remove_breakpoint(bp, DebugBreakPoint::Type::normal);
         }
     }
     // tell client we're good
@@ -515,7 +515,7 @@ void Debugger::handle_breakpoint_id(const BreakPointIDRequest &req, uint64_t con
         }
         scheduler_->add_breakpoint(bp_info, *bp);
     } else {
-        scheduler_->remove_breakpoint(bp_info);
+        scheduler_->remove_breakpoint(bp_info, DebugBreakPoint::Type::normal);
     }
     // tell client we're good
     auto success_resp = GenericResponse(status_code::success, req);
@@ -837,12 +837,14 @@ void Debugger::handle_symbol(const SymbolRequest &, uint64_t) {
     // we don't deal with symbol stuff in the debugger
 }
 
+// NOLINTNEXTLINE
 void Debugger::handle_data_breakpoint(const DataBreakpointRequest &req, uint64_t conn_id) {
     switch (req.action()) {
         case DataBreakpointRequest::Action::clear: {
             scheduler_->clear_data_breakpoints();
             auto resp = GenericResponse(status_code::success, req);
             send_message(resp.str(log_enabled_), conn_id);
+            log_info("data breakpoint cleared");
             break;
         }
         case DataBreakpointRequest::Action::info:
@@ -857,7 +859,7 @@ void Debugger::handle_data_breakpoint(const DataBreakpointRequest &req, uint64_t
             // this is not very efficient, but good enough for now
             auto bp_ids = db_->get_assigned_breakpoints(req.var_name(), req.breakpoint_id());
             if (bp_ids.empty()) {
-                auto err = GenericResponse(status_code::error, req, "Internal symbol table error");
+                auto err = GenericResponse(status_code::error, req, "Invalid data breakpoint");
                 send_message(err.str(log_enabled_), conn_id);
                 return;
             }
@@ -893,8 +895,13 @@ void Debugger::handle_data_breakpoint(const DataBreakpointRequest &req, uint64_t
 
                 // add it to the monitor
                 if (!dry_run) {
-                    bp->watch_id = monitor_.add_monitor_variable(
-                        bp->full_rtl_var_name, MonitorRequest::MonitorType::data, value_ptr);
+                    auto watched = monitor_.is_monitored(bp->full_rtl_var_name,
+                                                         MonitorRequest::MonitorType::data);
+                    if (!watched) {
+                        bp->watch_id = monitor_.add_monitor_variable(
+                            bp->full_rtl_var_name, MonitorRequest::MonitorType::data, value_ptr);
+                        log_info(fmt::format("Added watch variable with ID {0}", bp->watch_id));
+                    }
                 }
             }
 
@@ -908,6 +915,7 @@ void Debugger::handle_data_breakpoint(const DataBreakpointRequest &req, uint64_t
             // remove from monitor as well
             if (watch_id) {
                 monitor_.remove_monitor_variable(*watch_id);
+                log_info(fmt::format("Remove watch variable with ID {0}", *watch_id));
             }
             // tell client we're good
             auto success_resp = GenericResponse(status_code::success, req);

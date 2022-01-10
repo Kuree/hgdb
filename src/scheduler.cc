@@ -239,15 +239,28 @@ DebugBreakPoint *Scheduler::create_next_breakpoint(const std::optional<BreakPoin
     return &next_temp_breakpoint_;
 }
 
-void Scheduler::remove_breakpoint(uint64_t bp_id) {
+std::unique_ptr<DebugBreakPoint> Scheduler::remove_breakpoint(uint64_t bp_id,
+                                                              DebugBreakPoint::Type type) {
     // notice that removal doesn't need reordering
     for (auto pos = breakpoints_.begin(); pos != breakpoints_.end(); pos++) {
         if ((*pos)->id == bp_id) {
-            breakpoints_.erase(pos);
-            inserted_breakpoints_.erase(bp_id);
+            // erase the type first. if the remaining type is 0, then we completely erase the
+            // breakpoint
+            auto t = static_cast<uint32_t>((*pos)->type);
+            t &= ~(static_cast<uint32_t>(type));
+            if (t == 0) {
+                // remove it before after transfer the ownership
+                std::unique_ptr<DebugBreakPoint> res = std::move(*pos);
+                breakpoints_.erase(pos);
+                inserted_breakpoints_.erase(bp_id);
+                return res;
+            } else {
+                (*pos)->type = static_cast<DebugBreakPoint::Type>(t);
+            }
             break;
         }
     }
+    return nullptr;
 }
 
 void Scheduler::start_breakpoint_evaluation() {
@@ -316,11 +329,12 @@ DebugBreakPoint *Scheduler::add_breakpoint(const BreakPoint &bp_info, const Brea
         } else {
             auto &ptr = breakpoints_.emplace_back(std::move(bp));
             inserted_breakpoints_.emplace(db_bp.id);
+            log_info(
+                fmt::format("Breakpoint inserted into {0}:{1}", db_bp.filename, db_bp.line_num));
             return ptr.get();
         }
     };
 
-    log_info(fmt::format("Breakpoint inserted into {0}:{1}", db_bp.filename, db_bp.line_num));
     std::lock_guard guard(breakpoint_lock_);
     if (!data_breakpoint) [[likely]] {
         if (inserted_breakpoints_.find(db_bp.id) == inserted_breakpoints_.end()) {
@@ -416,30 +430,19 @@ void Scheduler::reorder_breakpoints() {
               });
 }
 
-void Scheduler::remove_breakpoint(const BreakPoint &bp) {
+void Scheduler::remove_breakpoint(const BreakPoint &bp, DebugBreakPoint::Type type) {
     std::lock_guard guard(breakpoint_lock_);
-    remove_breakpoint(bp.id);
+    remove_breakpoint(bp.id, type);
 }
 
 std::optional<uint64_t> Scheduler::remove_data_breakpoint(uint64_t bp_id) {
     std::lock_guard guard(breakpoint_lock_);
-    for (auto const &bp_ptr : breakpoints_) {
-        if (bp_ptr->id == bp_id) {
-            if (bp_ptr->has_type_flag(DebugBreakPoint::Type::data)) {
-                if (bp_ptr->type == DebugBreakPoint::Type::data) {
-                    auto watch_id = bp_ptr->watch_id;
-                    // remove this breakpoint
-                    remove_breakpoint(bp_id);
-                    // we are done
-                    return watch_id;
-                } else {
-                    // change it to normal breakpoint
-                    bp_ptr->type = DebugBreakPoint::Type::normal;
-                }
-            }
-        }
+    auto ptr = remove_breakpoint(bp_id, DebugBreakPoint::Type::data);
+    if (ptr) {
+        return ptr->watch_id;
+    } else {
+        return std::nullopt;
     }
-    return std::nullopt;
 }
 
 std::vector<const DebugBreakPoint *> Scheduler::get_current_breakpoints() {

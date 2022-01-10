@@ -18,6 +18,8 @@ public:
     uint64_t add_monitor_variable(const std::string& full_name, WatchType watch_type,
                                   std::shared_ptr<std::optional<int64_t>> value);
     void remove_monitor_variable(uint64_t watch_id);
+    [[nodiscard]] std::optional<uint64_t> is_monitored(const std::string& full_name,
+                                                       WatchType watch_type) const;
     // called every cycle
     // compute a list of signals that need to be sent
     std::vector<std::pair<uint64_t, std::string>> get_watched_values(WatchType type);

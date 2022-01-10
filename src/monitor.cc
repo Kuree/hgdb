@@ -14,11 +14,9 @@ Monitor::Monitor(std::function<std::optional<int64_t>(const std::string&)> get_v
 uint64_t Monitor::add_monitor_variable(const std::string& full_name, WatchType watch_type) {
     // we assume full name is checked already
     // need to search if we have the same name already
-    for (auto const& [id, var] : watched_variables_) {
-        if (var.full_name == full_name && var.type == watch_type) [[unlikely]] {
-            // reuse the existing ID
-            return id;
-        }
+    auto watched = is_monitored(full_name, watch_type);
+    if (watched) {
+        return *watched;
     }
     // old clang-tidy reports memory leak for .value = make_shared
     auto value_ptr = std::make_shared<std::optional<int64_t>>();
@@ -38,6 +36,17 @@ void Monitor::remove_monitor_variable(uint64_t watch_id) {
     if (watched_variables_.find(watch_id) != watched_variables_.end()) {
         watched_variables_.erase(watch_id);
     }
+}
+
+std::optional<uint64_t> Monitor::is_monitored(const std::string& full_name,
+                                              WatchType watch_type) const {
+    for (auto const& [id, var] : watched_variables_) {
+        if (var.full_name == full_name && var.type == watch_type) [[unlikely]] {
+            // reuse the existing ID
+            return id;
+        }
+    }
+    return std::nullopt;
 }
 
 std::vector<std::pair<uint64_t, std::string>> Monitor::get_watched_values(WatchType type) {

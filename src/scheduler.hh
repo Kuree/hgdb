@@ -57,7 +57,7 @@ public:
                                     bool data_breakpoint = false,
                                     const std::string &target_var = "", bool dry_run = false);
     void reorder_breakpoints();
-    void remove_breakpoint(const BreakPoint &bp);
+    void remove_breakpoint(const BreakPoint &bp, DebugBreakPoint::Type type);
     std::vector<const DebugBreakPoint *> get_current_breakpoints();
     DebugBreakPoint *add_data_breakpoint(const std::string &full_name,
                                          const std::string &expression, const BreakPoint &db_bp,
@@ -99,7 +99,7 @@ private:
     std::vector<vpiHandle> clock_handles_;
 
     DebugBreakPoint *create_next_breakpoint(const std::optional<BreakPoint> &bp_info);
-    void remove_breakpoint(uint64_t bp_id);
+    std::unique_ptr<DebugBreakPoint> remove_breakpoint(uint64_t bp_id, DebugBreakPoint::Type type);
 
     // log
     static void log_error(const std::string &msg);
