@@ -49,6 +49,17 @@ std::optional<uint64_t> Monitor::is_monitored(const std::string& full_name,
     return std::nullopt;
 }
 
+std::shared_ptr<std::optional<int64_t>> Monitor::get_watched_value_ptr(
+    const std::unordered_set<std::string>& var_names, WatchType type) const {
+    for (auto const& [id, var] : watched_variables_) {
+        if (var_names.find(var.full_name) != var_names.end() && var.type == type) {
+            // reuse the existing ID
+            return var.value;
+        }
+    }
+    return nullptr;
+}
+
 std::vector<std::pair<uint64_t, std::string>> Monitor::get_watched_values(WatchType type) {
     std::vector<std::pair<uint64_t, std::string>> result;
     // this is the maximum size

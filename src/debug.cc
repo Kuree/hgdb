@@ -220,6 +220,7 @@ void Debugger::on_message(const std::string &message, uint64_t conn_id) {
         send_message(resp.str(log_enabled_), conn_id);
         return;
     }
+    log_info("Start handling " + to_string(req->type()));
     switch (req->type()) {
         case RequestType::connection: {
             // this is a connection request
@@ -293,6 +294,7 @@ void Debugger::on_message(const std::string &message, uint64_t conn_id) {
             break;
         }
     }
+    log_info("Done handling " + to_string(req->type()));
 }
 
 void Debugger::send_message(const std::string &message) {
@@ -863,8 +865,11 @@ void Debugger::handle_data_breakpoint(const DataBreakpointRequest &req, uint64_t
                 send_message(err.str(log_enabled_), conn_id);
                 return;
             }
-            // they share the same variable
-            auto value_ptr = std::make_shared<std::optional<int64_t>>();
+            std::unordered_set<std::string> var_names;
+            for (auto const &iter : bp_ids) {
+                var_names.emplace(rtl_->get_full_name(std::get<1>(iter)));
+            }
+
             for (auto const &[id, var_name, data_condition] : bp_ids) {
                 auto bp_opt = db_->get_breakpoint(id);
                 if (!bp_opt) {
@@ -893,6 +898,15 @@ void Debugger::handle_data_breakpoint(const DataBreakpointRequest &req, uint64_t
                 }
                 bp->target_rtl_var_name = req.var_name();
 
+                // they share the same variable
+                // notice that in case some breakpoints got deleted, we need to get it from the
+                // monitor itself
+                auto value_ptr =
+                    monitor_.get_watched_value_ptr(var_names, MonitorRequest::MonitorType::data);
+                if (!value_ptr) {
+                    value_ptr = std::make_shared<std::optional<int64_t>>();
+                }
+
                 // add it to the monitor
                 if (!dry_run) {
                     auto watched = monitor_.is_monitored(bp->full_rtl_var_name,
@@ -904,6 +918,9 @@ void Debugger::handle_data_breakpoint(const DataBreakpointRequest &req, uint64_t
                     }
                 }
             }
+
+            // sort the breakpoints
+            scheduler_->reorder_breakpoints();
 
             // tell client we're good
             auto success_resp = GenericResponse(status_code::success, req);

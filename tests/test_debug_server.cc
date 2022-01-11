@@ -130,13 +130,13 @@ auto setup_db_vpi(MockVPIProvider &vpi) {
         // set values
         // we simulate the case where a is 1
         // in this case we have
-        // c_0 = ~a -> 1
+        // c_0 = ~a -> 0
         // c_1 = 0
         // c_2 = 0
         // c_3 = 1
         // notice that we don't have b's value yet, so when we query we will have ERROR as the
         // result
-        vpi.set_signal_value(variable_handles.at("c_0"), 1);
+        vpi.set_signal_value(variable_handles.at("c_0"), 0);
         vpi.set_signal_value(variable_handles.at("c_1"), 0);
         vpi.set_signal_value(variable_handles.at("c_2"), 0);
         vpi.set_signal_value(variable_handles.at("c_3"), 1);

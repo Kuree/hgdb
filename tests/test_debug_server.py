@@ -398,7 +398,7 @@ def test_debug_env_value(start_server, find_free_port):
 
 def test_data_breakpoint(start_server, find_free_port):
     s, uri = setup_server(start_server, find_free_port, stdout=True)
-    # c_0 = 1  -> 2
+    # c_0 = 0  -> 2
     # c_1 = 0  -> 4
     # c_2 = 0  -> 1
     # c_3 = 1  -> 5
