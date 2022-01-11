@@ -143,6 +143,10 @@ auto setup_db_vpi(MockVPIProvider &vpi) {
         vpi.set_signal_value(variable_handles.at("a"), 1);
 
         // don't set e here but in the loop
+        // set scope
+        store_scope(*db, base_id,
+                    std::vector<uint32_t>{0u + base_id, 1u + base_id, 2u + base_id, 3u + base_id,
+                                          4u + base_id});
     }
 
     auto db_client = std::make_unique<hgdb::DBSymbolTableProvider>(std::move(db));
