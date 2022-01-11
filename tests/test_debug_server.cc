@@ -116,7 +116,9 @@ auto setup_db_vpi(MockVPIProvider &vpi) {
         // assign c_2 = a? c_0: c_1; // a = a en: 1   -> if (a)
         store_breakpoint(*db, 2 + base_id, dut_id, filename, 1, 0, "1");
         store_context_variable(*db, "a", 2 + base_id, variable_ids.at("a"));
-        store_assignment(*db, "c", "c_2", 2 + base_id);
+        // notice that the following line is never needed, because this is
+        // the actual assignment created by SSA
+        // store_assignment(*db, "c", "c_2", 2 + base_id);
         // assign c_3 = a; // a = a, c = c_2 en: 1     -> c = a
         store_breakpoint(*db, 3 + base_id, dut_id, filename, 5, 0, "1");
         store_context_variable(*db, "a", 3 + base_id, variable_ids.at("a"));
@@ -141,12 +143,6 @@ auto setup_db_vpi(MockVPIProvider &vpi) {
         vpi.set_signal_value(variable_handles.at("c_2"), 0);
         vpi.set_signal_value(variable_handles.at("c_3"), 1);
         vpi.set_signal_value(variable_handles.at("a"), 1);
-
-        // don't set e here but in the loop
-        // set scope
-        store_scope(*db, base_id,
-                    std::vector<uint32_t>{0u + base_id, 1u + base_id, 2u + base_id, 3u + base_id,
-                                          4u + base_id});
     }
 
     auto db_client = std::make_unique<hgdb::DBSymbolTableProvider>(std::move(db));

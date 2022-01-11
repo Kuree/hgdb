@@ -428,13 +428,13 @@ def test_data_breakpoint(start_server, find_free_port):
             res = await client.get_current_normal_breakpoints()
             assert len(res) == 0
             res = await client.get_current_data_breakpoints()
-            assert len(res) == 4
+            assert len(res) == 3
             await client.remove_data_breakpoint(res[0]["id"])
             res = await client.get_current_data_breakpoints()
-            assert len(res) == 3
+            assert len(res) == 2
             await client.set_data_breakpoint(0, "c")
             res = await client.get_current_data_breakpoints()
-            assert len(res) == 4
+            assert len(res) == 3
 
             await client.continue_()
             for i in range(7):
