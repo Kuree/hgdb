@@ -469,10 +469,29 @@ def test_debug_get_filenames(start_server, find_free_port):
     kill_server(s)
 
 
+def test_debug_array_change_value(start_server, find_free_port):
+    s, uri = setup_server(start_server, find_free_port, stdout=True)
+
+    async def test_logic():
+        async with hgdb.HGDBClient(uri, None) as client:
+            await client.connect()
+            await client.set_breakpoint("/tmp/test.py", 7)
+            await client.continue_()
+            bp = await client.recv_bp()
+            assert bp["payload"]["instances"][0]["generator"]["array[1]"] == "4"
+            bp_id = bp["payload"]["instances"][0]["breakpoint_id"]
+            # remove the breakpoint
+            await client.remove_breakpoint_id(bp_id)
+            # set data breakpoint
+
+    asyncio.get_event_loop().run_until_complete(test_logic())
+    kill_server(s)
+
+
 if __name__ == "__main__":
     import sys
 
     sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
     from conftest import start_server_fn, find_free_port_fn
 
-    test_data_breakpoint(start_server_fn, find_free_port_fn)
+    test_debug_array_change_value(start_server_fn, find_free_port_fn)

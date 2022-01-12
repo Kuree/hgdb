@@ -10,6 +10,8 @@
  * module top;
  *
  * logic a, clk, rst, b;
+ * logic[2:0] addr;
+ * logic[7:0] value;
  *
  * mod dut (.*);
  *
@@ -18,6 +20,8 @@
  * module mod (input  logic a,
  *             input  logic clk,
  *             input  logic rst,
+ *             input  logic[2:0] addr,
+ *             input  logic[7:0] value,
  *             output logic b);
  * // notice the SSA transform here
  * // if (a)
@@ -31,6 +35,9 @@
  * assign c_2 = a? c_0: c_1; // a = a en: 1   -> if (a)  | ln: 1
  * assign c_3 = a; // a = a c = c_2 en: 1     -> c = a   | ln: 5
  *
+ * // array
+ * logic [7:0][3:0] array;
+ *
  * // this is just for testing trigger
  * logic d, e;
  * // always_comb
@@ -43,6 +50,11 @@
  *     else
  *         b <= c;    // rst = rst en: ~rst
  * end
+ *
+ * always_ff @(posedge clk) begin
+ *   array[addr] <= value;
+ * end
+ *
  * endmodule
  *
  */
@@ -54,7 +66,7 @@ auto setup_db_vpi(MockVPIProvider &vpi) {
     auto db = std::make_unique<DebugDatabase>(init_debug_db(db_filename));
     db->sync_schema();
     // store
-    auto variables = {"clk", "rst", "a", "b"};
+    auto variables = std::vector<std::string>{"clk", "rst", "a", "b", "addr", "value", "array"};
     // notice that mod and mod2 have the same definition
     // we do so to test out multiple hierarchy mapping
     std::vector<std::pair<std::string, std::string>> instance_names = {
@@ -104,7 +116,7 @@ auto setup_db_vpi(MockVPIProvider &vpi) {
 
         // now we need to deal with breakpoints
         constexpr auto filename = "/tmp/test.py";
-        auto base_id = (dut_id - 1) * 5;
+        auto base_id = (dut_id - 1) * 6;
         // assign c_0 = ~a; // a = a  en: a           -> c = ~a
         store_breakpoint(*db, 0 + base_id, dut_id, filename, 2, 0, "a");
         store_context_variable(*db, "a", 0 + base_id, variable_ids.at("a"));
@@ -129,6 +141,17 @@ auto setup_db_vpi(MockVPIProvider &vpi) {
         store_context_variable(*db, "d", 4 + base_id, variable_ids.at("d"));
         store_context_variable(*db, "e", 4 + base_id, variable_ids.at("e"));
 
+        // array assignment
+        store_breakpoint(*db, 5 + base_id, dut_id, filename, 7, 0, "1");
+        store_assignment(*db, "array", "array", 5 + base_id);
+        // also store array to gen context
+        for (auto i = 0; i < 4; i++) {
+            auto name = fmt::format("array[{0}]", i);
+            store_variable(*db, var_id, name);
+            store_generator_variable(*db, name, dut_id, var_id);
+            var_id++;
+        }
+
         // set values
         // we simulate the case where a is 1
         // in this case we have
@@ -143,6 +166,12 @@ auto setup_db_vpi(MockVPIProvider &vpi) {
         vpi.set_signal_value(variable_handles.at("c_2"), 0);
         vpi.set_signal_value(variable_handles.at("c_3"), 1);
         vpi.set_signal_value(variable_handles.at("a"), 1);
+
+        // set signal dim and then set the value
+        auto array_handles = vpi.set_signal_dim(variable_handles.at("array"), 4);
+        vpi.set_signal_value(variable_handles.at("value"), 4);
+        vpi.set_signal_value(variable_handles.at("addr"), 1);
+        vpi.set_signal_value(array_handles[1], 4);
     }
 
     auto db_client = std::make_unique<hgdb::DBSymbolTableProvider>(std::move(db));

@@ -258,9 +258,14 @@ public:
 
     std::vector<vpiHandle> set_signal_dim(vpiHandle signal, uint32_t dim) {
         array_handles_[signal].resize(dim);
+        auto name = signals_.at(signal);
         for (uint32_t i = 0; i < dim; i++) {
-            array_handles_[signal][i] = get_new_handle();
+            auto *h = get_new_handle();
+            array_handles_[signal][i] = h;
+            auto new_name = name + "[" + std::to_string(i) + "]";
+            signals_.emplace(h, new_name);
         }
+        // add it to signals
         return array_handles_[signal];
     }
 
