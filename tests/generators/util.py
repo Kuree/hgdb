@@ -2,6 +2,7 @@ import abc
 import os
 import shutil
 import subprocess
+
 import sys
 
 
@@ -127,8 +128,11 @@ class VerilatorTester(Tester):
         verilator = shutil.which("verilator")
         args = [verilator, "--cc", "--exe", "--vpi", "--public-flat-rw"]
         args += self.files + [os.path.abspath(self.lib_path), "-Wno-fatal"]
+        # compute rpath
+        rpath = os.path.dirname(os.path.abspath(self.lib_path))
+        args += ["-LDFLAGS", "-Wl,-rpath," + rpath]
         subprocess.check_call(args, cwd=self.cwd)
-        env = self._set_lib_env()
+        env = os.environ.copy()
 
         # find the shortest file
         # automatic detect the makefile
@@ -140,7 +144,10 @@ class VerilatorTester(Tester):
                 break
         assert len(mk_file) > 0, "Unable to find any makefile from Verilator"
         # make the file
-        subprocess.check_call(["make", "-C", "obj_dir", "-f", mk_file],
+        opt = []
+        if "debug" in kwargs and kwargs["debug"]:
+            opt += ['OPT_FAST="-Og"']
+        subprocess.check_call(["make", *opt, "-C", "obj_dir", "-f", mk_file],
                               cwd=self.cwd, env=env)
         # run the application
         name = os.path.join("obj_dir", mk_file.replace(".mk", ""))
@@ -245,9 +252,8 @@ class QuestaTester(Tester):
 
     def __get_flag(self):
         name = os.path.basename(self.lib_path)
-        return ["-pli", name, "-batch", "-do",  "run -all; exit"]
+        return ["-pli", name, "-batch", "-do", "run -all; exit"]
 
     @staticmethod
     def available():
         return shutil.which("vlog") is not None
-
