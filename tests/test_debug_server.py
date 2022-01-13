@@ -478,11 +478,20 @@ def test_debug_array_change_value(start_server, find_free_port):
             await client.set_breakpoint("/tmp/test.py", 7)
             await client.continue_()
             bp = await client.recv_bp()
-            assert bp["payload"]["instances"][0]["generator"]["array[1]"] == "4"
             bp_id = bp["payload"]["instances"][0]["breakpoint_id"]
+            # times = [0]
+            times = [bp["payload"]["time"]]
             # remove the breakpoint
-            await client.remove_breakpoint_id(bp_id)
+            await client.remove_breakpoint("/tmp/test.py", 7)
             # set data breakpoint
+            await client.set_data_breakpoint(bp_id, "array[1]")
+            for i in range(4):
+                await client.continue_()
+                bp = await client.recv_bp()
+                # value changes every 2 unit. notice that the value is time + 1.
+                # so it's [0, 1, 3, 5] -> [1, 2, 4, 6]. 0 being the first one is due to from x to have a value
+                times.append(bp["payload"]["time"])
+            assert times == [0, 1, 2, 4, 6]
 
     asyncio.get_event_loop().run_until_complete(test_logic())
     kill_server(s)

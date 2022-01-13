@@ -295,14 +295,22 @@ DBSymbolTableProvider::get_assigned_breakpoints(const std::string &var_name,
     if (ref_assignments.empty() || !inst) return {};
     // get instance as well
     auto const &ref_assignment = ref_assignments[0];
-    if (ref_assignment.name != var_name) return {};
+    // need to clean the variable name
+    std::string target_var_name = var_name;
+    bool member_access = false;
+    if (var_name.find('[') != std::string::npos || var_name.find('.') != std::string::npos) {
+        auto tokens = util::get_tokens(var_name, "[.");
+        target_var_name = {tokens[0]};
+        member_access = true;
+    }
+    if (ref_assignment.name != target_var_name) return {};
     std::vector<std::tuple<uint32_t, std::string, std::string>> result;
     std::vector<std::tuple<std::unique_ptr<uint32_t>, std::string, std::string>> res;
     if (ref_assignment.scope_id) {
         res = db_->select(columns(&AssignmentInfo::breakpoint_id, &AssignmentInfo::value,
                                   &AssignmentInfo::condition),
                           where(c(&AssignmentInfo::scope_id) == *ref_assignment.scope_id &&
-                                c(&AssignmentInfo::name) == var_name &&
+                                c(&AssignmentInfo::name) == target_var_name &&
                                 c(&BreakPoint::id) == (&AssignmentInfo::breakpoint_id) &&
                                 c(&BreakPoint::instance_id) == *ref_bp->instance_id));
 
@@ -310,12 +318,25 @@ DBSymbolTableProvider::get_assigned_breakpoints(const std::string &var_name,
         // no scope, search all variable information
         res = db_->select(columns(&AssignmentInfo::breakpoint_id, &AssignmentInfo::value,
                                   &AssignmentInfo::condition),
-                          where(c(&AssignmentInfo::name) == var_name &&
+                          where(c(&AssignmentInfo::name) == target_var_name &&
                                 c(&BreakPoint::id) == (&AssignmentInfo::breakpoint_id) &&
                                 c(&BreakPoint::instance_id) == *ref_bp->instance_id));
     }
     for (auto const &r : res) {
+        // need to recover the actual RTL name if it's a member access
         auto name = fmt::format("{0}.{1}", *inst, std::get<1>(r));
+        if (member_access) {
+            auto tokens = util::get_tokens(var_name, "[.]");
+            for (auto i = 1u; i < tokens.size(); i++) {
+                auto const &select = tokens[i];
+                if (std::all_of(select.begin(), select.end(), ::isdigit)) {
+                    name = fmt::format("{0}[{1}]", name, select);
+                } else {
+                    name = fmt::format("{0}.{1}", name, select);
+                }
+            }
+        }
+
         result.emplace_back(std::make_tuple(*std::get<0>(r), name, std::get<2>(r)));
     }
 

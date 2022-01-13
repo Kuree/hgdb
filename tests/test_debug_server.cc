@@ -168,10 +168,9 @@ auto setup_db_vpi(MockVPIProvider &vpi) {
         vpi.set_signal_value(variable_handles.at("a"), 1);
 
         // set signal dim and then set the value
-        auto array_handles = vpi.set_signal_dim(variable_handles.at("array"), 4);
+        vpi.set_signal_dim(variable_handles.at("array"), 4);
         vpi.set_signal_value(variable_handles.at("value"), 4);
         vpi.set_signal_value(variable_handles.at("addr"), 1);
-        vpi.set_signal_value(array_handles[1], 4);
     }
 
     auto db_client = std::make_unique<hgdb::DBSymbolTableProvider>(std::move(db));
@@ -225,6 +224,7 @@ int main(int argc, char *argv[]) {
     // evaluate the inserted breakpoint
     raw_vpi->set_time(0);
     constexpr const char *mod1_e = "top.dut.e";
+    constexpr const char *mod1_array_1 = "top.dut.array[1]";
     using namespace std::chrono_literals;
     while (debug.is_running().load()) {
         // eval loop
@@ -238,6 +238,12 @@ int main(int argc, char *argv[]) {
             raw_vpi->set_signal_value(
                 raw_vpi->vpi_handle_by_name(const_cast<char *>(mod1_e), nullptr),
                 time > 1 ? 1 : static_cast<int64_t>(time));
+            // also set the array
+            if (time % 2) {
+                raw_vpi->set_signal_value(
+                    raw_vpi->vpi_handle_by_name(const_cast<char *>(mod1_array_1), nullptr),
+                    static_cast<int64_t>(time + 1));
+            }
             // sleep a little to avoid high CPU load
             std::this_thread::sleep_for(10ms);
         }
