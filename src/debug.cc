@@ -877,7 +877,6 @@ void Debugger::handle_data_breakpoint(const DataBreakpointRequest &req, uint64_t
                     send_message(error.str(log_enabled_), conn_id);
                     return;
                 }
-                auto full_name = rtl_->get_full_name(var_name);
                 // merge data_condition
                 std::string bp_condition;
                 if (req.condition().empty())
@@ -888,7 +887,7 @@ void Debugger::handle_data_breakpoint(const DataBreakpointRequest &req, uint64_t
                     // merge these two
                     bp_condition = fmt::format("{0} && {1}", req.condition(), data_condition);
                 auto *bp =
-                    scheduler_->add_data_breakpoint(full_name, bp_condition, *bp_opt, dry_run);
+                    scheduler_->add_data_breakpoint(var_name, bp_condition, *bp_opt, dry_run);
                 if (!bp) {
                     auto error =
                         GenericResponse(status_code::error, req,

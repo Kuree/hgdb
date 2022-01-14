@@ -282,7 +282,7 @@ std::vector<std::string> DBSymbolTableProvider::get_all_array_names() {
 }
 
 std::vector<std::tuple<uint32_t, std::string, std::string>>
-DBSymbolTableProvider::get_assigned_breakpoints(const std::string &var_name,
+DBSymbolTableProvider::get_assigned_breakpoints(const std::string &var_name,  // NOLINT
                                                 uint32_t breakpoint_id) {
     using namespace sqlite_orm;
     if (!db_) return {};
@@ -293,23 +293,43 @@ DBSymbolTableProvider::get_assigned_breakpoints(const std::string &var_name,
         db_->get_all<AssignmentInfo>(where(c(&AssignmentInfo::breakpoint_id) == breakpoint_id));
     auto inst = get_instance_name_from_bp(breakpoint_id);
     if (ref_assignments.empty() || !inst) return {};
-    // get instance as well
-    auto const &ref_assignment = ref_assignments[0];
-    // need to clean the variable name
     std::string target_var_name = var_name;
+    bool found = false;
     bool member_access = false;
-    if (var_name.find('[') != std::string::npos || var_name.find('.') != std::string::npos) {
-        auto tokens = util::get_tokens(var_name, "[.");
-        target_var_name = {tokens[0]};
-        member_access = true;
+    AssignmentInfo ref_assign;
+    if (ref_assignments.size() > 1) {
+        // this is an array assignment
+        // trying to find exact match through some heuristics
+        for (auto &ref_assignment : ref_assignments) {
+            if (ref_assignment.name == target_var_name) {
+                found = true;
+                ref_assign = std::move(ref_assignment);
+                break;
+            }
+        }
+    } else {
+        auto &ref_assignment = ref_assignments[0];
+        // need to clean the variable name
+        if ((var_name.find('[') != std::string::npos || var_name.find('.') != std::string::npos) &&
+            // maybe the generator already taken care of it
+            ref_assignment.name != var_name) {
+            auto tokens = util::get_tokens(var_name, "[.");
+            target_var_name = {tokens[0]};
+            found = true;
+            member_access = true;
+            ref_assign = std::move(ref_assignment);
+        } else if (ref_assignment.name == var_name) {
+            found = true;
+        }
     }
-    if (ref_assignment.name != target_var_name) return {};
+
+    if (!found) return {};
     std::vector<std::tuple<uint32_t, std::string, std::string>> result;
     std::vector<std::tuple<std::unique_ptr<uint32_t>, std::string, std::string>> res;
-    if (ref_assignment.scope_id) {
+    if (ref_assign.scope_id) {
         res = db_->select(columns(&AssignmentInfo::breakpoint_id, &AssignmentInfo::value,
                                   &AssignmentInfo::condition),
-                          where(c(&AssignmentInfo::scope_id) == *ref_assignment.scope_id &&
+                          where(c(&AssignmentInfo::scope_id) == *ref_assign.scope_id &&
                                 c(&AssignmentInfo::name) == target_var_name &&
                                 c(&BreakPoint::id) == (&AssignmentInfo::breakpoint_id) &&
                                 c(&BreakPoint::instance_id) == *ref_bp->instance_id));
@@ -324,7 +344,7 @@ DBSymbolTableProvider::get_assigned_breakpoints(const std::string &var_name,
     }
     for (auto const &r : res) {
         // need to recover the actual RTL name if it's a member access
-        auto name = fmt::format("{0}.{1}", *inst, std::get<1>(r));
+        auto name = std::get<1>(r);
         if (member_access) {
             auto tokens = util::get_tokens(var_name, "[.]");
             for (auto i = 1u; i < tokens.size(); i++) {

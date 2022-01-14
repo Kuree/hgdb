@@ -220,7 +220,8 @@ bool RTLSimulatorClient::is_valid_signal(const std::string &name) {
     if (!handle) return false;
     auto type = get_vpi_type(handle);
     return type == vpiReg || type == vpiNet || type == vpiRegArray || type == vpiRegBit ||
-           type == vpiNetArray || type == vpiNetBit || type == vpiPartSelect;
+           type == vpiNetArray || type == vpiNetBit || type == vpiPartSelect ||
+           type == vpiMemoryWord;
 }
 
 vpiHandle RTLSimulatorClient::access_arrays(StringIterator begin, StringIterator end,
