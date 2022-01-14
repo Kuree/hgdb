@@ -860,14 +860,16 @@ void Debugger::handle_data_breakpoint(const DataBreakpointRequest &req, uint64_t
             }
             // this is not very efficient, but good enough for now
             auto bp_ids = db_->get_assigned_breakpoints(req.var_name(), req.breakpoint_id());
-            if (bp_ids.empty()) {
+            auto inst_name = db_->get_instance_name_from_bp(req.breakpoint_id());
+            if (bp_ids.empty() || !inst_name) {
                 auto err = GenericResponse(status_code::error, req, "Invalid data breakpoint");
                 send_message(err.str(log_enabled_), conn_id);
                 return;
             }
             std::unordered_set<std::string> var_names;
             for (auto const &iter : bp_ids) {
-                var_names.emplace(rtl_->get_full_name(std::get<1>(iter)));
+                auto full_name = fmt::format("{0}.{1}", *inst_name, std::get<1>(iter));
+                var_names.emplace(rtl_->get_full_name(full_name));
             }
 
             for (auto const &[id, var_name, data_condition] : bp_ids) {
@@ -895,7 +897,6 @@ void Debugger::handle_data_breakpoint(const DataBreakpointRequest &req, uint64_t
                     send_message(error.str(log_enabled_), conn_id);
                     return;
                 }
-                bp->target_rtl_var_name = req.var_name();
 
                 // they share the same variable
                 // notice that in case some breakpoints got deleted, we need to get it from the
