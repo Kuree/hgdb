@@ -170,8 +170,71 @@ def test_kratos_multiple_instances(find_free_port, simulator):
             asyncio.get_event_loop().run_until_complete(client_logic())
 
 
+@pytest.mark.parametrize("simulator", [VerilatorTester, XceliumTester])
+def test_kratos_data_breakpoint(find_free_port, simulator):
+    if not simulator.available():
+        pytest.skip(simulator.__name__ + " not available")
+    # we re-use the same test bench with different logic
+    from kratos import Generator, always_ff, verilog, posedge
+    width = 16
+    size = 4
+    mod = Generator("mod", debug=True)
+    clk = mod.clock("clk")
+    rst = mod.reset("rst")
+    addr = mod.input("addr", 2)
+    in_ = mod.input("in", width)
+    array = mod.var("array", width, size=size)
+
+    @always_ff((posedge, clk), (posedge, rst))
+    def buffer_logic():
+        if rst:
+            for i in range(size):
+                array[i] = 0
+        else:
+            array[addr] = in_
+
+    mod.add_always(buffer_logic)
+
+    with tempfile.TemporaryDirectory() as temp:
+        temp = os.path.abspath(temp)
+        db_filename = os.path.join(temp, "debug.db")
+        sv_filename = os.path.join(temp, "mod.sv")
+        verilog(mod, filename=sv_filename, insert_debug_info=True,
+                debug_db_filename=db_filename, insert_verilator_info=True)
+        # run verilator
+        tb = "test_kratos_data.cc" if simulator == VerilatorTester else "test_kratos_data.sv"
+        main_file = get_vector_file(tb)
+        py_line_num = get_line_num(py_filename, "            array[addr] = in_")
+        with simulator(sv_filename, main_file, cwd=temp) as tester:
+            port = find_free_port()
+            uri = get_uri(port)
+            # set the port
+            tester.run(blocking=False, DEBUG_PORT=port, DEBUG_LOG=True, debug=True)
+
+            async def client_logic():
+                client = hgdb.HGDBClient(uri, db_filename)
+                await client.connect()
+                # set data breakpoint
+                bp_info = await client.request_breakpoint_location(py_filename, py_line_num)
+                bp_id = bp_info["payload"][0]["id"]
+                await client.set_data_breakpoint(bp_id, "array[3]")
+                await client.continue_()
+                bp = await client.recv()
+                assert bp["payload"]["line_num"] == py_line_num
+                # addr should be 3 and array[3] hasn't been set yet
+                assert bp["payload"]["instances"][0]["generator"]["addr"] == "3"
+                assert bp["payload"]["instances"][0]["generator"]["array.3"] == "0"
+                # two has been set
+                assert bp["payload"]["instances"][0]["generator"]["array.2"] == "3"
+
+                # go to the end
+                await client.continue_()
+
+            asyncio.get_event_loop().run_until_complete(client_logic())
+
+
 if __name__ == "__main__":
     sys.path.append(get_root())
     from conftest import find_free_port_fn
 
-    test_kratos_single_instance(find_free_port_fn, VerilatorTester)
+    test_kratos_data_breakpoint(find_free_port_fn, XceliumTester)
