@@ -147,7 +147,7 @@ class VerilatorTester(Tester):
         opt = []
         if "debug" in kwargs and kwargs["debug"]:
             opt += ['OPT_FAST="-Og"']
-        subprocess.check_call(["make", *opt, "-C", "obj_dir", "-f", mk_file],
+        subprocess.check_call(["make", *opt, "-C", "obj_dir", "-f", mk_file, "-j"],
                               cwd=self.cwd, env=env)
         # run the application
         name = os.path.join("obj_dir", mk_file.replace(".mk", ""))

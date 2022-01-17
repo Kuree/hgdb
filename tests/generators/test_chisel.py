@@ -7,7 +7,7 @@ import pytest
 import hgdb
 import asyncio
 
-from util import (get_vector_file, get_root, XceliumTester, get_uri, VerilatorTester)
+from .util import (get_vector_file, get_root, XceliumTester, get_uri, VerilatorTester)
 
 
 @pytest.mark.parametrize("simulator", [VerilatorTester, XceliumTester])
