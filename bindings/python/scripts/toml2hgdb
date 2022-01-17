@@ -161,6 +161,16 @@ def get_filename(def_name, local_vars):
     return target_dist[0][0]
 
 
+def write_out_assignments(db, assignments, breakpoint_index):
+    for fn_info, target, value, cond in assignments:
+        fn_info = fn_info.replace(":", " ")
+        info = tuple(fn_info.split(" "))
+        if info not in breakpoint_index:
+            continue
+        bp_id = breakpoint_index[info]
+        db.store_assignment(target, value, bp_id, cond)
+
+
 def write_out_local_scope(def_name, local_vars, db, breakpoint_index, fix_variable):
     global var_count, scope_count
     # since the compiler already gives us the scope information, we don't need
@@ -348,6 +358,9 @@ def write_out_design(def_name, inst_name, design_data, db, fix_variable, detaile
                                 condition=cond, trigger=trigger)
             breakpoint_index[tuple(info)] = breakpoint_id_count
             breakpoint_id_count += 1
+    if "assignments" in def_data:
+        write_out_assignments(db, def_data["assignments"], breakpoint_index)
+
     instance_count += 1
 
     # handle local variables
