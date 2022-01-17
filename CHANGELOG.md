@@ -5,7 +5,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
-## [0.0.4] - 2021009-23
+## [0.0.5] - 2022-01-17
+### Added
+- Data breakpoint support
+- Improve `toml2hgdb` conversion
+- Chisel/Firrtl support stable
+- Add Python implementation of symbol table provider
+
+### Fixed
+- Gracefully detach/exit the simulation
+
+## [0.0.4] - 2021-09-23
 ### Added
 - iverilog and Questa support
 - Add ability to pause at clock edge
