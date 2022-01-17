@@ -1,14 +1,25 @@
 [ImplicitStateVendingMachine]
 breakpoints = [
-["SimpleVendingMachine.scala 19:9", "1"],
+["ImplicitStateVendingMachine.scala 13:26", "1"],
 ["ImplicitStateVendingMachine.scala 15:21", "1"],
 ["ImplicitStateVendingMachine.scala 16:11", "!reset && doDispense"],
 ["ImplicitStateVendingMachine.scala 18:11", "!reset && !doDispense"],
+["ImplicitStateVendingMachine.scala 18:20", "1"],
 ["ImplicitStateVendingMachine.scala 21:20", "1"],
 ["ImplicitStateVendingMachine.scala 21:31", "io_nickel"],
 ["ImplicitStateVendingMachine.scala 22:18", "1"],
 ["ImplicitStateVendingMachine.scala 22:29", "io_dime"],
 ["ImplicitStateVendingMachine.scala 24:15", "1"],
+["SimpleVendingMachine.scala 19:10", "1"],
+["SimpleVendingMachine.scala 19:22", "1"],
+["SimpleVendingMachine.scala 19:9", "1"],
+]
+assignments = [
+["ImplicitStateVendingMachine.scala 16:11", "value", "value", ""],
+["ImplicitStateVendingMachine.scala 18:11", "value", "value", ""],
+["ImplicitStateVendingMachine.scala 21:31", "incValue", "incValue", ""],
+["ImplicitStateVendingMachine.scala 22:29", "incValue", "incValue", ""],
+["ImplicitStateVendingMachine.scala 24:15", "io_dispense", "io.dispense", ""],
 ]
 [ImplicitStateVendingMachine.instances]
 [ImplicitStateVendingMachine.variables]
@@ -19,49 +30,35 @@ breakpoints = [
 "io.dispense" = "io_dispense"
 "value" = "value"
 "incValue" = "incValue"
+[ImplicitStateVendingMachine.locals]
+"doDispense" = ["doDispense", "ImplicitStateVendingMachine.scala 13:26"]
+
 [SimpleVendingMachineTester]
 breakpoints = [
 ["Counter.scala 118:17", "1"],
-["Counter.scala 76:15", "!reset && "],
-["Counter.scala 86:20", ""],
-["Counter.scala 86:28", "!reset && wrap_wrap"],
-["Counter.scala 118:24", ""],
+["Counter.scala 118:24", "1"],
+["Counter.scala 72:24", "1"],
+["Counter.scala 76:15", "!reset && 1"],
+["Counter.scala 76:24", "1"],
+["Counter.scala 86:20", "1"],
+["Counter.scala 86:28", "!reset && wrap_wrap && 1"],
 ["SimpleVendingMachine.scala 76:15", "1"],
-["SimpleVendingMachine.scala 76:21", "done"],
-["SimpleVendingMachine.scala 76:29", "done"],
-["SimpleVendingMachine.scala 78:29", "1"],
-["SimpleVendingMachine.scala 78:29", "1"],
-["SimpleVendingMachine.scala 78:29", "1"],
-["SimpleVendingMachine.scala 78:29", "1"],
-["SimpleVendingMachine.scala 78:29", "1"],
-["SimpleVendingMachine.scala 78:29", "1"],
-["SimpleVendingMachine.scala 78:29", "1"],
-["SimpleVendingMachine.scala 78:29", "1"],
-["SimpleVendingMachine.scala 78:29", "1"],
+["SimpleVendingMachine.scala 76:21", "1"],
+["SimpleVendingMachine.scala 76:29", "1"],
 ["SimpleVendingMachine.scala 78:29", "1"],
 ["SimpleVendingMachine.scala 79:29", "1"],
-["SimpleVendingMachine.scala 79:29", "1"],
-["SimpleVendingMachine.scala 79:29", "1"],
-["SimpleVendingMachine.scala 79:29", "1"],
-["SimpleVendingMachine.scala 79:29", "1"],
-["SimpleVendingMachine.scala 79:29", "1"],
-["SimpleVendingMachine.scala 79:29", "1"],
-["SimpleVendingMachine.scala 79:29", "1"],
-["SimpleVendingMachine.scala 79:29", "1"],
-["SimpleVendingMachine.scala 79:29", "1"],
-["SimpleVendingMachine.scala 80:29", "1"],
-["SimpleVendingMachine.scala 80:29", "1"],
-["SimpleVendingMachine.scala 80:29", "1"],
-["SimpleVendingMachine.scala 80:29", "1"],
-["SimpleVendingMachine.scala 80:29", "1"],
-["SimpleVendingMachine.scala 80:29", "1"],
-["SimpleVendingMachine.scala 80:29", "1"],
-["SimpleVendingMachine.scala 80:29", "1"],
-["SimpleVendingMachine.scala 80:29", "1"],
 ["SimpleVendingMachine.scala 80:29", "1"],
 ["SimpleVendingMachine.scala 82:17", "1"],
 ["SimpleVendingMachine.scala 83:15", "1"],
+["SimpleVendingMachine.scala 84:26", "1"],
 ["SimpleVendingMachine.scala 84:9", "1"],
+]
+assignments = [
+["Counter.scala 118:24", "done", "done", ""],
+["Counter.scala 76:15", "cycle", "cycle", ""],
+["Counter.scala 86:28", "cycle", "cycle", ""],
+["SimpleVendingMachine.scala 82:17", "dut_io_nickel", "dut.io.nickel", ""],
+["SimpleVendingMachine.scala 83:15", "dut_io_dime", "dut.io.dime", ""],
 ]
 [SimpleVendingMachineTester.instances]
 dut = "ImplicitStateVendingMachine"
@@ -70,6 +67,36 @@ dut = "ImplicitStateVendingMachine"
 "reset" = "reset"
 "cycle" = "cycle"
 "done" = "done"
-"nickelInputs" = "nickelInputs"
-"dimeInputs" = "dimeInputs"
-"expected" = "expected"
+"nickelInputs[0]" = "nickelInputs_0"
+"nickelInputs[1]" = "nickelInputs_1"
+"nickelInputs[2]" = "nickelInputs_2"
+"nickelInputs[3]" = "nickelInputs_3"
+"nickelInputs[4]" = "nickelInputs_4"
+"nickelInputs[5]" = "nickelInputs_5"
+"nickelInputs[6]" = "nickelInputs_6"
+"nickelInputs[7]" = "nickelInputs_7"
+"nickelInputs[8]" = "nickelInputs_8"
+"nickelInputs[9]" = "nickelInputs_9"
+"dimeInputs[0]" = "dimeInputs_0"
+"dimeInputs[1]" = "dimeInputs_1"
+"dimeInputs[2]" = "dimeInputs_2"
+"dimeInputs[3]" = "dimeInputs_3"
+"dimeInputs[4]" = "dimeInputs_4"
+"dimeInputs[5]" = "dimeInputs_5"
+"dimeInputs[6]" = "dimeInputs_6"
+"dimeInputs[7]" = "dimeInputs_7"
+"dimeInputs[8]" = "dimeInputs_8"
+"dimeInputs[9]" = "dimeInputs_9"
+"expected[0]" = "expected_0"
+"expected[1]" = "expected_1"
+"expected[2]" = "expected_2"
+"expected[3]" = "expected_3"
+"expected[4]" = "expected_4"
+"expected[5]" = "expected_5"
+"expected[6]" = "expected_6"
+"expected[7]" = "expected_7"
+"expected[8]" = "expected_8"
+"expected[9]" = "expected_9"
+[SimpleVendingMachineTester.locals]
+"wrap_wrap" = ["wrap_wrap", "Counter.scala 72:24"]
+
