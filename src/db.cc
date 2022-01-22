@@ -6,6 +6,8 @@
 
 #include "fmt/format.h"
 #include "util.hh"
+#include "rapidjson/document.h"
+#include "rapidjson/rapidjson.h"
 
 namespace hgdb {
 
@@ -457,5 +459,10 @@ void DBSymbolTableProvider::compute_use_base_name() {
         }
     }
 }
+
+JSONSymbolTableProvider::JSONSymbolTableProvider(const std::string &filename) {
+    document_ = std::make_shared<rapidjson::Document>();
+}
+
 
 }  // namespace hgdb
