@@ -1,0 +1,230 @@
+{
+  "description": "JSON Schema Draft v4 format for HGDB framework",
+  "title": "HGDB symbol table schema",
+  "type": "object",
+  "properties": {
+    "generator": {
+      "description": "The generator framework that produced this symbol table",
+      "type": "string"
+    },
+    "table": {
+      "description": "The unique identifier for a product",
+      "type": "array",
+      "items": [
+        {
+          "$ref": "#/$defs/file"
+        }
+      ]
+    }
+  },
+  "required": [
+    "generator",
+    "table"
+  ],
+  "$defs": {
+    "variable": {
+      "type": "object",
+      "required": [
+        "name",
+        "value",
+        "rtl"
+      ],
+      "properties": {
+        "name": {
+          "description": "The source-level name",
+          "type": "string"
+        },
+        "value": {
+          "description": "RTL signal name scoped to the parent module/interface, or a compile-time value",
+          "type": "string"
+        },
+        "rtl": {
+          "description": "If true, the value property coresponds to the RTL signal name",
+          "type": "boolean"
+        }
+      }
+    },
+    "scopeEntry": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "description": "Scope entry type",
+          "type": "string",
+          "enum": [
+            "decl",
+            "module",
+            "assign",
+            "scope",
+            "inst"
+          ]
+        },
+        "line": {
+          "description": "Line number. Starting from 1",
+          "type": "integer",
+          "minimum": 1
+        },
+        "column": {
+          "description": "Column number. Starting from 1",
+          "type": "integer",
+          "minimum": 1
+        },
+        "scope": {
+          "description": "Inner scope",
+          "type": "array",
+          "items": [
+            {
+              "$ref": "#/$defs/scopeEntry"
+            }
+          ]
+        },
+        "mapping": {
+          "description": "Variable mappings defined by this entry",
+          "type": "array",
+          "items": [
+            {
+              "$ref": "#/$defs/variable"
+            }
+          ]
+        },
+        "variables": {
+          "description": "Variables defined in the module",
+          "type": "array",
+          "items": [
+            {
+              "$ref": "#/$defs/variable"
+            }
+          ]
+        },
+        "name": {
+          "description": "Name of the entry",
+          "type": "string"
+        },
+        "module": {
+          "description": "Module definition name",
+          "type": "string"
+        },
+        "target": {
+          "description": "RTL signal name",
+          "type": "string"
+        }
+      },
+      "required": [
+        "type",
+        "line"
+      ],
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "enum": [
+                  "module",
+                  "block"
+                ]
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "scope"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "enum": [
+                  "decl"
+                ]
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "mapping"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "enum": [
+                  "module"
+                ]
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "name",
+              "scope"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "enum": [
+                  "inst"
+                ]
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "name",
+              "module"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "enum": [
+                  "assign"
+                ]
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "rtl_target",
+              "value"
+            ]
+          }
+        }
+      ]
+    },
+    "scope": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/scopeEntry"
+      }
+    },
+    "file": {
+      "type": "object",
+      "properties": {
+        "filename": {
+          "description": "Filename",
+          "type": "string"
+        },
+        "scope": {
+          "description": "Scopes contained in this file",
+          "allOf": [
+            {
+              "$ref": "#/$defs/scope"
+            }
+          ]
+        }
+      },
+      "required": [
+        "filename",
+        "scope"
+      ]
+    }
+  }
+}
