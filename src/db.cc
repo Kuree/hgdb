@@ -5,9 +5,10 @@
 #include <unordered_set>
 
 #include "fmt/format.h"
-#include "util.hh"
+#include "log.hh"
 #include "rapidjson/document.h"
 #include "rapidjson/rapidjson.h"
+#include "util.hh"
 
 namespace hgdb {
 
@@ -461,8 +462,32 @@ void DBSymbolTableProvider::compute_use_base_name() {
 }
 
 JSONSymbolTableProvider::JSONSymbolTableProvider(const std::string &filename) {
+    stream_ = std::ifstream(filename);
+    if (stream_.bad()) {
+        document_ = nullptr;
+        return;
+    }
+
     document_ = std::make_shared<rapidjson::Document>();
+    document_->ParseStream(stream_);
+    if (document_->HasParseError()) {
+        log::log(log::log_level::error, "Invalid JSON file " + filename);
+        document_ = nullptr;
+    }
 }
 
+JSONSymbolTableProvider::JSONSymbolTableProvider(std::unique_ptr<JSONSymbolTableProvider> db) {
+    stream_ = std::move(db->stream_);
+    document_ = std::move(db->document_);
+    // ownership transfer complete
+    db.reset();
+}
+
+void JSONSymbolTableProvider::close() {
+    stream_.close();
+    document_ = nullptr;
+}
+
+JSONSymbolTableProvider::~JSONSymbolTableProvider() { close(); }
 
 }  // namespace hgdb

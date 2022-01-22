@@ -1,6 +1,7 @@
 #ifndef HGDB_DB_HH
 #define HGDB_DB_HH
 
+#include <fstream>
 #include <mutex>
 #include <unordered_map>
 #include <vector>
@@ -125,6 +126,8 @@ private:
         rapidjson::UTF8<char>, rapidjson::MemoryPoolAllocator<rapidjson::CrtAllocator>,
         rapidjson::CrtAllocator>>
         document_;
+
+    std::ifstream stream_;
 };
 
 }  // namespace hgdb
