@@ -2,6 +2,7 @@
 
 #include <atomic>
 #include <filesystem>
+#include <fstream>
 #include <mutex>
 
 #include "asio.hpp"
@@ -357,6 +358,25 @@ private:
     }
 };
 
+enum class FileType { SQLite, JSON, Invalid };
+
+FileType identify_db_format(const std::string &filename) {
+    FileType type = FileType::Invalid;
+    // read out the first 16 bytes, if any
+    std::ifstream s(filename);
+    if (s.bad()) return type;
+    std::array<char, 16> buffer = {};
+    auto size = s.readsome(buffer.data(), 15);
+    buffer[15] = 0;  // make sure
+    std::string_view sv = buffer.data();
+    // https://www.sqlite.org/fileformat.html#magic_header_string
+    if (size == 15 && sv == "SQLite format 3") {
+        return FileType::SQLite;
+    }
+    // assume it's json file
+    return FileType::JSON;
+}
+
 std::unique_ptr<SymbolTableProvider> create_symbol_table(const std::string &filename) {
     // we use some simple way to tell which schema it is
     if (filename.starts_with(TCP_SCHEMA)) {
@@ -390,7 +410,22 @@ std::unique_ptr<SymbolTableProvider> create_symbol_table(const std::string &file
             log::log(log::log_level::error, "Unable to find " + filename);
             return nullptr;
         }
-        return std::make_unique<DBSymbolTableProvider>(filename);
+
+        // identify the database format
+        auto type = identify_db_format(filename);
+        switch (type) {
+            case FileType::SQLite: {
+                return std::make_unique<DBSymbolTableProvider>(filename);
+            }
+            case FileType::JSON: {
+                return nullptr;
+            }
+            default: {
+                // invalid file
+                log::log(log::log_level::error, "Invalid symbol table file " + filename);
+                return nullptr;
+            }
+        }
     }
 }
 }  // namespace hgdb

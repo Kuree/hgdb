@@ -65,6 +65,16 @@ private:
 
     void compute_use_base_name();
 };
+
+// json-based symbol table
+class JSONSymbolTableProvider: public SymbolTableProvider {
+public:
+    explicit JSONSymbolTableProvider(const std::string &filename);
+    // take over the DB ownership. normally used for testing
+    explicit JSONSymbolTableProvider(std::unique_ptr<JSONSymbolTableProvider> db);
+    void close();
+};
+
 }  // namespace hgdb
 
 #endif  // HGDB_DB_HH
