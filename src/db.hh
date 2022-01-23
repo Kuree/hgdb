@@ -120,6 +120,7 @@ public:
 
     [[nodiscard]] std::vector<uint32_t> execution_bp_orders() override;
 
+    static bool valid_json(const std::istream &stream);
 private:
     // why on early do you use typedef
     std::shared_ptr<rapidjson::GenericDocument<

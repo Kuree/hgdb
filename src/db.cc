@@ -565,4 +565,10 @@ std::vector<uint32_t> JSONSymbolTableProvider::execution_bp_orders() { return {}
 
 JSONSymbolTableProvider::~JSONSymbolTableProvider() { close(); }
 
+bool JSONSymbolTableProvider::valid_json(const std::istream &stream) {
+    // we don't use a singleton design because json validation happens rather infrequent, in fact
+    // only once per debugging session (loading the symbol table)
+    
+}
+
 }  // namespace hgdb
