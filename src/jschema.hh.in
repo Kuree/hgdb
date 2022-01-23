@@ -1,0 +1,4 @@
+#ifndef HGDB_JSON_SCHEMA
+#define HGDB_JSON_SCHEMA
+constexpr auto *JSON_SCHEMA = R"(${JSON_SCHEMA})";
+#endif

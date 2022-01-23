@@ -5,10 +5,16 @@
 #include <unordered_set>
 
 #include "fmt/format.h"
+#include "jschema.hh"
 #include "log.hh"
 #include "rapidjson/document.h"
 #include "rapidjson/istreamwrapper.h"
 #include "util.hh"
+#include "valijson/adapters/rapidjson_adapter.hpp"
+#include "valijson/schema.hpp"
+#include "valijson/schema_parser.hpp"
+#include "valijson/utils/rapidjson_utils.hpp"
+#include "valijson/validator.hpp"
 
 namespace hgdb {
 
@@ -565,10 +571,30 @@ std::vector<uint32_t> JSONSymbolTableProvider::execution_bp_orders() { return {}
 
 JSONSymbolTableProvider::~JSONSymbolTableProvider() { close(); }
 
-bool JSONSymbolTableProvider::valid_json(const std::istream &stream) {
+bool JSONSymbolTableProvider::valid_json(std::istream &stream) {
     // we don't use a singleton design because json validation happens rather infrequent, in fact
     // only once per debugging session (loading the symbol table)
-    
+    rapidjson::Document document;
+    rapidjson::IStreamWrapper isw(stream);
+    document.ParseStream(isw);
+    if (document.HasParseError()) return false;
+
+    // load schema document
+    rapidjson::Document schema_document;
+    schema_document.Parse(JSON_SCHEMA);
+    if (schema_document.HasParseError()) [[unlikely]] {
+        // it's unlikely it has errors
+        return false;
+    }
+
+    valijson::Schema json_schema;
+    valijson::SchemaParser schema_parser;
+    valijson::adapters::RapidJsonAdapter schema_adapter(schema_document);
+    schema_parser.populateSchema(schema_adapter, json_schema);
+
+    valijson::Validator validator;
+    valijson::adapters::RapidJsonAdapter document_adapter(document);
+    return validator.validate(json_schema, document_adapter, nullptr);
 }
 
 }  // namespace hgdb
