@@ -8,16 +8,6 @@
 
 #include "symbol.hh"
 
-namespace rapidjson {
-template <typename T>
-struct UTF8;
-template <typename T1, typename T2, typename T3>
-class GenericDocument;
-template <typename T>
-class MemoryPoolAllocator;
-class CrtAllocator;
-}  // namespace rapidjson
-
 namespace hgdb {
 /**
  * Debug database class that handles querying about the design
@@ -77,13 +67,17 @@ private:
     void compute_use_base_name();
 };
 
+namespace db::json {
+struct ModuleDef;
+struct Instance;
+}  // namespace db::json
+
 // json-based symbol table
 class JSONSymbolTableProvider : public SymbolTableProvider {
 public:
     explicit JSONSymbolTableProvider(const std::string &filename);
     // take over the DB ownership. normally used for testing
     explicit JSONSymbolTableProvider(std::unique_ptr<JSONSymbolTableProvider> db);
-    void close();
 
     // helper functions to query the database
     std::vector<BreakPoint> get_breakpoints(const std::string &filename,
@@ -111,8 +105,6 @@ public:
     [[nodiscard]] std::vector<std::tuple<uint32_t, std::string, std::string>>
     get_assigned_breakpoints(const std::string &var_name, uint32_t breakpoint_id) override;
 
-    ~JSONSymbolTableProvider() override;
-
     [[nodiscard]] std::optional<std::string> resolve_scoped_name_breakpoint(
         const std::string &scoped_name, uint64_t breakpoint_id) override;
     [[nodiscard]] std::optional<std::string> resolve_scoped_name_instance(
@@ -123,13 +115,10 @@ public:
     static bool valid_json(std::istream &stream);
 
 private:
-    // why on early do you use typedef
-    std::shared_ptr<rapidjson::GenericDocument<
-        rapidjson::UTF8<char>, rapidjson::MemoryPoolAllocator<rapidjson::CrtAllocator>,
-        rapidjson::CrtAllocator>>
-        document_;
-
-    std::ifstream stream_;
+    // serialized data structure
+    std::shared_ptr<db::json::Instance> root_ = nullptr;
+    std::unordered_map<std::string, std::shared_ptr<db::json::ModuleDef>> module_defs_;
+    uint32_t num_bps_ = 0;
 };
 
 }  // namespace hgdb

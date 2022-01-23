@@ -13,7 +13,6 @@
 #include "valijson/adapters/rapidjson_adapter.hpp"
 #include "valijson/schema.hpp"
 #include "valijson/schema_parser.hpp"
-#include "valijson/utils/rapidjson_utils.hpp"
 #include "valijson/validator.hpp"
 
 namespace hgdb {
@@ -467,32 +466,415 @@ void DBSymbolTableProvider::compute_use_base_name() {
     }
 }
 
-JSONSymbolTableProvider::JSONSymbolTableProvider(const std::string &filename) {
-    stream_ = std::ifstream(filename);
-    if (stream_.bad()) {
-        document_ = nullptr;
-        return;
+namespace db::json {
+enum class ScopeEntryType { None, Declaration, Block, Assign, Module };
+
+using ModuleDefDict = std::unordered_map<std::string, std::shared_ptr<db::json::ModuleDef>>;
+
+struct ScopeEntry {
+    uint32_t line = 0;
+    uint32_t column = 0;
+
+    const ScopeEntry *parent = nullptr;
+
+    ScopeEntryType type = ScopeEntryType::None;
+
+    explicit ScopeEntry(ScopeEntryType type) : type(type) {}
+};
+
+struct VarDef {
+    std::string name;
+    std::string value;
+    bool rtl = true;
+};
+
+struct Instance {
+    const ModuleDef *definition = nullptr;
+    std::string name;
+    uint32_t id = 0;
+
+    std::unordered_map<std::string, std::unique_ptr<Instance>> instances;
+    std::unordered_map<uint32_t, const ScopeEntry *> bps;
+};
+
+struct GenericEntry : public ScopeEntry {
+    GenericEntry() : ScopeEntry(ScopeEntryType::None) {}
+};
+
+struct ModuleDef : public ScopeEntry {
+    std::string name;
+    std::string filename;
+
+    std::vector<std::shared_ptr<ScopeEntry>> scope;
+
+    std::vector<VarDef> vars;
+    std::map<std::string, const ModuleDef *> instances;
+    // unresolved instances
+    std::map<std::string, std::string> unresolved_instances;
+
+    const ModuleDefDict &defs;
+
+    explicit ModuleDef(const ModuleDefDict &defs)
+        : ScopeEntry(ScopeEntryType::Module), defs(defs) {}
+};
+
+struct VarDeclEntry : public ScopeEntry {
+    VarDef var;
+    VarDeclEntry() : ScopeEntry(ScopeEntryType::Declaration) {}
+};
+
+struct AssignEntry : public ScopeEntry {
+    VarDef var;
+
+    AssignEntry() : ScopeEntry(ScopeEntryType::Assign) {}
+};
+
+struct BlockEntry : public ScopeEntry {
+    std::vector<std::shared_ptr<ScopeEntry>> scope;
+
+    BlockEntry() : ScopeEntry(ScopeEntryType::Block) {}
+};
+
+struct JSONParseInfo {
+    std::string current_filename;
+    const ScopeEntry *current_scope = nullptr;
+
+    std::unordered_map<std::string, std::shared_ptr<ModuleDef>> &module_defs;
+
+    explicit JSONParseInfo(std::unordered_map<std::string, std::shared_ptr<ModuleDef>> &module_defs)
+        : module_defs(module_defs) {}
+};
+
+std::shared_ptr<ModuleDef> parse_module_def(const rapidjson::Value &value, JSONParseInfo &info);
+std::shared_ptr<BlockEntry> parse_block_entry(const rapidjson::Value &value, JSONParseInfo &info);
+std::shared_ptr<VarDeclEntry> parse_var_decl(const rapidjson::Value &value, JSONParseInfo &info);
+std::shared_ptr<AssignEntry> parse_assign(const rapidjson::Value &value, JSONParseInfo &info);
+VarDef parse_var(const rapidjson::Value &value);
+
+void set_scope_entry_value(const rapidjson::Value &value, ScopeEntry &result) {
+    result.line = value["line"].GetUint();
+    if (value.HasMember("column")) {
+        result.column = value["column"].GetUint();
+    }
+}
+
+std::shared_ptr<ScopeEntry> parse_scope_entry(const rapidjson::Value &value, JSONParseInfo &info) {
+    std::string_view type = value["type"].GetString();
+    std::shared_ptr<ScopeEntry> result;
+    if (type == "module") {
+        result = parse_module_def(value, info);
+    } else if (type == "block") {
+        result = parse_block_entry(value, info);
+    } else if (type == "decl") {
+        result = parse_var_decl(value, info);
+    } else if (type == "assign") {
+        result = parse_assign(value, info);
+    } else if (type == "none") {
+        result = std::make_shared<GenericEntry>();
+        set_scope_entry_value(value, *result);
+    }
+    if (result) {
+        result->parent = info.current_scope;
+    }
+    return result;
+}
+
+std::shared_ptr<ModuleDef> parse_module_def(const rapidjson::Value &value, JSONParseInfo &info) {
+    auto result = std::make_shared<ModuleDef>(info.module_defs);
+    auto const *temp_scope = info.current_scope;
+    info.current_scope = result.get();
+
+    result->filename = info.current_filename;
+    result->name = value["name"].GetString();
+    info.module_defs.emplace(result->name, result);
+    set_scope_entry_value(value, *result);
+
+    // variables
+    auto vars = value["variables"].GetArray();
+    result->vars.reserve(vars.Size());
+    for (auto const &var : vars) {
+        auto v = parse_var(var);
+        result->vars.emplace_back(v);
     }
 
-    document_ = std::make_shared<rapidjson::Document>();
-    rapidjson::IStreamWrapper isw(stream_);
-    document_->ParseStream(isw);
-    if (document_->HasParseError()) {
-        log::log(log::log_level::error, "Invalid JSON file " + filename);
-        document_ = nullptr;
+    // scopes
+    auto scope = value["scope"].GetArray();
+    result->scope.reserve(scope.Size());
+    for (auto const &entry : scope) {
+        auto ptr = parse_scope_entry(entry, info);
+        if (ptr) {
+            result->scope.emplace_back(ptr);
+        }
+    }
+    // instances
+    if (value.HasMember("instances")) {
+        auto instances = value["instances"].GetArray();
+        for (auto const &inst : instances) {
+            std::string name = inst["name"].GetString();
+            std::string mod_name = inst["module"].GetString();
+            // put it in the unresolved instances first, since the module declaration might
+            // be out of order
+            result->unresolved_instances.emplace(name, mod_name);
+        }
+    }
+
+    // reset the current module
+    info.current_scope = temp_scope;
+    return result;
+}
+
+std::shared_ptr<BlockEntry> parse_block_entry(const rapidjson::Value &value, JSONParseInfo &info) {
+    auto result = std::make_unique<BlockEntry>();
+    set_scope_entry_value(value, *result);
+    auto const *temp_scope = info.current_scope;
+    info.current_scope = result.get();
+
+    auto scope = value["scope"].GetArray();
+    result->scope.reserve(scope.Size());
+    for (auto const &scope_entry : scope) {
+        auto e = parse_scope_entry(scope_entry, info);
+        result->scope.emplace_back(e);
+    }
+
+    info.current_scope = temp_scope;
+    return result;
+}
+
+std::shared_ptr<VarDeclEntry> parse_var_decl(const rapidjson::Value &value, JSONParseInfo &) {
+    auto result = std::make_shared<VarDeclEntry>();
+    set_scope_entry_value(value, *result);
+
+    result->var = parse_var(value["variable"]);
+
+    return result;
+}
+std::shared_ptr<AssignEntry> parse_assign(const rapidjson::Value &value, JSONParseInfo &) {
+    auto result = std::make_shared<AssignEntry>();
+    set_scope_entry_value(value, *result);
+
+    result->var = parse_var(value["variable"]);
+
+    return result;
+}
+
+VarDef parse_var(const rapidjson::Value &value) {
+    VarDef var;
+
+    var.name = value["name"].GetString();
+    var.value = value["value"].GetString();
+    var.rtl = value["rtl"].GetBool();
+
+    return var;
+}
+
+std::shared_ptr<Instance> parse(
+    rapidjson::Document &document,
+    std::unordered_map<std::string, std::shared_ptr<ModuleDef>> &module_defs) {
+    auto table = document["table"].GetArray();
+    auto const *top = document["top"].GetString();
+    JSONParseInfo info(module_defs);
+    std::shared_ptr<Instance> result;
+    for (auto &entry : table) {
+        auto const *filename = entry["filename"].GetString();
+        info.current_filename = filename;
+        auto const &scope = entry["scope"].GetArray();
+        for (auto &scope_entry : scope) {
+            auto parsed_entry = parse_scope_entry(scope_entry, info);
+            // notice that if the entry type is not a module, we are effectively discarding it
+            if (parsed_entry->type == ScopeEntryType::Module) {
+                auto m = std::reinterpret_pointer_cast<ModuleDef>(parsed_entry);
+                if (m->name == top) {
+                    // making a new instance. notice that the name is the same as module name
+                    result = std::make_shared<Instance>();
+                    result->name = m->name;
+                    result->definition = m.get();
+                }
+            }
+        }
+    }
+    return result;
+}
+
+template <bool visit_var = false>
+class DBVisitor {
+public:
+    virtual void handle(Instance &) {}
+    virtual void handle(VarDef &) {}
+    virtual void handle(BlockEntry &) {}
+    virtual void handle(AssignEntry &) {}
+    virtual void handle(ModuleDef &) {}
+    virtual void handle(VarDeclEntry &) {}
+    virtual void handle(GenericEntry &) {}
+
+    void visit(ModuleDef &mod) {
+        handle(mod);
+        if constexpr (visit_var) {
+            for (auto const &v : mod.vars) {
+                handle(v);
+            }
+        }
+
+        for (auto const &s : mod.scope) {
+            visit(s);
+        }
+    }
+
+    void visit(BlockEntry &block) {
+        handle(block);
+        for (auto const &s : block.scope) {
+            visit(s);
+        }
+    }
+
+    void visit(std::shared_ptr<ScopeEntry> &entry) {
+        switch (entry->type) {
+            case ScopeEntryType::Module: {
+                visit(*std::reinterpret_pointer_cast<ModuleDef>(entry));
+                break;
+            }
+            case ScopeEntryType::Block: {
+                visit(*std::reinterpret_pointer_cast<BlockEntry>(entry));
+                break;
+            }
+            case ScopeEntryType::Assign: {
+                handle(*std::reinterpret_pointer_cast<AssignEntry>(entry));
+                break;
+            }
+            case ScopeEntryType::Declaration: {
+                handle(*std::reinterpret_pointer_cast<VarDeclEntry>(entry));
+                break;
+            }
+            case ScopeEntryType::None: {
+                handle(*std::reinterpret_pointer_cast<GenericEntry>(entry));
+            }
+            default: {
+            }
+        }
+    }
+
+    void visit(Instance &inst) {
+        handle(inst);
+        for (auto const &[_, sub_inst] : inst.instances) {
+            visit(*sub_inst);
+        }
+    }
+};
+
+// resolve module instances
+class ResolveModuleInstance : public DBVisitor<false> {
+public:
+    void handle(ModuleDef &def) override {
+        for (auto const &[name, module_name] : def.unresolved_instances) {
+            if (def.defs.find(module_name) == def.defs.end()) {
+                log::log(log::log_level::error, "Undefined module symbol " + module_name);
+            } else {
+                auto const *d = def.defs.at(module_name).get();
+                def.instances.emplace(name, d);
+            }
+        }
+        // clear the memory
+        def.unresolved_instances.clear();
+    }
+};
+
+// build instances tree and assign ids
+void build_instance_tree(Instance &inst, uint32_t &id) {
+    inst.id = id++;
+
+    for (auto const &[name, def] : inst.definition->instances) {
+        auto sub = std::make_unique<Instance>();
+        sub->name = name;
+        sub->id = id++;
+        sub->definition = def;
+        inst.instances.emplace(name, std::move(sub));
+    }
+
+    for (auto const &[_, sub] : inst.instances) {
+        build_instance_tree(*sub, id);
+    }
+}
+
+class ScopeEntryVisitor : public DBVisitor<false> {
+public:
+    ScopeEntryVisitor(Instance &inst, uint32_t &id) : inst_(inst), id_(id) {}
+
+    void handle(BlockEntry &entry) override { handle_(entry); }
+    void handle(AssignEntry &entry) override { handle_(entry); }
+    void handle(VarDeclEntry &entry) override { handle_(entry); }
+    void handle(GenericEntry &entry) override { handle_(entry); }
+
+private:
+    Instance &inst_;
+    uint32_t &id_;
+
+    void handle_(ScopeEntry &entry) {
+        if (entry.line > 0) {
+            inst_.bps.emplace(id_++, &entry);
+        }
+    }
+};
+
+class InstanceBPVisitor : public DBVisitor<false> {
+public:
+    explicit InstanceBPVisitor(uint32_t &id) : id_(id) {}
+
+    void handle(Instance &inst) override {
+        ScopeEntryVisitor v(inst, id_);
+        v.visit(inst);
+    }
+
+private:
+    uint32_t &id_;
+};
+
+void build_bp_ids(Instance &inst, uint32_t &id) {
+    // notice that we build BP based on the ordering of the scope. as a result, the ordering
+    // of the breakpoints are exactly the same as the ID
+    InstanceBPVisitor v(id);
+    v.visit(inst);
+}
+
+}  // namespace db::json
+
+JSONSymbolTableProvider::JSONSymbolTableProvider(const std::string &filename) {
+    {
+        auto stream = std::ifstream(filename);
+        if (stream.bad()) {
+            return;
+        }
+
+        auto valid = valid_json(stream);
+        if (!valid) {
+            log::log(log::log_level::error, "Invalid JSON file " + filename);
+            return;
+        }
+    }
+
+    {
+        auto stream = std::ifstream(filename);
+        rapidjson::IStreamWrapper isw(stream);
+        rapidjson::Document document;
+        document.ParseStream(isw);
+        root_ = db::json::parse(document, module_defs_);
+    }
+
+    if (root_) {
+        // resolve the module names
+        db::json::ResolveModuleInstance visitor;
+        visitor.visit(*root_);
+        // build up the instance tree
+        uint32_t inst_id = 0;
+        db::json::build_instance_tree(*root_, inst_id);
+        // build the breakpoints table
+        build_bp_ids(*root_, num_bps_);
     }
 }
 
 JSONSymbolTableProvider::JSONSymbolTableProvider(std::unique_ptr<JSONSymbolTableProvider> db) {
-    stream_ = std::move(db->stream_);
-    document_ = std::move(db->document_);
+    root_ = db->root_;
+    module_defs_ = db->module_defs_;
     // ownership transfer complete
     db.reset();
-}
-
-void JSONSymbolTableProvider::close() {
-    stream_.close();
-    document_ = nullptr;
 }
 
 std::vector<BreakPoint> JSONSymbolTableProvider::get_breakpoints(const std::string &filename,
@@ -569,11 +951,10 @@ std::optional<std::string> JSONSymbolTableProvider::resolve_scoped_name_instance
 
 std::vector<uint32_t> JSONSymbolTableProvider::execution_bp_orders() { return {}; }
 
-JSONSymbolTableProvider::~JSONSymbolTableProvider() { close(); }
-
 bool JSONSymbolTableProvider::valid_json(std::istream &stream) {
     // we don't use a singleton design because json validation happens rather infrequent, in fact
     // only once per debugging session (loading the symbol table)
+    if (stream.bad()) return false;
     rapidjson::Document document;
     rapidjson::IStreamWrapper isw(stream);
     document.ParseStream(isw);

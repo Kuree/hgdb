@@ -59,9 +59,9 @@
             "decl",
             "module",
             "assign",
-            "scope",
             "inst",
-            "block"
+            "block",
+            "none"
           ]
         },
         "line": {
@@ -83,7 +83,7 @@
             }
           ]
         },
-        "mapping": {
+        "variable": {
           "description": "Variable mappings defined by this entry",
           "type": "array",
           "items": [
@@ -105,13 +105,18 @@
           "description": "Name of the entry",
           "type": "string"
         },
-        "module": {
-          "description": "Module definition name",
-          "type": "string"
-        },
         "target": {
           "description": "RTL signal name",
           "type": "string"
+        },
+        "instances": {
+          "description": "Child instances",
+          "type": "array",
+          "items": [
+            {
+              "$ref": "#/$defs/instance"
+            }
+          ]
         }
       },
       "required": [
@@ -124,7 +129,24 @@
             "properties": {
               "type": {
                 "enum": [
-                  "module",
+                  "module"
+                ]
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "scope",
+              "name",
+              "variables"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "enum": [
                   "block"
                 ]
               }
@@ -148,24 +170,7 @@
           },
           "then": {
             "required": [
-              "mapping"
-            ]
-          }
-        },
-        {
-          "if": {
-            "properties": {
-              "type": {
-                "enum": [
-                  "module"
-                ]
-              }
-            }
-          },
-          "then": {
-            "required": [
-              "name",
-              "scope"
+              "variable"
             ]
           }
         },
@@ -198,8 +203,7 @@
           },
           "then": {
             "required": [
-              "target",
-              "value"
+              "variable"
             ]
           }
         }
@@ -210,6 +214,23 @@
       "items": {
         "$ref": "#/$defs/scopeEntry"
       }
+    },
+    "instance": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "description": "Instance name",
+          "type": "string"
+        },
+        "module": {
+          "description": "Module definition name",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "module"
+      ]
     },
     "file": {
       "type": "object",
