@@ -55,13 +55,14 @@
             "module",
             "assign",
             "scope",
-            "inst"
+            "inst",
+            "block"
           ]
         },
         "line": {
-          "description": "Line number. Starting from 1",
+          "description": "Line number. Starting from 1. 0 indicates invalid line number",
           "type": "integer",
-          "minimum": 1
+          "minimum": 0
         },
         "column": {
           "description": "Column number. Starting from 1",
@@ -192,7 +193,7 @@
           },
           "then": {
             "required": [
-              "rtl_target",
+              "target",
               "value"
             ]
           }
