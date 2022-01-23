@@ -15,11 +15,16 @@
           "$ref": "#/$defs/file"
         }
       ]
+    },
+    "top": {
+      "description": "Top module name",
+      "type": "string"
     }
   },
   "required": [
     "generator",
-    "table"
+    "table",
+    "top"
   ],
   "$defs": {
     "variable": {

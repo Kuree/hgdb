@@ -209,7 +209,7 @@ TEST_F(DBTest, resolve_path) {  // NOLINT
     EXPECT_EQ(result3, target3);
 }
 
-TEST_F(DBTest, get_all_signal_name) {   // NOLINT
+TEST_F(DBTest, get_all_signal_name) {  // NOLINT
     // need to get generator and breakpoint vars
     hgdb::store_instance(*db, 0, "a");
     hgdb::store_variable(*db, 0, "a.b");
@@ -234,4 +234,47 @@ TEST_F(DBTest, basename) {  // NOLINT
 
     auto bps = client.get_breakpoints("/test/test.sv");
     EXPECT_EQ(bps.size(), 1);
+}
+
+TEST(JSON_DB, validate) {  // NOLINT
+    {
+        auto constexpr *db = R"(
+{
+  "generator": "hgdb",
+  "table": [
+    {
+      "type": "file",
+      "filename": "hgdb.cc",
+      "scope": []
+    }
+  ],
+  "top": "mod"
+}
+)";
+
+        std::stringstream ss;
+        ss << db;
+        auto res = hgdb::JSONSymbolTableProvider::valid_json(ss);
+        EXPECT_TRUE(res);
+    }
+
+    {
+        auto constexpr *db = R"(
+{
+  "generator": "hgdb",
+  "table": [
+    {
+      "type": "file",
+      "filename": "hgdb.cc",
+      "scope": []
+    }
+  ]
+}
+)";
+        // no top
+        std::stringstream ss;
+        ss << db;
+        auto res = hgdb::JSONSymbolTableProvider::valid_json(ss);
+        EXPECT_FALSE(res);
+    }
 }
