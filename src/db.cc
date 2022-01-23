@@ -7,7 +7,7 @@
 #include "fmt/format.h"
 #include "log.hh"
 #include "rapidjson/document.h"
-#include "rapidjson/rapidjson.h"
+#include "rapidjson/istreamwrapper.h"
 #include "util.hh"
 
 namespace hgdb {
@@ -469,7 +469,8 @@ JSONSymbolTableProvider::JSONSymbolTableProvider(const std::string &filename) {
     }
 
     document_ = std::make_shared<rapidjson::Document>();
-    document_->ParseStream(stream_);
+    rapidjson::IStreamWrapper isw(stream_);
+    document_->ParseStream(isw);
     if (document_->HasParseError()) {
         log::log(log::log_level::error, "Invalid JSON file " + filename);
         document_ = nullptr;
@@ -487,6 +488,80 @@ void JSONSymbolTableProvider::close() {
     stream_.close();
     document_ = nullptr;
 }
+
+std::vector<BreakPoint> JSONSymbolTableProvider::get_breakpoints(const std::string &filename,
+                                                                 uint32_t line_num,
+                                                                 uint32_t col_num) {
+    return {};
+}
+
+std::vector<BreakPoint> JSONSymbolTableProvider::get_breakpoints(const std::string &filename) {
+    return {};
+}
+
+std::optional<BreakPoint> JSONSymbolTableProvider::get_breakpoint(uint32_t breakpoint_id) {
+    return std::nullopt;
+}
+
+std::optional<std::string> JSONSymbolTableProvider::get_instance_name_from_bp(
+    uint32_t breakpoint_id) {
+    return std::nullopt;
+}
+
+std::optional<std::string> JSONSymbolTableProvider::get_instance_name(uint32_t id) {
+    return std::nullopt;
+}
+
+std::optional<uint64_t> JSONSymbolTableProvider::get_instance_id(uint64_t breakpoint_id) {
+    return std::nullopt;
+}
+
+std::optional<uint64_t> JSONSymbolTableProvider::get_instance_id(const std::string &instance_name) {
+    return std::nullopt;
+}
+
+std::vector<SymbolTableProvider::ContextVariableInfo>
+JSONSymbolTableProvider::get_context_variables(uint32_t breakpoint_id) {
+    return {};
+}
+
+std::vector<SymbolTableProvider::GeneratorVariableInfo>
+JSONSymbolTableProvider::get_generator_variable(uint32_t instance_id) {
+    return {};
+}
+
+std::vector<std::string> JSONSymbolTableProvider::get_instance_names() { return {}; }
+
+std::vector<std::string> JSONSymbolTableProvider::get_filenames() { return {}; }
+
+std::vector<std::string> JSONSymbolTableProvider::get_annotation_values(const std::string &name) {
+    return {};
+}
+
+std::unordered_map<std::string, int64_t> JSONSymbolTableProvider::get_context_static_values(
+    uint32_t breakpoint_id) {
+    return {};
+}
+
+std::vector<std::string> JSONSymbolTableProvider::get_all_array_names() { return {}; }
+
+std::vector<std::tuple<uint32_t, std::string, std::string>>
+JSONSymbolTableProvider::get_assigned_breakpoints(const std::string &var_name,
+                                                  uint32_t breakpoint_id) {
+    return {};
+}
+
+std::optional<std::string> JSONSymbolTableProvider::resolve_scoped_name_breakpoint(
+    const std::string &scoped_name, uint64_t breakpoint_id) {
+    return std::nullopt;
+}
+
+std::optional<std::string> JSONSymbolTableProvider::resolve_scoped_name_instance(
+    const std::string &scoped_name, uint64_t instance_id) {
+    return std::nullopt;
+}
+
+std::vector<uint32_t> JSONSymbolTableProvider::execution_bp_orders() { return {}; }
 
 JSONSymbolTableProvider::~JSONSymbolTableProvider() { close(); }
 
