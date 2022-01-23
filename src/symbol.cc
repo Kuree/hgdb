@@ -418,7 +418,7 @@ std::unique_ptr<SymbolTableProvider> create_symbol_table(const std::string &file
                 return std::make_unique<DBSymbolTableProvider>(filename);
             }
             case FileType::JSON: {
-                return nullptr;
+                return std::make_unique<JSONSymbolTableProvider>(filename);
             }
             default: {
                 // invalid file
