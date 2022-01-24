@@ -480,6 +480,8 @@ struct ScopeEntry {
     ScopeEntryType type = ScopeEntryType::None;
 
     explicit ScopeEntry(ScopeEntryType type) : type(type) {}
+
+    [[nodiscard]] const std::string &get_filename() const;
 };
 
 struct VarDef {
@@ -492,6 +494,7 @@ struct Instance {
     const ModuleDef *definition = nullptr;
     std::string name;
     uint32_t id = 0;
+    const Instance *parent = nullptr;
 
     std::unordered_map<std::string, std::unique_ptr<Instance>> instances;
     std::unordered_map<uint32_t, const ScopeEntry *> bps;
@@ -534,6 +537,15 @@ struct BlockEntry : public ScopeEntry {
 
     BlockEntry() : ScopeEntry(ScopeEntryType::Block) {}
 };
+
+const std::string &ScopeEntry::get_filename() const {
+    const auto *entry = this;
+    while (entry->type != ScopeEntryType::Module) {
+        entry = entry->parent;
+    }
+    auto const *m = reinterpret_cast<const ModuleDef *>(entry);
+    return m->filename;
+}
 
 struct JSONParseInfo {
     std::string current_filename;
@@ -709,19 +721,19 @@ public:
     void visit(ModuleDef &mod) {
         handle(mod);
         if constexpr (visit_var) {
-            for (auto const &v : mod.vars) {
+            for (auto &v : mod.vars) {
                 handle(v);
             }
         }
 
-        for (auto const &s : mod.scope) {
+        for (auto &s : mod.scope) {
             visit(s);
         }
     }
 
     void visit(BlockEntry &block) {
         handle(block);
-        for (auto const &s : block.scope) {
+        for (auto &s : block.scope) {
             visit(s);
         }
     }
@@ -786,6 +798,7 @@ void build_instance_tree(Instance &inst, uint32_t &id) {
         sub->name = name;
         sub->id = id++;
         sub->definition = def;
+        sub->parent = &inst;
         inst.instances.emplace(name, std::move(sub));
     }
 
@@ -877,34 +890,234 @@ JSONSymbolTableProvider::JSONSymbolTableProvider(std::unique_ptr<JSONSymbolTable
     db.reset();
 }
 
+class BreakPointVisitor : public db::json::DBVisitor<false> {
+private:
+    enum class SearchType { ByFilename, ByID };
+
+public:
+    BreakPointVisitor(std::string filename, uint32_t line_num, uint32_t col_num)
+        : filename_(std::move(filename)),
+          line_num_(line_num),
+          col_num_(col_num),
+          type_(SearchType::ByFilename) {}
+
+    explicit BreakPointVisitor(uint32_t id) : id_(id), type_(SearchType::ByID) {}
+
+    void handle(db::json::Instance &inst) override {
+        switch (type_) {
+            case SearchType::ByFilename: {
+                handle_filename(inst);
+                break;
+            }
+            case SearchType::ByID: {
+                handle_id(inst);
+                break;
+            }
+        }
+    }
+
+    std::vector<BreakPoint> results;
+
+private:
+    std::string filename_;
+    uint32_t line_num_ = 0;
+    uint32_t col_num_ = 0;
+
+    uint32_t id_ = 0;
+
+    SearchType type_;
+
+    static bool inline is_relative(const std::string &filename) {
+        auto p = std::filesystem::path(filename);
+        return p.is_relative();
+    }
+
+    static std::string base_name(const std::string &filename) {
+        auto p = std::filesystem::path(filename);
+        return p.filename();
+    }
+
+    void handle_filename(db::json::Instance &inst) {
+        auto const &filename = inst.definition->filename;
+        // notice that we have to be extra careful here
+        // the query filename might mismatch with the filename we have, i.e. relative vs. absolute
+        // Chisel only uses basename, but the users requests always send absolute name
+        if (is_relative(filename)) {
+            auto f = base_name(filename_);
+            if (filename != f) return;
+        } else {
+            if (filename != filename_) return;
+        }
+        // loop through the lines
+        for (auto const &[bp_id, scope] : inst.bps) {
+            if (line_num_ > 0) {
+                if (line_num_ != scope->line) return;
+                if (col_num_ > 0) {
+                    // need to match with column
+                    if (col_num_ != scope->column) return;
+                }
+            }
+            // this is a match
+            // need to find out how many instances that has this entry
+            BreakPoint bp{.id = bp_id,
+                          .instance_id = std::make_unique<uint32_t>(inst.id),
+                          .filename = filename,
+                          .line_num = line_num_,
+                          .column_num = col_num_};
+            results.emplace_back(std::move(bp));
+        }
+    }
+
+    void handle_id(db::json::Instance &inst) {
+        // loop through the lines
+        for (auto const &[bp_id, scope] : inst.bps) {
+            if (bp_id == id_) {
+                // this is a match
+                // need to find out how many instances that has this entry
+                BreakPoint bp{.id = bp_id,
+                              .instance_id = std::make_unique<uint32_t>(inst.id),
+                              .filename = inst.definition->filename,
+                              .line_num = line_num_,
+                              .column_num = col_num_};
+                results.emplace_back(std::move(bp));
+            }
+        }
+    }
+};
+
 std::vector<BreakPoint> JSONSymbolTableProvider::get_breakpoints(const std::string &filename,
                                                                  uint32_t line_num,
                                                                  uint32_t col_num) {
-    return {};
+    if (root_) [[likely]] {
+        BreakPointVisitor v(filename, line_num, col_num);
+        v.visit(*root_);
+        return std::move(v.results);
+    } else {
+        return {};
+    }
 }
 
 std::vector<BreakPoint> JSONSymbolTableProvider::get_breakpoints(const std::string &filename) {
-    return {};
+    if (root_) [[likely]] {
+        BreakPointVisitor v(filename, 0, 0);
+        v.visit(*root_);
+        return std::move(v.results);
+    } else {
+        return {};
+    }
 }
 
 std::optional<BreakPoint> JSONSymbolTableProvider::get_breakpoint(uint32_t breakpoint_id) {
+    if (root_) [[likely]] {
+        BreakPointVisitor v(breakpoint_id);
+        v.visit(*root_);
+        if (!v.results.empty()) [[likely]] {
+            return std::move(v.results[0]);
+        }
+    }
     return std::nullopt;
 }
 
 std::optional<std::string> JSONSymbolTableProvider::get_instance_name_from_bp(
     uint32_t breakpoint_id) {
+    auto bp = get_breakpoint(breakpoint_id);
+    if (bp) {
+        return get_instance_name(*bp->instance_id);
+    }
     return std::nullopt;
 }
+
+class InstanceFromInstIDVisitor : public db::json::DBVisitor<false> {
+public:
+    explicit InstanceFromInstIDVisitor(uint32_t id) : id_(id) {}
+
+    void handle(db::json::Instance &inst) override {
+        if (!result && inst.id == id_) {
+            result = &inst;
+        }
+    }
+
+    const db::json::Instance *result = nullptr;
+
+private:
+    uint32_t id_;
+};
 
 std::optional<std::string> JSONSymbolTableProvider::get_instance_name(uint32_t id) {
+    if (root_) {
+        InstanceFromInstIDVisitor v(id);
+        v.visit(*root_);
+        if (v.result) {
+            std::string name;
+            auto const *p = v.result;
+            while (p) {
+                if (name.empty()) {
+                    name = p->name;
+                } else {
+                    name = fmt::format("{0}.{1}", p->name, name);
+                }
+                p = p->parent;
+            }
+            return name;
+        }
+    }
     return std::nullopt;
 }
 
+class InstanceByBpIDVisitor : public db::json::DBVisitor<false> {
+public:
+    explicit InstanceByBpIDVisitor(uint32_t bp_id) : bp_id_(bp_id) {}
+
+    void handle(db::json::Instance &inst) override {
+        if (!result) {
+            for (auto const &[id, _] : inst.bps) {
+                if (id == bp_id_) {
+                    result = &inst;
+                    break;
+                }
+            }
+        }
+    }
+
+    const db::json::Instance *result = nullptr;
+
+private:
+    uint32_t bp_id_;
+};
+
 std::optional<uint64_t> JSONSymbolTableProvider::get_instance_id(uint64_t breakpoint_id) {
+    if (root_) {
+        InstanceByBpIDVisitor v(breakpoint_id);
+        v.visit(*root_);
+        if (v.result) {
+            return v.result->id;
+        }
+    }
+
     return std::nullopt;
 }
 
 std::optional<uint64_t> JSONSymbolTableProvider::get_instance_id(const std::string &instance_name) {
+    if (root_) {
+        auto instances = util::get_tokens(instance_name, ".");
+        if (instances[0] == root_->name) {
+            auto const *p = root_.get();
+            for (auto i = 1u; i < instances.size(); i++) {
+                auto const &name = instances[i];
+                bool found = false;
+                for (auto const &[n, def] : p->instances) {
+                    if (n == name) {
+                        found = true;
+                        p = def.get();
+                        break;
+                    }
+                }
+                if (!found) return std::nullopt;
+            }
+            return p->id;
+        }
+    }
+
     return std::nullopt;
 }
 
@@ -931,7 +1144,10 @@ std::unordered_map<std::string, int64_t> JSONSymbolTableProvider::get_context_st
     return {};
 }
 
-std::vector<std::string> JSONSymbolTableProvider::get_all_array_names() { return {}; }
+std::vector<std::string> JSONSymbolTableProvider::get_all_array_names() {
+    // not supported
+    return {};
+}
 
 std::vector<std::tuple<uint32_t, std::string, std::string>>
 JSONSymbolTableProvider::get_assigned_breakpoints(const std::string &var_name,
