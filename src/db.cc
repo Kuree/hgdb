@@ -501,6 +501,14 @@ struct Instance {
 
     std::unordered_map<std::string, std::unique_ptr<Instance>> instances;
     std::unordered_map<uint32_t, const ScopeEntry *> bps;
+
+    [[nodiscard]] inline std::optional<uint32_t> get_bp_id(const ScopeEntry *entry) const {
+        // maybe need to do reversed indexing, but good enough for now
+        for (auto const &[id_, e] : bps) {
+            if (e == entry) return id_;
+        }
+        return std::nullopt;
+    }
 };
 
 struct GenericEntry : public ScopeEntry {
@@ -722,7 +730,7 @@ std::shared_ptr<Instance> parse(
     return result;
 }
 
-template <bool visit_var = false>
+template <bool visit_var = false, bool visit_sub_inst = true, bool visit_stmt = false>
 class DBVisitor {
 public:
     virtual void handle(Instance &) {}
@@ -781,8 +789,14 @@ public:
 
     virtual void visit(Instance &inst) {
         handle(inst);
-        for (auto const &[_, sub_inst] : inst.instances) {
-            visit(*sub_inst);
+        if constexpr (visit_stmt) {
+            auto *def = const_cast<ModuleDef *>(inst.definition);
+            visit(*def);
+        }
+        if constexpr (visit_sub_inst) {
+            for (auto const &[_, sub_inst] : inst.instances) {
+                visit(*sub_inst);
+            }
         }
     }
 };
@@ -1190,7 +1204,30 @@ JSONSymbolTableProvider::get_context_variables(uint32_t breakpoint_id) {
 
 std::vector<SymbolTableProvider::GeneratorVariableInfo>
 JSONSymbolTableProvider::get_generator_variable(uint32_t instance_id) {
-    return {};
+    if (!root_) return {};
+    InstanceFromInstIDVisitor v(instance_id);
+    v.visit(*root_);
+    if (!v.result || !v.result->definition) return {};
+    auto const *def = v.result->definition;
+
+    auto const &vars = def->vars;
+
+    std::vector<SymbolTableProvider::GeneratorVariableInfo> result;
+    for (auto const &var : vars) {
+        GeneratorVariable gen_var;
+        gen_var.name = var.name;
+        gen_var.instance_id = nullptr;
+        gen_var.variable_id = nullptr;
+
+        Variable db_var;
+        db_var.value = var.value;
+        db_var.is_rtl = var.rtl;
+        db_var.id = 0;
+
+        result.emplace_back(std::make_pair(std::move(gen_var), db_var));
+    }
+
+    return result;
 }
 
 class InstanceNameVisitor : public db::json::DBVisitor<false> {
@@ -1255,7 +1292,18 @@ std::vector<std::string> JSONSymbolTableProvider::get_annotation_values(const st
 
 std::unordered_map<std::string, int64_t> JSONSymbolTableProvider::get_context_static_values(
     uint32_t breakpoint_id) {
-    return {};
+    auto vars = get_context_variables(breakpoint_id);
+    std::unordered_map<std::string, int64_t> result;
+
+    for (auto const &[ctx, var] : vars) {
+        if (!var.is_rtl) {
+            if (std::all_of(var.value.begin(), var.value.end(), ::isdigit)) {
+                auto v = std::stoll(var.value);
+                result.emplace(ctx.name, v);
+            }
+        }
+    }
+    return result;
 }
 
 std::vector<std::string> JSONSymbolTableProvider::get_all_array_names() {
@@ -1263,23 +1311,113 @@ std::vector<std::string> JSONSymbolTableProvider::get_all_array_names() {
     return {};
 }
 
+class AssignmentVisitor : public db::json::DBVisitor<false, false, true> {
+public:
+    explicit AssignmentVisitor(const std::string &var_name) {
+        var_names_ = util::get_tokens(var_name, "[].");
+    }
+
+    void handle(db::json::AssignEntry &assign) override {
+        // notice that we treat [] and . the same
+        // so we have to do some processing
+        auto var_names = util::get_tokens(assign.var.name, "[].");
+        if (var_names.size() == var_names_.size()) {
+            bool same = true;
+            for (auto i = 0u; i < var_names.size(); i++) {
+                if (var_names[i] != var_names_[i]) {
+                    same = false;
+                    break;
+                }
+            }
+            if (same) {
+                result.emplace_back(&assign);
+            }
+        }
+    }
+
+    std::vector<const db::json::AssignEntry *> result;
+
+private:
+    std::vector<std::string> var_names_;
+};
+
 std::vector<std::tuple<uint32_t, std::string, std::string>>
 JSONSymbolTableProvider::get_assigned_breakpoints(const std::string &var_name,
                                                   uint32_t breakpoint_id) {
-    return {};
+    if (!root_) return {};
+    // need to search the entire scope to see where the value is assigned
+    // any variable that has the same source name will be used
+    // for now we don't support variable shadowing
+    BreakPointVisitor v(breakpoint_id);
+    if (v.raw_results.empty()) return {};
+    auto const *scope_entry = v.raw_results[0];
+    // need to find the top non-module scope
+    auto const *parent = scope_entry;
+    while (parent && parent->type != db::json::ScopeEntryType::Module) {
+        parent = parent->parent;
+    }
+
+    InstanceByBpIDVisitor iv(breakpoint_id);
+    iv.visit(*root_);
+    if (!iv.result) return {};
+    auto const *instance = iv.result;
+
+    // the format is id, var_name (rtl), data_condition
+    // look through every assignment
+    AssignmentVisitor av(var_name);
+    av.visit(*root_);
+
+    std::vector<std::tuple<uint32_t, std::string, std::string>> result;
+    for (auto const *assign : av.result) {
+        auto bp_id = instance->get_bp_id(assign);
+        if (!bp_id) continue;
+        result.emplace_back(std::make_tuple(*bp_id, assign->var.value, std::string{}));
+    }
+
+    return result;
+}
+
+bool rtl_equivalent(const std::string &a, const std::string &b) {
+    auto tokens_a = util::get_tokens(a, "[].");
+    auto tokens_b = util::get_tokens(b, "[].");
+    if (tokens_a.size() != tokens_b.size()) return false;
+    for (auto i = 0u; i < tokens_a.size(); i++) {
+        if (tokens_a[i] != tokens_b[i]) return false;
+    }
+    return true;
 }
 
 std::optional<std::string> JSONSymbolTableProvider::resolve_scoped_name_breakpoint(
     const std::string &scoped_name, uint64_t breakpoint_id) {
+    auto vars = get_context_variables(breakpoint_id);
+    for (auto const &[ctx, var] : vars) {
+        if (rtl_equivalent(ctx.name, scoped_name)) {
+            return var.value;
+        }
+    }
     return std::nullopt;
 }
 
 std::optional<std::string> JSONSymbolTableProvider::resolve_scoped_name_instance(
     const std::string &scoped_name, uint64_t instance_id) {
+    auto vars = get_generator_variable(instance_id);
+    for (auto const &[gen, var] : vars) {
+        if (rtl_equivalent(gen.name, scoped_name)) {
+            return var.value;
+        }
+    }
     return std::nullopt;
 }
 
-std::vector<uint32_t> JSONSymbolTableProvider::execution_bp_orders() { return {}; }
+std::vector<uint32_t> JSONSymbolTableProvider::execution_bp_orders() {
+    // because we create the breakpoint ids in order, it's very easy to create the orders
+    std::vector<uint32_t> result;
+    result.reserve(num_bps_);
+    for (auto i = 0u; i < num_bps_; i++) {
+        result.emplace_back(i);
+    }
+    return result;
+}
 
 bool JSONSymbolTableProvider::valid_json(std::istream &stream) {
     // we don't use a singleton design because json validation happens rather infrequent, in fact
