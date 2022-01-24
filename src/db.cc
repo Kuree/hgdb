@@ -481,7 +481,10 @@ struct ScopeEntry {
 
     explicit ScopeEntry(ScopeEntryType type) : type(type) {}
 
-    [[nodiscard]] const std::string &get_filename() const;
+    [[nodiscard]] const ScopeEntry *get_previous() const;
+    [[nodiscard]] virtual const std::vector<std::shared_ptr<ScopeEntry>> *get_scope() const {
+        return nullptr;
+    }
 };
 
 struct VarDef {
@@ -519,6 +522,10 @@ struct ModuleDef : public ScopeEntry {
 
     explicit ModuleDef(const ModuleDefDict &defs)
         : ScopeEntry(ScopeEntryType::Module), defs(defs) {}
+
+    [[nodiscard]] const std::vector<std::shared_ptr<ScopeEntry>> *get_scope() const override {
+        return &scope;
+    }
 };
 
 struct VarDeclEntry : public ScopeEntry {
@@ -536,15 +543,23 @@ struct BlockEntry : public ScopeEntry {
     std::vector<std::shared_ptr<ScopeEntry>> scope;
 
     BlockEntry() : ScopeEntry(ScopeEntryType::Block) {}
+
+    [[nodiscard]] const std::vector<std::shared_ptr<ScopeEntry>> *get_scope() const override {
+        return &scope;
+    }
 };
 
-const std::string &ScopeEntry::get_filename() const {
-    const auto *entry = this;
-    while (entry->type != ScopeEntryType::Module) {
-        entry = entry->parent;
+const ScopeEntry *ScopeEntry::get_previous() const {
+    // need to go to parent scope to figure the previous sibling
+    if (!parent) return nullptr;
+    auto const *scope = parent->get_scope();
+    if (!scope) return nullptr;
+    for (auto i = 1u; i < scope->size(); i++) {
+        if ((*scope)[i].get() == this) {
+            return (*scope)[i - 1].get();
+        }
     }
-    auto const *m = reinterpret_cast<const ModuleDef *>(entry);
-    return m->filename;
+    return nullptr;
 }
 
 struct JSONParseInfo {
@@ -764,7 +779,7 @@ public:
         }
     }
 
-    void visit(Instance &inst) {
+    virtual void visit(Instance &inst) {
         handle(inst);
         for (auto const &[_, sub_inst] : inst.instances) {
             visit(*sub_inst);
@@ -917,6 +932,7 @@ public:
     }
 
     std::vector<BreakPoint> results;
+    std::vector<const db::json::ScopeEntry *> raw_results;
 
 private:
     std::string filename_;
@@ -965,6 +981,7 @@ private:
                           .line_num = line_num_,
                           .column_num = col_num_};
             results.emplace_back(std::move(bp));
+            raw_results.emplace_back(scope);
         }
     }
 
@@ -980,6 +997,7 @@ private:
                               .line_num = line_num_,
                               .column_num = col_num_};
                 results.emplace_back(std::move(bp));
+                raw_results.emplace_back(scope);
             }
         }
     }
@@ -1123,7 +1141,51 @@ std::optional<uint64_t> JSONSymbolTableProvider::get_instance_id(const std::stri
 
 std::vector<SymbolTableProvider::ContextVariableInfo>
 JSONSymbolTableProvider::get_context_variables(uint32_t breakpoint_id) {
-    return {};
+    if (!root_) return {};
+    BreakPointVisitor v(breakpoint_id);
+    v.visit(*root_);
+    if (v.raw_results.empty()) return {};
+    auto const *entry = v.raw_results[0];
+    std::map<std::string, const db::json::VarDef *> vars;
+
+    // walk all the way up to the module and query its previous siblings
+    // notice that this is not super efficient, but for now it's fine since it only gets
+    // called during user interaction
+    while (entry && entry->type != db::json::ScopeEntryType::Module) {
+        auto const *node = entry;
+        while (auto const *pre = node->get_previous()) {
+            if (pre->type == db::json::ScopeEntryType::Declaration) {
+                auto const *decl = reinterpret_cast<const db::json::VarDeclEntry *>(pre);
+                if (vars.find(decl->var.name) == vars.end()) {
+                    vars.emplace(decl->var.name, &decl->var);
+                }
+            } else if (pre->type == db::json::ScopeEntryType::Assign) {
+                auto const *assign = reinterpret_cast<const db::json::AssignEntry *>(pre);
+                if (vars.find(assign->var.name) == vars.end()) {
+                    vars.emplace(assign->var.name, &assign->var);
+                }
+            }
+        }
+        entry = entry->parent;
+    }
+
+    std::vector<SymbolTableProvider::ContextVariableInfo> result;
+    // convert var information
+    for (auto const &[name, var] : vars) {
+        ContextVariable ctx_var;
+        ctx_var.name = name;
+        // not used by downstream
+        ctx_var.breakpoint_id = nullptr;
+        ctx_var.variable_id = nullptr;
+
+        Variable db_var;
+        db_var.value = var->value;
+        db_var.is_rtl = var->rtl;
+        db_var.id = 0;
+        result.emplace_back(std::make_pair(std::move(ctx_var), db_var));
+    }
+
+    return result;
 }
 
 std::vector<SymbolTableProvider::GeneratorVariableInfo>
@@ -1131,11 +1193,63 @@ JSONSymbolTableProvider::get_generator_variable(uint32_t instance_id) {
     return {};
 }
 
-std::vector<std::string> JSONSymbolTableProvider::get_instance_names() { return {}; }
+class InstanceNameVisitor : public db::json::DBVisitor<false> {
+public:
+    void handle(db::json::Instance &inst) override {
+        std::string name;
+        if (current_instance_names_.empty()) {
+            name = inst.name;
+        } else {
+            name = current_instance_names_.top();
+            name = fmt::format("{0}.{1}", name, inst.name);
+        }
 
-std::vector<std::string> JSONSymbolTableProvider::get_filenames() { return {}; }
+        names.emplace(name);
+        // pushed it to the stack
+        current_instance_names_.emplace(name);
+    }
+
+    void visit(db::json::Instance &inst) override {
+        db::json::DBVisitor<false>::visit(inst);
+        // pop the current names
+        current_instance_names_.pop();
+    }
+
+    std::set<std::string> names;
+
+private:
+    std::stack<std::string> current_instance_names_;
+};
+
+std::vector<std::string> JSONSymbolTableProvider::get_instance_names() {
+    if (root_) {
+        InstanceNameVisitor v;
+        v.visit(*root_);
+        auto res = std::vector<std::string>(v.names.begin(), v.names.end());
+        return res;
+    }
+    return {};
+}
+
+class FilenameVisitor : public db::json::DBVisitor<false> {
+public:
+    void handle(db::json::Instance &inst) override { names.emplace(inst.definition->filename); }
+
+    std::set<std::string> names;
+};
+
+std::vector<std::string> JSONSymbolTableProvider::get_filenames() {
+    if (root_) {
+        FilenameVisitor v;
+        v.visit(*root_);
+        auto res = std::vector<std::string>(v.names.begin(), v.names.end());
+        return res;
+    }
+    return {};
+}
 
 std::vector<std::string> JSONSymbolTableProvider::get_annotation_values(const std::string &name) {
+    // not supported yet
     return {};
 }
 
