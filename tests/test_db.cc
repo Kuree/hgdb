@@ -301,6 +301,7 @@ protected:
                 {
                   "type": "decl",
                   "line": 2,
+                  "column": 4,
                   "variable": {
                     "name": "var.a",
                     "value": "var_a",
@@ -438,4 +439,30 @@ TEST_F(JSONDBTest, get_filenames) {  // NOLINT
     EXPECT_EQ(res.size(), 2);
     EXPECT_EQ(res[0], "hgdb.cc");
     EXPECT_EQ(res[1], "hgdb.hh");
+}
+
+TEST_F(JSONDBTest, get_breakpoints_filename) {  // NOLINT
+    auto res = db->get_breakpoints("hgdb.hh");
+    EXPECT_EQ(res.size(), 2);
+    EXPECT_NE(res[0].id, res[1].id);
+    EXPECT_EQ(res[0].line_num, res[1].line_num);
+    EXPECT_EQ(res[0].filename, res[1].filename);
+    EXPECT_EQ(res[0].line_num, 2);
+    EXPECT_EQ(res[0].filename, "hgdb.hh");
+}
+
+
+TEST_F(JSONDBTest, get_breakpoints) {   // NOLINT
+    auto res = db->get_breakpoints("hgdb.cc", 2);
+    EXPECT_EQ(res.size(), 1);
+    EXPECT_EQ(res[0].line_num, 2);
+
+    res = db->get_breakpoints("hgdb.cc", 2, 4);
+    EXPECT_EQ(res.size(), 1);
+
+    res = db->get_breakpoints("hgdb.cc", 2, 10);
+    EXPECT_TRUE(res.empty());
+
+    res = db->get_breakpoints("hgdb.hh", 2);
+    EXPECT_EQ(res.size(), 2);
 }

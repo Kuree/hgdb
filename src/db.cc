@@ -827,7 +827,7 @@ void build_instance_tree(Instance &inst, uint32_t &id) {
     }
 }
 
-class ScopeEntryVisitor : public DBVisitor<false> {
+class ScopeEntryVisitor : public DBVisitor<false, false, true> {
 public:
     ScopeEntryVisitor(const Instance &inst, uint32_t &id)
         : inst_(const_cast<Instance *>(&inst)), id_(id) {}
@@ -963,10 +963,10 @@ private:
         // loop through the lines
         for (auto const &[bp_id, scope] : inst.bps) {
             if (line_num_ > 0) {
-                if (line_num_ != scope->line) return;
+                if (line_num_ != scope->line) continue;
                 if (col_num_ > 0) {
                     // need to match with column
-                    if (col_num_ != scope->column) return;
+                    if (col_num_ != scope->column) continue;
                 }
             }
             // this is a match
@@ -974,8 +974,8 @@ private:
             BreakPoint bp{.id = bp_id,
                           .instance_id = std::make_unique<uint32_t>(inst.id),
                           .filename = filename,
-                          .line_num = line_num_,
-                          .column_num = col_num_};
+                          .line_num = scope->line,
+                          .column_num = scope->column};
             results.emplace_back(std::move(bp));
             raw_results.emplace_back(scope);
         }
@@ -990,8 +990,8 @@ private:
                 BreakPoint bp{.id = bp_id,
                               .instance_id = std::make_unique<uint32_t>(inst.id),
                               .filename = inst.definition->filename,
-                              .line_num = line_num_,
-                              .column_num = col_num_};
+                              .line_num = scope->line,
+                              .column_num = scope->column};
                 results.emplace_back(std::move(bp));
                 raw_results.emplace_back(scope);
             }
