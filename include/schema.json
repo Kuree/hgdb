@@ -10,11 +10,13 @@
     "table": {
       "description": "Main entry for symbol table files",
       "type": "array",
-      "items": [
-        {
-          "$ref": "#/$defs/file"
-        }
-      ]
+      "items": {
+        "allOf": [
+          {
+            "$ref": "#/$defs/file"
+          }
+        ]
+      }
     },
     "top": {
       "description": "Top module name",
@@ -59,7 +61,6 @@
             "decl",
             "module",
             "assign",
-            "inst",
             "block",
             "none"
           ]
@@ -182,23 +183,6 @@
             "properties": {
               "type": {
                 "enum": [
-                  "inst"
-                ]
-              }
-            }
-          },
-          "then": {
-            "required": [
-              "name",
-              "module"
-            ]
-          }
-        },
-        {
-          "if": {
-            "properties": {
-              "type": {
-                "enum": [
                   "assign"
                 ]
               }
@@ -215,7 +199,11 @@
     "scope": {
       "type": "array",
       "items": {
-        "$ref": "#/$defs/scopeEntry"
+        "allOf": [
+          {
+            "$ref": "#/$defs/scopeEntry"
+          }
+        ]
       }
     },
     "instance": {
