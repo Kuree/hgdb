@@ -8,7 +8,7 @@
       "type": "string"
     },
     "table": {
-      "description": "The unique identifier for a product",
+      "description": "Main entry for symbol table files",
       "type": "array",
       "items": [
         {
@@ -44,7 +44,7 @@
           "type": "string"
         },
         "rtl": {
-          "description": "If true, the value property coresponds to the RTL signal name",
+          "description": "If true, the value property corresponds to the RTL signal name",
           "type": "boolean"
         }
       }
@@ -75,11 +75,10 @@
           "minimum": 1
         },
         "scope": {
-          "description": "Inner scope",
-          "type": "array",
-          "items": [
+          "description": "Scopes contained in tentry",
+          "allOf": [
             {
-              "$ref": "#/$defs/scopeEntry"
+              "$ref": "#/$defs/scope"
             }
           ]
         },
@@ -95,11 +94,13 @@
         "variables": {
           "description": "Variables defined in the module",
           "type": "array",
-          "items": [
-            {
-              "$ref": "#/$defs/variable"
-            }
-          ]
+          "items": {
+            "allOf": [
+              {
+                "$ref": "#/$defs/variable"
+              }
+            ]
+          }
         },
         "name": {
           "description": "Name of the entry",
@@ -112,11 +113,13 @@
         "instances": {
           "description": "Child instances",
           "type": "array",
-          "items": [
-            {
-              "$ref": "#/$defs/instance"
-            }
-          ]
+          "items": {
+            "allOf": [
+              {
+                "$ref": "#/$defs/instance"
+              }
+            ]
+          }
         }
       },
       "required": [

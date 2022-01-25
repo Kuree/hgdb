@@ -315,6 +315,16 @@ protected:
                     "value": "42",
                     "rtl": false
                   }
+                },
+                {
+                  "type": "none",
+                  "line": 4
+                },
+                {
+                  "type": "inst",
+                  "line": 5,
+                  "module": "child",
+                  "name": "inst"
                 }
               ]
             }
@@ -342,6 +352,29 @@ protected:
               "rtl": true
             }
           ]
+        },
+        {
+          "type": "module",
+          "name": "child",
+          "line": 10,
+          "scope": [
+            {
+              "type": "assign",
+              "line": 12,
+              "variable": {
+                "name": "a",
+                "value": "a",
+                "rtl": true
+              }
+            }
+          ],
+          "variables": [
+            {
+              "name": "a",
+              "value": "a",
+              "rtl": true
+            }
+          ]
         }
       ]
     }
@@ -360,5 +393,5 @@ protected:
 
 TEST_F(JSONDBTest, get_instance_names) {    // NOLINT
     auto res = db->get_instance_names();
-    EXPECT_FALSE(res.empty());
+    EXPECT_EQ(res.size(), 2);
 }
