@@ -374,7 +374,26 @@ protected:
               "value": "a",
               "rtl": true
             }
+          ],
+          "instances": [
+            {
+              "name": "child",
+              "module": "mod2"
+            }
           ]
+        }
+      ]
+    },
+    {
+      "type": "file",
+      "filename": "hgdb.hh",
+      "scope": [
+        {
+          "type": "module",
+          "line": 1,
+          "name": "mod2",
+          "variables": [],
+          "scope": []
         }
       ]
     }
@@ -391,9 +410,17 @@ protected:
     std::unique_ptr<hgdb::JSONSymbolTableProvider> db;
 };
 
-TEST_F(JSONDBTest, get_instance_names) {    // NOLINT
+TEST_F(JSONDBTest, get_instance_names) {  // NOLINT
     auto res = db->get_instance_names();
-    EXPECT_EQ(res.size(), 2);
+    EXPECT_EQ(res.size(), 3);
     EXPECT_EQ(res[0], "mod");
     EXPECT_EQ(res[1], "mod.inst");
+    EXPECT_EQ(res[2], "mod.inst.child");
+}
+
+TEST_F(JSONDBTest, get_filenames) {  // NOLINT
+    auto res = db->get_filenames();
+    EXPECT_EQ(res.size(), 2);
+    EXPECT_EQ(res[0], "hgdb.cc");
+    EXPECT_EQ(res[1], "hgdb.hh");
 }
