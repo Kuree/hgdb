@@ -1161,6 +1161,7 @@ JSONSymbolTableProvider::get_context_variables(uint32_t breakpoint_id) {
                     vars.emplace(assign->var.name, &assign->var);
                 }
             }
+            node = pre;
         }
         entry = entry->parent;
     }
@@ -1180,6 +1181,10 @@ JSONSymbolTableProvider::get_context_variables(uint32_t breakpoint_id) {
         db_var.id = 0;
         result.emplace_back(std::make_pair(std::move(ctx_var), db_var));
     }
+
+    // because we walk the stack in reverse order, we need to reverse it to
+    // appear that the variable is declared in order
+    std::reverse(result.begin(), result.end());
 
     return result;
 }

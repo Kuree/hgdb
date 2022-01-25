@@ -320,6 +320,19 @@ protected:
                 {
                   "type": "none",
                   "line": 4
+                },
+                {
+                  "type": "assign",
+                  "line": 5,
+                  "variable": {
+                    "name": "i",
+                    "value": "43",
+                    "rtl": false
+                  }
+                },
+                {
+                  "type": "none",
+                  "line": 6
                 }
               ]
             }
@@ -397,7 +410,13 @@ protected:
           "type": "module",
           "line": 1,
           "name": "mod2",
-          "variables": [],
+          "variables": [
+            {
+              "name": "a",
+              "value": "a_a",
+              "rtl": false
+            }
+          ],
           "scope": [
             {
               "type": "assign",
@@ -480,4 +499,54 @@ TEST_F(JSONDBTest, get_instance) {  // NOLINT
 
     auto inst_id = db->get_instance_id(*name1);
     EXPECT_EQ(inst_id, *res);
+}
+
+
+TEST_F(JSONDBTest, get_variable) { // NOLINT
+    {
+        // context variables
+        auto bp_id = db->get_breakpoints("hgdb.cc", 4);
+        auto res = db->get_context_variables(bp_id[0].id);
+        EXPECT_EQ(res.size(), 2);
+        EXPECT_EQ(res[0].first.name, "var.a");
+        EXPECT_EQ(res[1].first.name, "i");
+        EXPECT_EQ(res[0].second.value, "var_a");
+        EXPECT_EQ(res[1].second.value, "42");
+    }
+
+    {
+        // context value overwritten
+        auto bp_id = db->get_breakpoints("hgdb.cc", 6);
+        auto res = db->get_context_variables(bp_id[0].id);
+        EXPECT_EQ(res.size(), 2);
+        EXPECT_EQ(res[0].first.name, "var.a");
+        EXPECT_EQ(res[1].first.name, "i");
+        EXPECT_EQ(res[0].second.value, "var_a");
+        EXPECT_EQ(res[1].second.value, "43");
+    }
+
+    {
+        // context static values
+        auto bp_id = db->get_breakpoints("hgdb.cc", 4);
+        auto vars = db->get_context_static_values(bp_id[0].id);
+        EXPECT_EQ(vars.size(), 1);
+        EXPECT_EQ(vars.at("i"), 42);
+    }
+
+    {
+        // get generator variables
+        // nested instances
+        auto inst_id = db->get_instance_id("mod.inst.child1");
+        auto vars = db->get_generator_variable(*inst_id);
+        EXPECT_EQ(vars.size(), 1);
+        EXPECT_EQ(vars[0].first.name, "a");
+        EXPECT_EQ(vars[0].second.value, "a_a");
+    }
+
+    {
+        // get generator variables
+        auto inst_id = db->get_instance_id("mod");
+        auto vars = db->get_generator_variable(*inst_id);
+        EXPECT_EQ(vars.size(), 4);
+    }
 }
