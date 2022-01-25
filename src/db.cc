@@ -485,6 +485,8 @@ struct ScopeEntry {
     [[nodiscard]] virtual const std::vector<std::shared_ptr<ScopeEntry>> *get_scope() const {
         return nullptr;
     }
+
+    virtual ~ScopeEntry() = default;
 };
 
 struct VarDef {
@@ -899,17 +901,7 @@ JSONSymbolTableProvider::JSONSymbolTableProvider(const std::string &filename) {
         document.ParseStream(isw);
         root_ = db::json::parse(document, module_defs_);
     }
-
-    if (root_) {
-        // resolve the module names
-        db::json::ResolveModuleInstance visitor;
-        visitor.visit(*root_);
-        // build up the instance tree
-        uint32_t inst_id = 0;
-        db::json::build_instance_tree(*root_, inst_id);
-        // build the breakpoints table
-        build_bp_ids(*root_, num_bps_);
-    }
+    parse_db();
 }
 
 JSONSymbolTableProvider::JSONSymbolTableProvider(std::unique_ptr<JSONSymbolTableProvider> db) {
@@ -1444,6 +1436,43 @@ bool JSONSymbolTableProvider::valid_json(std::istream &stream) {
     valijson::Validator validator;
     valijson::adapters::RapidJsonAdapter document_adapter(document);
     return validator.validate(json_schema, document_adapter, nullptr);
+}
+
+bool JSONSymbolTableProvider::parse(const std::string &db_content) {
+    {
+        std::stringstream ss;
+        ss << db_content;
+
+        auto valid = valid_json(ss);
+        if (!valid) {
+            return false;
+        }
+    }
+
+    {
+        std::stringstream ss;
+        ss << db_content;
+        rapidjson::IStreamWrapper isw(ss);
+        rapidjson::Document document;
+        document.ParseStream(isw);
+        root_ = db::json::parse(document, module_defs_);
+
+        parse_db();
+    }
+    return root_ != nullptr;
+}
+
+void JSONSymbolTableProvider::parse_db() {
+    if (root_) {
+        // resolve the module names
+        db::json::ResolveModuleInstance visitor;
+        visitor.visit(*root_);
+        // build up the instance tree
+        uint32_t inst_id = 0;
+        db::json::build_instance_tree(*root_, inst_id);
+        // build the breakpoints table
+        build_bp_ids(*root_, num_bps_);
+    }
 }
 
 }  // namespace hgdb

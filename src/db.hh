@@ -75,6 +75,7 @@ struct Instance;
 // json-based symbol table
 class JSONSymbolTableProvider : public SymbolTableProvider {
 public:
+    JSONSymbolTableProvider() = default;
     explicit JSONSymbolTableProvider(const std::string &filename);
     // take over the DB ownership. normally used for testing
     explicit JSONSymbolTableProvider(std::unique_ptr<JSONSymbolTableProvider> db);
@@ -114,11 +115,15 @@ public:
 
     static bool valid_json(std::istream &stream);
 
+    bool parse(const std::string &db_content);
+
 private:
     // serialized data structure
     std::shared_ptr<db::json::Instance> root_ = nullptr;
     std::unordered_map<std::string, std::shared_ptr<db::json::ModuleDef>> module_defs_;
     uint32_t num_bps_ = 0;
+
+    void parse_db();
 };
 
 }  // namespace hgdb

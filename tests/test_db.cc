@@ -278,3 +278,41 @@ TEST(JSON_DB, validate) {  // NOLINT
         EXPECT_FALSE(res);
     }
 }
+
+class JSONDBTest : public ::testing::Test {
+protected:
+    void SetUp() override {
+        auto constexpr *raw_db = R"(
+{
+  "generator": "hgdb",
+  "table": [
+    {
+      "type": "file",
+      "filename": "hgdb.cc",
+      "scope": [
+        {
+          "type": "module",
+          "name": "mod",
+          "scope": [],
+          "line": 1,
+          "variables": []
+        }
+      ]
+    }
+  ],
+  "top": "mod"
+}
+)";
+        db = std::make_unique<hgdb::JSONSymbolTableProvider>();
+        auto res = db->parse(raw_db);
+        if (!res) throw std::runtime_error("ERROR: Incorrect JSON DB");
+    }
+
+    void TearDown() override { db.reset(); }
+    std::unique_ptr<hgdb::JSONSymbolTableProvider> db;
+};
+
+TEST_F(JSONDBTest, get_instance_names) {    // NOLINT
+    auto res = db->get_instance_names();
+    EXPECT_FALSE(res.empty());
+}
