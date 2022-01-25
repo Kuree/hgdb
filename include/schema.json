@@ -85,8 +85,8 @@
         },
         "variable": {
           "description": "Variable mappings defined by this entry",
-          "type": "array",
-          "items": [
+          "type": "object",
+          "allOf": [
             {
               "$ref": "#/$defs/variable"
             }

@@ -293,9 +293,55 @@ protected:
         {
           "type": "module",
           "name": "mod",
-          "scope": [],
+          "scope": [
+            {
+              "type": "block",
+              "line": 0,
+              "scope": [
+                {
+                  "type": "decl",
+                  "line": 2,
+                  "variable": {
+                    "name": "var.a",
+                    "value": "var_a",
+                    "rtl": true
+                  }
+                },
+                {
+                  "type": "assign",
+                  "line": 3,
+                  "variable": {
+                    "name": "i",
+                    "value": "42",
+                    "rtl": false
+                  }
+                }
+              ]
+            }
+          ],
           "line": 1,
-          "variables": []
+          "variables": [
+            {
+              "name": "array.0",
+              "value": "array_0",
+              "rtl": true
+            },
+            {
+              "name": "array[1]",
+              "value": "array_1",
+              "rtl": true
+            },
+            {
+              "name": "var.a",
+              "value": "var_a",
+              "rtl": true
+            },
+            {
+              "name": "var.b",
+              "value": "var_b",
+              "rtl": true
+            }
+          ]
         }
       ]
     }
