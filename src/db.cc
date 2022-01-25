@@ -1350,7 +1350,7 @@ JSONSymbolTableProvider::get_assigned_breakpoints(const std::string &var_name,
     if (parent->type != db::json::ScopeEntryType::Module) {
         return {};
     }
-    auto const &mod_def = *(reinterpret_cast<const db::json::ModuleDef*>(parent));
+    auto const &mod_def = *(reinterpret_cast<const db::json::ModuleDef *>(parent));
 
     InstanceByBpIDVisitor iv(breakpoint_id);
     iv.visit(*root_);

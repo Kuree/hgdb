@@ -585,3 +585,8 @@ TEST_F(JSONDBTest, resolve_names) { // NOLINT
         EXPECT_EQ(*var, "var_a");
     }
 }
+
+TEST_F(JSONDBTest, get_bps) { // NOLINT
+    auto bps = db->execution_bp_orders();
+    EXPECT_TRUE(bps.size() > 5);
+}
