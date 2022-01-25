@@ -319,7 +319,8 @@ protected:
                 },
                 {
                   "type": "none",
-                  "line": 4
+                  "line": 4,
+                  "condition": "i == 42"
                 },
                 {
                   "type": "assign",
@@ -480,6 +481,10 @@ TEST_F(JSONDBTest, get_breakpoints) {  // NOLINT
 
     res = db->get_breakpoints("hgdb.cc", 2, 10);
     EXPECT_TRUE(res.empty());
+
+    res = db->get_breakpoints("hgdb.cc", 4);
+    EXPECT_EQ(res.size(), 1);
+    EXPECT_EQ(res[0].condition, "i == 42");
 
     res = db->get_breakpoints("hgdb.hh", 2);
     EXPECT_EQ(res.size(), 2);

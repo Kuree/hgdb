@@ -474,6 +474,7 @@ using ModuleDefDict = std::unordered_map<std::string, std::shared_ptr<db::json::
 struct ScopeEntry {
     uint32_t line = 0;
     uint32_t column = 0;
+    std::string condition;
 
     const ScopeEntry *parent = nullptr;
 
@@ -592,6 +593,9 @@ void set_scope_entry_value(const rapidjson::Value &value, ScopeEntry &result) {
     result.line = value["line"].GetUint();
     if (value.HasMember("column")) {
         result.column = value["column"].GetUint();
+    }
+    if (value.HasMember("condition")) {
+        result.condition = value["condition"].GetString();
     }
 }
 
@@ -975,7 +979,8 @@ private:
                           .instance_id = std::make_unique<uint32_t>(inst.id),
                           .filename = filename,
                           .line_num = scope->line,
-                          .column_num = scope->column};
+                          .column_num = scope->column,
+                          .condition = scope->condition};
             results.emplace_back(std::move(bp));
             raw_results.emplace_back(scope);
         }
@@ -991,7 +996,8 @@ private:
                               .instance_id = std::make_unique<uint32_t>(inst.id),
                               .filename = inst.definition->filename,
                               .line_num = scope->line,
-                              .column_num = scope->column};
+                              .column_num = scope->column,
+                              .condition = scope->condition};
                 results.emplace_back(std::move(bp));
                 raw_results.emplace_back(scope);
             }

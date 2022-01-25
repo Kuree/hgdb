@@ -75,6 +75,10 @@
           "type": "integer",
           "minimum": 1
         },
+        "condition": {
+          "type": "string",
+          "description": "Enable condition for this entry"
+        },
         "scope": {
           "description": "Scopes contained in tentry",
           "allOf": [
