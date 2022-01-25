@@ -1338,6 +1338,7 @@ JSONSymbolTableProvider::get_assigned_breakpoints(const std::string &var_name,
     // any variable that has the same source name will be used
     // for now we don't support variable shadowing
     BreakPointVisitor v(breakpoint_id);
+    v.visit(*root_);
     if (v.raw_results.empty()) return {};
     auto const *scope_entry = v.raw_results[0];
     // need to find the top non-module scope
@@ -1345,6 +1346,11 @@ JSONSymbolTableProvider::get_assigned_breakpoints(const std::string &var_name,
     while (parent && parent->type != db::json::ScopeEntryType::Module) {
         parent = parent->parent;
     }
+
+    if (parent->type != db::json::ScopeEntryType::Module) {
+        return {};
+    }
+    auto const &mod_def = *(reinterpret_cast<const db::json::ModuleDef*>(parent));
 
     InstanceByBpIDVisitor iv(breakpoint_id);
     iv.visit(*root_);
@@ -1354,7 +1360,7 @@ JSONSymbolTableProvider::get_assigned_breakpoints(const std::string &var_name,
     // the format is id, var_name (rtl), data_condition
     // look through every assignment
     AssignmentVisitor av(var_name);
-    av.visit(*root_);
+    av.visit(mod_def);
 
     std::vector<std::tuple<uint32_t, std::string, std::string>> result;
     for (auto const *assign : av.result) {

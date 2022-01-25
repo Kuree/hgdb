@@ -550,3 +550,38 @@ TEST_F(JSONDBTest, get_variable) { // NOLINT
         EXPECT_EQ(vars.size(), 4);
     }
 }
+
+
+TEST_F(JSONDBTest, assign) {  // NOLINT
+    auto bp_id = db->get_breakpoints("hgdb.cc", 6);
+    auto assigns = db->get_assigned_breakpoints("i", bp_id[0].id);
+    EXPECT_EQ(assigns.size(), 2);
+}
+
+
+TEST_F(JSONDBTest, resolve_names) { // NOLINT
+    {
+        // resolve context
+        auto bp_id = db->get_breakpoints("hgdb.cc", 6);
+        auto var = db->resolve_scoped_name_breakpoint("i", bp_id[0].id);
+        EXPECT_TRUE(var);
+        EXPECT_EQ(*var, "43");
+        var = db->resolve_scoped_name_breakpoint("var.a", bp_id[0].id);
+        EXPECT_TRUE(var);
+        EXPECT_EQ(*var, "var_a");
+    }
+
+    {
+        // resolve instances
+        auto inst_id = db->get_instance_id("mod");
+        // notice that the underlying implementation doesn't care about [0] or .0 notation
+        auto var = db->resolve_scoped_name_instance("array[0]", *inst_id);
+        EXPECT_EQ(*var, "array_0");
+
+        var = db->resolve_scoped_name_instance("array.0", *inst_id);
+        EXPECT_EQ(*var, "array_0");
+
+        var = db->resolve_scoped_name_instance("var.a", *inst_id);
+        EXPECT_EQ(*var, "var_a");
+    }
+}
