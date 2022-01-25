@@ -377,7 +377,11 @@ protected:
           ],
           "instances": [
             {
-              "name": "child",
+              "name": "child1",
+              "module": "mod2"
+            },
+            {
+              "name": "child2",
               "module": "mod2"
             }
           ]
@@ -393,7 +397,17 @@ protected:
           "line": 1,
           "name": "mod2",
           "variables": [],
-          "scope": []
+          "scope": [
+            {
+              "type": "assign",
+              "line": 2,
+              "variable": {
+                "name": "a",
+                "value": "a_a",
+                "rtl": false
+              }
+            }
+          ]
         }
       ]
     }
@@ -412,10 +426,11 @@ protected:
 
 TEST_F(JSONDBTest, get_instance_names) {  // NOLINT
     auto res = db->get_instance_names();
-    EXPECT_EQ(res.size(), 3);
+    EXPECT_EQ(res.size(), 4);
     EXPECT_EQ(res[0], "mod");
     EXPECT_EQ(res[1], "mod.inst");
-    EXPECT_EQ(res[2], "mod.inst.child");
+    EXPECT_EQ(res[2], "mod.inst.child1");
+    EXPECT_EQ(res[3], "mod.inst.child2");
 }
 
 TEST_F(JSONDBTest, get_filenames) {  // NOLINT

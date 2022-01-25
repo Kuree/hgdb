@@ -764,7 +764,7 @@ public:
 
     void visit(const BlockEntry &block) {
         handle(block);
-        for (auto &s : block.scope) {
+        for (auto const &s : block.scope) {
             visit(s);
         }
     }
