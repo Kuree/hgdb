@@ -451,8 +451,7 @@ TEST_F(JSONDBTest, get_breakpoints_filename) {  // NOLINT
     EXPECT_EQ(res[0].filename, "hgdb.hh");
 }
 
-
-TEST_F(JSONDBTest, get_breakpoints) {   // NOLINT
+TEST_F(JSONDBTest, get_breakpoints) {  // NOLINT
     auto res = db->get_breakpoints("hgdb.cc", 2);
     EXPECT_EQ(res.size(), 1);
     EXPECT_EQ(res[0].line_num, 2);
@@ -465,4 +464,20 @@ TEST_F(JSONDBTest, get_breakpoints) {   // NOLINT
 
     res = db->get_breakpoints("hgdb.hh", 2);
     EXPECT_EQ(res.size(), 2);
+}
+
+TEST_F(JSONDBTest, get_instance) {  // NOLINT
+    auto bps = db->get_breakpoints("hgdb.cc", 12);
+    auto id = bps[0].id;
+    auto res = db->get_instance_id(id);
+    EXPECT_TRUE(res);
+    auto name1 = db->get_instance_name(*res);
+    EXPECT_TRUE(name1);
+    auto name2 = db->get_instance_name_from_bp(id);
+    EXPECT_TRUE(name2);
+    EXPECT_EQ(*name1, *name2);
+    EXPECT_EQ(*name1, "mod.inst");
+
+    auto inst_id = db->get_instance_id(*name1);
+    EXPECT_EQ(inst_id, *res);
 }
