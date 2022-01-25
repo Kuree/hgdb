@@ -319,12 +319,6 @@ protected:
                 {
                   "type": "none",
                   "line": 4
-                },
-                {
-                  "type": "inst",
-                  "line": 5,
-                  "module": "child",
-                  "name": "inst"
                 }
               ]
             }
@@ -350,6 +344,12 @@ protected:
               "name": "var.b",
               "value": "var_b",
               "rtl": true
+            }
+          ],
+          "instances": [
+            {
+              "name": "inst",
+              "module": "child"
             }
           ]
         },
@@ -394,4 +394,6 @@ protected:
 TEST_F(JSONDBTest, get_instance_names) {    // NOLINT
     auto res = db->get_instance_names();
     EXPECT_EQ(res.size(), 2);
+    EXPECT_EQ(res[0], "mod");
+    EXPECT_EQ(res[1], "mod.inst");
 }

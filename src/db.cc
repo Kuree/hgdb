@@ -735,35 +735,41 @@ std::shared_ptr<Instance> parse(
 template <bool visit_var = false, bool visit_sub_inst = true, bool visit_stmt = false>
 class DBVisitor {
 public:
-    virtual void handle(Instance &) {}
-    virtual void handle(VarDef &) {}
-    virtual void handle(BlockEntry &) {}
-    virtual void handle(AssignEntry &) {}
-    virtual void handle(ModuleDef &) {}
-    virtual void handle(VarDeclEntry &) {}
-    virtual void handle(GenericEntry &) {}
+    virtual void handle(const Instance &) {}
+    virtual void handle(const VarDef &) {}
+    virtual void handle(const BlockEntry &) {}
+    virtual void handle(const AssignEntry &) {}
+    virtual void handle(const ModuleDef &) {}
+    virtual void handle(const VarDeclEntry &) {}
+    virtual void handle(const GenericEntry &) {}
 
-    void visit(ModuleDef &mod) {
+    void visit(const ModuleDef &mod) {
         handle(mod);
         if constexpr (visit_var) {
-            for (auto &v : mod.vars) {
+            for (auto const &v : mod.vars) {
                 handle(v);
             }
         }
 
-        for (auto &s : mod.scope) {
+        for (auto const &s : mod.scope) {
             visit(s);
+        }
+
+        if constexpr (visit_sub_inst) {
+            for (auto const &[n, ptr] : mod.instances) {
+                visit(*ptr);
+            }
         }
     }
 
-    void visit(BlockEntry &block) {
+    void visit(const BlockEntry &block) {
         handle(block);
         for (auto &s : block.scope) {
             visit(s);
         }
     }
 
-    void visit(std::shared_ptr<ScopeEntry> &entry) {
+    void visit(const std::shared_ptr<ScopeEntry> &entry) {
         switch (entry->type) {
             case ScopeEntryType::Module: {
                 visit(*std::reinterpret_pointer_cast<ModuleDef>(entry));
@@ -789,7 +795,7 @@ public:
         }
     }
 
-    virtual void visit(Instance &inst) {
+    virtual void visit(const Instance &inst) {
         handle(inst);
         if constexpr (visit_stmt) {
             auto *def = const_cast<ModuleDef *>(inst.definition);
@@ -800,23 +806,6 @@ public:
                 visit(*sub_inst);
             }
         }
-    }
-};
-
-// resolve module instances
-class ResolveModuleInstance : public DBVisitor<false> {
-public:
-    void handle(ModuleDef &def) override {
-        for (auto const &[name, module_name] : def.unresolved_instances) {
-            if (def.defs.find(module_name) == def.defs.end()) {
-                log::log(log::log_level::error, "Undefined module symbol " + module_name);
-            } else {
-                auto const *d = def.defs.at(module_name).get();
-                def.instances.emplace(name, d);
-            }
-        }
-        // clear the memory
-        def.unresolved_instances.clear();
     }
 };
 
@@ -840,20 +829,21 @@ void build_instance_tree(Instance &inst, uint32_t &id) {
 
 class ScopeEntryVisitor : public DBVisitor<false> {
 public:
-    ScopeEntryVisitor(Instance &inst, uint32_t &id) : inst_(inst), id_(id) {}
+    ScopeEntryVisitor(const Instance &inst, uint32_t &id)
+        : inst_(const_cast<Instance *>(&inst)), id_(id) {}
 
-    void handle(BlockEntry &entry) override { handle_(entry); }
-    void handle(AssignEntry &entry) override { handle_(entry); }
-    void handle(VarDeclEntry &entry) override { handle_(entry); }
-    void handle(GenericEntry &entry) override { handle_(entry); }
+    void handle(const BlockEntry &entry) override { handle_(entry); }
+    void handle(const AssignEntry &entry) override { handle_(entry); }
+    void handle(const VarDeclEntry &entry) override { handle_(entry); }
+    void handle(const GenericEntry &entry) override { handle_(entry); }
 
 private:
-    Instance &inst_;
+    Instance *inst_;
     uint32_t &id_;
 
-    void handle_(ScopeEntry &entry) {
+    void handle_(const ScopeEntry &entry) {
         if (entry.line > 0) {
-            inst_.bps.emplace(id_++, &entry);
+            inst_->bps.emplace(id_++, &entry);
         }
     }
 };
@@ -862,7 +852,7 @@ class InstanceBPVisitor : public DBVisitor<false> {
 public:
     explicit InstanceBPVisitor(uint32_t &id) : id_(id) {}
 
-    void handle(Instance &inst) override {
+    void handle(const Instance &inst) override {
         ScopeEntryVisitor v(inst, id_);
         v.visit(inst);
     }
@@ -924,7 +914,7 @@ public:
 
     explicit BreakPointVisitor(uint32_t id) : id_(id), type_(SearchType::ByID) {}
 
-    void handle(db::json::Instance &inst) override {
+    void handle(const db::json::Instance &inst) override {
         switch (type_) {
             case SearchType::ByFilename: {
                 handle_filename(inst);
@@ -959,7 +949,7 @@ private:
         return p.filename();
     }
 
-    void handle_filename(db::json::Instance &inst) {
+    void handle_filename(const db::json::Instance &inst) {
         auto const &filename = inst.definition->filename;
         // notice that we have to be extra careful here
         // the query filename might mismatch with the filename we have, i.e. relative vs. absolute
@@ -991,7 +981,7 @@ private:
         }
     }
 
-    void handle_id(db::json::Instance &inst) {
+    void handle_id(const db::json::Instance &inst) {
         // loop through the lines
         for (auto const &[bp_id, scope] : inst.bps) {
             if (bp_id == id_) {
@@ -1055,7 +1045,7 @@ class InstanceFromInstIDVisitor : public db::json::DBVisitor<false> {
 public:
     explicit InstanceFromInstIDVisitor(uint32_t id) : id_(id) {}
 
-    void handle(db::json::Instance &inst) override {
+    void handle(const db::json::Instance &inst) override {
         if (!result && inst.id == id_) {
             result = &inst;
         }
@@ -1092,7 +1082,7 @@ class InstanceByBpIDVisitor : public db::json::DBVisitor<false> {
 public:
     explicit InstanceByBpIDVisitor(uint32_t bp_id) : bp_id_(bp_id) {}
 
-    void handle(db::json::Instance &inst) override {
+    void handle(const db::json::Instance &inst) override {
         if (!result) {
             for (auto const &[id, _] : inst.bps) {
                 if (id == bp_id_) {
@@ -1224,7 +1214,7 @@ JSONSymbolTableProvider::get_generator_variable(uint32_t instance_id) {
 
 class InstanceNameVisitor : public db::json::DBVisitor<false> {
 public:
-    void handle(db::json::Instance &inst) override {
+    void handle(const db::json::Instance &inst) override {
         std::string name;
         if (current_instance_names_.empty()) {
             name = inst.name;
@@ -1238,7 +1228,7 @@ public:
         current_instance_names_.emplace(name);
     }
 
-    void visit(db::json::Instance &inst) override {
+    void visit(const db::json::Instance &inst) override {
         db::json::DBVisitor<false>::visit(inst);
         // pop the current names
         current_instance_names_.pop();
@@ -1262,7 +1252,9 @@ std::vector<std::string> JSONSymbolTableProvider::get_instance_names() {
 
 class FilenameVisitor : public db::json::DBVisitor<false> {
 public:
-    void handle(db::json::Instance &inst) override { names.emplace(inst.definition->filename); }
+    void handle(const db::json::Instance &inst) override {
+        names.emplace(inst.definition->filename);
+    }
 
     std::set<std::string> names;
 };
@@ -1309,7 +1301,7 @@ public:
         var_names_ = util::get_tokens(var_name, "[].");
     }
 
-    void handle(db::json::AssignEntry &assign) override {
+    void handle(const db::json::AssignEntry &assign) override {
         // notice that we treat [] and . the same
         // so we have to do some processing
         auto var_names = util::get_tokens(assign.var.name, "[].");
@@ -1462,16 +1454,44 @@ bool JSONSymbolTableProvider::parse(const std::string &db_content) {
     return root_ != nullptr;
 }
 
+void resolve_module_instances(db::json::ModuleDef &def, db::json::ModuleDefDict &defs,
+                              bool &has_error) {
+    if (has_error) return;
+    std::set<db::json::ModuleDef *> subs;
+    for (auto const &[name, module] : def.unresolved_instances) {
+        if (defs.find(module) == defs.end()) {
+            has_error = true;
+            return;
+        } else {
+            auto *ptr = defs.at(module).get();
+            def.instances.emplace(name, ptr);
+            subs.emplace(ptr);
+        }
+    }
+    def.unresolved_instances.clear();
+    // recursively check the child instances
+    for (auto *m : subs) {
+        resolve_module_instances(*m, defs, has_error);
+    }
+}
+
 void JSONSymbolTableProvider::parse_db() {
-    if (root_) {
+    if (root_ && root_->definition) {
         // resolve the module names
-        db::json::ResolveModuleInstance visitor;
-        visitor.visit(*root_);
+        bool has_error = false;
+        resolve_module_instances(*(const_cast<db::json::ModuleDef *>(root_->definition)),
+                                 module_defs_, has_error);
+        if (has_error) {
+            root_ = nullptr;
+            return;
+        }
         // build up the instance tree
         uint32_t inst_id = 0;
         db::json::build_instance_tree(*root_, inst_id);
         // build the breakpoints table
         build_bp_ids(*root_, num_bps_);
+    } else {
+        root_ = nullptr;
     }
 }
 
