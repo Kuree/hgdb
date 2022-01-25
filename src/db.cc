@@ -1347,7 +1347,7 @@ JSONSymbolTableProvider::get_assigned_breakpoints(const std::string &var_name,
         parent = parent->parent;
     }
 
-    if (parent->type != db::json::ScopeEntryType::Module) {
+    if (!parent || parent->type != db::json::ScopeEntryType::Module) {
         return {};
     }
     auto const &mod_def = *(reinterpret_cast<const db::json::ModuleDef *>(parent));
