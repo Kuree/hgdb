@@ -84,7 +84,7 @@ class CMakeBuild(build_ext):
         subprocess.check_call(
             ["cmake", ext.sourcedir] + cmake_args, cwd=self.build_temp
         )
-        make_targets = ["hgdb", "hgdb-replay-bin", "hgdb-rewrite-vcd"]
+        make_targets = ["hgdb", "hgdb-replay-bin", "hgdb-rewrite-vcd", "hgdb-db"]
         subprocess.check_call(
             ["cmake", "--build", ".", "--target"] + make_targets + build_args, cwd=self.build_temp
         )
