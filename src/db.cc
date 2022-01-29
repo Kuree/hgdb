@@ -488,6 +488,23 @@ struct ScopeEntry {
     }
 
     virtual ~ScopeEntry() = default;
+
+    [[nodiscard]] std::string get_condition() const {
+        std::string cond = condition;
+        auto const *p = parent;
+        while (p) {
+            if (!p->condition.empty()) {
+                if (cond.empty()) {
+                    cond = p->condition;
+                } else {
+                    cond.append(" && ").append(p->condition);
+                }
+            }
+
+            p = p->parent;
+        }
+        return cond;
+    }
 };
 
 struct VarDef {
@@ -980,7 +997,7 @@ private:
                           .filename = filename,
                           .line_num = scope->line,
                           .column_num = scope->column,
-                          .condition = scope->condition};
+                          .condition = scope->get_condition()};
             results.emplace_back(std::move(bp));
             raw_results.emplace_back(scope);
         }
@@ -997,7 +1014,7 @@ private:
                               .filename = inst.definition->filename,
                               .line_num = scope->line,
                               .column_num = scope->column,
-                              .condition = scope->condition};
+                              .condition = scope->get_condition()};
                 results.emplace_back(std::move(bp));
                 raw_results.emplace_back(scope);
             }
@@ -1372,7 +1389,7 @@ JSONSymbolTableProvider::get_assigned_breakpoints(const std::string &var_name,
     for (auto const *assign : av.result) {
         auto bp_id = instance->get_bp_id(assign);
         if (!bp_id) continue;
-        result.emplace_back(std::make_tuple(*bp_id, assign->var.value, std::string{}));
+        result.emplace_back(std::make_tuple(*bp_id, assign->var.value, assign->get_condition()));
     }
 
     return result;
