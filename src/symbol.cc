@@ -341,6 +341,8 @@ public:
         return resp.var_result;
     }
 
+    [[nodiscard]] bool bad() const override { return network_ == nullptr; }
+
     ~NetworkSymbolTableProvider() override = default;
 
 private:

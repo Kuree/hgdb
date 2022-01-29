@@ -55,6 +55,8 @@ public:
     [[nodiscard]] std::vector<uint32_t> execution_bp_orders() override;
     [[nodiscard]] bool use_base_name() const { return use_base_name_; }
 
+    [[nodiscard]] bool bad() const override { return db_ == nullptr; }
+
 private:
     std::unique_ptr<DebugDatabase> db_;
     bool is_closed_ = false;
@@ -117,7 +119,7 @@ public:
 
     bool parse(const std::string &db_content);
 
-    [[nodiscard]] inline bool bad() const { return root_ == nullptr; }
+    [[nodiscard]] inline bool bad() const override { return root_ == nullptr; }
 
 private:
     // serialized data structure

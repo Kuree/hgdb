@@ -53,6 +53,8 @@ public:
     // accessors
     [[nodiscard]] virtual std::vector<uint32_t> execution_bp_orders() = 0;
 
+    [[nodiscard]] virtual bool bad() const = 0;
+
 protected:
     [[nodiscard]] bool has_src_remap() const { return !src_remap_.empty(); }
 
