@@ -117,6 +117,8 @@ public:
 
     bool parse(const std::string &db_content);
 
+    [[nodiscard]] inline bool bad() const { return root_ == nullptr; }
+
 private:
     // serialized data structure
     std::shared_ptr<db::json::Instance> root_ = nullptr;
