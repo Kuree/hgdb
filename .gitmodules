@@ -34,3 +34,6 @@
 [submodule "extern/valijson"]
 	path = extern/valijson
 	url = https://github.com/tristanpenman/valijson
+[submodule "extern/cli"]
+	path = extern/cli
+	url = https://github.com/daniele77/cli/
