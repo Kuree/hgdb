@@ -21,7 +21,7 @@ PLAT_TO_CMAKE = {
     "win-arm64": "ARM64",
 }
 
-binary_names = ["hgdb-replay", "hgdb-rewrite-vcd"]
+binary_names = ["hgdb-replay", "hgdb-rewrite-vcd", "hgdb-db"]
 
 # A CMakeExtension needs a sourcedir instead of a file list.
 # The name must be the _single_ output extension from the CMake build.
@@ -84,7 +84,7 @@ class CMakeBuild(build_ext):
         subprocess.check_call(
             ["cmake", ext.sourcedir] + cmake_args, cwd=self.build_temp
         )
-        make_targets = ["hgdb", "hgdb-replay-bin", "hgdb-rewrite-vcd", "hgdb-db"]
+        make_targets = ["hgdb"] + binary_names
         subprocess.check_call(
             ["cmake", "--build", ".", "--target"] + make_targets + build_args, cwd=self.build_temp
         )

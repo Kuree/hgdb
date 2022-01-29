@@ -1,0 +1,12 @@
+#!/usr/bin/env python
+
+import os
+import pkgutil
+import subprocess
+import sys
+
+# find the lib
+pkg = pkgutil.get_loader("libhgdb")
+path = os.path.dirname(pkg.path)
+bin_path = os.path.join(path, "hgdb-db")
+subprocess.call([bin_path] + sys.argv[1:])
