@@ -35,13 +35,15 @@ bool check_db(std::unique_ptr<hgdb::SymbolTableProvider> &db, std::ostream &os) 
 
 class ColorScope {
 public:
-    ColorScope() {
-        cli::SetColor();
-    }
+    ColorScope() { cli::SetColor(); }
 
-    ~ColorScope() {
-        cli::SetNoColor();
-    }
+    ~ColorScope() { cli::SetNoColor(); }
+};
+
+struct AssignmentInfo {
+    hgdb::BreakPoint bp;
+    std::string name;
+    std::string cond;
 };
 
 const std::string &get_indent(uint32_t indent) {
@@ -76,7 +78,7 @@ void render(T &&value, std::ostream &os, uint32_t indent = 0) {
             for (auto i = 0u; i < value.size(); i++) {
                 os << get_indent(indent) << fmt::format(fmt_str.data(), i, value[i]) << std::endl;
             }
-        } else if constexpr (std::is_same<K, hgdb::BreakPoint>::value) {
+        } else {
             auto fmt_str = fmt::format("[{{0:{0}}}]: {{1}}", max_width);
             auto ind = fmt::format(fmt_str, max_width, "").size();
             auto new_indent = indent + ind;
@@ -96,6 +98,20 @@ void render(T &&value, std::ostream &os, uint32_t indent = 0) {
             os << get_indent(indent) << "- column: " << value.column_num << std::endl;
         if (!value.condition.empty())
             os << get_indent(indent) << "- condition: " << value.condition << std::endl;
+    } else if constexpr (std::is_same<hgdb::SymbolTableProvider::ContextVariableInfo, T>::value ||
+                         std::is_same<hgdb::SymbolTableProvider::GeneratorVariableInfo, T>::value) {
+        auto const &[var, ref] = value;
+        os << "- name: " << var.name << std::endl;
+        os << get_indent(indent) << "- value: " << ref.value << std::endl;
+    } else if constexpr (std::is_same<AssignmentInfo, T>::value) {
+        os << "- name: " << value.name << std::endl;
+        if (!value.cond.empty()) {
+            os << get_indent(indent) << "- condition: " << value.cond << std::endl;
+        }
+        os << get_indent(indent) << "- var: " << std::endl;
+        indent += 2;
+        os << get_indent(indent);
+        render(std::move(value.bp), os, indent);
     }
 }
 
@@ -179,10 +195,56 @@ auto get_breakpoint(cli::Menu &menu, std::unique_ptr<hgdb::SymbolTableProvider> 
     return std::move(sub_menu);
 }
 
+auto get_context_variable(cli::Menu &menu, std::unique_ptr<hgdb::SymbolTableProvider> &db) {
+    auto sub_menu = std::make_unique<cli::Menu>("context", "Context variable query");
+    sub_menu->Insert("id",
+                     [&db](std::ostream &os, uint32_t id) {
+                         auto res = db->get_context_variables(id);
+                         render<decltype(res), hgdb::SymbolTableProvider::ContextVariableInfo>(
+                             std::move(res), os);
+                     },
+                     "Show context variable by breakpoint ID", {"id"});
+
+    return std::move(sub_menu);
+}
+
+auto get_generator_variable(cli::Menu &menu, std::unique_ptr<hgdb::SymbolTableProvider> &db) {
+    auto sub_menu = std::make_unique<cli::Menu>("generator", "Generator variable query");
+    sub_menu->Insert("id",
+                     [&db](std::ostream &os, uint32_t id) {
+                         auto res = db->get_generator_variable(id);
+                         render<decltype(res), hgdb::SymbolTableProvider::GeneratorVariableInfo>(
+                             std::move(res), os);
+                     },
+                     "Show context variable by instance ID", {"id"});
+
+    return std::move(sub_menu);
+}
+
+auto get_assign_info(cli::Menu &menu, std::unique_ptr<hgdb::SymbolTableProvider> &db) {
+    auto sub_menu = std::make_unique<cli::Menu>("assign", "Assignment information query query");
+    sub_menu->Insert("get",
+                     [&db](std::ostream &os, const std::string &var_name, uint32_t id) {
+                         auto res = db->get_assigned_breakpoints(var_name, id);
+                         std::vector<AssignmentInfo> result;
+                         result.reserve(res.size());
+                         for (auto const &[bp_id, name, cond] : res) {
+                             auto bp = db->get_breakpoint(bp_id);
+                             if (bp) {
+                                 result.emplace_back(AssignmentInfo{
+                                     .bp = std::move(*bp), .name = name, .cond = cond});
+                             }
+                         }
+                         render<decltype(result), AssignmentInfo>(std::move(result), os);
+                     },
+                     "Get assignment information based on variable name and breakpoint ID",
+                     {"name", "id"});
+    return std::move(sub_menu);
+}
+
 int main(int argc, char *argv[]) {
     auto program_name = get_program_name(argv);
-    auto root_menu =
-        std::make_unique<cli::Menu>("hgdb", fmt::format("{0} v{1}", program_name, VERSION_STR));
+    auto root_menu = std::make_unique<cli::Menu>("hgdb", "HGDB symbol table tool");
     std::unique_ptr<hgdb::SymbolTableProvider> db;
 
     // preload the symbol table
@@ -198,6 +260,9 @@ int main(int argc, char *argv[]) {
 
     root_menu->Insert(get_instance(*root_menu, db));
     root_menu->Insert(get_breakpoint(*root_menu, db));
+    root_menu->Insert(get_context_variable(*root_menu, db));
+    root_menu->Insert(get_generator_variable(*root_menu, db));
+    root_menu->Insert(get_assign_info(*root_menu, db));
 
     cli::Cli cli(std::move(root_menu));
     MainScheduler scheduler;
