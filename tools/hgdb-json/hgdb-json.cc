@@ -9,7 +9,10 @@
 #define VERSION_STR STRINGIFY(VERSION_NUMBER)
 
 std::optional<std::string> parse_main_arg(const std::vector<std::string> &args) {
-    argparse::ArgumentParser parser(fmt::format("HGDB JSON Tool v{0}", VERSION_STR));
+    if (args.empty()) return std::nullopt;
+    auto program_name = std::filesystem::path(args[0]).filename();
+    argparse::ArgumentParser parser(program_name.string(), VERSION_STR);
+    parser.add_description(fmt::format("HGDB JSON Tool"));
     parser.add_argument("file").help("input JSON filename");
     std::string path;
     try {

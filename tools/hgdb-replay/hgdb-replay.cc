@@ -15,7 +15,7 @@
 #define VERSION_STR STRINGIFY(VERSION_NUMBER)
 
 std::optional<argparse::ArgumentParser> get_args(int argc, char **argv) {
-    argparse::ArgumentParser program("HGDB Replay", VERSION_STR);
+    if (argc == 0) return std::nullopt;
     std::string program_name;
     if (std::getenv("HGDB_PYTHON_PACKAGE")) {
         auto path = std::filesystem::path(program_name);
@@ -23,6 +23,7 @@ std::optional<argparse::ArgumentParser> get_args(int argc, char **argv) {
     } else {
         program_name = argv[0];
     }
+    argparse::ArgumentParser program(program_name, VERSION_STR);
     // make the program name look nicer
     argv[0] = const_cast<char *>(program_name.c_str());
 
