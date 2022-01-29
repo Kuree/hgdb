@@ -1,6 +1,7 @@
 #include <filesystem>
 
 #include "../src/db.hh"
+#include "../src/util.hh"
 #include "cli/cli.h"
 #include "cli/clilocalsession.h"
 #include "cli/standaloneasioscheduler.h"
@@ -32,40 +33,149 @@ bool check_db(std::unique_ptr<hgdb::SymbolTableProvider> &db, std::ostream &os) 
     return db != nullptr;
 }
 
+class ColorScope {
+public:
+    ColorScope() {
+        cli::SetColor();
+    }
+
+    ~ColorScope() {
+        cli::SetNoColor();
+    }
+};
+
+const std::string &get_indent(uint32_t indent) {
+    static std::vector<std::string> cache;
+    if (indent >= cache.size()) {
+        auto start = cache.size();
+        cache.resize(indent + 1);
+        for (auto i = start; i < cache.size(); i++) {
+            std::stringstream ss;
+            for (auto j = 0; j < i; j++) {
+                ss << ' ';
+            }
+            cache[i] = ss.str();
+        }
+    }
+    return cache[indent];
+}
+
+template <typename T>
+constexpr bool is_basic_type() {
+    return std::is_same<std::string, T>::value || std::is_arithmetic<T>::value;
+}
+
 template <typename T, typename K = void>
-void render(T value, std::ostream &os) {
-    if constexpr (std::is_same<std::string, T>::value || std::is_arithmetic<T>::value) {
-        os << value << std::endl;
+void render(T &&value, std::ostream &os, uint32_t indent = 0) {
+    if constexpr (is_basic_type<T>()) {
+        os << get_indent(indent) << value << std::endl;
     } else if constexpr (std::is_same<std::vector<K>, T>::value) {
         auto max_width = std::to_string(value.size() - 1).size();
-        auto fmt_str = fmt::format("[{{0:{0}}}]: {{1}}", max_width);
-        for (auto i = 0u; i < value.size(); i++) {
-            os << fmt::format(fmt_str.data(), i, value[i]) << std::endl;
+        if constexpr (is_basic_type<K>()) {
+            auto fmt_str = fmt::format("[{{0:{0}}}]: {{1}}", max_width);
+            for (auto i = 0u; i < value.size(); i++) {
+                os << get_indent(indent) << fmt::format(fmt_str.data(), i, value[i]) << std::endl;
+            }
+        } else if constexpr (std::is_same<K, hgdb::BreakPoint>::value) {
+            auto fmt_str = fmt::format("[{{0:{0}}}]: {{1}}", max_width);
+            auto ind = fmt::format(fmt_str, max_width, "").size();
+            auto new_indent = indent + ind;
+            fmt_str = fmt::format("[{{0:{0}}}]: ", max_width);
+            for (auto i = 0u; i < value.size(); i++) {
+                os << get_indent(indent) << fmt::format(fmt_str.data(), i);
+                render(std::move(value[i]), os, new_indent);
+            }
         }
+    } else if constexpr (std::is_same<hgdb::BreakPoint, T>::value) {
+        os << "- id: " << value.id << std::endl;
+        os << get_indent(indent) << "- filename: " << value.filename << std::endl;
+        os << get_indent(indent) << "- line: " << value.line_num << std::endl;
+        if (value.instance_id)
+            os << get_indent(indent) << "- instance: " << *value.instance_id << std::endl;
+        if (value.column_num)
+            os << get_indent(indent) << "- column: " << value.column_num << std::endl;
+        if (!value.condition.empty())
+            os << get_indent(indent) << "- condition: " << value.condition << std::endl;
     }
 }
 
 auto get_instance(cli::Menu &menu, std::unique_ptr<hgdb::SymbolTableProvider> &db) {
     auto sub_menu = std::make_unique<cli::Menu>("instance", "Instance data query");
-    sub_menu->Insert("id", [&db](std::ostream &os, uint32_t id) {
-        if (!check_db(db, os)) return;
-        auto instance = db->get_instance_name(id);
-        if (instance) {
-            render(*instance, os);
-        }
-    });
-    sub_menu->Insert("bp-id", [&db](std::ostream &os, uint32_t id) {
-        if (!check_db(db, os)) return;
-        auto instance = db->get_instance_name_from_bp(id);
-        if (instance) {
-            render(*instance, os);
-        }
-    });
-    sub_menu->Insert("list", [&db](std::ostream &os) {
-        if (!check_db(db, os)) return;
-        auto instances = db->get_instance_names();
-        render<decltype(instances), std::string>(instances, os);
-    });
+    sub_menu->Insert("id",
+                     [&db](std::ostream &os, uint32_t id) {
+                         if (!check_db(db, os)) return;
+                         auto instance = db->get_instance_name(id);
+                         if (instance) {
+                             render(*instance, os);
+                         }
+                     },
+                     "Search instance by ID", {"id"});
+    sub_menu->Insert("bp-id",
+                     [&db](std::ostream &os, uint32_t id) {
+                         if (!check_db(db, os)) return;
+                         auto instance = db->get_instance_name_from_bp(id);
+                         if (instance) {
+                             render(*instance, os);
+                         }
+                     },
+                     "Search instance by breakpoint ID", {"bp-id"});
+    sub_menu->Insert(
+        "list",
+        [&db](std::ostream &os) {
+            if (!check_db(db, os)) return;
+            auto instances = db->get_instance_names();
+            render<decltype(instances), std::string>(std::move(instances), os);
+        },
+        "List all filenames");
+    return std::move(sub_menu);
+}
+
+auto get_breakpoint(cli::Menu &menu, std::unique_ptr<hgdb::SymbolTableProvider> &db) {
+    auto sub_menu = std::make_unique<cli::Menu>("breakpoint", "Breakpoint data query");
+    sub_menu->Insert("id",
+                     [&db](std::ostream &os, uint32_t id) {
+                         if (!check_db(db, os)) return;
+                         auto bp = db->get_breakpoint(id);
+                         if (bp) {
+                             render(std::move(*bp), os);
+                         }
+                     },
+                     "Search breakpoint by ID", {"id"});
+    sub_menu->Insert("where",
+                     [&db](std::ostream &os, const std::string &filename) {
+                         std::vector<hgdb::BreakPoint> bps;
+                         uint32_t line = 0, col = 0;
+                         auto tokens = hgdb::util::get_tokens(filename, ":");
+                         if (tokens.size() > 1) {
+                             auto const t = tokens[1];
+                             if (std::all_of(t.begin(), t.end(), ::isdigit)) {
+                                 line = std::stoul(t);
+                             } else {
+                                 ColorScope color;
+                                 os << "Invalid line number " << t << std::endl;
+                                 return;
+                             }
+                         }
+                         if (tokens.size() > 2) {
+                             auto const t = tokens[2];
+                             if (std::all_of(t.begin(), t.end(), ::isdigit)) {
+                                 col = std::stoul(t);
+                             } else {
+                                 ColorScope color;
+                                 os << "Invalid column number " << t << std::endl;
+                                 return;
+                             }
+                         }
+                         if (line == 0 && col == 0) {
+                             bps = db->get_breakpoints(filename);
+                         } else if (col == 0) {
+                             bps = db->get_breakpoints(filename, line);
+                         } else {
+                             bps = db->get_breakpoints(filename, line, col);
+                         }
+                         render<decltype(bps), hgdb::BreakPoint>(std::move(bps), os);
+                     },
+                     "Search breakpoint by location", {"filename"});
     return std::move(sub_menu);
 }
 
@@ -87,6 +197,7 @@ int main(int argc, char *argv[]) {
                       "Load symbol table", {"path/uri"});
 
     root_menu->Insert(get_instance(*root_menu, db));
+    root_menu->Insert(get_breakpoint(*root_menu, db));
 
     cli::Cli cli(std::move(root_menu));
     MainScheduler scheduler;
