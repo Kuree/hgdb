@@ -550,10 +550,7 @@ struct ModuleDef : public ScopeEntry {
     // fast locate filenames
     std::unordered_set<const BlockEntry *> filename_blocks;
 
-    const ModuleDefDict &defs;
-
-    explicit ModuleDef(const ModuleDefDict &defs)
-        : ScopeEntry(ScopeEntryType::Module), defs(defs) {}
+    explicit ModuleDef() : ScopeEntry(ScopeEntryType::Module) {}
 
     [[nodiscard]] const std::vector<std::shared_ptr<ScopeEntry>> *get_scope() const override {
         return &scope;
@@ -655,7 +652,7 @@ std::shared_ptr<ScopeEntry> parse_scope_entry(const rapidjson::Value &value, JSO
 }
 
 std::shared_ptr<ModuleDef> parse_module_def(const rapidjson::Value &value, JSONParseInfo &info) {
-    auto result = std::make_shared<ModuleDef>(info.module_defs);
+    auto result = std::make_shared<ModuleDef>();
     auto const *temp_scope = info.current_scope;
     info.current_scope = result.get();
 
