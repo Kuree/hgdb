@@ -13,7 +13,7 @@
       "items": {
         "allOf": [
           {
-            "$ref": "#/$defs/file"
+            "$ref": "#/$defs/module"
           }
         ]
       }
@@ -24,7 +24,6 @@
     }
   },
   "required": [
-    "generator",
     "table",
     "top"
   ],
@@ -106,6 +105,10 @@
               }
             ]
           }
+        },
+        "filename": {
+          "description": "Filename that defines this scope",
+          "type": "string"
         },
         "name": {
           "description": "Name of the entry",
@@ -210,6 +213,37 @@
         ]
       }
     },
+    "fileScope": {
+      "type": "object",
+      "allOf": [
+        {
+          "$ref": "#/$defs/scopeEntry"
+        }
+      ],
+      "required": [
+        "filename"
+      ]
+    },
+    "module": {
+      "type": "object",
+      "allOf": [
+        {
+          "$ref": "#/$defs/scopeEntry"
+        }
+      ],
+      "properties": {
+        "scope": {
+          "type": "array",
+          "items": {
+            "allOf": [
+              {
+                "$ref": "#/$defs/fileScope"
+              }
+            ]
+          }
+        }
+      }
+    },
     "instance": {
       "type": "object",
       "properties": {
@@ -225,27 +259,6 @@
       "required": [
         "name",
         "module"
-      ]
-    },
-    "file": {
-      "type": "object",
-      "properties": {
-        "filename": {
-          "description": "Filename",
-          "type": "string"
-        },
-        "scope": {
-          "description": "Scopes contained in this file",
-          "allOf": [
-            {
-              "$ref": "#/$defs/scope"
-            }
-          ]
-        }
-      },
-      "required": [
-        "filename",
-        "scope"
       ]
     }
   }
