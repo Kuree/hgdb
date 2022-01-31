@@ -240,12 +240,13 @@ TEST(JSON_DB, validate) {  // NOLINT
     {
         auto constexpr *db = R"(
 {
-  "generator": "hgdb",
   "table": [
     {
-      "type": "file",
-      "filename": "hgdb.cc",
-      "scope": []
+      "type": "module",
+      "scope": [],
+      "name": "test",
+      "variables": [],
+      "line": 0
     }
   ],
   "top": "mod"
@@ -261,12 +262,13 @@ TEST(JSON_DB, validate) {  // NOLINT
     {
         auto constexpr *db = R"(
 {
-  "generator": "hgdb",
   "table": [
     {
-      "type": "file",
-      "filename": "hgdb.cc",
-      "scope": []
+      "type": "module",
+      "scope": [],
+      "name": "test",
+      "variables": [],
+      "line": 0
     }
   ]
 }
@@ -287,91 +289,93 @@ protected:
   "generator": "hgdb",
   "table": [
     {
-      "type": "file",
-      "filename": "hgdb.cc",
+      "type": "module",
+      "name": "mod",
       "scope": [
         {
-          "type": "module",
-          "name": "mod",
+          "type": "block",
+          "filename": "hgdb.cc",
+          "line": 0,
           "scope": [
             {
-              "type": "block",
-              "line": 0,
-              "scope": [
-                {
-                  "type": "decl",
-                  "line": 2,
-                  "column": 4,
-                  "variable": {
-                    "name": "var.a",
-                    "value": "var_a",
-                    "rtl": true
-                  }
-                },
-                {
-                  "type": "assign",
-                  "line": 3,
-                  "variable": {
-                    "name": "i",
-                    "value": "42",
-                    "rtl": false
-                  }
-                },
-                {
-                  "type": "none",
-                  "line": 4,
-                  "condition": "i == 42"
-                },
-                {
-                  "type": "assign",
-                  "line": 5,
-                  "variable": {
-                    "name": "i",
-                    "value": "43",
-                    "rtl": false
-                  }
-                },
-                {
-                  "type": "none",
-                  "line": 6
-                }
-              ]
-            }
-          ],
-          "line": 1,
-          "variables": [
-            {
-              "name": "array.0",
-              "value": "array_0",
-              "rtl": true
+              "type": "decl",
+              "line": 2,
+              "column": 4,
+              "variable": {
+                "name": "var.a",
+                "value": "var_a",
+                "rtl": true
+              }
             },
             {
-              "name": "array[1]",
-              "value": "array_1",
-              "rtl": true
+              "type": "assign",
+              "line": 3,
+              "variable": {
+                "name": "i",
+                "value": "42",
+                "rtl": false
+              }
             },
             {
-              "name": "var.a",
-              "value": "var_a",
-              "rtl": true
+              "type": "none",
+              "line": 4,
+              "condition": "i == 42"
             },
             {
-              "name": "var.b",
-              "value": "var_b",
-              "rtl": true
-            }
-          ],
-          "instances": [
+              "type": "assign",
+              "line": 5,
+              "variable": {
+                "name": "i",
+                "value": "43",
+                "rtl": false
+              }
+            },
             {
-              "name": "inst",
-              "module": "child"
+              "type": "none",
+              "line": 6
             }
           ]
+        }
+      ],
+      "line": 1,
+      "variables": [
+        {
+          "name": "array.0",
+          "value": "array_0",
+          "rtl": true
         },
         {
-          "type": "module",
-          "name": "child",
-          "line": 10,
+          "name": "array[1]",
+          "value": "array_1",
+          "rtl": true
+        },
+        {
+          "name": "var.a",
+          "value": "var_a",
+          "rtl": true
+        },
+        {
+          "name": "var.b",
+          "value": "var_b",
+          "rtl": true
+        }
+      ],
+      "instances": [
+        {
+          "name": "inst",
+          "module": "child"
+        }
+      ]
+    },
+    {
+      "type": "module",
+      "name": "child",
+      "line": 10,
+      "scope": [
+        {
+          "type": "block",
+          "filename": "hgdb.cc",
+          "line": 0,
           "scope": [
             {
               "type": "assign",
@@ -382,42 +386,43 @@ protected:
                 "rtl": true
               }
             }
-          ],
-          "variables": [
-            {
-              "name": "a",
-              "value": "a",
-              "rtl": true
-            }
-          ],
-          "instances": [
-            {
-              "name": "child1",
-              "module": "mod2"
-            },
-            {
-              "name": "child2",
-              "module": "mod2"
-            }
           ]
+        }
+      ],
+      "variables": [
+        {
+          "name": "a",
+          "value": "a",
+          "rtl": true
+        }
+      ],
+      "instances": [
+        {
+          "name": "child1",
+          "module": "mod2"
+        },
+        {
+          "name": "child2",
+          "module": "mod2"
         }
       ]
     },
     {
-      "type": "file",
-      "filename": "hgdb.hh",
+      "type": "module",
+      "line": 1,
+      "name": "mod2",
+      "variables": [
+        {
+          "name": "a",
+          "value": "a_a",
+          "rtl": false
+        }
+      ],
       "scope": [
         {
-          "type": "module",
-          "line": 1,
-          "name": "mod2",
-          "variables": [
-            {
-              "name": "a",
-              "value": "a_a",
-              "rtl": false
-            }
-          ],
+          "type": "block",
+          "filename": "hgdb.hh",
+          "line": 0,
           "scope": [
             {
               "type": "assign",

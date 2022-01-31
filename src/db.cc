@@ -505,6 +505,8 @@ struct ScopeEntry {
         }
         return cond;
     }
+
+    [[nodiscard]] const std::string &get_filename() const;
 };
 
 struct VarDef {
@@ -535,9 +537,9 @@ struct GenericEntry : public ScopeEntry {
     GenericEntry() : ScopeEntry(ScopeEntryType::None) {}
 };
 
+struct BlockEntry;
 struct ModuleDef : public ScopeEntry {
     std::string name;
-    std::string filename;
 
     std::vector<std::shared_ptr<ScopeEntry>> scope;
 
@@ -545,6 +547,8 @@ struct ModuleDef : public ScopeEntry {
     std::map<std::string, const ModuleDef *> instances;
     // unresolved instances
     std::map<std::string, std::string> unresolved_instances;
+    // fast locate filenames
+    std::unordered_set<const BlockEntry *> filename_blocks;
 
     const ModuleDefDict &defs;
 
@@ -569,6 +573,7 @@ struct AssignEntry : public ScopeEntry {
 
 struct BlockEntry : public ScopeEntry {
     std::vector<std::shared_ptr<ScopeEntry>> scope;
+    std::string filename;
 
     BlockEntry() : ScopeEntry(ScopeEntryType::Block) {}
 
@@ -590,8 +595,20 @@ const ScopeEntry *ScopeEntry::get_previous() const {
     return nullptr;
 }
 
+const std::string &ScopeEntry::get_filename() const {
+    auto const *block = this;
+    while (block) {
+        if (block->type == ScopeEntryType::Block) {
+            auto const *b = reinterpret_cast<const BlockEntry *>(block);
+            if (!b->filename.empty()) return b->filename;
+        }
+        block = block->parent;
+    }
+    static std::string empty = {};
+    return empty;
+}
+
 struct JSONParseInfo {
-    std::string current_filename;
     const ScopeEntry *current_scope = nullptr;
 
     std::unordered_map<std::string, std::shared_ptr<ModuleDef>> &module_defs;
@@ -642,7 +659,6 @@ std::shared_ptr<ModuleDef> parse_module_def(const rapidjson::Value &value, JSONP
     auto const *temp_scope = info.current_scope;
     info.current_scope = result.get();
 
-    result->filename = info.current_filename;
     result->name = value["name"].GetString();
     info.module_defs.emplace(result->name, result);
     set_scope_entry_value(value, *result);
@@ -684,6 +700,9 @@ std::shared_ptr<ModuleDef> parse_module_def(const rapidjson::Value &value, JSONP
 std::shared_ptr<BlockEntry> parse_block_entry(const rapidjson::Value &value, JSONParseInfo &info) {
     auto result = std::make_unique<BlockEntry>();
     set_scope_entry_value(value, *result);
+    if (value.HasMember("filename")) {
+        result->filename = value["filename"].GetString();
+    }
     auto const *temp_scope = info.current_scope;
     info.current_scope = result.get();
 
@@ -733,20 +752,15 @@ std::shared_ptr<Instance> parse(
     JSONParseInfo info(module_defs);
     std::shared_ptr<Instance> result;
     for (auto &entry : table) {
-        auto const *filename = entry["filename"].GetString();
-        info.current_filename = filename;
-        auto const &scope = entry["scope"].GetArray();
-        for (auto &scope_entry : scope) {
-            auto parsed_entry = parse_scope_entry(scope_entry, info);
-            // notice that if the entry type is not a module, we are effectively discarding it
-            if (parsed_entry->type == ScopeEntryType::Module) {
-                auto m = std::reinterpret_pointer_cast<ModuleDef>(parsed_entry);
-                if (m->name == top) {
-                    // making a new instance. notice that the name is the same as module name
-                    result = std::make_shared<Instance>();
-                    result->name = m->name;
-                    result->definition = m.get();
-                }
+        auto parsed_entry = parse_scope_entry(entry, info);
+        // notice that if the entry type is not a module, we are effectively discarding it
+        if (parsed_entry->type == ScopeEntryType::Module) {
+            auto m = std::reinterpret_pointer_cast<ModuleDef>(parsed_entry);
+            if (m->name == top) {
+                // making a new instance. notice that the name is the same as module name
+                result = std::make_shared<Instance>();
+                result->name = m->name;
+                result->definition = m.get();
             }
         }
     }
@@ -848,12 +862,34 @@ void build_instance_tree(Instance &inst, uint32_t &id) {
     }
 }
 
+class BlockFilenameVisitor : public DBVisitor<false, false, false> {
+public:
+    explicit BlockFilenameVisitor(std::unordered_set<const BlockEntry *> &entries)
+        : entries_(entries) {}
+
+    void handle(const BlockEntry &entry) override {
+        if (!entry.filename.empty()) {
+            entries_.emplace(&entry);
+        }
+    }
+
+private:
+    std::unordered_set<const BlockEntry *> &entries_;
+};
+
+void collect_filename_blocks(const ModuleDefDict &defs) {
+    for (auto const &iter : defs) {
+        auto const &def = iter.second;
+        BlockFilenameVisitor vis(def->filename_blocks);
+        vis.visit(*def);
+    }
+}
+
 class ScopeEntryVisitor : public DBVisitor<false, false, true> {
 public:
     ScopeEntryVisitor(const Instance &inst, uint32_t &id)
         : inst_(const_cast<Instance *>(&inst)), id_(id) {}
 
-    void handle(const BlockEntry &entry) override { handle_(entry); }
     void handle(const AssignEntry &entry) override { handle_(entry); }
     void handle(const VarDeclEntry &entry) override { handle_(entry); }
     void handle(const GenericEntry &entry) override { handle_(entry); }
@@ -965,21 +1001,48 @@ private:
         return p.is_relative();
     }
 
+    static bool is_filename_equivalent(const std::string &query_path, const std::string &ref_path) {
+        // notice that we have to be extra careful here
+        // the query filename might mismatch with the filename we have, i.e. relative vs. absolute
+        // Chisel only uses basename, but the users requests always send absolute name
+        if (ref_path.empty()) return false;
+        if (is_relative(ref_path)) {
+            auto f = base_name(query_path);
+            return ref_path == f;
+        } else {
+            return query_path == ref_path;
+        }
+    }
+
     static std::string base_name(const std::string &filename) {
         auto p = std::filesystem::path(filename);
         return p.filename();
     }
 
+    const db::json::BlockEntry *filename_match(
+        const std::unordered_set<const db::json::BlockEntry *> &blocks,
+        const db::json::ScopeEntry *entry) {
+        auto const *p = entry->parent;
+        while (p) {
+            if (p->type == db::json::ScopeEntryType::Block) {
+                auto const *block = reinterpret_cast<const db::json::BlockEntry *>(p);
+                if (blocks.find(block) != blocks.end() &&
+                    is_filename_equivalent(filename_, block->filename)) {
+                    return block;
+                }
+            }
+
+            p = p->parent;
+        }
+
+        return nullptr;
+    }
+
     void handle_filename(const db::json::Instance &inst) {
-        auto const &filename = inst.definition->filename;
-        // notice that we have to be extra careful here
-        // the query filename might mismatch with the filename we have, i.e. relative vs. absolute
-        // Chisel only uses basename, but the users requests always send absolute name
-        if (is_relative(filename)) {
-            auto f = base_name(filename_);
-            if (filename != f) return;
-        } else {
-            if (filename != filename_) return;
+        // find targeted scope first
+        auto const &scopes = inst.definition->filename_blocks;
+        if (scopes.empty()) [[unlikely]] {
+            return;
         }
         // loop through the lines
         for (auto const &[bp_id, scope] : inst.bps) {
@@ -990,11 +1053,13 @@ private:
                     if (col_num_ != scope->column) continue;
                 }
             }
+            auto const *blk = filename_match(scopes, scope);
+            if (!blk) continue;
             // this is a match
             // need to find out how many instances that has this entry
             BreakPoint bp{.id = bp_id,
                           .instance_id = std::make_unique<uint32_t>(inst.id),
-                          .filename = filename,
+                          .filename = blk->filename,
                           .line_num = scope->line,
                           .column_num = scope->column,
                           .condition = scope->get_condition()};
@@ -1004,14 +1069,20 @@ private:
     }
 
     void handle_id(const db::json::Instance &inst) {
+        auto const &scopes = inst.definition->filename_blocks;
+        if (scopes.empty()) [[unlikely]] {
+            return;
+        }
         // loop through the lines
         for (auto const &[bp_id, scope] : inst.bps) {
             if (bp_id == id_) {
+                auto const &filename = scope->get_filename();
+                if (filename.empty()) continue;  // very likely a symbol table error;
                 // this is a match
                 // need to find out how many instances that has this entry
                 BreakPoint bp{.id = bp_id,
                               .instance_id = std::make_unique<uint32_t>(inst.id),
-                              .filename = inst.definition->filename,
+                              .filename = filename,
                               .line_num = scope->line,
                               .column_num = scope->column,
                               .condition = scope->get_condition()};
@@ -1278,10 +1349,10 @@ std::vector<std::string> JSONSymbolTableProvider::get_instance_names() {
     return {};
 }
 
-class FilenameVisitor : public db::json::DBVisitor<false> {
+class FilenameVisitor : public db::json::DBVisitor<false, true, false> {
 public:
-    void handle(const db::json::Instance &inst) override {
-        names.emplace(inst.definition->filename);
+    void handle(const db::json::BlockEntry &block) override {
+        if (!block.filename.empty()) names.emplace(block.filename);
     }
 
     std::set<std::string> names;
@@ -1290,7 +1361,7 @@ public:
 std::vector<std::string> JSONSymbolTableProvider::get_filenames() {
     if (root_) {
         FilenameVisitor v;
-        v.visit(*root_);
+        v.visit(*root_->definition);
         auto res = std::vector<std::string>(v.names.begin(), v.names.end());
         return res;
     }
@@ -1524,6 +1595,8 @@ void JSONSymbolTableProvider::parse_db() {
         db::json::build_instance_tree(*root_, inst_id);
         // build the breakpoints table
         build_bp_ids(*root_, num_bps_);
+        // index the file names
+        db::json::collect_filename_blocks(module_defs_);
     } else {
         root_ = nullptr;
     }
