@@ -222,7 +222,12 @@
       ],
       "required": [
         "filename"
-      ]
+      ],
+      "properties": {
+        "type": {
+          "const": "block"
+        }
+      }
     },
     "module": {
       "type": "object",
