@@ -578,7 +578,7 @@ TEST_F(JSONDBTest, resolve_names) { // NOLINT
         EXPECT_EQ(*var, "43");
         var = db->resolve_scoped_name_breakpoint("var.a", bp_id[0].id);
         EXPECT_TRUE(var);
-        EXPECT_EQ(*var, "var_a");
+        EXPECT_EQ(*var, "mod.var_a");
     }
 
     {
@@ -586,13 +586,13 @@ TEST_F(JSONDBTest, resolve_names) { // NOLINT
         auto inst_id = db->get_instance_id("mod");
         // notice that the underlying implementation doesn't care about [0] or .0 notation
         auto var = db->resolve_scoped_name_instance("array[0]", *inst_id);
-        EXPECT_EQ(*var, "array_0");
+        EXPECT_EQ(*var, "mod.array_0");
 
         var = db->resolve_scoped_name_instance("array.0", *inst_id);
-        EXPECT_EQ(*var, "array_0");
+        EXPECT_EQ(*var, "mod.array_0");
 
         var = db->resolve_scoped_name_instance("var.a", *inst_id);
-        EXPECT_EQ(*var, "var_a");
+        EXPECT_EQ(*var, "mod.var_a");
     }
 }
 

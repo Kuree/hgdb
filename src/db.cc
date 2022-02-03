@@ -1476,9 +1476,16 @@ bool rtl_equivalent(const std::string &a, const std::string &b) {
 std::optional<std::string> JSONSymbolTableProvider::resolve_scoped_name_breakpoint(
     const std::string &scoped_name, uint64_t breakpoint_id) {
     auto vars = get_context_variables(breakpoint_id);
+    auto inst_name = get_instance_name_from_bp(breakpoint_id);
+    if (!inst_name) return std::nullopt;
     for (auto const &[ctx, var] : vars) {
         if (rtl_equivalent(ctx.name, scoped_name)) {
-            return var.value;
+            if (var.is_rtl) {
+                auto res = fmt::format("{0}.{1}", *inst_name, var.value);
+                return res;
+            } else {
+                return var.value;
+            }
         }
     }
     return std::nullopt;
@@ -1487,9 +1494,16 @@ std::optional<std::string> JSONSymbolTableProvider::resolve_scoped_name_breakpoi
 std::optional<std::string> JSONSymbolTableProvider::resolve_scoped_name_instance(
     const std::string &scoped_name, uint64_t instance_id) {
     auto vars = get_generator_variable(instance_id);
+    auto inst_name = get_instance_name(instance_id);
+    if (!inst_name) return std::nullopt;
     for (auto const &[gen, var] : vars) {
         if (rtl_equivalent(gen.name, scoped_name)) {
-            return var.value;
+            if (var.is_rtl) {
+                auto res = fmt::format("{0}.{1}", *inst_name, var.value);
+                return res;
+            } else {
+                return var.value;
+            }
         }
     }
     return std::nullopt;
