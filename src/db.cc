@@ -1479,7 +1479,7 @@ std::optional<std::string> JSONSymbolTableProvider::resolve_scoped_name_breakpoi
     auto inst_name = get_instance_name_from_bp(breakpoint_id);
     if (!inst_name) return std::nullopt;
     for (auto const &[ctx, var] : vars) {
-        if (rtl_equivalent(ctx.name, scoped_name)) {
+        if (rtl_equivalent(ctx.name, scoped_name) || var.value == scoped_name) {
             if (var.is_rtl) {
                 auto res = fmt::format("{0}.{1}", *inst_name, var.value);
                 return res;
@@ -1497,7 +1497,7 @@ std::optional<std::string> JSONSymbolTableProvider::resolve_scoped_name_instance
     auto inst_name = get_instance_name(instance_id);
     if (!inst_name) return std::nullopt;
     for (auto const &[gen, var] : vars) {
-        if (rtl_equivalent(gen.name, scoped_name)) {
+        if (rtl_equivalent(gen.name, scoped_name) || var.value == scoped_name) {
             if (var.is_rtl) {
                 auto res = fmt::format("{0}.{1}", *inst_name, var.value);
                 return res;
