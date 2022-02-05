@@ -16,7 +16,7 @@ public:
                                                     uint32_t col_num) = 0;
     virtual std::vector<BreakPoint> get_breakpoints(const std::string &filename) = 0;
     virtual std::optional<BreakPoint> get_breakpoint(uint32_t breakpoint_id) = 0;
-    virtual std::optional<std::string> get_instance_name_from_bp(uint32_t breakpoint_id) = 0;
+    std::optional<std::string> get_instance_name_from_bp(uint32_t breakpoint_id);
     virtual std::optional<std::string> get_instance_name(uint32_t instance_id) = 0;
     virtual std::optional<uint64_t> get_instance_id(const std::string &instance_name) = 0;
     [[nodiscard]] virtual std::optional<uint64_t> get_instance_id(uint64_t breakpoint_id) = 0;

@@ -101,19 +101,6 @@ std::optional<BreakPoint> DBSymbolTableProvider::get_breakpoint(uint32_t breakpo
     }
 }
 
-std::optional<std::string> DBSymbolTableProvider::get_instance_name_from_bp(
-    uint32_t breakpoint_id) {
-    using namespace sqlite_orm;
-    std::lock_guard guard(db_lock_);
-    auto value = db_->select(
-        columns(&Instance::name),
-        where(c(&Instance::id) == &BreakPoint::instance_id && c(&BreakPoint::id) == breakpoint_id));
-    if (value.empty())
-        return std::nullopt;
-    else
-        return std::get<0>(value[0]);
-}
-
 std::optional<std::string> DBSymbolTableProvider::get_instance_name(uint32_t id) {
     using namespace sqlite_orm;
     std::lock_guard guard(db_lock_);
@@ -1119,15 +1106,6 @@ std::optional<BreakPoint> JSONSymbolTableProvider::get_breakpoint(uint32_t break
         if (!v.results.empty()) [[likely]] {
             return std::move(v.results[0]);
         }
-    }
-    return std::nullopt;
-}
-
-std::optional<std::string> JSONSymbolTableProvider::get_instance_name_from_bp(
-    uint32_t breakpoint_id) {
-    auto bp = get_breakpoint(breakpoint_id);
-    if (bp) {
-        return get_instance_name(*bp->instance_id);
     }
     return std::nullopt;
 }

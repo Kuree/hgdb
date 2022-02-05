@@ -329,7 +329,6 @@ public:
         get_breakpoint,
         get_breakpoints,
         get_instance_name,
-        get_instance_name_from_bp,
         get_instance_id,
         get_context_variables,
         get_generator_variables,

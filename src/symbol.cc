@@ -35,6 +35,14 @@ std::string resolve(const std::string &src_path, const std::string &dst_path,
     }
 }
 
+std::optional<std::string> SymbolTableProvider::get_instance_name_from_bp(uint32_t breakpoint_id) {
+    auto bp = get_breakpoint(breakpoint_id);
+    if (bp) {
+        return get_instance_name(*bp->instance_id);
+    }
+    return std::nullopt;
+}
+
 void SymbolTableProvider::set_src_mapping(const std::map<std::string, std::string> &mapping) {
     src_remap_ = mapping;
 }
@@ -216,14 +224,6 @@ public:
 
         auto resp = get_resp(req);
         return std::move(resp.bp_result);
-    }
-
-    std::optional<std::string> get_instance_name_from_bp(uint32_t breakpoint_id) override {
-        SymbolRequest req(SymbolRequest::request_type::get_instance_name_from_bp);
-        req.breakpoint_id = breakpoint_id;
-
-        auto resp = get_resp(req);
-        return resp.str_result;
     }
 
     std::optional<std::string> get_instance_name(uint32_t id) override {

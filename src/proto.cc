@@ -978,8 +978,6 @@ std::string to_string(SymbolRequest::request_type type) {
             return "get_breakpoints";
         case SymbolRequest::request_type::get_instance_name:
             return "get_instance_name";
-        case SymbolRequest::request_type::get_instance_name_from_bp:
-            return "get_instance_name_from_bp";
         case SymbolRequest::request_type::get_instance_id:
             return "get_instance_id";
         case SymbolRequest::request_type::get_context_variables:
@@ -1030,7 +1028,6 @@ std::string SymbolRequest::str() const {
             set_member(payload, allocator, "instance_id", instance_id);
             break;
         case request_type::get_breakpoint:
-        case request_type::get_instance_name_from_bp:
         case request_type::get_context_variables:
         case request_type ::get_context_static_values:
             set_member(payload, allocator, "breakpoint_id", breakpoint_id);
@@ -1224,8 +1221,7 @@ void SymbolResponse::parse(const std::string &str) {
         }
         case SymbolRequest::request_type::resolve_scoped_name_breakpoint:
         case SymbolRequest::request_type::resolve_scoped_name_instance:
-        case SymbolRequest::request_type::get_instance_name:
-        case SymbolRequest::request_type::get_instance_name_from_bp: {
+        case SymbolRequest::request_type::get_instance_name: {
             if (!result.IsString()) return;
             str_result = result.GetString();
             break;
