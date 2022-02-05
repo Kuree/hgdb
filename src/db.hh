@@ -28,7 +28,6 @@ public:
                                             uint32_t col_num) override;
     std::vector<BreakPoint> get_breakpoints(const std::string &filename) override;
     std::optional<BreakPoint> get_breakpoint(uint32_t breakpoint_id) override;
-    std::optional<std::string> get_instance_name_from_bp(uint32_t breakpoint_id) override;
     std::optional<std::string> get_instance_name(uint32_t id) override;
     std::optional<uint64_t> get_instance_id(const std::string &instance_name) override;
     [[nodiscard]] std::optional<uint64_t> get_instance_id(uint64_t breakpoint_id) override;
@@ -46,11 +45,6 @@ public:
     get_assigned_breakpoints(const std::string &var_name, uint32_t breakpoint_id) override;
 
     ~DBSymbolTableProvider() override;
-
-    [[nodiscard]] std::optional<std::string> resolve_scoped_name_breakpoint(
-        const std::string &scoped_name, uint64_t breakpoint_id) override;
-    [[nodiscard]] std::optional<std::string> resolve_scoped_name_instance(
-        const std::string &scoped_name, uint64_t instance_id) override;
 
     [[nodiscard]] std::vector<uint32_t> execution_bp_orders() override;
     [[nodiscard]] bool use_base_name() const { return use_base_name_; }
@@ -106,11 +100,6 @@ public:
     std::vector<std::string> get_all_array_names() override;
     [[nodiscard]] std::vector<std::tuple<uint32_t, std::string, std::string>>
     get_assigned_breakpoints(const std::string &var_name, uint32_t breakpoint_id) override;
-
-    [[nodiscard]] std::optional<std::string> resolve_scoped_name_breakpoint(
-        const std::string &scoped_name, uint64_t breakpoint_id) override;
-    [[nodiscard]] std::optional<std::string> resolve_scoped_name_instance(
-        const std::string &scoped_name, uint64_t instance_id) override;
 
     [[nodiscard]] std::vector<uint32_t> execution_bp_orders() override;
 

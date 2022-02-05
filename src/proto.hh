@@ -337,8 +337,6 @@ public:
         get_context_static_values,
         get_all_array_names,
         get_filenames,
-        resolve_scoped_name_breakpoint,
-        resolve_scoped_name_instance,
         get_execution_bp_orders,
         get_assigned_breakpoints
     };

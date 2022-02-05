@@ -992,10 +992,6 @@ std::string to_string(SymbolRequest::request_type type) {
             return "get_context_static_values";
         case SymbolRequest::request_type::get_all_array_names:
             return "get_all_array_names";
-        case SymbolRequest::request_type::resolve_scoped_name_breakpoint:
-            return "resolve_scoped_name_breakpoint";
-        case SymbolRequest::request_type::resolve_scoped_name_instance:
-            return "resolve_scoped_name_instance";
         case SymbolRequest::request_type::get_execution_bp_orders:
             return "get_execution_bp_orders";
         case SymbolRequest::request_type::get_assigned_breakpoints:
@@ -1048,14 +1044,6 @@ std::string SymbolRequest::str() const {
             break;
         case request_type::get_annotation_values:
             set_member(payload, allocator, "name", name);
-            break;
-        case request_type::resolve_scoped_name_breakpoint:
-            set_member(payload, allocator, "scoped_name", scoped_name);
-            set_member(payload, allocator, "breakpoint_id", breakpoint_id);
-            break;
-        case request_type::resolve_scoped_name_instance:
-            set_member(payload, allocator, "scoped_name", scoped_name);
-            set_member(payload, allocator, "instance_id", instance_id);
             break;
         case request_type::get_assigned_breakpoints:
             set_member(payload, allocator, "name", name);
@@ -1219,8 +1207,6 @@ void SymbolResponse::parse(const std::string &str) {
             }
             break;
         }
-        case SymbolRequest::request_type::resolve_scoped_name_breakpoint:
-        case SymbolRequest::request_type::resolve_scoped_name_instance:
         case SymbolRequest::request_type::get_instance_name: {
             if (!result.IsString()) return;
             str_result = result.GetString();

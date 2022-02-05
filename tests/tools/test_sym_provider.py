@@ -69,14 +69,6 @@ class DummySymbolProvider(SymbolTableProvider):
     def get_context_static_values(self, breakpoint_id: int) -> Dict[str, int]:
         return {}
 
-    def resolve_scoped_name_breakpoint(self, scoped_name: str, breakpoint_id: int) -> Union[None, str]:
-        if breakpoint_id == self.breakpoint.id and scoped_name == self.context_var.name:
-            return self.instance_name + "." + self.context_var.name
-
-    def resolve_scoped_name_instance(self, scoped_name: str, instance_id: int) -> Union[None, str]:
-        if instance_id == 0 and scoped_name == self.context_var.name:
-            return self.instance_name + "." + self.context_var.name
-
     def get_annotation_values(self, name: str) -> List[str]:
         # optional. used when you have unconventional clock names
         if name == "clock":

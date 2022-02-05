@@ -42,10 +42,10 @@ public:
     void set_src_mapping(const std::map<std::string, std::string> &mapping);
     [[nodiscard]] std::string resolve_filename_to_db(const std::string &filename);
     [[nodiscard]] std::string resolve_filename_to_client(const std::string &filename);
-    [[nodiscard]] virtual std::optional<std::string> resolve_scoped_name_breakpoint(
-        const std::string &scoped_name, uint64_t breakpoint_id) = 0;
-    [[nodiscard]] virtual std::optional<std::string> resolve_scoped_name_instance(
-        const std::string &scoped_name, uint64_t instance_id) = 0;
+    [[nodiscard]] std::optional<std::string> resolve_scoped_name_breakpoint(
+        const std::string &scoped_name, uint64_t breakpoint_id);
+    [[nodiscard]] std::optional<std::string> resolve_scoped_name_instance(
+        const std::string &scoped_name, uint64_t instance_id);
     // tuple info: breakpoint_id, var_name, condition (can be empty)
     [[nodiscard]] virtual std::vector<std::tuple<uint32_t, std::string, std::string>>
     get_assigned_breakpoints(const std::string &var_name, uint32_t breakpoint_id) = 0;

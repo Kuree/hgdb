@@ -360,47 +360,6 @@ DBSymbolTableProvider::get_assigned_breakpoints(const std::string &var_name,  //
 
 DBSymbolTableProvider::~DBSymbolTableProvider() { close(); }
 
-std::string convert_dot_notation(const std::string &name) {
-    // conversion between two notation
-    const static std::regex dot(R"(\.(\d+))");
-    const static std::regex bracket(R"(\[(\d+)\])");
-    std::smatch match;
-    if (std::regex_search(name, match, dot)) {
-        // replace it
-        auto new_name = std::regex_replace(name, dot, R"([$1])");
-        return new_name;
-    } else if (std::regex_search(name, match, bracket)) {
-        auto new_name = std::regex_replace(name, bracket, R"(.$1)");
-        return new_name;
-    }
-    return name;
-}
-
-std::optional<std::string> DBSymbolTableProvider::resolve_scoped_name_instance(
-    const std::string &scoped_name, uint64_t instance_id) {
-    auto name = convert_dot_notation(scoped_name);
-    auto gen_vars = get_generator_variable(instance_id);
-    for (auto const &[gen_var, var] : gen_vars) {
-        if (name == gen_var.name || scoped_name == gen_var.name) {
-            return var.value;
-        }
-    }
-    return std::nullopt;
-}
-
-std::optional<std::string> DBSymbolTableProvider::resolve_scoped_name_breakpoint(
-    const std::string &scoped_name, uint64_t breakpoint_id) {
-    auto name = convert_dot_notation(scoped_name);
-    // NOLINTNEXTLINE
-    auto context_vars = get_context_variables(breakpoint_id);
-    for (auto const &[context_var, var] : context_vars) {
-        if (name == context_var.name || scoped_name == context_var.name) {
-            return var.value;
-        }
-    }
-    return std::nullopt;
-}
-
 std::vector<uint32_t> DBSymbolTableProvider::execution_bp_orders() {
     // NOLINTNEXTLINE
     auto scopes = db_->get_all<Scope>();
@@ -1439,52 +1398,6 @@ JSONSymbolTableProvider::get_assigned_breakpoints(const std::string &var_name,
     }
 
     return result;
-}
-
-bool rtl_equivalent(const std::string &a, const std::string &b) {
-    auto tokens_a = util::get_tokens(a, "[].");
-    auto tokens_b = util::get_tokens(b, "[].");
-    if (tokens_a.size() != tokens_b.size()) return false;
-    for (auto i = 0u; i < tokens_a.size(); i++) {
-        if (tokens_a[i] != tokens_b[i]) return false;
-    }
-    return true;
-}
-
-std::optional<std::string> JSONSymbolTableProvider::resolve_scoped_name_breakpoint(
-    const std::string &scoped_name, uint64_t breakpoint_id) {
-    auto vars = get_context_variables(breakpoint_id);
-    auto inst_name = get_instance_name_from_bp(breakpoint_id);
-    if (!inst_name) return std::nullopt;
-    for (auto const &[ctx, var] : vars) {
-        if (rtl_equivalent(ctx.name, scoped_name) || var.value == scoped_name) {
-            if (var.is_rtl) {
-                auto res = fmt::format("{0}.{1}", *inst_name, var.value);
-                return res;
-            } else {
-                return var.value;
-            }
-        }
-    }
-    return std::nullopt;
-}
-
-std::optional<std::string> JSONSymbolTableProvider::resolve_scoped_name_instance(
-    const std::string &scoped_name, uint64_t instance_id) {
-    auto vars = get_generator_variable(instance_id);
-    auto inst_name = get_instance_name(instance_id);
-    if (!inst_name) return std::nullopt;
-    for (auto const &[gen, var] : vars) {
-        if (rtl_equivalent(gen.name, scoped_name) || var.value == scoped_name) {
-            if (var.is_rtl) {
-                auto res = fmt::format("{0}.{1}", *inst_name, var.value);
-                return res;
-            } else {
-                return var.value;
-            }
-        }
-    }
-    return std::nullopt;
 }
 
 std::vector<uint32_t> JSONSymbolTableProvider::execution_bp_orders() {

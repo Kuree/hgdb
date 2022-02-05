@@ -43,6 +43,58 @@ std::optional<std::string> SymbolTableProvider::get_instance_name_from_bp(uint32
     return std::nullopt;
 }
 
+bool rtl_equivalent(const std::string &a, const std::string &b) {
+    auto tokens_a = util::get_tokens(a, "[].");
+    auto tokens_b = util::get_tokens(b, "[].");
+    if (tokens_a.size() != tokens_b.size()) return false;
+    for (auto i = 0u; i < tokens_a.size(); i++) {
+        if (tokens_a[i] != tokens_b[i]) return false;
+    }
+    return true;
+}
+
+std::optional<std::string> SymbolTableProvider::resolve_scoped_name_breakpoint(
+    const std::string &scoped_name, uint64_t breakpoint_id) {
+    auto vars = get_context_variables(breakpoint_id);
+    auto inst_name = get_instance_name_from_bp(breakpoint_id);
+    if (!inst_name) return std::nullopt;
+    for (auto const &[ctx, var] : vars) {
+        if (rtl_equivalent(ctx.name, scoped_name) || var.value == scoped_name) {
+            if (var.is_rtl) {
+                if (var.value.starts_with(*inst_name)) {
+                    return var.value;
+                } else {
+                    return fmt::format("{0}.{1}", *inst_name, var.value);
+                }
+            } else {
+                return var.value;
+            }
+        }
+    }
+    return std::nullopt;
+}
+
+std::optional<std::string> SymbolTableProvider::resolve_scoped_name_instance(
+    const std::string &scoped_name, uint64_t instance_id) {
+    auto vars = get_generator_variable(instance_id);
+    auto inst_name = get_instance_name(instance_id);
+    if (!inst_name) return std::nullopt;
+    for (auto const &[gen, var] : vars) {
+        if (rtl_equivalent(gen.name, scoped_name) || var.value == scoped_name) {
+            if (var.is_rtl) {
+                if (var.value.starts_with(*inst_name)) {
+                    return var.value;
+                } else {
+                    return fmt::format("{0}.{1}", *inst_name, var.value);
+                }
+            } else {
+                return var.value;
+            }
+        }
+    }
+    return std::nullopt;
+}
+
 void SymbolTableProvider::set_src_mapping(const std::map<std::string, std::string> &mapping) {
     src_remap_ = mapping;
 }
@@ -302,26 +354,6 @@ public:
 
         auto resp = get_resp(req);
         return resp.str_results;
-    }
-
-    [[nodiscard]] std::optional<std::string> resolve_scoped_name_breakpoint(
-        const std::string &scoped_name, uint64_t breakpoint_id) override {
-        SymbolRequest req(SymbolRequest::request_type::resolve_scoped_name_breakpoint);
-        req.scoped_name = scoped_name;
-        req.breakpoint_id = breakpoint_id;
-
-        auto resp = get_resp(req);
-        return resp.str_result;
-    }
-
-    [[nodiscard]] std::optional<std::string> resolve_scoped_name_instance(
-        const std::string &scoped_name, uint64_t instance_id) override {
-        SymbolRequest req(SymbolRequest::request_type::resolve_scoped_name_instance);
-        req.scoped_name = scoped_name;
-        req.instance_id = instance_id;
-
-        auto resp = get_resp(req);
-        return resp.str_result;
     }
 
     // accessors

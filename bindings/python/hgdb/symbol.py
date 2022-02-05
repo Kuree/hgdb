@@ -73,10 +73,6 @@ class SymbolTableProvider:
                 resp = self.get_context_static_values(payload["breakpoint_id"])
             elif req_type == "get_all_array_names":
                 resp = self.get_all_array_names()
-            elif req_type == "resolve_scoped_name_breakpoint":
-                resp = self.resolve_scoped_name_breakpoint(payload["scoped_name"], payload["breakpoint_id"])
-            elif req_type == "resolve_scoped_name_instance":
-                resp = self.resolve_scoped_name_instance(payload["scoped_name"], payload["instance_id"])
             elif req_type == "execution_bp_orders":
                 resp = self.execution_bp_orders()
 
@@ -153,14 +149,6 @@ class SymbolTableProvider:
     def get_all_array_names(self) -> List[str]:
         # optional. only used when replaying VCD, since VCD doesn't have array information
         return []
-
-    @abc.abstractmethod
-    def resolve_scoped_name_breakpoint(self, scoped_name: str, breakpoint_id: int) -> Union[None, str]:
-        pass
-
-    @abc.abstractmethod
-    def resolve_scoped_name_instance(self, scoped_name: str, instance_id: int) -> Union[None, str]:
-        pass
 
     def execution_bp_orders(self) -> List[int]:
         # optional. only if the breakpoint execution order is different from the lexical order
