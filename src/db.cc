@@ -228,27 +228,6 @@ std::vector<std::string> DBSymbolTableProvider::get_annotation_values(const std:
     return result;
 }
 
-std::unordered_map<std::string, int64_t> DBSymbolTableProvider::get_context_static_values(
-    uint32_t breakpoint_id) {
-    // only integer values allowed
-    std::unordered_map<std::string, int64_t> result;
-    if (!db_) return result;
-    auto context_variables = get_context_variables(breakpoint_id);
-    for (auto const &bp : context_variables) {
-        // non-rtl value only
-        if (bp.second.is_rtl) continue;
-        auto const &symbol_name = bp.first.name;
-        auto const &str_value = bp.second.value;
-        try {
-            int64_t value = std::stoll(str_value);
-            result.emplace(symbol_name, value);
-        } catch (const std::invalid_argument &) {
-        } catch (const std::out_of_range &) {
-        }
-    }
-    return result;
-}
-
 std::vector<std::string> DBSymbolTableProvider::get_all_array_names() {
     using namespace sqlite_orm;
     if (!db_) return {};
@@ -1305,22 +1284,6 @@ std::vector<std::string> JSONSymbolTableProvider::get_filenames() {
 std::vector<std::string> JSONSymbolTableProvider::get_annotation_values(const std::string &name) {
     // not supported yet
     return {};
-}
-
-std::unordered_map<std::string, int64_t> JSONSymbolTableProvider::get_context_static_values(
-    uint32_t breakpoint_id) {
-    auto vars = get_context_variables(breakpoint_id);
-    std::unordered_map<std::string, int64_t> result;
-
-    for (auto const &[ctx, var] : vars) {
-        if (!var.is_rtl) {
-            if (std::all_of(var.value.begin(), var.value.end(), ::isdigit)) {
-                auto v = std::stoll(var.value);
-                result.emplace(ctx.name, v);
-            }
-        }
-    }
-    return result;
 }
 
 std::vector<std::string> JSONSymbolTableProvider::get_all_array_names() {

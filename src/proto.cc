@@ -988,8 +988,6 @@ std::string to_string(SymbolRequest::request_type type) {
             return "get_instance_names";
         case SymbolRequest::request_type::get_annotation_values:
             return "get_annotation_values";
-        case SymbolRequest::request_type::get_context_static_values:
-            return "get_context_static_values";
         case SymbolRequest::request_type::get_all_array_names:
             return "get_all_array_names";
         case SymbolRequest::request_type::get_execution_bp_orders:
@@ -1025,7 +1023,6 @@ std::string SymbolRequest::str() const {
             break;
         case request_type::get_breakpoint:
         case request_type::get_context_variables:
-        case request_type ::get_context_static_values:
             set_member(payload, allocator, "breakpoint_id", breakpoint_id);
             break;
         case request_type::get_instance_id: {
@@ -1266,14 +1263,6 @@ void SymbolResponse::parse(const std::string &str) {
             }
             break;
         }
-        case SymbolRequest::request_type::get_context_static_values: {
-            if (!result.IsObject()) return;
-            for (auto const &[name, value] : result.GetObject()) {
-                if (!value.IsNumber()) return;
-                auto v = value.GetInt64();
-                map_result.emplace(name.GetString(), v);
-            }
-        }
         case SymbolRequest::request_type::get_assigned_breakpoints: {
             if (!result.IsArray()) return;
             for (auto const &entry : result.GetArray()) {
@@ -1298,6 +1287,7 @@ void SymbolResponse::parse(const std::string &str) {
                 if (!condition) condition = "";
                 var_result.emplace_back(std::make_tuple(*breakpoint_id, *var_name, *condition));
             }
+            break;
         }
     }
 }

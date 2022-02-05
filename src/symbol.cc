@@ -95,6 +95,22 @@ std::optional<std::string> SymbolTableProvider::resolve_scoped_name_instance(
     return std::nullopt;
 }
 
+std::unordered_map<std::string, int64_t> SymbolTableProvider::get_context_static_values(
+    uint32_t breakpoint_id) {
+    auto vars = get_context_variables(breakpoint_id);
+    std::unordered_map<std::string, int64_t> result;
+
+    for (auto const &[ctx, var] : vars) {
+        if (!var.is_rtl) {
+            if (std::all_of(var.value.begin(), var.value.end(), ::isdigit)) {
+                auto v = std::stoll(var.value);
+                result.emplace(ctx.name, v);
+            }
+        }
+    }
+    return result;
+}
+
 void SymbolTableProvider::set_src_mapping(const std::map<std::string, std::string> &mapping) {
     src_remap_ = mapping;
 }
@@ -332,14 +348,6 @@ public:
 
         auto resp = get_resp(req);
         return resp.str_results;
-    }
-    std::unordered_map<std::string, int64_t> get_context_static_values(
-        uint32_t breakpoint_id) override {
-        SymbolRequest req(SymbolRequest::request_type::get_context_static_values);
-        req.breakpoint_id = breakpoint_id;
-
-        auto resp = get_resp(req);
-        return resp.map_result;
     }
 
     std::vector<std::string> get_all_array_names() override {

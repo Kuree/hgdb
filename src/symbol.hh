@@ -32,8 +32,7 @@ public:
     [[nodiscard]] virtual std::vector<std::string> get_instance_names() = 0;
     [[nodiscard]] virtual std::vector<std::string> get_annotation_values(
         const std::string &name) = 0;
-    virtual std::unordered_map<std::string, int64_t> get_context_static_values(
-        uint32_t breakpoint_id) = 0;
+    std::unordered_map<std::string, int64_t> get_context_static_values(uint32_t breakpoint_id);
     virtual std::vector<std::string> get_all_array_names() = 0;
 
     virtual ~SymbolTableProvider() = default;

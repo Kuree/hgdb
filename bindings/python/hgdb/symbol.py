@@ -69,8 +69,6 @@ class SymbolTableProvider:
                 resp = self.get_instance_names()
             elif req_type == "get_annotation_values":
                 resp = self.get_annotation_values(payload["name"])
-            elif req_type == "get_context_static_values":
-                resp = self.get_context_static_values(payload["breakpoint_id"])
             elif req_type == "get_all_array_names":
                 resp = self.get_all_array_names()
             elif req_type == "execution_bp_orders":
@@ -141,10 +139,6 @@ class SymbolTableProvider:
     def get_annotation_values(self, name: str) -> List[str]:
         # optional. used when you have unconventional clock names
         return []
-
-    @abc.abstractmethod
-    def get_context_static_values(self, breakpoint_id: int) -> Dict[str, int]:
-        pass
 
     def get_all_array_names(self) -> List[str]:
         # optional. only used when replaying VCD, since VCD doesn't have array information

@@ -334,7 +334,6 @@ public:
         get_generator_variables,
         get_instance_names,
         get_annotation_values,
-        get_context_static_values,
         get_all_array_names,
         get_filenames,
         get_execution_bp_orders,
