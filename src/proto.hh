@@ -435,7 +435,7 @@ public:
 
     void parse(const std::string &str);
 
-    [[nodiscard]] std::string str(bool pretty_print) const override { return {}; }
+    [[nodiscard]] std::string str(bool pretty_print) const override;
     [[nodiscard]] std::string type() const override { return to_string(RequestType::symbol); }
 
     std::optional<std::string> str_result;

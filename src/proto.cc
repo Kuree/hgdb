@@ -285,6 +285,61 @@ void set_member(K &json_value, A &allocator, const char *name, const T &value) {
     }
 }
 
+template <typename T, typename K, typename A>
+void set_member(K &v, A &allocator, const T &value) {
+    if constexpr (std::is_same<T, BreakPoint>::value) {
+        set_member(v, allocator, "id", value.id);
+        set_member(v, allocator, "instance_id", *value.instance_id);
+        set_member(v, allocator, "filename", value.filename);
+        set_member(v, allocator, "line_num", value.line_num);
+        set_member(v, allocator, "column_num", value.column_num);
+        set_member(v, allocator, "condition", value.condition);
+        set_member(v, allocator, "trigger", value.trigger);
+    } else if constexpr (std::is_same<T, Variable>::value) {
+        set_member(v, allocator, "id", value.id);
+        set_member(v, allocator, "value", value.value);
+        set_member(v, allocator, "is_rtl", value.is_rtl);
+    } else if constexpr (std::is_same<T, std::pair<ContextVariable, Variable>>::value) {
+        auto const &[context, var] = value;
+        set_member(v, allocator, "name", context.name);
+        set_member(v, allocator, "breakpoint_id", *context.breakpoint_id);
+        set_member(v, allocator, "variable_id", *context.variable_id);
+        set_member(v, allocator, var);
+    } else if constexpr (std::is_same<T, std::pair<GeneratorVariable, Variable>>::value) {
+        auto const &[gen, var] = value;
+        set_member(v, allocator, "name", gen.name);
+        set_member(v, allocator, "instance_id", *gen.instance_id);
+        set_member(v, allocator, "variable_id", *gen.variable_id);
+        set_member(v, allocator, var);
+    } else if constexpr (std::is_same<T, std::tuple<uint32_t, std::string, std::string>>::value) {
+        set_member(v, allocator, "id", std::get<0>(value));
+        set_member(v, allocator, "var", std::get<1>(value));
+        set_member(v, allocator, "cond", std::get<2>(value));
+    } else if constexpr (
+        std::is_same<T, std::vector<BreakPoint>>::value ||
+        std::is_same<T, std::vector<std::pair<ContextVariable, Variable>>>::value ||
+        std::is_same<T, std::vector<std::pair<GeneratorVariable, Variable>>>::value ||
+        std::is_same<T, std::vector<std::tuple<uint32_t, std::string, std::string>>>::value) {
+        for (auto const &bp : value) {
+            rapidjson::Value entry(rapidjson::kObjectType);
+            set_member(entry, allocator, bp);
+            v.PushBack(entry.Move(), allocator);
+        }
+    } else if constexpr (std::is_same<T, std::vector<std::string>>::value) {
+        for (auto const &entry : value) {
+            rapidjson::Value entry_v(rapidjson::kStringType);
+            entry_v.SetString(entry.c_str(), entry.size(), allocator);
+            v.PushBack(entry_v.Move(), allocator);
+        }
+    } else if constexpr (std::is_same<T, std::vector<uint64_t>>::value) {
+        for (auto const entry : value) {
+            rapidjson::Value entry_v(rapidjson::kNumberType);
+            entry_v.SetUint64(entry);
+            v.PushBack(entry_v.Move(), allocator);
+        }
+    }
+}
+
 template <typename T>
 void set_member(rapidjson::Document &document, const char *name, const T &value) {
     auto &allocator = document.GetAllocator();
@@ -1290,6 +1345,71 @@ void SymbolResponse::parse(const std::string &str) {
             break;
         }
     }
+}
+
+std::string SymbolResponse::str(bool pretty_print) const {
+    using namespace rapidjson;
+    Document document(rapidjson::kObjectType);  // NOLINT
+    auto &allocator = document.GetAllocator();
+    set_response_header(document, this);
+    set_status(document, status_);
+
+    Value result;
+
+    switch (type_) {
+        case SymbolRequest::request_type::get_breakpoint: {
+            result = Value(kObjectType);
+            set_member(result, allocator, *bp_result);
+            break;
+        }
+        case SymbolRequest::request_type::get_breakpoints: {
+            result = Value(kArrayType);
+            set_member(result, allocator, bp_results);
+            break;
+        }
+        case SymbolRequest::request_type::get_instance_name: {
+            result = Value(kStringType);
+            result.SetString(str_result->c_str(), str_result->size());
+            break;
+        }
+        case SymbolRequest::request_type::get_generator_variables: {
+            result = Value(kArrayType);
+            set_member(result, allocator, gen_vars_result);
+            break;
+        }
+        case SymbolRequest::request_type::get_context_variables: {
+            result = Value(kArrayType);
+            set_member(result, allocator, context_vars_result);
+            break;
+        }
+        case SymbolRequest::request_type::get_instance_id: {
+            result = Value(kNumberType);
+            result.SetUint64(*uint64_t_result);
+            break;
+        }
+        case SymbolRequest::request_type::get_instance_names:
+        case SymbolRequest::request_type::get_annotation_values:
+        case SymbolRequest::request_type::get_all_array_names:
+        case SymbolRequest::request_type::get_filenames: {
+            result = Value(kArrayType);
+            set_member(result, allocator, str_results);
+            break;
+        }
+        case SymbolRequest::request_type::get_execution_bp_orders: {
+            result = Value(kArrayType);
+            set_member(result, allocator, uint64_t_results);
+            break;
+        }
+        case SymbolRequest::request_type::get_assigned_breakpoints: {
+            // really need to refactor this in the future
+            result = Value(kArrayType);
+            set_member(result, allocator, var_result);
+            break;
+        }
+    }
+
+    set_member(document, "result", result);
+    return to_string(document, pretty_print);
 }
 
 }  // namespace hgdb
