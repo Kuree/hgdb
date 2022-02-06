@@ -1055,6 +1055,106 @@ std::string to_string(SymbolRequest::request_type type) {
     throw std::runtime_error("Invalid request type");
 }
 
+void SymbolRequest::parse_payload(const std::string &payload) {
+    using namespace rapidjson;
+    Document document;
+    document.Parse(payload.c_str());
+    if (!check_json(document, status_code_, error_reason_)) return;
+
+    auto type_str = get_member<std::string>(document, "type", error_reason_);
+    if (!type_str) return;
+
+    // I wish reflection can land in C++ soon
+    if (*type_str == "get_breakpoint") {
+        req_type_ = request_type::get_breakpoint;
+    } else if (*type_str == "get_breakpoints") {
+        req_type_ = request_type::get_breakpoints;
+    } else if (*type_str == "get_instance_name") {
+        req_type_ = request_type::get_instance_name;
+    } else if (*type_str == "get_instance_id") {
+        req_type_ = request_type::get_instance_id;
+    } else if (*type_str == "get_context_variables") {
+        req_type_ = request_type::get_context_variables;
+    } else if (*type_str == "get_generator_variables") {
+        req_type_ = request_type::get_generator_variables;
+    } else if (*type_str == "get_instance_names") {
+        req_type_ = request_type::get_instance_names;
+    } else if (*type_str == "get_annotation_values") {
+        req_type_ = request_type::get_annotation_values;
+    } else if (*type_str == "get_all_array_names") {
+        req_type_ = request_type::get_all_array_names;
+    } else if (*type_str == "get_execution_bp_orders") {
+        req_type_ = request_type::get_execution_bp_orders;
+    } else if (*type_str == "get_assigned_breakpoints") {
+        req_type_ = request_type::get_assigned_breakpoints;
+    } else if (*type_str == "get_filenames") {
+        req_type_ = request_type::get_filenames;
+    } else {
+        error_reason_ = "Unknown request type " + *type_str;
+        return;
+    }
+
+    // now a gigantic case statements
+    switch (req_type_) {
+        case request_type::get_breakpoints: {
+            auto filename_opt = get_member<std::string>(document, "filename", error_reason_);
+            if (!filename_opt) return;
+            filename = *filename_opt;
+            auto line_opt = get_member<uint32_t>(document, "line_num", error_reason_, false);
+            if (line_opt) line_num = *line_opt;
+            auto col_opt = get_member<uint32_t>(document, "col_num", error_reason_, false);
+            if (col_opt) column_num = *col_opt;
+            break;
+        }
+        case request_type::get_instance_name:
+        case request_type::get_generator_variables: {
+            auto id = get_member<uint32_t>(document, "instance_id", error_reason_);
+            if (!id) return;
+            instance_id = *id;
+            break;
+        }
+        case request_type::get_breakpoint:
+        case request_type::get_context_variables: {
+            auto id = get_member<uint32_t>(document, "breakpoint_id", error_reason_);
+            if (!id) return;
+            breakpoint_id = *id;
+            break;
+        }
+        case request_type::get_instance_id: {
+            if (document.HasMember("breakpoint_id")) {
+                auto id = get_member<uint32_t>(document, "breakpoint_id", error_reason_);
+                if (!id) return;
+                breakpoint_id = *id;
+            } else {
+                auto inst_name = get_member<std::string>(document, "instance_name", error_reason_);
+                if (!inst_name) return;
+                instance_name = *inst_name;
+            }
+            break;
+        }
+        case request_type::get_instance_names:
+        case request_type::get_all_array_names:
+        case request_type::get_filenames:
+        case request_type::get_execution_bp_orders:
+            // nothing
+            break;
+        case request_type::get_annotation_values: {
+            auto name_opt = get_member<std::string>(document, "name", error_reason_);
+            if (!name_opt) return;
+            name = *name_opt;
+            break;
+        }
+        case request_type::get_assigned_breakpoints: {
+            auto name_opt = get_member<std::string>(document, "name", error_reason_);
+            auto id = get_member<uint32_t>(document, "breakpoint_id", error_reason_);
+            if (!name_opt || !id) return;
+            name = *name_opt;
+            breakpoint_id = *id;
+            break;
+        }
+    }
+}
+
 std::string SymbolRequest::str() const {
     using namespace rapidjson;
     Document document(rapidjson::kObjectType);  // NOLINT

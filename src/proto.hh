@@ -342,7 +342,7 @@ public:
 
     explicit SymbolRequest(request_type req_type) : req_type_(req_type) {}
     // won't do anything since we don't expect parsing it from our side
-    void parse_payload(const std::string &) override {}
+    void parse_payload(const std::string &) override;
 
     [[nodiscard]] RequestType type() const override { return RequestType::symbol; }
     [[nodiscard]] request_type req_type() const { return req_type_; }
@@ -356,7 +356,6 @@ public:
     uint32_t column_num = 0;
     std::string instance_name;
     std::string name;
-    std::string scoped_name;
 
 private:
     request_type req_type_;
