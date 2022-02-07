@@ -131,8 +131,7 @@
         }
       },
       "required": [
-        "type",
-        "line"
+        "type"
       ],
       "allOf": [
         {
@@ -181,7 +180,8 @@
           },
           "then": {
             "required": [
-              "variable"
+              "variable",
+              "line"
             ]
           }
         },
@@ -197,7 +197,8 @@
           },
           "then": {
             "required": [
-              "variable"
+              "variable",
+              "line"
             ]
           }
         }
