@@ -700,6 +700,8 @@ public:
     virtual void handle(const VarDeclEntry &) {}
     virtual void handle(const GenericEntry &) {}
 
+    virtual void handle_after(const BlockEntry &) {}
+
     void visit(const ModuleDef &mod) {
         handle(mod);
         if constexpr (visit_var) {
@@ -724,6 +726,7 @@ public:
         for (auto const &s : block.scope) {
             visit(s);
         }
+        handle_after(block);
     }
 
     void visit(const std::shared_ptr<ScopeEntry> &entry) {
@@ -784,14 +787,42 @@ void build_instance_tree(Instance &inst, uint32_t &id) {
     }
 }
 
-class BlockReorderingVisitor: public DBVisitor<false, false, false> {
+class BlockReorderingVisitor : public DBVisitor<false, false, false> {
 public:
-    void handle(const BlockEntry &entry) override {
-        // we first reorder the blocks.
-        // then we merge the var decl or assign that has the exact the same location
-        // this should only produce one breakpoint
+    void handle_after(const BlockEntry &entry) override {
+        // because this is post-node visit, we always visit the child first.
+        // this implies that by the time this function is called, its children is correct
+        auto *block = const_cast<BlockEntry *>(&entry);
+        compute_block_line(block);
+        sort_block(block);
+    }
+
+private:
+    static void compute_block_line(BlockEntry *block) {
+        uint32_t min = std::numeric_limits<uint32_t>::max();
+        for (auto const &entry : block->scope) {
+            if (entry->type != ScopeEntryType::Block) {
+                if (min > entry->line) {
+                    min = entry->line;
+                }
+            }
+        }
+        block->line = min;
+    }
+
+    static void sort_block(BlockEntry *block) {
+        std::stable_sort(block->scope.begin(), block->scope.end(),
+                         [](auto const &a, auto const &b) { return a->line < b->line; });
     }
 };
+
+void reorder_block_entry(const ModuleDefDict &defs) {
+    for (auto const &iter : defs) {
+        auto const &def = iter.second;
+        BlockReorderingVisitor vis;
+        vis.visit(*def);
+    }
+}
 
 class BlockFilenameVisitor : public DBVisitor<false, false, false> {
 public:
@@ -1467,6 +1498,8 @@ void JSONSymbolTableProvider::parse_db() {
         // build up the instance tree
         uint32_t inst_id = 0;
         db::json::build_instance_tree(*root_, inst_id);
+        // sort the entries. need it done before assigning IDs
+        db::json::reorder_block_entry(module_defs_);
         // build the breakpoints table
         build_bp_ids(*root_, num_bps_);
         // index the file names
