@@ -784,6 +784,15 @@ void build_instance_tree(Instance &inst, uint32_t &id) {
     }
 }
 
+class BlockReorderingVisitor: public DBVisitor<false, false, false> {
+public:
+    void handle(const BlockEntry &entry) override {
+        // we first reorder the blocks.
+        // then we merge the var decl or assign that has the exact the same location
+        // this should only produce one breakpoint
+    }
+};
+
 class BlockFilenameVisitor : public DBVisitor<false, false, false> {
 public:
     explicit BlockFilenameVisitor(std::unordered_set<const BlockEntry *> &entries)
