@@ -447,7 +447,7 @@ struct Instance {
     const Instance *parent = nullptr;
 
     std::unordered_map<std::string, std::unique_ptr<Instance>> instances;
-    std::unordered_map<uint32_t, const ScopeEntry *> bps;
+    std::map<uint32_t, const ScopeEntry *> bps;
 
     [[nodiscard]] inline std::optional<uint32_t> get_bp_id(const ScopeEntry *entry) const {
         // maybe need to do reversed indexing, but good enough for now
@@ -546,7 +546,9 @@ std::shared_ptr<AssignEntry> parse_assign(const rapidjson::Value &value, JSONPar
 VarDef parse_var(const rapidjson::Value &value);
 
 void set_scope_entry_value(const rapidjson::Value &value, ScopeEntry &result) {
-    result.line = value["line"].GetUint();
+    if (value.HasMember("line")) {
+        result.line = value["line"].GetUint();
+    }
     if (value.HasMember("column")) {
         result.column = value["column"].GetUint();
     }
@@ -793,23 +795,14 @@ public:
         // because this is post-node visit, we always visit the child first.
         // this implies that by the time this function is called, its children is correct
         auto *block = const_cast<BlockEntry *>(&entry);
-        compute_block_line(block);
         sort_block(block);
+        // then the smallest is always the first one
+        if (!block->scope.empty()) {
+            block->line = block->scope[0]->line;
+        }
     }
 
 private:
-    static void compute_block_line(BlockEntry *block) {
-        uint32_t min = std::numeric_limits<uint32_t>::max();
-        for (auto const &entry : block->scope) {
-            if (entry->type != ScopeEntryType::Block) {
-                if (min > entry->line) {
-                    min = entry->line;
-                }
-            }
-        }
-        block->line = min;
-    }
-
     static void sort_block(BlockEntry *block) {
         std::stable_sort(block->scope.begin(), block->scope.end(),
                          [](auto const &a, auto const &b) { return a->line < b->line; });

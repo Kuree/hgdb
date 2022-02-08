@@ -600,3 +600,62 @@ TEST_F(JSONDBTest, get_bps) { // NOLINT
     auto bps = db->execution_bp_orders();
     EXPECT_TRUE(bps.size() > 5);
 }
+
+TEST(json, reorder_bp) {    // NOLINT
+    auto constexpr *raw_db = R"(
+{
+  "generator": "hgdb",
+  "table": [
+    {
+      "type": "module",
+      "name": "mod",
+      "scope": [
+        {
+          "type": "block",
+          "filename": "hgdb.cc",
+          "scope": [
+            {
+              "type": "decl",
+              "line": 6,
+              "column": 4,
+              "variable": {
+                "name": "var.a",
+                "value": "var_a",
+                "rtl": true
+              }
+            },
+            {
+              "type": "block",
+              "scope": [
+                {
+                  "type": "none",
+                  "line": 3
+                },
+                {
+                  "type": "none",
+                  "line": 2
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "variables": [],
+      "instances": []
+    }
+  ],
+  "top": "mod"
+}
+)";
+    hgdb::JSONSymbolTableProvider db;
+    db.parse(raw_db);
+    EXPECT_FALSE(db.bad());
+
+    // read out the instances ids
+    auto bps = db.get_breakpoints("hgdb.cc");
+    EXPECT_EQ(bps.size(), 3);
+    EXPECT_EQ(bps[0].id, 0);
+    EXPECT_EQ(bps[0].line_num, 2);
+    EXPECT_EQ(bps[2].id, 2);
+    EXPECT_EQ(bps[2].line_num, 6);
+}
