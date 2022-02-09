@@ -36,6 +36,7 @@ We are working on passes to extract symbol tables from different
 generator frameworks. The list below will be growing!
 
 - Chisel/Firrtl, via `hgdb-firrtl`_.
+- CIRCT, native support. Current requires patch |circt-link|_.
 - Kratos, native support.
 - Hand-written Verilog/SystemVerilog, via hgdb-rtl (work in progress).
 
@@ -232,3 +233,5 @@ Below shows a list of language bindings offered by hgdb and their implementation
 .. _here: https://github.com/Kuree/hgdb-debugger
 .. _document: https://github.com/Kuree/hgdb/blob/master/docs/README.md
 .. _example test bench: https://github.com/Kuree/hgdb/blob/master/tests/vectors/test_set_value_tb.cc
+.. |circt-link| replace:: here
+.. _circt-link: https://github.com/Kuree/circt/tree/dev/debug2
