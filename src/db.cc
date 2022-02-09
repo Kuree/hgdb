@@ -483,12 +483,12 @@ struct ModuleDef : public ScopeEntry {
 };
 
 struct VarDeclEntry : public ScopeEntry {
-    VarDef var;
+    std::vector<VarDef> vars;
     VarDeclEntry() : ScopeEntry(ScopeEntryType::Declaration) {}
 };
 
 struct AssignEntry : public ScopeEntry {
-    VarDef var;
+    std::vector<VarDef> vars;
 
     AssignEntry() : ScopeEntry(ScopeEntryType::Assign) {}
 };
@@ -543,7 +543,7 @@ std::shared_ptr<ModuleDef> parse_module_def(const rapidjson::Value &value, JSONP
 std::shared_ptr<BlockEntry> parse_block_entry(const rapidjson::Value &value, JSONParseInfo &info);
 std::shared_ptr<VarDeclEntry> parse_var_decl(const rapidjson::Value &value, JSONParseInfo &info);
 std::shared_ptr<AssignEntry> parse_assign(const rapidjson::Value &value, JSONParseInfo &info);
-VarDef parse_var(const rapidjson::Value &value);
+std::vector<VarDef> parse_var(const rapidjson::Value &value);
 
 void set_scope_entry_value(const rapidjson::Value &value, ScopeEntry &result) {
     if (value.HasMember("line")) {
@@ -589,10 +589,9 @@ std::shared_ptr<ModuleDef> parse_module_def(const rapidjson::Value &value, JSONP
 
     // variables
     auto vars = value["variables"].GetArray();
-    result->vars.reserve(vars.Size());
     for (auto const &var : vars) {
         auto v = parse_var(var);
-        result->vars.emplace_back(v);
+        result->vars.insert(result->vars.end(), v.begin(), v.end());
     }
 
     // scopes
@@ -645,7 +644,7 @@ std::shared_ptr<VarDeclEntry> parse_var_decl(const rapidjson::Value &value, JSON
     auto result = std::make_shared<VarDeclEntry>();
     set_scope_entry_value(value, *result);
 
-    result->var = parse_var(value["variable"]);
+    result->vars = parse_var(value["variable"]);
 
     return result;
 }
@@ -653,19 +652,19 @@ std::shared_ptr<AssignEntry> parse_assign(const rapidjson::Value &value, JSONPar
     auto result = std::make_shared<AssignEntry>();
     set_scope_entry_value(value, *result);
 
-    result->var = parse_var(value["variable"]);
+    result->vars = parse_var(value["variable"]);
 
     return result;
 }
 
-VarDef parse_var(const rapidjson::Value &value) {
+std::vector<VarDef> parse_var(const rapidjson::Value &value) {
     VarDef var;
 
     var.name = value["name"].GetString();
     var.value = value["value"].GetString();
     var.rtl = value["rtl"].GetBool();
 
-    return var;
+    return {var};
 }
 
 std::shared_ptr<Instance> parse(
@@ -804,6 +803,9 @@ public:
 
 private:
     static void sort_block(BlockEntry *block) {
+        // column first, then line
+        std::stable_sort(block->scope.begin(), block->scope.end(),
+                         [](auto const &a, auto const &b) { return a->column < b->column; });
         std::stable_sort(block->scope.begin(), block->scope.end(),
                          [](auto const &a, auto const &b) { return a->line < b->line; });
     }
@@ -1192,13 +1194,18 @@ JSONSymbolTableProvider::get_context_variables(uint32_t breakpoint_id) {
         while (auto const *pre = node->get_previous()) {
             if (pre->type == db::json::ScopeEntryType::Declaration) {
                 auto const *decl = reinterpret_cast<const db::json::VarDeclEntry *>(pre);
-                if (vars.find(decl->var.name) == vars.end()) {
-                    vars.emplace(decl->var.name, &decl->var);
+                for (auto const &var : decl->vars) {
+                    if (vars.find(var.name) == vars.end()) {
+                        vars.emplace(var.name, &var);
+                    }
                 }
+
             } else if (pre->type == db::json::ScopeEntryType::Assign) {
                 auto const *assign = reinterpret_cast<const db::json::AssignEntry *>(pre);
-                if (vars.find(assign->var.name) == vars.end()) {
-                    vars.emplace(assign->var.name, &assign->var);
+                for (auto const &var : assign->vars) {
+                    if (vars.find(var.name) == vars.end()) {
+                        vars.emplace(var.name, &var);
+                    }
                 }
             }
             node = pre;
@@ -1326,29 +1333,36 @@ std::vector<std::string> JSONSymbolTableProvider::get_all_array_names() {
 
 class AssignmentVisitor : public db::json::DBVisitor<false, false, true> {
 public:
+    struct Info {
+        const db::json::AssignEntry *assign;
+        const std::string rtl_value;
+    };
+
     explicit AssignmentVisitor(const std::string &var_name) {
         var_names_ = util::get_tokens(var_name, "[].");
     }
 
     void handle(const db::json::AssignEntry &assign) override {
-        // notice that we treat [] and . the same
-        // so we have to do some processing
-        auto var_names = util::get_tokens(assign.var.name, "[].");
-        if (var_names.size() == var_names_.size()) {
-            bool same = true;
-            for (auto i = 0u; i < var_names.size(); i++) {
-                if (var_names[i] != var_names_[i]) {
-                    same = false;
-                    break;
+        for (auto const &var : assign.vars) {
+            // notice that we treat [] and . the same
+            // so we have to do some processing
+            auto var_names = util::get_tokens(var.name, "[].");
+            if (var_names.size() == var_names_.size()) {
+                bool same = true;
+                for (auto i = 0u; i < var_names.size(); i++) {
+                    if (var_names[i] != var_names_[i]) {
+                        same = false;
+                        break;
+                    }
                 }
-            }
-            if (same) {
-                result.emplace_back(&assign);
+                if (same) {
+                    result.emplace_back(Info{&assign, var.value});
+                }
             }
         }
     }
 
-    std::vector<const db::json::AssignEntry *> result;
+    std::vector<Info> result;
 
 private:
     std::vector<std::string> var_names_;
@@ -1387,10 +1401,10 @@ JSONSymbolTableProvider::get_assigned_breakpoints(const std::string &var_name,
     av.visit(mod_def);
 
     std::vector<std::tuple<uint32_t, std::string, std::string>> result;
-    for (auto const *assign : av.result) {
-        auto bp_id = instance->get_bp_id(assign);
+    for (auto const &info : av.result) {
+        auto bp_id = instance->get_bp_id(info.assign);
         if (!bp_id) continue;
-        result.emplace_back(std::make_tuple(*bp_id, assign->var.value, assign->get_condition()));
+        result.emplace_back(std::make_tuple(*bp_id, info.rtl_value, info.assign->get_condition()));
     }
 
     return result;
