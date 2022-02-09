@@ -742,3 +742,101 @@ TEST(json, var_merging) {  // NOLINT
     EXPECT_NE(var_names.find("var_a"), var_names.end());
     EXPECT_NE(var_names.find("var_b"), var_names.end());
 }
+
+TEST(json, var_ref) {  // NOLINT
+    auto constexpr *raw_db = R"(
+{
+  "generator": "hgdb",
+  "table": [
+    {
+      "type": "module",
+      "name": "mod",
+      "scope": [
+        {
+          "type": "block",
+          "filename": "hgdb.cc",
+          "scope": [
+            {
+              "type": "none",
+              "line": 8
+            },
+            {
+              "type": "decl",
+              "line": 6,
+              "column": 4,
+              "variable": "42"
+            },
+            {
+              "type": "assign",
+              "line": 6,
+              "column": 4,
+              "variable": "420"
+            }
+          ]
+        }
+      ],
+      "variables": [
+        "42",
+        {
+          "name": "var.c",
+          "value": "var_c",
+          "rtl": true
+        }
+      ],
+      "instances": []
+    }
+  ],
+  "top": "mod",
+  "variables": [
+    {
+      "name": "var.a",
+      "value": "var_a",
+      "rtl": true,
+      "id": "42"
+    },
+    {
+      "name": "var.b",
+      "value": "var_b",
+      "rtl": true,
+      "id": "420"
+    }
+  ]
+}
+)";
+    hgdb::JSONSymbolTableProvider db;
+    db.parse(raw_db);
+    EXPECT_FALSE(db.bad());
+
+    // read out the instances ids
+    auto bps = db.get_breakpoints("hgdb.cc");
+    EXPECT_EQ(bps.size(), 3);
+    EXPECT_EQ(bps[0].id, 0);
+    EXPECT_EQ(bps[0].line_num, 6);
+    EXPECT_EQ(bps[1].id, 1);
+    EXPECT_EQ(bps[1].line_num, 6);
+    EXPECT_EQ(bps[2].id, 2);
+    EXPECT_EQ(bps[2].line_num, 8);
+
+    // get context variables
+    {
+        auto vars = db.get_context_variables(2);
+        EXPECT_EQ(vars.size(), 2);
+        std::unordered_set<std::string> var_names;
+        for (auto const &[_, value] : vars) {
+            var_names.emplace(value.value);
+        }
+        EXPECT_NE(var_names.find("var_a"), var_names.end());
+        EXPECT_NE(var_names.find("var_b"), var_names.end());
+    }
+    // auto gen vars
+    {
+        auto vars = db.get_generator_variable(0);
+        EXPECT_EQ(vars.size(), 2);
+        std::unordered_set<std::string> var_names;
+        for (auto const &[_, value] : vars) {
+            var_names.emplace(value.value);
+        }
+        EXPECT_NE(var_names.find("var_a"), var_names.end());
+        EXPECT_NE(var_names.find("var_c"), var_names.end());
+    }
+}
