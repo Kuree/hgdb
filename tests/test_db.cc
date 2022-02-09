@@ -511,8 +511,7 @@ TEST_F(JSONDBTest, get_instance) {  // NOLINT
     EXPECT_EQ(inst_id, *res);
 }
 
-
-TEST_F(JSONDBTest, get_variable) { // NOLINT
+TEST_F(JSONDBTest, get_variable) {  // NOLINT
     {
         // context variables
         auto bp_id = db->get_breakpoints("hgdb.cc", 4);
@@ -561,15 +560,13 @@ TEST_F(JSONDBTest, get_variable) { // NOLINT
     }
 }
 
-
 TEST_F(JSONDBTest, assign) {  // NOLINT
     auto bp_id = db->get_breakpoints("hgdb.cc", 6);
     auto assigns = db->get_assigned_breakpoints("i", bp_id[0].id);
     EXPECT_EQ(assigns.size(), 2);
 }
 
-
-TEST_F(JSONDBTest, resolve_names) { // NOLINT
+TEST_F(JSONDBTest, resolve_names) {  // NOLINT
     {
         // resolve context
         auto bp_id = db->get_breakpoints("hgdb.cc", 6);
@@ -596,12 +593,12 @@ TEST_F(JSONDBTest, resolve_names) { // NOLINT
     }
 }
 
-TEST_F(JSONDBTest, get_bps) { // NOLINT
+TEST_F(JSONDBTest, get_bps) {  // NOLINT
     auto bps = db->execution_bp_orders();
     EXPECT_TRUE(bps.size() > 5);
 }
 
-TEST(json, reorder_bp) {    // NOLINT
+TEST(json, reorder_bp) {  // NOLINT
     auto constexpr *raw_db = R"(
 {
   "generator": "hgdb",
@@ -658,4 +655,90 @@ TEST(json, reorder_bp) {    // NOLINT
     EXPECT_EQ(bps[0].line_num, 2);
     EXPECT_EQ(bps[2].id, 2);
     EXPECT_EQ(bps[2].line_num, 6);
+}
+
+TEST(json, var_merging) {  // NOLINT
+    auto constexpr *raw_db = R"(
+{
+  "generator": "hgdb",
+  "table": [
+    {
+      "type": "module",
+      "name": "mod",
+      "scope": [
+        {
+          "type": "block",
+          "filename": "hgdb.cc",
+          "scope": [
+            {
+              "type": "decl",
+              "line": 6,
+              "column": 4,
+              "variable": {
+                "name": "var.a",
+                "value": "var_a",
+                "rtl": true
+              }
+            },
+            {
+              "type": "assign",
+              "line": 6,
+              "column": 4,
+              "variable": {
+                "name": "var.a",
+                "value": "var_a",
+                "rtl": true
+              }
+            },
+            {
+              "type": "decl",
+              "line": 6,
+              "column": 4,
+              "variable": {
+                "name": "var.b",
+                "value": "var_b",
+                "rtl": true
+              }
+            },
+            {
+              "type": "assign",
+              "line": 6,
+              "column": 4,
+              "variable": {
+                "name": "var.b",
+                "value": "var_b",
+                "rtl": true
+              }
+            }
+          ]
+        }
+      ],
+      "variables": [],
+      "instances": []
+    }
+  ],
+  "top": "mod"
+}
+)";
+    hgdb::JSONSymbolTableProvider db;
+    db.parse(raw_db);
+    EXPECT_FALSE(db.bad());
+
+    // read out the instances ids
+    auto bps = db.get_breakpoints("hgdb.cc");
+    EXPECT_EQ(bps.size(), 2);
+    EXPECT_EQ(bps[0].id, 0);
+    EXPECT_EQ(bps[0].line_num, 6);
+    EXPECT_EQ(bps[1].id, 1);
+    EXPECT_EQ(bps[1].line_num, 6);
+
+    // get context variables
+    auto vars = db.get_context_variables(1);
+    EXPECT_EQ(vars.size(), 2);
+    std::unordered_set<std::string> var_names;
+    for (auto const &[_, value] : vars) {
+        var_names.emplace(value.value);
+    }
+    EXPECT_NE(var_names.find("var_a"), var_names.end());
+    EXPECT_NE(var_names.find("var_b"), var_names.end());
 }

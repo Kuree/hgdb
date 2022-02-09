@@ -799,15 +799,72 @@ public:
         if (!block->scope.empty()) {
             block->line = block->scope[0]->line;
         }
+        // also merge variables
+        merge_var(block);
     }
 
 private:
     static void sort_block(BlockEntry *block) {
+        // sort by types first
+        std::stable_sort(block->scope.begin(), block->scope.end(),
+                         [](auto const &a, auto const &b) {
+                             return static_cast<uint32_t>(a->type) < static_cast<uint32_t>(b->type);
+                         });
         // column first, then line
         std::stable_sort(block->scope.begin(), block->scope.end(),
                          [](auto const &a, auto const &b) { return a->column < b->column; });
         std::stable_sort(block->scope.begin(), block->scope.end(),
                          [](auto const &a, auto const &b) { return a->line < b->line; });
+    }
+
+    // this one merge all var decl and assign into the same entry, if they have identical
+    // line and column information
+    static void merge_var(BlockEntry *block) {
+        // notice that at this point we already sorted it by type
+        auto &scope = block->scope;
+        for (auto i = 0u; i < scope.size(); i++) {
+            if (!scope[i]) continue;
+            auto &ref = scope[i];
+            if ((ref->type == ScopeEntryType::Assign) ||
+                (ref->type == ScopeEntryType::Declaration)) {
+                for (auto j = i + 1; j < scope.size(); j++) {
+                    auto const &target = scope[j];
+                    if (target->type != ref->type || target->line != ref->line ||
+                        target->column != ref->column || target->condition != ref->condition) {
+                        break;
+                    }
+                    // transfer
+                    switch (ref->type) {
+                        case ScopeEntryType::Assign:
+                            transfer_vars<AssignEntry>(ref, target);
+                            break;
+                        case ScopeEntryType::Declaration:
+                            transfer_vars<VarDeclEntry>(ref, target);
+                            break;
+                        default: {
+                            // probably throw exceptions?
+                        }
+                    }
+                    if (ref->type == ScopeEntryType::Assign) {
+                    }
+                    // delete the target
+                    scope[j] = nullptr;
+                }
+            }
+        }
+
+        // clean up empty ones
+        scope.erase(std::remove_if(scope.begin(), scope.end(), [](auto const &p) { return !p; }),
+                    scope.end());
+    }
+
+    template <typename T>
+    static void transfer_vars(const std::shared_ptr<ScopeEntry> &dst,
+                              const std::shared_ptr<ScopeEntry> &src) {
+        auto dst_entry = std::reinterpret_pointer_cast<T>(dst);
+        auto src_entry = std::reinterpret_pointer_cast<T>(src);
+        dst_entry->vars.insert(dst_entry->vars.end(), src_entry->vars.begin(),
+                               src_entry->vars.end());
     }
 };
 
@@ -1178,7 +1235,7 @@ std::optional<uint64_t> JSONSymbolTableProvider::get_instance_id(const std::stri
 }
 
 std::vector<SymbolTableProvider::ContextVariableInfo>
-JSONSymbolTableProvider::get_context_variables(uint32_t breakpoint_id) {
+JSONSymbolTableProvider::get_context_variables(uint32_t breakpoint_id) {  // NOLINT
     if (!root_) return {};
     BreakPointVisitor v(breakpoint_id);
     v.visit(*root_);
