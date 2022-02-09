@@ -21,6 +21,17 @@
     "top": {
       "description": "Top module name",
       "type": "string"
+    },
+    "variables": {
+      "description": "Variables used for references",
+      "type": "array",
+      "items": {
+        "allOf": [
+          {
+            "$ref": "#/$defs/variableDecl"
+          }
+        ]
+      }
     }
   },
   "required": [
@@ -49,6 +60,24 @@
           "type": "boolean"
         }
       }
+    },
+    "variableRef": {
+      "type": "string"
+    },
+    "variableDecl": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Globally unique variable ID"
+        }
+      },
+      "required": ["id"],
+      "allOf": [
+        {
+          "$ref": "#/$defs/variable"
+        }
+      ]
     },
     "scopeEntry": {
       "type": "object",
@@ -88,10 +117,12 @@
         },
         "variable": {
           "description": "Variable mappings defined by this entry",
-          "type": "object",
-          "allOf": [
+          "oneOf": [
             {
               "$ref": "#/$defs/variable"
+            },
+            {
+              "$ref": "#/$defs/variableRef"
             }
           ]
         },
@@ -99,9 +130,12 @@
           "description": "Variables defined in the module",
           "type": "array",
           "items": {
-            "allOf": [
+            "oneOf": [
               {
                 "$ref": "#/$defs/variable"
+              },
+              {
+                "$ref": "#/$defs/variableRef"
               }
             ]
           }

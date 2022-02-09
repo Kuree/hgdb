@@ -64,6 +64,7 @@ private:
 namespace db::json {
 struct ModuleDef;
 struct Instance;
+struct VarDef;
 }  // namespace db::json
 
 // json-based symbol table
@@ -109,6 +110,7 @@ private:
     // serialized data structure
     std::shared_ptr<db::json::Instance> root_ = nullptr;
     std::unordered_map<std::string, std::shared_ptr<db::json::ModuleDef>> module_defs_;
+    std::unordered_map<std::string, std::shared_ptr<db::json::VarDef>> var_defs_;
     uint32_t num_bps_ = 0;
 
     void parse_db();

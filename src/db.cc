@@ -468,7 +468,7 @@ struct ModuleDef : public ScopeEntry {
 
     std::vector<std::shared_ptr<ScopeEntry>> scope;
 
-    std::vector<VarDef> vars;
+    std::vector<std::shared_ptr<VarDef>> vars;
     std::map<std::string, const ModuleDef *> instances;
     // unresolved instances
     std::map<std::string, std::string> unresolved_instances;
@@ -483,12 +483,12 @@ struct ModuleDef : public ScopeEntry {
 };
 
 struct VarDeclEntry : public ScopeEntry {
-    std::vector<VarDef> vars;
+    std::vector<std::shared_ptr<VarDef>> vars;
     VarDeclEntry() : ScopeEntry(ScopeEntryType::Declaration) {}
 };
 
 struct AssignEntry : public ScopeEntry {
-    std::vector<VarDef> vars;
+    std::vector<std::shared_ptr<VarDef>> vars;
 
     AssignEntry() : ScopeEntry(ScopeEntryType::Assign) {}
 };
@@ -534,16 +534,20 @@ struct JSONParseInfo {
     const ScopeEntry *current_scope = nullptr;
 
     std::unordered_map<std::string, std::shared_ptr<ModuleDef>> &module_defs;
+    std::unordered_map<std::string, std::shared_ptr<VarDef>> &var_defs;
 
-    explicit JSONParseInfo(std::unordered_map<std::string, std::shared_ptr<ModuleDef>> &module_defs)
-        : module_defs(module_defs) {}
+    std::string error_reason;
+
+    JSONParseInfo(std::unordered_map<std::string, std::shared_ptr<ModuleDef>> &module_defs,
+                  std::unordered_map<std::string, std::shared_ptr<VarDef>> &var_defs)
+        : module_defs(module_defs), var_defs(var_defs) {}
 };
 
 std::shared_ptr<ModuleDef> parse_module_def(const rapidjson::Value &value, JSONParseInfo &info);
 std::shared_ptr<BlockEntry> parse_block_entry(const rapidjson::Value &value, JSONParseInfo &info);
 std::shared_ptr<VarDeclEntry> parse_var_decl(const rapidjson::Value &value, JSONParseInfo &info);
 std::shared_ptr<AssignEntry> parse_assign(const rapidjson::Value &value, JSONParseInfo &info);
-std::vector<VarDef> parse_var(const rapidjson::Value &value);
+std::vector<std::shared_ptr<VarDef>> parse_var(const rapidjson::Value &value, JSONParseInfo &info);
 
 void set_scope_entry_value(const rapidjson::Value &value, ScopeEntry &result) {
     if (value.HasMember("line")) {
@@ -590,7 +594,7 @@ std::shared_ptr<ModuleDef> parse_module_def(const rapidjson::Value &value, JSONP
     // variables
     auto vars = value["variables"].GetArray();
     for (auto const &var : vars) {
-        auto v = parse_var(var);
+        auto v = parse_var(var, info);
         result->vars.insert(result->vars.end(), v.begin(), v.end());
     }
 
@@ -640,39 +644,67 @@ std::shared_ptr<BlockEntry> parse_block_entry(const rapidjson::Value &value, JSO
     return result;
 }
 
-std::shared_ptr<VarDeclEntry> parse_var_decl(const rapidjson::Value &value, JSONParseInfo &) {
+std::shared_ptr<VarDeclEntry> parse_var_decl(const rapidjson::Value &value, JSONParseInfo &info) {
     auto result = std::make_shared<VarDeclEntry>();
     set_scope_entry_value(value, *result);
 
-    result->vars = parse_var(value["variable"]);
+    result->vars = parse_var(value["variable"], info);
 
     return result;
 }
-std::shared_ptr<AssignEntry> parse_assign(const rapidjson::Value &value, JSONParseInfo &) {
+std::shared_ptr<AssignEntry> parse_assign(const rapidjson::Value &value, JSONParseInfo &info) {
     auto result = std::make_shared<AssignEntry>();
     set_scope_entry_value(value, *result);
 
-    result->vars = parse_var(value["variable"]);
+    result->vars = parse_var(value["variable"], info);
 
     return result;
 }
 
-std::vector<VarDef> parse_var(const rapidjson::Value &value) {
-    VarDef var;
+std::vector<std::shared_ptr<VarDef>> parse_var(const rapidjson::Value &value, JSONParseInfo &info) {
+    std::shared_ptr<VarDef> var;
+    if (value.IsString()) {
+        // get it from the reference
+        std::string id = value.GetString();
+        auto const &vars = info.var_defs;
+        if (vars.find(id) != vars.end()) {
+            var = vars.at(id);
+        }
+    } else {
+        var = std::make_shared<VarDef>();
+        var->name = value["name"].GetString();
+        var->value = value["value"].GetString();
+        var->rtl = value["rtl"].GetBool();
+    }
 
-    var.name = value["name"].GetString();
-    var.value = value["value"].GetString();
-    var.rtl = value["rtl"].GetBool();
-
-    return {var};
+    if (!var) {
+        info.error_reason = "Unable to parse variable definition";
+        return {};
+    } else {
+        return {var};
+    }
 }
 
-std::shared_ptr<Instance> parse(
-    rapidjson::Document &document,
-    std::unordered_map<std::string, std::shared_ptr<ModuleDef>> &module_defs) {
+void parse_var_defs(const rapidjson::Document &document, JSONParseInfo &info) {
+    if (!document.HasMember("variables")) return;
+    auto variables = document["variables"].GetArray();
+    for (auto const &var_def : variables) {
+        auto var = std::make_shared<VarDef>();
+        var->name = var_def["name"].GetString();
+        var->value = var_def["value"].GetString();
+        var->rtl = var_def["rtl"].GetBool();
+        std::string id = var_def["id"].GetString();
+        info.var_defs.emplace(id, var);
+    }
+}
+
+std::shared_ptr<Instance> parse(rapidjson::Document &document, JSONParseInfo &info) {
+    // parse vars first since we need that to resolve symbol reference during module definition
+    // parsing
+    parse_var_defs(document, info);
+
     auto table = document["table"].GetArray();
     auto const *top = document["top"].GetString();
-    JSONParseInfo info(module_defs);
     std::shared_ptr<Instance> result;
     for (auto &entry : table) {
         auto parsed_entry = parse_scope_entry(entry, info);
@@ -960,7 +992,8 @@ JSONSymbolTableProvider::JSONSymbolTableProvider(const std::string &filename) {
         rapidjson::IStreamWrapper isw(stream);
         rapidjson::Document document;
         document.ParseStream(isw);
-        root_ = db::json::parse(document, module_defs_);
+        db::json::JSONParseInfo info(module_defs_, var_defs_);
+        root_ = db::json::parse(document, info);
     }
     parse_db();
 }
@@ -1252,16 +1285,16 @@ JSONSymbolTableProvider::get_context_variables(uint32_t breakpoint_id) {  // NOL
             if (pre->type == db::json::ScopeEntryType::Declaration) {
                 auto const *decl = reinterpret_cast<const db::json::VarDeclEntry *>(pre);
                 for (auto const &var : decl->vars) {
-                    if (vars.find(var.name) == vars.end()) {
-                        vars.emplace(var.name, &var);
+                    if (vars.find(var->name) == vars.end()) {
+                        vars.emplace(var->name, var.get());
                     }
                 }
 
             } else if (pre->type == db::json::ScopeEntryType::Assign) {
                 auto const *assign = reinterpret_cast<const db::json::AssignEntry *>(pre);
                 for (auto const &var : assign->vars) {
-                    if (vars.find(var.name) == vars.end()) {
-                        vars.emplace(var.name, &var);
+                    if (vars.find(var->name) == vars.end()) {
+                        vars.emplace(var->name, var.get());
                     }
                 }
             }
@@ -1306,13 +1339,13 @@ JSONSymbolTableProvider::get_generator_variable(uint32_t instance_id) {
     std::vector<SymbolTableProvider::GeneratorVariableInfo> result;
     for (auto const &var : vars) {
         GeneratorVariable gen_var;
-        gen_var.name = var.name;
+        gen_var.name = var->name;
         gen_var.instance_id = nullptr;
         gen_var.variable_id = nullptr;
 
         Variable db_var;
-        db_var.value = var.value;
-        db_var.is_rtl = var.rtl;
+        db_var.value = var->value;
+        db_var.is_rtl = var->rtl;
         db_var.id = 0;
 
         result.emplace_back(std::make_pair(std::move(gen_var), db_var));
@@ -1403,7 +1436,7 @@ public:
         for (auto const &var : assign.vars) {
             // notice that we treat [] and . the same
             // so we have to do some processing
-            auto var_names = util::get_tokens(var.name, "[].");
+            auto var_names = util::get_tokens(var->name, "[].");
             if (var_names.size() == var_names_.size()) {
                 bool same = true;
                 for (auto i = 0u; i < var_names.size(); i++) {
@@ -1413,7 +1446,7 @@ public:
                     }
                 }
                 if (same) {
-                    result.emplace_back(Info{&assign, var.value});
+                    result.emplace_back(Info{&assign, var->value});
                 }
             }
         }
@@ -1521,9 +1554,16 @@ bool JSONSymbolTableProvider::parse(const std::string &db_content) {
         rapidjson::IStreamWrapper isw(ss);
         rapidjson::Document document;
         document.ParseStream(isw);
-        root_ = db::json::parse(document, module_defs_);
+        db::json::JSONParseInfo info(module_defs_, var_defs_);
+        root_ = db::json::parse(document, info);
 
         parse_db();
+
+        if (!info.error_reason.empty()) {
+            // we have an error
+            log::log(log::log_level::error, info.error_reason);
+            root_ = nullptr;
+        }
     }
     return root_ != nullptr;
 }
