@@ -487,24 +487,25 @@ void RTLSimulatorClient::finish_sim(finish_value value) {
 std::vector<std::string> RTLSimulatorClient::resolve_rtl_variable(const std::string &rtl_name) {
     auto *handle = get_handle(rtl_name);
     auto type = get_vpi_type(handle);
-    if (type != vpiStructVar && type != vpiStructNet) {
-        return {rtl_name};
-    }
-    // this is a struct, need to iterate it over
-    // we have a range of options to iterate as well
-    std::vector<std::string> res;
-    auto vpi_types = {vpiNet, vpiReg, vpiPrimitive, vpiMember};
-    for (auto vpi_type : vpi_types) {
-        if (auto *it = vpi_->vpi_iterate(vpi_type, handle)) {
-            // found it, now need to scan it
-            while (auto *h = vpi_->vpi_scan(it)) {
-                auto *n = vpi_->vpi_get_str(vpiName, h);
-                res.emplace_back(n);
+    switch (type) {
+        case vpiStructVar:
+        case vpiStructNet: {
+            std::vector<std::string> res;
+            if (auto *it = vpi_->vpi_iterate(vpiMember, handle)) {
+                while (auto *h = vpi_->vpi_scan(it)) {
+                    auto *n = vpi_->vpi_get_str(vpiFullName, h);
+                    // make it recursive to account for
+                    auto new_res = resolve_rtl_variable(n);
+                    res.insert(res.end(), new_res.begin(), new_res.end());
+                }
             }
-            break;
+
+            return res;
+        }
+        default: {
+            return {rtl_name};
         }
     }
-    return res;
 }
 
 std::pair<std::string, std::string> RTLSimulatorClient::get_path(const std::string &name) {
