@@ -488,6 +488,21 @@ std::vector<std::string> RTLSimulatorClient::resolve_rtl_variable(const std::str
     auto *handle = get_handle(rtl_name);
     auto type = get_vpi_type(handle);
     switch (type) {
+        case vpiInterface: {
+            std::vector<std::string> res;
+            auto vpi_types = {vpiNet, vpiReg};
+            for (auto vpi_type : vpi_types) {
+                if (auto *it = vpi_->vpi_iterate(vpi_type, handle)) {
+                    while (auto *h = vpi_->vpi_scan(it)) {
+                        auto *n = vpi_->vpi_get_str(vpiFullName, h);
+                        // make it recursive to account for
+                        auto new_res = resolve_rtl_variable(n);
+                        res.insert(res.end(), new_res.begin(), new_res.end());
+                    }
+                }
+            }
+            return res;
+        }
         case vpiStructVar:
         case vpiStructNet: {
             std::vector<std::string> res;
