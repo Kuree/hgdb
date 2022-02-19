@@ -374,10 +374,10 @@ std::string Debugger::get_monitor_topic(uint64_t watch_id) {
     return fmt::format("watch-{0}", watch_id);
 }
 
-std::string Debugger::get_var_value(const std::string &var_name, bool is_rtl) {
+std::string Debugger::get_var_value(const std::string &rtl_name, bool is_rtl) {
     std::string value_str;
     if (is_rtl) {
-        auto full_name = rtl_->get_full_name(var_name);
+        auto full_name = rtl_->get_full_name(rtl_name);
         if (!use_hex_str_) {
             auto value = rtl_->get_value(full_name);
             value_str = value ? std::to_string(*value) : error_value_str;
@@ -387,7 +387,7 @@ std::string Debugger::get_var_value(const std::string &var_name, bool is_rtl) {
         }
 
     } else {
-        value_str = var_name;
+        value_str = rtl_name;
     }
     return value_str;
 }
@@ -942,6 +942,7 @@ void Debugger::handle_data_breakpoint(const DataBreakpointRequest &req, uint64_t
     }
 }
 
+// NOLINTNEXTLINE
 void Debugger::send_breakpoint_hit(const std::vector<const DebugBreakPoint *> &bps) {
     // we send it here to avoid a round trip of client asking for context and send it
     // back
@@ -971,25 +972,31 @@ void Debugger::send_breakpoint_hit(const std::vector<const DebugBreakPoint *> &b
         using namespace std::string_literals;
         for (auto const &[gen_var, var] : generator_values) {
             // maybe need to resolve the name based on the variable
-            std::string name = var.value;
-            if (name.find_first_of('.') == std::string::npos) {
-                auto v = db_->resolve_scoped_name_instance(name, bp->instance_id);
-                if (v) name = *v;
+            std::string rtl_name_base = var.value;
+            if (rtl_name_base.find_first_of('.') == std::string::npos) {
+                auto v = db_->resolve_scoped_name_instance(rtl_name_base, bp->instance_id);
+                if (v) rtl_name_base = *v;
             }
-            std::string value_str = get_var_value(name, var.is_rtl);
             auto var_name = gen_var.name;
-            scope.add_generator_value(var_name, value_str);
+            auto var_names = rtl_->resolve_rtl_variable(var_name, rtl_name_base);
+            for (auto const &[front_name, rtl_name] : var_names) {
+                std::string value_str = get_var_value(rtl_name, var.is_rtl);
+                scope.add_generator_value(front_name, value_str);
+            }
         }
 
         for (auto const &[gen_var, var] : context_values) {
-            std::string name = var.value;
-            if (name.find_first_of('.') == std::string::npos) {
-                auto v = db_->resolve_scoped_name_breakpoint(name, bp->id);
-                if (v) name = *v;
+            std::string rtl_name_base = var.value;
+            if (rtl_name_base.find_first_of('.') == std::string::npos) {
+                auto v = db_->resolve_scoped_name_breakpoint(rtl_name_base, bp->id);
+                if (v) rtl_name_base = *v;
             }
-            std::string value_str = get_var_value(name, var.is_rtl);
             auto var_name = gen_var.name;
-            scope.add_local_value(var_name, value_str);
+            auto var_names = rtl_->resolve_rtl_variable(var_name, rtl_name_base);
+            for (auto const &[front_name, rtl_name] : var_names) {
+                std::string value_str = get_var_value(rtl_name, var.is_rtl);
+                scope.add_local_value(front_name, value_str);
+            }
         }
         resp.add_scope(scope);
     }
