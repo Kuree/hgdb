@@ -489,7 +489,7 @@ std::vector<std::pair<std::string, std::string>> RTLSimulatorClient::resolve_rtl
     auto *handle = get_handle(rtl_name);
     auto type = get_vpi_type(handle);
 
-    auto iterate_type = [handle, this, front_name](
+    auto iterate_type = [handle, this, &front_name](
                             int property, std::vector<std::pair<std::string, std::string>> &res) {
         if (auto *it = vpi_->vpi_iterate(property, handle)) {
             while (auto *h = vpi_->vpi_scan(it)) {
@@ -502,24 +502,48 @@ std::vector<std::pair<std::string, std::string>> RTLSimulatorClient::resolve_rtl
         }
     };
 
+    auto array_iteration = [handle, this, &front_name,
+                            &rtl_name](std::vector<std::pair<std::string, std::string>> &res) {
+        if (auto *it = vpi_->vpi_iterate(vpiRange, handle)) {
+            uint64_t idx = 0;
+            // notice this will only work with indices that start from 0
+            while (vpi_->vpi_scan(it)) {
+                auto sub_rtl_name = fmt::format("{0}[{1}]", rtl_name, idx);
+                auto sub_var_name = fmt::format("{0}.{1}", front_name, idx);
+                auto new_res = resolve_rtl_variable(sub_var_name, sub_rtl_name);
+                res.insert(res.end(), new_res.begin(), new_res.end());
+                idx++;
+            }
+        }
+    };
+
+    std::vector<std::pair<std::string, std::string>> res;
     switch (type) {
         case vpiInterface: {
-            std::vector<std::pair<std::string, std::string>> res;
             auto vpi_types = {vpiNet, vpiReg};
             for (auto vpi_type : vpi_types) {
                 iterate_type(vpi_type, res);
             }
-            return res;
+            break;
         }
         case vpiStructVar:
         case vpiStructNet: {
-            std::vector<std::pair<std::string, std::string>> res;
             iterate_type(vpiMember, res);
-            return res;
+            break;
+        }
+        case vpiNetArray:
+        case vpiRegArray: {
+            array_iteration(res);
+            break;
         }
         default: {
-            return {{front_name, rtl_name}};
         }
+    }
+    if (res.empty()) [[likely]] {
+        // most cases it's a wire
+        return {{front_name, rtl_name}};
+    } else {
+        return res;
     }
 }
 
