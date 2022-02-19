@@ -88,8 +88,29 @@ def test_other_simulators(find_free_port, simulator):
             asyncio.get_event_loop().run_until_complete(test_logic())
 
 
+def test_complex_construct(find_free_port, simulator):
+    with tempfile.TemporaryDirectory() as temp:
+        db_filename = os.path.join(vector_dir, "complex_db.json")
+        tb_filename = os.path.join(vector_dir, "test_complex.cc")
+        mod_filename = os.path.join(vector_dir, "test_complex.sv")
+        with simulator(tb_filename, mod_filename, cwd=temp, top_name="top") as tester:
+            port = find_free_port()
+            tester.run(blocking=False, DEBUG_PORT=port, DEBUG_LOG=True)
+            uri = get_uri(port)
+
+            async def test_logic():
+                client = HGDBClient(uri, db_filename)
+                await client.connect()
+                await client.set_breakpoint("hgdb.cc", 1)
+                await client.continue_()
+                bp = await client.recv()
+                print(bp)
+
+            asyncio.get_event_loop().run_until_complete(test_logic())
+
+
 if __name__ == "__main__":
     sys.path.append(get_root())
     from conftest import find_free_port_fn
 
-    test_other_simulators(find_free_port_fn, QuestaTester)
+    test_complex_construct(find_free_port_fn, VerilatorTester)

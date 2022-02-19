@@ -1,0 +1,40 @@
+{
+  "generator": "hgdb",
+  "table": [
+    {
+      "type": "module",
+      "name": "mod",
+      "scope": [
+        {
+          "type": "block",
+          "filename": "hgdb.cc",
+          "scope": [
+            {
+              "type": "none",
+              "line": 1
+            }
+          ]
+        }
+      ],
+      "variables": [
+        {
+          "name": "a",
+          "value": "a",
+          "rtl": true
+        },
+        {
+          "name": "b",
+          "value": "b",
+          "rtl": true
+        },
+        {
+          "name": "c",
+          "value": "c",
+          "rtl": true
+        }
+      ],
+      "instances": []
+    }
+  ],
+  "top": "mod"
+}
