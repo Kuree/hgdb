@@ -102,7 +102,8 @@ public:
     void finish_sim(finish_value value = finish_value::nothing);
     void stop_sim(finish_value value = finish_value::nothing);
     // deal with struct
-    std::vector<std::string> resolve_rtl_variable(const std::string &rtl_name);
+    std::vector<std::pair<std::string, std::string>> resolve_rtl_variable(
+        const std::string &front_name, const std::string &rtl_name);
 
     // expose raw vpi client if necessary
     AVPIProvider &vpi() { return *vpi_; }

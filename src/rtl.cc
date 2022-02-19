@@ -484,41 +484,41 @@ void RTLSimulatorClient::finish_sim(finish_value value) {
     vpi_->vpi_control(vpiFinish, static_cast<int>(value));
 }
 
-std::vector<std::string> RTLSimulatorClient::resolve_rtl_variable(const std::string &rtl_name) {
+std::vector<std::pair<std::string, std::string>> RTLSimulatorClient::resolve_rtl_variable(
+    const std::string &front_name, const std::string &rtl_name) {
     auto *handle = get_handle(rtl_name);
     auto type = get_vpi_type(handle);
+
+    auto iterate_type = [handle, this, front_name](
+                            int property, std::vector<std::pair<std::string, std::string>> &res) {
+        if (auto *it = vpi_->vpi_iterate(property, handle)) {
+            while (auto *h = vpi_->vpi_scan(it)) {
+                auto *rtl = vpi_->vpi_get_str(vpiFullName, h);
+                auto *n = vpi_->vpi_get_str(vpiName, h);
+                // make it recursive to account for
+                auto new_res = resolve_rtl_variable(front_name + "." + n, rtl);
+                res.insert(res.end(), new_res.begin(), new_res.end());
+            }
+        }
+    };
+
     switch (type) {
         case vpiInterface: {
-            std::vector<std::string> res;
+            std::vector<std::pair<std::string, std::string>> res;
             auto vpi_types = {vpiNet, vpiReg};
             for (auto vpi_type : vpi_types) {
-                if (auto *it = vpi_->vpi_iterate(vpi_type, handle)) {
-                    while (auto *h = vpi_->vpi_scan(it)) {
-                        auto *n = vpi_->vpi_get_str(vpiFullName, h);
-                        // make it recursive to account for
-                        auto new_res = resolve_rtl_variable(n);
-                        res.insert(res.end(), new_res.begin(), new_res.end());
-                    }
-                }
+                iterate_type(vpi_type, res);
             }
             return res;
         }
         case vpiStructVar:
         case vpiStructNet: {
-            std::vector<std::string> res;
-            if (auto *it = vpi_->vpi_iterate(vpiMember, handle)) {
-                while (auto *h = vpi_->vpi_scan(it)) {
-                    auto *n = vpi_->vpi_get_str(vpiFullName, h);
-                    // make it recursive to account for
-                    auto new_res = resolve_rtl_variable(n);
-                    res.insert(res.end(), new_res.begin(), new_res.end());
-                }
-            }
-
+            std::vector<std::pair<std::string, std::string>> res;
+            iterate_type(vpiMember, res);
             return res;
         }
         default: {
-            return {rtl_name};
+            return {{front_name, rtl_name}};
         }
     }
 }
