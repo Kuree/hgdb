@@ -182,7 +182,7 @@ class CadenceTester(Tester):
 
 
 class XceliumTester(CadenceTester):
-    def __init__(self, *files: str, cwd=None, clean_up_run=False):
+    def __init__(self, *files: str, cwd=None, clean_up_run=False, **_):
         super().__init__(*files, cwd=cwd, clean_up_run=clean_up_run)
         self.toolchain = "xrun"
 

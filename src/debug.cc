@@ -378,14 +378,23 @@ std::string Debugger::get_var_value(const std::string &rtl_name, bool is_rtl) {
     std::string value_str;
     if (is_rtl) {
         auto full_name = rtl_->get_full_name(rtl_name);
-        if (!use_hex_str_) {
-            auto value = rtl_->get_value(full_name);
-            value_str = value ? std::to_string(*value) : error_value_str;
+        // get value size. Verilator will freak out if the width is larger than 64
+        // notice that this logic is not on the critical path since it's only used when
+        // constructing the frame
+        auto *handle = rtl_->get_handle(rtl_name);
+        auto width = vpi_get(vpiSize, handle);
+        if (width > 64) [[unlikely]] {
+            value_str = error_value_str;
+            log_info(fmt::format("{0} is too large to display as an integer", rtl_name));
         } else {
-            auto value = rtl_->get_str_value(full_name);
-            value_str = value ? *value : error_value_str;
+            if (!use_hex_str_) {
+                auto value = rtl_->get_value(handle);
+                value_str = value ? std::to_string(*value) : error_value_str;
+            } else {
+                auto value = rtl_->get_str_value(handle);
+                value_str = value ? *value : error_value_str;
+            }
         }
-
     } else {
         value_str = rtl_name;
     }

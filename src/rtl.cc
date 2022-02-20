@@ -484,6 +484,7 @@ void RTLSimulatorClient::finish_sim(finish_value value) {
     vpi_->vpi_control(vpiFinish, static_cast<int>(value));
 }
 
+// NOLINTNEXTLINE
 std::vector<std::pair<std::string, std::string>> RTLSimulatorClient::resolve_rtl_variable(
     const std::string &front_name, const std::string &rtl_name) {
     auto *handle = get_handle(rtl_name);
@@ -502,14 +503,18 @@ std::vector<std::pair<std::string, std::string>> RTLSimulatorClient::resolve_rtl
         }
     };
 
-    auto array_iteration = [handle, this, &front_name,
-                            &rtl_name](std::vector<std::pair<std::string, std::string>> &res) {
-        if (auto *it = vpi_->vpi_iterate(vpiRange, handle)) {
+    auto array_iteration = [handle, this, &front_name, &rtl_name](
+                               int property,
+                               std::vector<std::pair<std::string, std::string>> &res) {
+        if (auto *it = vpi_->vpi_iterate(property, handle)) {
             uint64_t idx = 0;
             // notice this will only work with indices that start from 0
+            // Xcelium scanning does not work!
             while (vpi_->vpi_scan(it)) {
                 auto sub_rtl_name = fmt::format("{0}[{1}]", rtl_name, idx);
                 auto sub_var_name = fmt::format("{0}.{1}", front_name, idx);
+                // make sure it's a valid rtl
+                if (!is_valid_signal(sub_rtl_name)) break;
                 auto new_res = resolve_rtl_variable(sub_var_name, sub_rtl_name);
                 res.insert(res.end(), new_res.begin(), new_res.end());
                 idx++;
@@ -517,10 +522,37 @@ std::vector<std::pair<std::string, std::string>> RTLSimulatorClient::resolve_rtl
         }
     };
 
+    auto brute_force_array = [this, handle, &front_name, &rtl_name,
+                              type](std::vector<std::pair<std::string, std::string>> &res) {
+        // Xcelium use vpiReg for packed array, and you can't use vpiElement iteration for
+        // some eason
+        // per LRM 37.16 29), a spec-compliant simulator should allow this
+        // we have to use brute force
+        auto first_element = fmt::format("{0}[0]", rtl_name);
+        if (auto *first_handle = get_handle(first_element)) {
+            auto is_array = vpi_get(vpiVector, first_handle);
+            if (is_array) {
+                auto size = vpi_get(vpiSize, handle);
+                if (type != vpiRegArray && type != vpiNetArray) {
+                    auto element_size = vpi_get(vpiSize, first_handle);
+                    size = size / element_size;
+                }
+                for (auto idx = 0; idx < size; idx++) {
+                    auto sub_rtl_name = fmt::format("{0}[{1}]", rtl_name, idx);
+                    auto sub_var_name = fmt::format("{0}.{1}", front_name, idx);
+                    auto new_res = resolve_rtl_variable(sub_var_name, sub_rtl_name);
+                    res.insert(res.end(), new_res.begin(), new_res.end());
+                }
+            }
+        }
+    };
+
     std::vector<std::pair<std::string, std::string>> res;
     switch (type) {
+            // verilator treat interface as a module
+        case vpiModule:
         case vpiInterface: {
-            auto vpi_types = {vpiNet, vpiReg};
+            auto vpi_types = {vpiNet, vpiReg, vpiMemory, vpiNetArray, vpiRegArray};
             for (auto vpi_type : vpi_types) {
                 iterate_type(vpi_type, res);
             }
@@ -531,12 +563,21 @@ std::vector<std::pair<std::string, std::string>> RTLSimulatorClient::resolve_rtl
             iterate_type(vpiMember, res);
             break;
         }
+        // verilator uses these values even for packed array
+        case vpiMemory:
         case vpiNetArray:
         case vpiRegArray: {
-            array_iteration(res);
+            if (!is_verilator()) {
+                brute_force_array(res);
+            } else {
+                array_iteration(vpiRange, res);
+            }
             break;
         }
         default: {
+            if (!is_verilator()) {
+                brute_force_array(res);
+            }
         }
     }
     if (res.empty()) [[likely]] {

@@ -3,7 +3,7 @@
   "table": [
     {
       "type": "module",
-      "name": "mod",
+      "name": "top",
       "scope": [
         {
           "type": "block",
@@ -26,15 +26,10 @@
           "name": "b",
           "value": "b",
           "rtl": true
-        },
-        {
-          "name": "c",
-          "value": "c",
-          "rtl": true
         }
       ],
       "instances": []
     }
   ],
-  "top": "mod"
+  "top": "top"
 }

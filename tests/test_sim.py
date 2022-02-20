@@ -1,11 +1,12 @@
-from hgdb import HGDBClient, DebugSymbolTable
-from generators.util import (XceliumTester, VCSTester, VerilatorTester, IVerilogTester, QuestaTester, get_uri, get_root)
-import tempfile
-import os
 import asyncio
-import sys
-import pytest
+import os
+import tempfile
 
+import pytest
+import sys
+from hgdb import HGDBClient, DebugSymbolTable
+
+from generators.util import (XceliumTester, VCSTester, VerilatorTester, IVerilogTester, QuestaTester, get_uri, get_root)
 
 vector_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "vectors")
 
@@ -88,10 +89,12 @@ def test_other_simulators(find_free_port, simulator):
             asyncio.get_event_loop().run_until_complete(test_logic())
 
 
+@pytest.mark.parametrize("simulator", [VerilatorTester, XceliumTester])
 def test_complex_construct(find_free_port, simulator):
     with tempfile.TemporaryDirectory() as temp:
         db_filename = os.path.join(vector_dir, "complex_db.json")
-        tb_filename = os.path.join(vector_dir, "test_complex.cc")
+        tb_filename = os.path.join(vector_dir, "test_complex.cc") if simulator == VerilatorTester else os.path.join(
+            vector_dir, "test_complex_tb.sv")
         mod_filename = os.path.join(vector_dir, "test_complex.sv")
         with simulator(tb_filename, mod_filename, cwd=temp, top_name="top") as tester:
             port = find_free_port()
@@ -104,7 +107,15 @@ def test_complex_construct(find_free_port, simulator):
                 await client.set_breakpoint("hgdb.cc", 1)
                 await client.continue_()
                 bp = await client.recv()
-                print(bp)
+                gen_vars = bp["payload"]["instances"][0]["generator"]
+                assert "a.a" in gen_vars and gen_vars["a.a"] != "ERROR"
+                assert "a.c.0" in gen_vars and gen_vars["a.c.0"] != "ERROR"
+                assert "a.c.1" in gen_vars and gen_vars["a.c.1"] != "ERROR"
+                # notice that verilator doesn't show the complete values
+                if simulator != VerilatorTester:
+                    assert "a.b.15" in gen_vars and gen_vars["a.b.15"] != "ERROR"
+                    assert "b.a" in gen_vars and gen_vars["b.a"] != "ERROR"
+                    assert "b.b.15" in gen_vars and gen_vars["b.b.15"] != "ERROR"
 
             asyncio.get_event_loop().run_until_complete(test_logic())
 
@@ -113,4 +124,4 @@ if __name__ == "__main__":
     sys.path.append(get_root())
     from conftest import find_free_port_fn
 
-    test_complex_construct(find_free_port_fn, VerilatorTester)
+    test_complex_construct(find_free_port_fn, XceliumTester)
