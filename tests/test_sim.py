@@ -89,8 +89,10 @@ def test_other_simulators(find_free_port, simulator):
             asyncio.get_event_loop().run_until_complete(test_logic())
 
 
-@pytest.mark.parametrize("simulator", [VerilatorTester, XceliumTester])
+@pytest.mark.parametrize("simulator", [VerilatorTester, XceliumTester, VCSTester])
 def test_complex_construct(find_free_port, simulator):
+    if not simulator.available():
+        pytest.skip("{0} not available".format(simulator.__name__))
     with tempfile.TemporaryDirectory() as temp:
         db_filename = os.path.join(vector_dir, "complex_db.json")
         tb_filename = os.path.join(vector_dir, "test_complex.cc") if simulator == VerilatorTester else os.path.join(
@@ -108,14 +110,18 @@ def test_complex_construct(find_free_port, simulator):
                 await client.continue_()
                 bp = await client.recv()
                 gen_vars = bp["payload"]["instances"][0]["generator"]
-                assert "a.a" in gen_vars and gen_vars["a.a"] != "ERROR"
-                assert "a.c.0" in gen_vars and gen_vars["a.c.0"] != "ERROR"
-                assert "a.c.1" in gen_vars and gen_vars["a.c.1"] != "ERROR"
-                # notice that verilator doesn't show the complete values
-                if simulator != VerilatorTester:
-                    assert "a.b.15" in gen_vars and gen_vars["a.b.15"] != "ERROR"
+                if simulator == VCSTester:
                     assert "b.a" in gen_vars and gen_vars["b.a"] != "ERROR"
                     assert "b.b.15" in gen_vars and gen_vars["b.b.15"] != "ERROR"
+                else:
+                    assert "a.a" in gen_vars and gen_vars["a.a"] != "ERROR"
+                    assert "a.c.0" in gen_vars and gen_vars["a.c.0"] != "ERROR"
+                    assert "a.c.1" in gen_vars and gen_vars["a.c.1"] != "ERROR"
+                    # notice that verilator doesn't show the complete values
+                    if simulator != VerilatorTester:
+                        assert "a.b.15" in gen_vars and gen_vars["a.b.15"] != "ERROR"
+                        assert "b.a" in gen_vars and gen_vars["b.a"] != "ERROR"
+                        assert "b.b.15" in gen_vars and gen_vars["b.b.15"] != "ERROR"
 
             asyncio.get_event_loop().run_until_complete(test_logic())
 
@@ -124,4 +130,4 @@ if __name__ == "__main__":
     sys.path.append(get_root())
     from conftest import find_free_port_fn
 
-    test_complex_construct(find_free_port_fn, XceliumTester)
+    test_complex_construct(find_free_port_fn, VCSTester)

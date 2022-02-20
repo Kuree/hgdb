@@ -546,13 +546,17 @@ std::vector<std::pair<std::string, std::string>> RTLSimulatorClient::resolve_rtl
             }
         }
     };
-
     std::vector<std::pair<std::string, std::string>> res;
     switch (type) {
             // verilator treat interface as a module
         case vpiModule:
         case vpiInterface: {
-            auto vpi_types = {vpiNet, vpiReg, vpiMemory, vpiNetArray, vpiRegArray};
+            if (is_vcs()) {
+                log::log(log::log_level::info, "VCS interface not supported");
+                return {};
+            }
+            auto vpi_types = {vpiNet,      vpiReg,      vpiMemory,
+                              vpiNetArray, vpiRegArray, vpiInterfacePort};
             for (auto vpi_type : vpi_types) {
                 iterate_type(vpi_type, res);
             }
