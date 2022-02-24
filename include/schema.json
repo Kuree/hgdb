@@ -72,11 +72,42 @@
           "description": "Globally unique variable ID"
         }
       },
-      "required": ["id"],
+      "required": [
+        "id"
+      ],
       "allOf": [
         {
           "$ref": "#/$defs/variable"
         }
+      ]
+    },
+    "index": {
+      "type": "object",
+      "properties": {
+        "var": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/variable"
+            },
+            {
+              "$ref": "#/$defs/variableRef"
+            }
+          ],
+          "description": "Variable used for indexing the target"
+        },
+        "min": {
+          "type": "integer",
+          "description": "Minimum value of the index, inclusive"
+        },
+        "max": {
+          "type": "integer",
+          "description": "Maximum value of the index, inclusive"
+        }
+      },
+      "required": [
+        "var",
+        "min",
+        "max"
       ]
     },
     "scopeEntry": {
@@ -108,7 +139,7 @@
           "description": "Enable condition for this entry"
         },
         "scope": {
-          "description": "Scopes contained in tentry",
+          "description": "Scopes contained in the entry",
           "allOf": [
             {
               "$ref": "#/$defs/scope"
@@ -162,6 +193,15 @@
               }
             ]
           }
+        },
+        "index": {
+          "description": "Variable index information",
+          "type": "object",
+          "allOf": [
+            {
+              "$ref": "#/$defs/index"
+            }
+          ]
         }
       },
       "required": [

@@ -490,7 +490,17 @@ struct VarDeclEntry : public ScopeEntry {
 struct AssignEntry : public ScopeEntry {
     std::vector<std::shared_ptr<VarDef>> vars;
 
+    struct IndexInfo {
+        std::shared_ptr<VarDef> var;
+        uint32_t min = 0;
+        uint32_t max = 0;
+    };
+
+    IndexInfo index;
+
     AssignEntry() : ScopeEntry(ScopeEntryType::Assign) {}
+
+    [[nodiscard]] bool has_index() const { return index.var != nullptr; }
 };
 
 struct BlockEntry : public ScopeEntry {
@@ -657,6 +667,13 @@ std::shared_ptr<AssignEntry> parse_assign(const rapidjson::Value &value, JSONPar
     set_scope_entry_value(value, *result);
 
     result->vars = parse_var(value["variable"], info);
+
+    if (value.HasMember("index")) {
+        auto const &index = value["index"];
+        result->index.var = parse_var(index["var"], info)[0];
+        result->index.min = index["min"].GetUint();
+        result->index.max = index["max"].GetUint();
+    }
 
     return result;
 }
@@ -1425,7 +1442,8 @@ class AssignmentVisitor : public db::json::DBVisitor<false, false, true> {
 public:
     struct Info {
         const db::json::AssignEntry *assign;
-        const std::string rtl_value;
+        const std::string &rtl_value;
+        std::string condition;
     };
 
     explicit AssignmentVisitor(const std::string &var_name) {
@@ -1433,10 +1451,46 @@ public:
     }
 
     void handle(const db::json::AssignEntry &assign) override {
+        if (auto info = rtl_equivalent(assign)) {
+            result.emplace_back(*info);
+        }
+    }
+
+    std::vector<Info> result;
+
+private:
+    std::vector<std::string> var_names_;
+
+    // NOLINTNEXTLINE
+    [[nodiscard]] std::optional<Info> rtl_equivalent(const db::json::AssignEntry &assign) const {
+        // the problem is the front end name maybe an indexed variable
+        if (assign.has_index()) {
+            // this is an indexed variable
+            // make sure up to the index we are the same
+            // notice that once index is present, it's illegal to have multiple vars
+            auto var_names = util::get_tokens(assign.vars[0]->name, "[].");
+            if (same_var(var_names.begin(), var_names.end(), var_names_.begin(),
+                         var_names_.end() - 1)) {
+                // need to parse out the actual var_names index
+                auto index_str = var_names_.back();
+                if (auto idx = util::stoul(index_str)) {
+                    // found the actual index. now check if it's within the boundary
+                    if (assign.index.min <= idx && assign.index.max >= idx) {
+                        // we have found it. create a condition now
+                        auto cond = fmt::format("{0} == {1}", assign.index.var->value, *idx);
+                        return Info{&assign, assign.vars[0]->value, cond};
+                    }
+                }
+            }
+        }
+
         for (auto const &var : assign.vars) {
             // notice that we treat [] and . the same
             // so we have to do some processing
             auto var_names = util::get_tokens(var->name, "[].");
+            if (same_var(var_names.begin(), var_names.end(), var_names_.begin(),
+                         var_names_.end())) {
+            }
             if (var_names.size() == var_names_.size()) {
                 bool same = true;
                 for (auto i = 0u; i < var_names.size(); i++) {
@@ -1446,17 +1500,38 @@ public:
                     }
                 }
                 if (same) {
-                    result.emplace_back(Info{&assign, var->value});
+                    return Info{&assign, var->value, ""};
                 }
             }
         }
+        return std::nullopt;
     }
 
-    std::vector<Info> result;
-
-private:
-    std::vector<std::string> var_names_;
+    template <typename T, typename K>
+    static bool same_var(T lb, T le, K rb, K re) {
+        if (std::distance(lb, le) == std::distance(rb, re)) {
+            auto itr = rb;
+            for (auto itl = lb; itl != le; itl++) {
+                if (*itl != *itr) return false;
+                itr++;
+            }
+            return true;
+        }
+        return false;
+    }
 };
+
+std::string merge_condition(const std::string &cond1, const std::string &cond2) {
+    if (cond1.empty() && cond2.empty()) {
+        return {};
+    } else if (!cond1.empty() && cond2.empty()) {
+        return cond1;
+    } else if (cond1.empty() && !cond2.empty()) {
+        return cond2;
+    } else {
+        return fmt::format("{0} && {1}", cond1, cond2);
+    }
+}
 
 std::vector<std::tuple<uint32_t, std::string, std::string>>
 JSONSymbolTableProvider::get_assigned_breakpoints(const std::string &var_name,
@@ -1494,7 +1569,9 @@ JSONSymbolTableProvider::get_assigned_breakpoints(const std::string &var_name,
     for (auto const &info : av.result) {
         auto bp_id = instance->get_bp_id(info.assign);
         if (!bp_id) continue;
-        result.emplace_back(std::make_tuple(*bp_id, info.rtl_value, info.assign->get_condition()));
+        // we need to merge condition as well
+        auto cond = merge_condition(info.assign->get_condition(), info.condition);
+        result.emplace_back(std::make_tuple(*bp_id, info.rtl_value, cond));
     }
 
     return result;
