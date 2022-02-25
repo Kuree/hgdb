@@ -840,3 +840,80 @@ TEST(json, var_ref) {  // NOLINT
         EXPECT_NE(var_names.find("var_c"), var_names.end());
     }
 }
+
+TEST(json, var_index_assign) {  // NOLINT
+    auto constexpr *raw_db = R"(
+{
+  "generator": "hgdb",
+  "table": [
+    {
+      "type": "module",
+      "name": "mod",
+      "scope": [
+        {
+          "type": "block",
+          "filename": "hgdb.cc",
+          "scope": [
+            {
+              "type": "assign",
+              "line": 6,
+              "column": 4,
+              "variable": "42",
+              "index": {
+                "var": "420",
+                "min": 0,
+                "max": 15
+              }
+            },
+            {
+              "type": "assign",
+              "line": 6,
+              "column": 4,
+              "variable": {
+                "name": "var[4]",
+                "value": "var[4]",
+                "rtl": true
+              }
+            }
+          ]
+        }
+      ],
+      "variables": [],
+      "instances": []
+    }
+  ],
+  "top": "mod",
+  "variables": [
+    {
+      "name": "var",
+      "value": "var",
+      "rtl": true,
+      "id": "42"
+    },
+    {
+      "name": "addr",
+      "value": "addr",
+      "rtl": true,
+      "id": "420"
+    }
+  ]
+}
+)";
+    hgdb::JSONSymbolTableProvider db;
+    db.parse(raw_db);
+    EXPECT_FALSE(db.bad());
+
+    auto assigns = db.get_assigned_breakpoints("var[4]", 1);
+    EXPECT_EQ(assigns.size(), 2);
+    {
+        auto [id, value, cond] = assigns[0];
+        EXPECT_EQ(cond, "addr == 4");
+        EXPECT_EQ(value, "var[4]");
+    }
+
+    {
+        auto [id, value, cond] = assigns[1];
+        EXPECT_EQ(cond, "");
+        EXPECT_EQ(value, "var[4]");
+    }
+}

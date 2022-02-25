@@ -879,7 +879,8 @@ private:
                 for (auto j = i + 1; j < scope.size(); j++) {
                     auto const &target = scope[j];
                     if (target->type != ref->type || target->line != ref->line ||
-                        target->column != ref->column || target->condition != ref->condition) {
+                        target->column != ref->column || target->condition != ref->condition ||
+                        has_index_var(target) || has_index_var(ref)) {
                         break;
                     }
                     // transfer
@@ -893,8 +894,6 @@ private:
                         default: {
                             // probably throw exceptions?
                         }
-                    }
-                    if (ref->type == ScopeEntryType::Assign) {
                     }
                     // delete the target
                     scope[j] = nullptr;
@@ -914,6 +913,14 @@ private:
         auto src_entry = std::reinterpret_pointer_cast<T>(src);
         dst_entry->vars.insert(dst_entry->vars.end(), src_entry->vars.begin(),
                                src_entry->vars.end());
+    }
+
+    static bool has_index_var(const std::shared_ptr<ScopeEntry> &dst) {
+        if (dst->type == ScopeEntryType::Assign) {
+            auto assign = std::reinterpret_pointer_cast<AssignEntry>(dst);
+            return assign->has_index();
+        }
+        return false;
     }
 };
 
@@ -1442,7 +1449,7 @@ class AssignmentVisitor : public db::json::DBVisitor<false, false, true> {
 public:
     struct Info {
         const db::json::AssignEntry *assign;
-        const std::string &rtl_value;
+        std::string rtl_value;
         std::string condition;
     };
 
@@ -1478,7 +1485,10 @@ private:
                     if (assign.index.min <= idx && assign.index.max >= idx) {
                         // we have found it. create a condition now
                         auto cond = fmt::format("{0} == {1}", assign.index.var->value, *idx);
-                        return Info{&assign, assign.vars[0]->value, cond};
+                        // and rtl value
+                        auto value =
+                            fmt::format(fmt::format("{0}[{1}]", assign.vars[0]->value, *idx));
+                        return Info{&assign, value, cond};
                     }
                 }
             }
