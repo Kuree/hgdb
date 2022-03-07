@@ -15,6 +15,7 @@ facilitate hardware debugging. It offers the following features:
   debugging.
 - Set signal values in interactive debugging
 - Symbol table and query. No RTL modification required.
+- High-level synthesis (HLS) support.
 
 Supported Simulators
 ~~~~~~~~~~~~~~~~~~~~
@@ -38,6 +39,7 @@ generator frameworks. The list below will be growing!
 - Chisel/Firrtl, via `hgdb-firrtl`_.
 - CIRCT, native support. Current requires patch |circt-link|_.
 - Kratos, native support.
+- LegUp (HLS), experimental support, via `hgdb-legup`_.
 - Hand-written Verilog/SystemVerilog, via hgdb-rtl (work in progress).
 
 Usage
@@ -229,6 +231,7 @@ Below shows a list of language bindings offered by hgdb and their implementation
 -  tcl: ``query``
 
 .. _hgdb-firrtl: https://github.com/Kuree/hgdb-firrtl
+.. _hgdb-legup: https://github.com/Kuree/hgdb-legup
 .. |HGDB Logo| image:: https://github.com/Kuree/files/raw/master/images/hgdb-logo-header.svg
 .. _here: https://github.com/Kuree/hgdb-debugger
 .. _document: https://github.com/Kuree/hgdb/blob/master/docs/README.md
