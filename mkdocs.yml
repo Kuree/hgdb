@@ -3,4 +3,5 @@ theme:
   name: "material"
 nav:
   - Overview: "index.md"
+  - Install and Usage: "usage.md"
   - Simulator: "simulator.md"
