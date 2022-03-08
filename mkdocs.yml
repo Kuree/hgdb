@@ -3,3 +3,4 @@ theme:
   name: "material"
 nav:
   - Overview: "index.md"
+  - Simulator: "simulator.md"
