@@ -1,5 +1,5 @@
-site_name: "HGDB: Source-Level Debugging for Hardware Generator Frameworks"
+site_name: "Hardware Generator Debugger"
 theme:
   name: "material"
-name:
+nav:
   - Overview: "index.md"
