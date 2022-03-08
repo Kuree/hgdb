@@ -4,6 +4,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.0] - 2022-03-07
+### Added
+- Add JSON-based symbol table support
+- Add symbol table auto detection
+- Add `hgdb-db` tool to interact with the symbol table
+- Add SystemVerilog native complex type support. The RTL stored in the symbol table can now
+  be of a complex type such as interface or struct
+
 
 ## [0.0.5] - 2022-01-17
 ### Added
@@ -21,7 +29,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add ability to pause at clock edge
 - Add timeout to recv_bp in python binding
 - Add design info the debugger information request
-- Add supppport for FSDB replay
+- Add support for FSDB replay
 
 ### Changed
 - Better out-of-order breakpoint support
