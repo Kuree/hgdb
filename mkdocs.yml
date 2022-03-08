@@ -5,3 +5,4 @@ nav:
   - Overview: "index.md"
   - Install and Usage: "usage.md"
   - Simulator: "simulator.md"
+  - How it works: "internal.md"
