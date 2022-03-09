@@ -16,4 +16,4 @@ plugins:
   - mkdocs-video:
       css_style:
         width: "100vw"
-        height: "30vw"
+        height: "450px"

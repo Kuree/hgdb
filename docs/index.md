@@ -22,7 +22,7 @@ hgdb is not:
 - A framework that helps you maintain symbol table in your hardware compiler.
   hgdb only offers means to create and query symbol table.
 
-## Supported Simulators
+## Supported simulators
 The simulators listed below have been tested in regression tests.
 Theoretically hgdb can run on any Verilog/SystemVerilog specification
 compliant simulator.
@@ -32,6 +32,15 @@ compliant simulator.
 - Mentor Questa®
 - Verilator
 - Icarus Verilog
+
+
+## Supported hardware generator frameworks
+
+- Chisel/Firrtl, via [hgdb-firrtl](https://github.com/Kuree/hgdb-firrtl).
+- CIRCT, native support. Current requires patch [here](https://github.com/Kuree/circt).
+- Kratos, native support.
+- LegUp (HLS), experimental support, via [hgdb-legup](https://github.com/Kuree/hgdb-legup).
+- Hand-written Verilog/SystemVerilog, via hgdb-rtl (work in progress).
 
 ## Supported debuggers
 

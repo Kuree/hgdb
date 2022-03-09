@@ -33,7 +33,7 @@ Verilator is a little tedious since it is not specification-compliant and thus n
 First, we need to generate the verilated files with extra VPI flags
 
 ```bash
-erilator [flags] --vpi ${path_to_libhgdb.so}
+Verilator [flags] --vpi ${path_to_libhgdb.so}
 ```
 
 In addition, most signals should be labeled as public, otherwise breakpoints and frame
