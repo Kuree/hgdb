@@ -22,7 +22,7 @@ namespace hgdb {
 std::string resolve(const std::string &src_path, const std::string &dst_path,
                     const std::string &target) {
     namespace fs = std::filesystem;
-    if (target.starts_with(src_path)) [[likely]] {
+    if (src_path.empty() || target.starts_with(src_path)) [[likely]] {
         std::error_code ec;
         auto path = fs::relative(target, src_path, ec);
         if (ec.value()) [[unlikely]]
@@ -134,7 +134,7 @@ std::string SymbolTableProvider::resolve_filename_to_client(const std::string &f
     if (src_remap_.empty()) [[likely]]
         return filename;
     for (auto const &[dst_path, src_path] : src_remap_) {
-        if (filename.starts_with(src_path)) {
+        if (src_path.empty() || filename.starts_with(src_path)) {
             return resolve(src_path, dst_path, filename);
         }
     }
