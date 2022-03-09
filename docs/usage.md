@@ -50,8 +50,8 @@ is not recommended for production usage:
   variable name not found.
 
 ## Usage
-To use hgdb, see [simulators](simulator.md) and debuggers. By design, hgdb only offers an API for other tools to
-interact with.
+To use hgdb, see [simulators](simulator.md) and [debuggers](debugger.md).
+By design, hgdb only offers an API for other tools to interact with.
 
 
 ## Replay tool

@@ -5,9 +5,15 @@ nav:
   - Overview: "index.md"
   - Install and Usage: "usage.md"
   - Simulator: "simulator.md"
+  - Debugger: "debugger.md"
   - How it works: "internal.md"
 
 markdown_extensions:
   - attr_list
   - md_in_html
 
+plugins:
+  - mkdocs-video:
+      css_style:
+        width: "100vw"
+        height: "30vw"
