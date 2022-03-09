@@ -10,17 +10,17 @@ To install, simply use the following command in the VS code console:
 ext install keyiz.hgdb-vscode
 ```
 
-Users should expect the same debugging experience as debugging any program in Visual Studio Code as it implements the majority of the adapter protocol.
+Users should expect the same debugging experience as debugging any program in Visual Studio Code as
+it implements the majority of the adapter protocol.
 
 Supported Features:
+
 - Set/remove breakpoints
 - REPL
 - Multiple instances view
 - Complex data type rendering
 - Reverse debugging
-
-Road map:
-- Variable watch. Variables that have RTL correspondence should be able to added to the watch panel to help debugging.
+- Data breakpoint (watchpoints)
 
 To use the debugger, simply press <key>F5</key> and choose `HGDB debug`.
 
@@ -29,6 +29,11 @@ Below is a quick overview of its interface using Rocket-Chip as an example:
 
 ![type:video](https://user-images.githubusercontent.com/6099149/136262887-8ee63329-4bb7-4372-81ab-f06411064926.mp4)
 
+You can check out the sample `launch.json`
+[here](https://github.com/Kuree/hgdb/blob/master/tests/generators/.vscode/launch.json),
+which provides an example of debugger configuration. Notice that your current working
+directory must contain the source code, otherwise the extension will run into errors when trying to open up the
+file upon breakpoint.
 
 ## Console
 The console version is implemented in Python and mimics the style of `gdb`.
@@ -39,19 +44,30 @@ To install this debugger, simply do
 $ pip install hgdb-debugger
 ```
 
-Below is an example usage
+Most of the commands are identical to those of `gdb`. Type `help` to see a list of commands.
+
+Below is an example usage, where we connect to a localhost with port number `8888`. The symbol file is `debug.db`.
 
 ```
-$ hgdb -i debug.db
+$ hgdb localhost:8888 debug.db
 ```
 
 Supported Features:
+
 - Set/remove breakpoints
 - REPL!
 - Auto complete and suggestion
 - Pretty print on complex data type
+- Reverse debugging
+- Data breakpoint (watchpoints)
 
-Here is a rendered `asciinema` of the hgdb console debugger when debugging simulation with Xcelium:
+Here is a rendered `asciinema` of the hgdb console debugger when debugging simulation with Xcelium (command argument
+may be different due to version changes.):
 
 
 ![SVG of hgdb-console](https://rawcdn.githack.com/Kuree/files/29a6a3c427b46755be29cb513388112490c89ba5/images/hgdb-console.svg)
+
+Notice that for Chisel users, you need to specify a working directly so that the debugger can locate the source files.
+This is because Chisel only encodes the basename of a file, which makes it impossible to resolve without a working
+directory as a reference. You can use `--dir [folder]` to specify it.
+
