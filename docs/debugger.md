@@ -67,7 +67,13 @@ may be different due to version changes.):
 
 ![SVG of hgdb-console](https://rawcdn.githack.com/Kuree/files/29a6a3c427b46755be29cb513388112490c89ba5/images/hgdb-console.svg)
 
+If the symbol table is compiled on a different machine where the simulator runs, but the source code is local,
+you need to specify the file  mapping using `--map`. An example would be `--map /remote/dir:/local/dir`,
+where the first dir is remote src and the second is the local src.
+
 Notice that for Chisel users, you need to specify a working directly so that the debugger can locate the source files.
 This is because Chisel only encodes the basename of a file, which makes it impossible to resolve without a working
-directory as a reference. You can use `--dir [folder]` to specify it.
+directory as a reference. You can use `--dir [folder]` to specify it. You can also use `--map` to remap the filename,
+e.g. `--map :/absolute/dir` by providing an empty remote dir.
+
 
