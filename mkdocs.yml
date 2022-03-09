@@ -6,3 +6,8 @@ nav:
   - Install and Usage: "usage.md"
   - Simulator: "simulator.md"
   - How it works: "internal.md"
+
+markdown_extensions:
+  - attr_list
+  - md_in_html
+
