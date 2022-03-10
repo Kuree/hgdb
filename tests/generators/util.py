@@ -51,6 +51,12 @@ class Tester:
             path = os.path.dirname(path)
         # find if there is any build folder
         dirs = [d for d in os.listdir(path) if os.path.isdir(d) and "build" in d]
+        if len(dirs) == 0:
+            # check if libhgdb is installed
+            import pkgutil
+            loader = pkgutil.get_loader("libhgdb")
+            if loader is not None:
+                return loader.path
         assert len(dirs) > 0, "Unable to detect build folder"
         # use the shortest one
         dirs.sort(key=lambda x: len(x))
