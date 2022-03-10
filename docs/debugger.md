@@ -35,6 +35,15 @@ which provides an example of debugger configuration. Notice that your current wo
 directory must contain the source code, otherwise the extension will run into errors when trying to open up the
 file upon breakpoint.
 
+
+!!! note
+
+    Notice that if the simulation is running on a remote server, the symbol table path has to be remote and
+    absolute! In addition, if your working directory is local (not mounted), you need to provide source mapping
+    in `launch.json`.
+    Check the [configuration setup](https://github.com/Kuree/hgdb-debugger/blob/master/vscode/src/extension.ts#L61-L66)
+    for more details.
+
 ## Console
 The console version is implemented in Python and mimics the style of `gdb`.
 It uses built-in Python-bindings to communicate with the `hgdb` runtime.
@@ -76,4 +85,11 @@ This is because Chisel only encodes the basename of a file, which makes it impos
 directory as a reference. You can use `--dir [folder]` to specify it. You can also use `--map` to remap the filename,
 e.g. `--map :/absolute/dir` by providing an empty remote dir.
 
+!!! note
+
+    Notice that if the simulation is running on a remote server, the symbol table path has to be remote and
+    absolute! In addition, if your working directory is local (not mounted), you need to provide source mapping
+    in `launch.json`.
+    Check the [configuration setup](https://github.com/Kuree/hgdb-debugger/blob/master/vscode/src/extension.ts#L61-L66)
+    for more details.
 
