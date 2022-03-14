@@ -1,6 +1,6 @@
 # How hgdb works
 
-This documentation describes a shortened version of our paper (link to be provided soon). 
+This documentation describes a shortened version of our [paper](https://arxiv.org/abs/2203.05742) (DAC'22).
 
 ## System architecture
 <figure markdown>
@@ -37,5 +37,12 @@ hgdb supports both SQLite and JSON-based symbol table. It's recommended to use J
 human-readable. To see how the JSON-based is structured, please check out the JSON schema
 [here](https://github.com/Kuree/hgdb/blob/docs/include/schema.json).
 
-(work in progress.)
+TCP/Websocket-based symbol table is also supported. Users need to talk to the debugger using protocol specified in the
+[section below](#debugger-protocol).
+
+## Debugger protocol
+This section describes debugger protocol used in hgdb. The protocol itself is implemented in WebSocket, which maximizes
+compatibility with different usage cases such as web browsers.
+
+(work in progress).
 
