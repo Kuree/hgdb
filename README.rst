@@ -58,7 +58,7 @@ You can find the download shared library using the following one-liner
 
    python -c "import pkgutil; print(pkgutil.get_loader('libhgdb').path)"
 
-You can copy it ot symbolic link to places you want to use.
+You can copy it or symbolic link to places you want to use.
 
 Compile from source
 ~~~~~~~~~~~~~~~~~~~
