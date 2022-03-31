@@ -198,7 +198,11 @@ trace replay tool that implements hgdb's compatibility layer. The tool,
 
   hgdb-replay waveform.vcd [args]
 
-where ``[args]`` are optional arguments passed to the debug runtime.
+where ``[args]`` are optional arguments passed to the debug runtime. Due to
+the license issue, the public release version of hgdb does not build with
+FSDB. You have to first load Verdi (or setting ``$VERDI_HOME``) and then build
+the project from source. This allows `hgdb-replay` automatically detects FSDB
+waveforms.
 
 Source-level waveform
 ~~~~~~~~~~~~~~~~~~~~~
@@ -230,11 +234,27 @@ Below shows a list of language bindings offered by hgdb and their implementation
 -  SystemVerilog: ``runtime``
 -  tcl: ``query``
 
+
+Citation
+~~~~~~~~
+You can check the pre-print version at `arxiv`_ (DAC '22).
+
+  @misc{https://doi.org/10.48550/arxiv.2203.05742,
+  doi = {10.48550/ARXIV.2203.05742},
+  url = {https://arxiv.org/abs/2203.05742},
+  author = {Zhang, Keyi and Asgar, Zain and Horowitz, Mark},
+  title = {Bringing Source-Level Debugging Frameworks to Hardware Generators},
+  publisher = {arXiv},
+  year = {2022},
+  }
+
+
 .. _hgdb-firrtl: https://github.com/Kuree/hgdb-firrtl
 .. _hgdb-legup: https://github.com/Kuree/hgdb-legup
 .. |HGDB Logo| image:: https://github.com/Kuree/files/raw/master/images/hgdb-logo-header.svg
 .. _here: https://github.com/Kuree/hgdb-debugger
-.. _document: https://github.com/Kuree/hgdb/blob/master/docs/README.md
+.. _document: https://hgdb.dev/internal/
 .. _example test bench: https://github.com/Kuree/hgdb/blob/master/tests/vectors/test_set_value_tb.cc
 .. |circt-link| replace:: here
-.. _circt-link: https://github.com/Kuree/circt/tree/dev/debug2
+.. _circt-link: https://github.com/llvm/circt/pull/2581
+.. _arxiv: https://arxiv.org/abs/2203.05742
