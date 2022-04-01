@@ -32,6 +32,17 @@
           }
         ]
       }
+    },
+    "attributes": {
+      "description": "Attributes information",
+      "type": "array",
+      "items": {
+        "allOf": [
+          {
+            "$ref": "#/$defs/attribute"
+          }
+        ]
+      }
     }
   },
   "required": [
@@ -340,6 +351,19 @@
         "name",
         "module"
       ]
+    },
+    "attribute": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "description": "Attribute name",
+          "type": "string"
+        },
+        "value": {
+          "description": "Attribute value",
+          "type": "string"
+        }
+      }
     }
   }
 }
