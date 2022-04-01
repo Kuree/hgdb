@@ -917,3 +917,35 @@ TEST(json, var_index_assign) {  // NOLINT
         EXPECT_EQ(value, "var[4]");
     }
 }
+
+TEST(json, attributes) {  // NOLINT
+    auto constexpr *raw_db = R"(
+{
+  "generator": "hgdb",
+  "table": [
+    {
+      "type": "module",
+      "name": "mod",
+      "scope": [],
+      "variables": [],
+      "instances": []
+    }
+  ],
+  "top": "mod",
+  "variables": [],
+  "attributes": [
+    {
+      "name": "clock",
+      "value": "mod.clock"
+    }
+  ]
+}
+)";
+    hgdb::JSONSymbolTableProvider db;
+    db.parse(raw_db);
+    EXPECT_FALSE(db.bad());
+
+    auto res = db.get_annotation_values("clock");
+    EXPECT_EQ(res.size(), 1);
+    EXPECT_EQ(res[0], "mod.clock");
+}

@@ -112,6 +112,8 @@ private:
     std::unordered_map<std::string, std::shared_ptr<db::json::ModuleDef>> module_defs_;
     std::unordered_map<std::string, std::shared_ptr<db::json::VarDef>> var_defs_;
     uint32_t num_bps_ = 0;
+    // may change this to per module/instance in the future (backward-compatible)
+    std::vector<std::pair<std::string, std::string>> attributes_;
 
     void parse_db();
 };

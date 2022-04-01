@@ -545,12 +545,14 @@ struct JSONParseInfo {
 
     std::unordered_map<std::string, std::shared_ptr<ModuleDef>> &module_defs;
     std::unordered_map<std::string, std::shared_ptr<VarDef>> &var_defs;
+    std::vector<std::pair<std::string, std::string>> &attributes;
 
     std::string error_reason;
 
     JSONParseInfo(std::unordered_map<std::string, std::shared_ptr<ModuleDef>> &module_defs,
-                  std::unordered_map<std::string, std::shared_ptr<VarDef>> &var_defs)
-        : module_defs(module_defs), var_defs(var_defs) {}
+                  std::unordered_map<std::string, std::shared_ptr<VarDef>> &var_defs,
+                  std::vector<std::pair<std::string, std::string>> &attributes)
+        : module_defs(module_defs), var_defs(var_defs), attributes(attributes) {}
 };
 
 std::shared_ptr<ModuleDef> parse_module_def(const rapidjson::Value &value, JSONParseInfo &info);
@@ -715,6 +717,16 @@ void parse_var_defs(const rapidjson::Document &document, JSONParseInfo &info) {
     }
 }
 
+void parse_attributes(const rapidjson::Document &document, JSONParseInfo &info) {
+    if (!document.HasMember("attributes")) return;
+    auto attributes = document["attributes"].GetArray();
+    for (auto const &attr : attributes) {
+        std::string name = attr["name"].GetString();
+        std::string value = attr["value"].GetString();
+        info.attributes.emplace_back(std::make_pair(name, value));
+    }
+}
+
 std::shared_ptr<Instance> parse(rapidjson::Document &document, JSONParseInfo &info) {
     // parse vars first since we need that to resolve symbol reference during module definition
     // parsing
@@ -736,6 +748,7 @@ std::shared_ptr<Instance> parse(rapidjson::Document &document, JSONParseInfo &in
             }
         }
     }
+    parse_attributes(document, info);
     return result;
 }
 
@@ -1016,7 +1029,7 @@ JSONSymbolTableProvider::JSONSymbolTableProvider(const std::string &filename) {
         rapidjson::IStreamWrapper isw(stream);
         rapidjson::Document document;
         document.ParseStream(isw);
-        db::json::JSONParseInfo info(module_defs_, var_defs_);
+        db::json::JSONParseInfo info(module_defs_, var_defs_, attributes_);
         root_ = db::json::parse(document, info);
     }
     parse_db();
@@ -1436,8 +1449,13 @@ std::vector<std::string> JSONSymbolTableProvider::get_filenames() {
 }
 
 std::vector<std::string> JSONSymbolTableProvider::get_annotation_values(const std::string &name) {
-    // not supported yet
-    return {};
+    std::vector<std::string> res;
+    for (auto const &[attr_name, attr_value] : attributes_) {
+        if (attr_name == name) {
+            res.emplace_back(attr_value);
+        }
+    }
+    return res;
 }
 
 std::vector<std::string> JSONSymbolTableProvider::get_all_array_names() {
@@ -1641,7 +1659,7 @@ bool JSONSymbolTableProvider::parse(const std::string &db_content) {
         rapidjson::IStreamWrapper isw(ss);
         rapidjson::Document document;
         document.ParseStream(isw);
-        db::json::JSONParseInfo info(module_defs_, var_defs_);
+        db::json::JSONParseInfo info(module_defs_, var_defs_, attributes_);
         root_ = db::json::parse(document, info);
 
         parse_db();
