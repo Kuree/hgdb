@@ -1701,6 +1701,7 @@ void JSONSymbolTableProvider::parse_db() {
         resolve_module_instances(*(const_cast<db::json::ModuleDef *>(root_->definition)),
                                  module_defs_, has_error);
         if (has_error) {
+            log::log(log::log_level::error, "Unable to resolve all referenced instances");
             root_ = nullptr;
             return;
         }
