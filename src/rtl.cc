@@ -408,6 +408,11 @@ std::string RTLSimulatorClient::get_full_name(const std::string &name) const {
     }
 }
 
+bool RTLSimulatorClient::is_absolute_path(const std::string &name) const {
+    auto const [top, path] = get_path(name);
+    return hierarchy_name_prefix_map_.find(top) != hierarchy_name_prefix_map_.end();
+}
+
 const std::vector<std::string> &RTLSimulatorClient::get_argv() const { return sim_info_.args; }
 
 const std::string &RTLSimulatorClient::get_simulator_name() const { return sim_info_.name; }

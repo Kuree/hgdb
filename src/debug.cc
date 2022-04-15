@@ -982,7 +982,7 @@ void Debugger::send_breakpoint_hit(const std::vector<const DebugBreakPoint *> &b
         for (auto const &[gen_var, var] : generator_values) {
             // maybe need to resolve the name based on the variable
             std::string rtl_name_base = var.value;
-            if (rtl_name_base.find_first_of('.') == std::string::npos) {
+            if (!rtl_->is_absolute_path(rtl_name_base)) {
                 auto v = db_->resolve_scoped_name_instance(rtl_name_base, bp->instance_id);
                 if (v) rtl_name_base = *v;
             }
@@ -994,13 +994,13 @@ void Debugger::send_breakpoint_hit(const std::vector<const DebugBreakPoint *> &b
             }
         }
 
-        for (auto const &[gen_var, var] : context_values) {
+        for (auto const &[ctx_var, var] : context_values) {
             std::string rtl_name_base = var.value;
-            if (rtl_name_base.find_first_of('.') == std::string::npos) {
+            if (!rtl_->is_absolute_path(rtl_name_base)) {
                 auto v = db_->resolve_scoped_name_breakpoint(rtl_name_base, bp->id);
                 if (v) rtl_name_base = *v;
             }
-            auto var_name = gen_var.name;
+            auto var_name = ctx_var.name;
             auto var_names = rtl_->resolve_rtl_variable(var_name, rtl_name_base);
             for (auto const &[front_name, rtl_name] : var_names) {
                 std::string value_str = get_var_value(rtl_name, var.is_rtl);
