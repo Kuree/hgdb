@@ -1119,6 +1119,8 @@ std::optional<int64_t> Debugger::get_value(const std::string &signal_name) {
         value = rtl_->get_simulation_time();
     }
 
+    if (!value) log_info("Failed to obtain RTL value for " + signal_name);
+
     if (value) {
         std::lock_guard guard(cached_signal_values_lock_);
         cached_signal_values_.emplace(signal_name, *value);

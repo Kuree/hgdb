@@ -488,6 +488,8 @@ void RTLSimulatorClient::finish_sim(finish_value value) {
 std::vector<std::pair<std::string, std::string>> RTLSimulatorClient::resolve_rtl_variable(
     const std::string &front_name, const std::string &rtl_name) {
     auto *handle = get_handle(rtl_name);
+    // if null handle, we will report it as ERROR, which will be handled elsewhere
+    if (!handle) return {{front_name, rtl_name}};
     auto type = get_vpi_type(handle);
 
     auto iterate_type = [handle, this, &front_name](
@@ -530,11 +532,11 @@ std::vector<std::pair<std::string, std::string>> RTLSimulatorClient::resolve_rtl
         // we have to use brute force
         auto first_element = fmt::format("{0}[0]", rtl_name);
         if (auto *first_handle = get_handle(first_element)) {
-            auto is_array = vpi_get(vpiVector, first_handle);
+            auto is_array = vpi_->vpi_get(vpiVector, first_handle);
             if (is_array) {
-                auto size = vpi_get(vpiSize, handle);
+                auto size = vpi_->vpi_get(vpiSize, handle);
                 if (type != vpiRegArray && type != vpiNetArray) {
-                    auto element_size = vpi_get(vpiSize, first_handle);
+                    auto element_size = vpi_->vpi_get(vpiSize, first_handle);
                     size = size / element_size;
                 }
                 for (auto idx = 0; idx < size; idx++) {
@@ -750,6 +752,7 @@ void RTLSimulatorClient::set_vpi_allocator(const std::function<vpiHandle()> &fun
 }
 
 PLI_INT32 RTLSimulatorClient::get_vpi_type(vpiHandle handle) {
+    if (!handle) return vpiError;
     std::lock_guard guard(cached_vpi_types_lock_);
     if (cached_vpi_types_.find(handle) != cached_vpi_types_.end()) [[likely]] {
         return cached_vpi_types_.at(handle);
@@ -761,6 +764,7 @@ PLI_INT32 RTLSimulatorClient::get_vpi_type(vpiHandle handle) {
 }
 
 uint32_t RTLSimulatorClient::get_vpi_size(vpiHandle handle) {
+    if (!handle) return 0;
     std::lock_guard guard(cached_vpi_size_lock_);
     if (cached_vpi_size_.find(handle) != cached_vpi_size_.end()) [[likely]] {
         return cached_vpi_size_.at(handle);
