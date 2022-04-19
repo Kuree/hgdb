@@ -489,9 +489,32 @@ void RTLSimulatorClient::finish_sim(finish_value value) {
     vpi_->vpi_control(vpiFinish, static_cast<int>(value));
 }
 
+// need to resolve special patterns
+std::string resolve_rtl_path(const std::string &path) {
+    // optimizing for most cases
+    if (path.find_first_of('$') == std::string::npos) [[likely]] {
+        return path;
+    }
+
+    auto tokens = util::get_tokens(path, ".");
+    for (auto i = 1u; i < tokens.size(); i++) {
+        if (tokens[i] == "$parent") {
+            tokens[i] = "";
+            tokens[i - 1] = "";
+        }
+    }
+    // filter empty ones
+    tokens.erase(
+        std::remove_if(tokens.begin(), tokens.end(), [](auto const &s) { return s.empty(); }),
+        tokens.end());
+    auto res = fmt::format("{0}", fmt::join(tokens.begin(), tokens.end(), "."));
+    return res;
+}
+
 // NOLINTNEXTLINE
 std::vector<std::pair<std::string, std::string>> RTLSimulatorClient::resolve_rtl_variable(
-    const std::string &front_name, const std::string &rtl_name) {
+    const std::string &front_name, std::string rtl_name) {
+    rtl_name = resolve_rtl_path(rtl_name);
     auto *handle = get_handle(rtl_name);
     // if null handle, we will report it as ERROR, which will be handled elsewhere
     if (!handle) return {{front_name, rtl_name}};
@@ -538,7 +561,7 @@ std::vector<std::pair<std::string, std::string>> RTLSimulatorClient::resolve_rtl
         auto first_element = fmt::format("{0}[0]", rtl_name);
         if (auto *first_handle = get_handle(first_element)) {
             auto is_array = vpi_->vpi_get(vpiVector, first_handle);
-            if (is_array) {
+            if (is_array != vpiError && is_array != vpiUndefined && is_array != 0) {
                 auto size = vpi_->vpi_get(vpiSize, handle);
                 if (type != vpiRegArray && type != vpiNetArray) {
                     auto element_size = vpi_->vpi_get(vpiSize, first_handle);

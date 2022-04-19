@@ -73,11 +73,16 @@ public:
             // every signal is 32-bit for now
             // if it's clock object then it's 1
             // otherwise it's 32
+            if (array_handles_.find(object) != array_handles_.end()) {
+                return array_handles_.at(object).size();
+            }
             std::string name = this->vpi_get_str(vpiName, object);
             for (auto const &n : hgdb::RTLSimulatorClient::clock_names_) {
                 if (name == n) return 1;
             }
             return 32;
+        } else if (property == vpiVector) {
+            return array_handles_.find(object) != array_handles_.end();
         }
         return vpiUndefined;
     }
