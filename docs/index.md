@@ -40,6 +40,7 @@ compliant simulator.
 - CIRCT, native support. Current requires patch [here](https://github.com/Kuree/circt).
 - Kratos, native support.
 - LegUp (HLS), experimental support, via [hgdb-legup](https://github.com/Kuree/hgdb-legup).
+- Xilinx Vitis, via [hgdb-vitis](https://github.com/Kuree/hgdb-vitis)
 - Hand-written Verilog/SystemVerilog, via hgdb-rtl (work in progress).
 
 ## Supported debuggers
