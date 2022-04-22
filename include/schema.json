@@ -69,6 +69,14 @@
         "rtl": {
           "description": "If true, the value property corresponds to the RTL signal name",
           "type": "boolean"
+        },
+        "type": {
+          "description": "Used to control symbol mapping. Set it to 'delay' to use previous values",
+          "type": "string",
+          "enum": [
+            "normal",
+            "delay"
+          ]
         }
       }
     },

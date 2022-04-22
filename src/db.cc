@@ -434,10 +434,13 @@ struct ScopeEntry {
     [[nodiscard]] const std::string &get_filename() const;
 };
 
+using VariableType = DBSymbolTableProvider::VariableType;
+
 struct VarDef {
     std::string name;
     std::string value;
     bool rtl = true;
+    VariableType type = VariableType::normal;
 };
 
 struct Instance {
@@ -694,6 +697,13 @@ std::vector<std::shared_ptr<VarDef>> parse_var(const rapidjson::Value &value, JS
         var->name = value["name"].GetString();
         var->value = value["value"].GetString();
         var->rtl = value["rtl"].GetBool();
+
+        if (value.HasMember("type")) {
+            std::string t = value["type"].GetString();
+            if (t == "delay") {
+                var->type = VariableType::delay;
+            }
+        }
     }
 
     if (!var) {
@@ -1348,6 +1358,7 @@ JSONSymbolTableProvider::get_context_variables(uint32_t breakpoint_id) {  // NOL
         // not used by downstream
         ctx_var.breakpoint_id = nullptr;
         ctx_var.variable_id = nullptr;
+        ctx_var.type = static_cast<uint32_t>(var->type);
 
         Variable db_var;
         db_var.value = var->value;

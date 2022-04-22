@@ -49,6 +49,8 @@ public:
 
     [[nodiscard]] bool bad() const override { return db_ == nullptr; }
 
+    enum class VariableType : uint32_t { normal = 0, delay = 1 };
+
 private:
     std::unique_ptr<DebugDatabase> db_;
     bool is_closed_ = false;

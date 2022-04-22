@@ -212,6 +212,13 @@ struct ContextVariable {
      * Variable ID associated with the context variable
      */
     std::unique_ptr<uint32_t> variable_id;
+
+    /**
+     * Context variable type. By default it's 0
+     * 0: normal
+     * 1: Last cycle
+     */
+    uint32_t type = 0;
 };
 
 /**

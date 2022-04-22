@@ -284,7 +284,7 @@ private:
 class MonitorRequest : public Request {
 public:
     enum class ActionType { add, remove };
-    enum class MonitorType { breakpoint, clock_edge, changed, data };
+    enum class MonitorType { breakpoint, clock_edge, changed, data, delay_clock_edge };
     MonitorRequest() = default;
     void parse_payload(const std::string &payload) override;
     [[nodiscard]] RequestType type() const override { return RequestType::monitor; }

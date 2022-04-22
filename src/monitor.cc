@@ -90,6 +90,9 @@ std::vector<std::pair<uint64_t, std::string>> Monitor::get_watched_values(WatchT
                 }
                 break;
             }
+            case WatchType::delay_clock_edge: {
+                // TODO: add logic to store previous cycle value
+            }
         }
     }
 
