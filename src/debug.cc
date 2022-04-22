@@ -374,6 +374,7 @@ std::string Debugger::get_monitor_topic(uint64_t watch_id) {
     return fmt::format("watch-{0}", watch_id);
 }
 
+// NOLINTNEXTLINE
 std::string Debugger::get_var_value(const std::string &rtl_name, bool is_rtl, bool use_delay) {
     std::string value_str;
     if (is_rtl) {
@@ -504,7 +505,7 @@ void Debugger::handle_breakpoint(const BreakPointRequest &req, uint64_t conn_id)
         }
 
         for (auto const &bp : bps) {
-            scheduler_->add_breakpoint(bp_info, bp);
+            add_breakpoint(bp_info, bp);
         }
 
         scheduler_->reorder_breakpoints();
@@ -536,7 +537,7 @@ void Debugger::handle_breakpoint_id(const BreakPointIDRequest &req, uint64_t con
             send_message(error_response.str(log_enabled_), conn_id);
             return;
         }
-        scheduler_->add_breakpoint(bp_info, *bp);
+        add_breakpoint(bp_info, *bp);
     } else {
         scheduler_->remove_breakpoint(bp_info, DebugBreakPoint::Type::normal);
     }
@@ -963,7 +964,32 @@ void Debugger::handle_data_breakpoint(const DataBreakpointRequest &req, uint64_t
     }
 }
 
-// NOLINTNEXTLINE
+std::vector<std::pair<std::string, std::string>> resolve_generator_name(std::string rtl_name_base,
+                                                                        const std::string &var_name,
+                                                                        uint32_t instance_id,
+                                                                        RTLSimulatorClient *rtl,
+                                                                        SymbolTableProvider *db) {
+    if (!rtl->is_absolute_path(rtl_name_base)) {
+        auto v = db->resolve_scoped_name_instance(rtl_name_base, instance_id);
+        if (v) rtl_name_base = *v;
+    }
+    auto var_names = rtl->resolve_rtl_variable(var_name, rtl_name_base);
+    return var_names;
+}
+
+std::vector<std::pair<std::string, std::string>> resolve_context_name(std::string rtl_name_base,
+                                                                      const std::string &var_name,
+                                                                      uint32_t bp_id,
+                                                                      RTLSimulatorClient *rtl,
+                                                                      SymbolTableProvider *db) {
+    if (!rtl->is_absolute_path(rtl_name_base)) {
+        auto v = db->resolve_scoped_name_breakpoint(rtl_name_base, bp_id);
+        if (v) rtl_name_base = *v;
+    }
+    auto var_names = rtl->resolve_rtl_variable(var_name, rtl_name_base);
+    return var_names;
+}
+
 void Debugger::send_breakpoint_hit(const std::vector<const DebugBreakPoint *> &bps) {
     // we send it here to avoid a round trip of client asking for context and send it
     // back
@@ -993,13 +1019,8 @@ void Debugger::send_breakpoint_hit(const std::vector<const DebugBreakPoint *> &b
         using namespace std::string_literals;
         for (auto const &[gen_var, var] : generator_values) {
             // maybe need to resolve the name based on the variable
-            std::string rtl_name_base = var.value;
-            if (!rtl_->is_absolute_path(rtl_name_base)) {
-                auto v = db_->resolve_scoped_name_instance(rtl_name_base, bp->instance_id);
-                if (v) rtl_name_base = *v;
-            }
-            auto var_name = gen_var.name;
-            auto var_names = rtl_->resolve_rtl_variable(var_name, rtl_name_base);
+            auto var_names = resolve_generator_name(var.value, gen_var.name, bp->instance_id,
+                                                    rtl_.get(), db_.get());
             for (auto const &[front_name, rtl_name] : var_names) {
                 std::string value_str = get_var_value(rtl_name, var.is_rtl);
                 scope.add_generator_value(front_name, value_str);
@@ -1007,13 +1028,8 @@ void Debugger::send_breakpoint_hit(const std::vector<const DebugBreakPoint *> &b
         }
 
         for (auto const &[ctx_var, var] : context_values) {
-            std::string rtl_name_base = var.value;
-            if (!rtl_->is_absolute_path(rtl_name_base)) {
-                auto v = db_->resolve_scoped_name_breakpoint(rtl_name_base, bp->id);
-                if (v) rtl_name_base = *v;
-            }
-            auto var_name = ctx_var.name;
-            auto var_names = rtl_->resolve_rtl_variable(var_name, rtl_name_base);
+            auto var_names =
+                resolve_context_name(var.value, ctx_var.name, bp->id, rtl_.get(), db_.get());
             for (auto const &[front_name, rtl_name] : var_names) {
                 using VariableType = SymbolTableProvider::VariableType;
                 std::string value_str =
@@ -1171,6 +1187,11 @@ void Debugger::eval_breakpoint(DebugBreakPoint *bp, std::vector<bool> &result, u
     }
 }
 
+void Debugger::add_breakpoint(const BreakPoint &bp_info, const BreakPoint &db_bp) {
+    scheduler_->add_breakpoint(bp_info, db_bp);
+    process_delayed_breakpoint(db_bp.id);
+}
+
 void Debugger::start_breakpoint_evaluation() {
     scheduler_->start_breakpoint_evaluation();
     cached_signal_values_.clear();
@@ -1261,6 +1282,7 @@ std::unordered_map<std::string, int64_t> Debugger::get_expr_values(const DebugEx
 }
 
 void Debugger::update_delayed_values() {
+    // notice that we never delete them, which can be a future improvement
     auto values = monitor_.get_watched_values(MonitorRequest::MonitorType::delay_clock_edge);
     for (auto &iter : delayed_variables_) {
         auto &var_info = iter.second;
@@ -1269,6 +1291,36 @@ void Debugger::update_delayed_values() {
         });
         if (pos != values.end()) {
             var_info.value = pos->second;
+        }
+    }
+}
+
+void Debugger::process_delayed_breakpoint(uint32_t bp_id) {
+    if (!db_) [[unlikely]]
+        return;
+    auto context_vars = db_->get_context_variables(bp_id);
+    for (auto const &[ctx, v] : context_vars) {
+        using VariableType = SymbolTableProvider::VariableType;
+        using WatchType = MonitorRequest::MonitorType;
+        if (!v.is_rtl || static_cast<VariableType>(ctx.type) != VariableType::delay) [[likely]] {
+            continue;
+        }
+        auto var_names = resolve_context_name(v.value, ctx.name, bp_id, rtl_.get(), db_.get());
+        for (auto const &[front_var, rtl_name] : var_names) {
+            // we really don't care about front end name
+            // get current value as initialization. this allows the breakpoint next cycle
+            // has the proper value before monitor logic kicks in
+            auto value = rtl_->get_value(rtl_name);
+            auto value_ptr = std::make_shared<std::optional<int64_t>>(value);
+            auto watch_id =
+                monitor_.add_monitor_variable(rtl_name, WatchType::delay_clock_edge, value_ptr);
+            DelayedVariable delayed_var;
+            delayed_var.rtl_name = rtl_name;
+            delayed_var.watch_id = watch_id;
+            auto *handle = rtl_->get_handle(rtl_name);
+            if (handle) {
+                delayed_variables_.emplace(handle, delayed_var);
+            }
         }
     }
 }

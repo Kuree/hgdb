@@ -76,7 +76,7 @@ private:
     struct DelayedVariable {
         std::string rtl_name;
         std::string value;
-        uint32_t watch_id;
+        uint64_t watch_id;
     };
     std::unordered_map<vpiHandle, DelayedVariable> delayed_variables_;
 
@@ -142,6 +142,7 @@ private:
     // scheduler
     bool should_trigger(DebugBreakPoint *bp);
     void eval_breakpoint(DebugBreakPoint *bp, std::vector<bool> &result, uint32_t index);
+    void add_breakpoint(const BreakPoint &bp_info, const BreakPoint &db_bp);
     void start_breakpoint_evaluation();
 
     // cached wrapper
@@ -162,6 +163,7 @@ private:
 
     // update delayed values
     void update_delayed_values();
+    void process_delayed_breakpoint(uint32_t bp_id);
 };
 
 }  // namespace hgdb
