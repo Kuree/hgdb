@@ -60,6 +60,16 @@ std::shared_ptr<std::optional<int64_t>> Monitor::get_watched_value_ptr(
     return nullptr;
 }
 
+std::string get_string_value(const std::optional<int64_t>& value) {
+    std::string str_value;
+    if (value) {
+        str_value = std::to_string(*value);
+    } else {
+        str_value = Debugger::error_value_str;
+    }
+    return str_value;
+}
+
 std::vector<std::pair<uint64_t, std::string>> Monitor::get_watched_values(WatchType type) {
     std::vector<std::pair<uint64_t, std::string>> result;
     // this is the maximum size
@@ -71,12 +81,7 @@ std::vector<std::pair<uint64_t, std::string>> Monitor::get_watched_values(WatchT
             case WatchType::breakpoint:
             case WatchType::clock_edge: {
                 auto value = get_value(watch_var.full_name);
-                std::string str_value;
-                if (value) {
-                    str_value = std::to_string(*value);
-                } else {
-                    str_value = Debugger::error_value_str;
-                }
+                auto str_value = get_string_value(value);
                 result.emplace_back(std::make_pair(watch_id, str_value));
                 break;
             }
@@ -85,13 +90,18 @@ std::vector<std::pair<uint64_t, std::string>> Monitor::get_watched_values(WatchT
                 // only if values are changed
                 auto [changed, value] = var_changed(watch_id);
                 if (changed) {
-                    auto str_value = std::to_string(*value);
+                    auto str_value = get_string_value(value);
                     result.emplace_back(std::make_pair(watch_id, str_value));
                 }
                 break;
             }
             case WatchType::delay_clock_edge: {
-                // TODO: add logic to store previous cycle value
+                // we assume this will be called every clock cycle
+                auto new_value = get_value(watch_var.full_name);
+                // we use the old value
+                auto old_value_str = get_string_value(*watch_var.value);
+                *watch_var.value = new_value;
+                result.emplace_back(std::make_pair(watch_id, old_value_str));
             }
         }
     }

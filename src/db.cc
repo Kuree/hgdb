@@ -434,7 +434,7 @@ struct ScopeEntry {
     [[nodiscard]] const std::string &get_filename() const;
 };
 
-using VariableType = DBSymbolTableProvider::VariableType;
+using VariableType = SymbolTableProvider::VariableType;
 
 struct VarDef {
     std::string name;

@@ -9,6 +9,7 @@ namespace hgdb {
 
 class SymbolTableProvider {
 public:
+    enum class VariableType : uint32_t { normal = 0, delay = 1 };
     // helper functions to query the database
     virtual std::vector<BreakPoint> get_breakpoints(const std::string &filename,
                                                     uint32_t line_num) = 0;

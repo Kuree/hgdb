@@ -72,6 +72,14 @@ private:
     // monitor logic
     Monitor monitor_;
 
+    // delay logic for symbols. no lock since they don't run interactively
+    struct DelayedVariable {
+        std::string rtl_name;
+        std::string value;
+        uint32_t watch_id;
+    };
+    std::unordered_map<vpiHandle, DelayedVariable> delayed_variables_;
+
     // options
     // if in single thread mode, instances with the same fn/ln won't be evaluated as a batch
     bool single_thread_mode_ = false;
@@ -98,7 +106,7 @@ private:
     void log_info(const std::string &msg) const;
     bool has_cli_flag(const std::string &flag);
     [[nodiscard]] static std::string get_monitor_topic(uint64_t watch_id);
-    std::string get_var_value(const std::string &rtl_name, bool is_rtl);
+    std::string get_var_value(const std::string &rtl_name, bool is_rtl, bool use_delay = false);
     std::optional<std::string> resolve_var_name(const std::string &var_name,
                                                 const std::optional<uint64_t> &instance_id,
                                                 const std::optional<uint64_t> &breakpoint_id);
@@ -151,6 +159,9 @@ private:
 
     std::unordered_map<std::string, int64_t> get_expr_values(const DebugExpression *expr,
                                                              uint32_t instance_id);
+
+    // update delayed values
+    void update_delayed_values();
 };
 
 }  // namespace hgdb

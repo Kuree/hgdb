@@ -109,7 +109,7 @@ void Debugger::eval() {
     // however, the server side can still take breakpoint requests, hence modifying the
     // breakpoints_.
     log_info("Start breakpoint evaluation...");
-    start_breakpoint_evaluation();  // clean the state
+    start_breakpoint_evaluation();  // clean the state and fetch values
 
     // main loop to fetch breakpoints
     while (true) {
@@ -374,10 +374,9 @@ std::string Debugger::get_monitor_topic(uint64_t watch_id) {
     return fmt::format("watch-{0}", watch_id);
 }
 
-std::string Debugger::get_var_value(const std::string &rtl_name, bool is_rtl) {
+std::string Debugger::get_var_value(const std::string &rtl_name, bool is_rtl, bool use_delay) {
     std::string value_str;
     if (is_rtl) {
-        auto full_name = rtl_->get_full_name(rtl_name);
         // get value size. Verilator will freak out if the width is larger than 64
         // notice that this logic is not on the critical path since it's only used when
         // constructing the frame
@@ -387,12 +386,25 @@ std::string Debugger::get_var_value(const std::string &rtl_name, bool is_rtl) {
             value_str = error_value_str;
             log_info(fmt::format("{0} is too large to display as an integer", rtl_name));
         } else {
-            if (!use_hex_str_) {
-                auto value = rtl_->get_value(handle);
-                value_str = value ? std::to_string(*value) : error_value_str;
+            // for now hex string version doesn't work. need to rework on that part
+            if (use_delay) {
+                if (use_hex_str_) [[unlikely]] {
+                    log_error("Hex string format not support delayed variables");
+                }
+                if (delayed_variables_.find(handle) == delayed_variables_.end()) [[unlikely]] {
+                    log_error("Internal error on handling delayed variables");
+                    value_str = error_value_str;
+                } else {
+                    value_str = delayed_variables_.at(handle).value;
+                }
             } else {
-                auto value = rtl_->get_str_value(handle);
-                value_str = value ? *value : error_value_str;
+                if (!use_hex_str_) {
+                    auto value = rtl_->get_value(handle);
+                    value_str = value ? std::to_string(*value) : error_value_str;
+                } else {
+                    auto value = rtl_->get_str_value(handle);
+                    value_str = value ? *value : error_value_str;
+                }
             }
         }
     } else {
@@ -1003,7 +1015,10 @@ void Debugger::send_breakpoint_hit(const std::vector<const DebugBreakPoint *> &b
             auto var_name = ctx_var.name;
             auto var_names = rtl_->resolve_rtl_variable(var_name, rtl_name_base);
             for (auto const &[front_name, rtl_name] : var_names) {
-                std::string value_str = get_var_value(rtl_name, var.is_rtl);
+                using VariableType = SymbolTableProvider::VariableType;
+                std::string value_str =
+                    get_var_value(rtl_name, var.is_rtl,
+                                  static_cast<VariableType>(ctx_var.type) == VariableType::delay);
                 scope.add_local_value(front_name, value_str);
             }
         }
@@ -1159,6 +1174,7 @@ void Debugger::eval_breakpoint(DebugBreakPoint *bp, std::vector<bool> &result, u
 void Debugger::start_breakpoint_evaluation() {
     scheduler_->start_breakpoint_evaluation();
     cached_signal_values_.clear();
+    update_delayed_values();
 }
 
 void Debugger::add_cb_clocks() {
@@ -1242,6 +1258,19 @@ std::unordered_map<std::string, int64_t> Debugger::get_expr_values(const DebugEx
         values.emplace(symbol_name, *v);
     }
     return values;
+}
+
+void Debugger::update_delayed_values() {
+    auto values = monitor_.get_watched_values(MonitorRequest::MonitorType::delay_clock_edge);
+    for (auto &iter : delayed_variables_) {
+        auto &var_info = iter.second;
+        auto pos = std::find_if(values.begin(), values.end(), [&var_info](auto const &iter) {
+            return iter.first == var_info.watch_id;
+        });
+        if (pos != values.end()) {
+            var_info.value = pos->second;
+        }
+    }
 }
 
 }  // namespace hgdb
