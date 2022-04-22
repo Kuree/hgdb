@@ -442,10 +442,12 @@ inline void store_variable(DebugDatabase &db, uint32_t id, const std::string &va
 }
 
 inline void store_context_variable(DebugDatabase &db, const std::string &name,
-                                   uint32_t breakpoint_id, uint32_t variable_id) {
+                                   uint32_t breakpoint_id, uint32_t variable_id,
+                                   bool delay_mode = false) {
     db.replace(ContextVariable{.name = name,
                                .breakpoint_id = std::make_unique<uint32_t>(breakpoint_id),
-                               .variable_id = std::make_unique<uint32_t>(variable_id)});
+                               .variable_id = std::make_unique<uint32_t>(variable_id),
+                               .type = static_cast<uint32_t>(delay_mode)});
     // NOLINTNEXTLINE
 }
 

@@ -497,10 +497,26 @@ def test_debug_array_change_value(start_server, find_free_port):
     kill_server(s)
 
 
+def test_delayed_value(start_server, find_free_port):
+    s, uri = setup_server(start_server, find_free_port, stdout=True)
+
+    async def test_logic():
+        async with hgdb.HGDBClient(uri, None) as client:
+            await client.connect()
+            await client.set_breakpoint("/tmp/test.py", 6)
+            for i in range(2):
+                await client.continue_()
+                bp = await client.recv_bp()
+            context_vars = bp["payload"]["instances"][0]
+
+    asyncio.get_event_loop().run_until_complete(test_logic())
+    kill_server(s)
+
+
 if __name__ == "__main__":
     import sys
 
     sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
     from conftest import start_server_fn, find_free_port_fn
 
-    test_data_breakpoint(start_server_fn, find_free_port_fn)
+    test_delayed_value(start_server_fn, find_free_port_fn)

@@ -140,6 +140,8 @@ auto setup_db_vpi(MockVPIProvider &vpi) {
         store_breakpoint(*db, 4 + base_id, dut_id, filename, 6, 0, "", "e");
         store_context_variable(*db, "d", 4 + base_id, variable_ids.at("d"));
         store_context_variable(*db, "e", 4 + base_id, variable_ids.at("e"));
+        // delaying e's value
+        store_context_variable(*db, "e0", 4 + base_id, variable_ids.at("e"), true);
 
         // array assignment
         store_breakpoint(*db, 5 + base_id, dut_id, filename, 7, 0, "1");
