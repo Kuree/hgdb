@@ -365,6 +365,7 @@ auto inline init_debug_db(const std::string &filename) {
         make_table("context_variable", make_column("name", &ContextVariable::name),
                    make_column("breakpoint_id", &ContextVariable::breakpoint_id),
                    make_column("variable_id", &ContextVariable::variable_id),
+                   make_column("type", &ContextVariable::type),
                    foreign_key(&ContextVariable::breakpoint_id).references(&BreakPoint::id),
                    foreign_key(&ContextVariable::variable_id).references(&Variable::id)),
         make_table("generator_variable", make_column("name", &GeneratorVariable::name),

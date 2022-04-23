@@ -156,18 +156,19 @@ DBSymbolTableProvider::get_context_variables(uint32_t breakpoint_id) {
     // NOLINTNEXTLINE
     auto values = db_->select(
         columns(&ContextVariable::variable_id, &ContextVariable::name, &Variable::value,
-                &Variable::is_rtl, &Instance::name),
+                &Variable::is_rtl, &ContextVariable::type, &Instance::name),
         where(c(&ContextVariable::breakpoint_id) == breakpoint_id &&
               c(&ContextVariable::variable_id) == &Variable::id &&
               c(&Instance::id) == &BreakPoint::instance_id && c(&BreakPoint::id) == breakpoint_id));
     result.reserve(values.size());
-    for (auto const &[variable_id, name, value, is_rtl, instance_name] : values) {
+    for (auto const &[variable_id, name, value, is_rtl, type, instance_name] : values) {
         auto id = *variable_id;
         auto actual_value = get_var_value(is_rtl, value, instance_name);
         result.emplace_back(std::make_pair(
             ContextVariable{.name = name,
                             .breakpoint_id = std::make_unique<uint32_t>(breakpoint_id),
-                            .variable_id = std::make_unique<uint32_t>(id)},
+                            .variable_id = std::make_unique<uint32_t>(id),
+                            .type = type},
             Variable{.id = id, .value = actual_value, .is_rtl = is_rtl}));
     }
     return result;
