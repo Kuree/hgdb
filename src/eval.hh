@@ -34,7 +34,7 @@ enum class Operator {
 };
 class Expr {
 public:
-    explicit Expr(Operator op) : op(op), value_(0) {}
+    explicit Expr(Operator op) : op(op) {}
     void set_value(ExpressionType value) { value_ = value; }
 
     Expr *left = nullptr;
@@ -47,7 +47,7 @@ public:
     [[nodiscard]] ExpressionType eval() const;
 
 private:
-    ExpressionType value_;
+    ExpressionType value_{0};
 };
 
 class Symbol : public Expr {

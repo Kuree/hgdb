@@ -28,7 +28,8 @@ using tao::pegtl::two;
 struct integer : plus<digit> {};
 struct variable_head1 : plus<sor<alpha, one<'_'>, one<'$'>>> {};
 struct variable_head2 : seq<variable_head1, star<sor<variable_head1, digit>>> {};
-struct variable_tail : if_must<one<'['>, plus<digit>, opt<one<':'>, plus<digit>>, one<']'>> {};
+struct numeric_slice : seq<plus<digit, opt<one<':'>, plus<digit>>>> {};
+struct variable_tail : if_must<one<'['>, sor<variable_head2, numeric_slice>, one<']'>> {};
 struct variable2 : seq<variable_head2, star<variable_tail>> {};
 struct variable : list<variable2, one<'.'>> {};
 
