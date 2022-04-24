@@ -508,7 +508,7 @@ def test_delayed_value(start_server, find_free_port):
                 await client.continue_()
                 bp = await client.recv_bp()
             context_vars = bp["payload"]["instances"][0]["local"]
-            assert context_vars["f0"] == (context_vars["f"] - 1)
+            assert int(context_vars["f0"]) == (int(context_vars["f"]) - 1)
 
     asyncio.get_event_loop().run_until_complete(test_logic())
     kill_server(s)

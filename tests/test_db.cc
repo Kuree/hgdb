@@ -949,3 +949,51 @@ TEST(json, attributes) {  // NOLINT
     EXPECT_EQ(res.size(), 1);
     EXPECT_EQ(res[0], "mod.clock");
 }
+
+TEST(json, delay_var) {  // NOLINT
+    auto constexpr *raw_db = R"(
+{
+  "generator": "hgdb",
+  "table": [
+    {
+      "type": "module",
+      "name": "mod",
+      "scope": [
+        {
+          "type": "block",
+          "filename": "hgdb.cc",
+          "scope": [
+            {
+              "type": "assign",
+              "line": 6,
+              "column": 4,
+              "variable": {
+                "name": "var",
+                "value": "var",
+                "rtl": true,
+                "type": "delay"
+              }
+            },
+            {
+              "type": "none",
+              "line": 7
+            }
+          ]
+        }
+      ],
+      "variables": [],
+      "instances": []
+    }
+  ],
+  "top": "mod"
+}
+)";
+    hgdb::JSONSymbolTableProvider db;
+    db.parse(raw_db);
+    EXPECT_FALSE(db.bad());
+
+    auto res = db.get_context_variables(1);
+    EXPECT_EQ(res.size(), 1);
+    auto t = static_cast<hgdb::SymbolTableProvider::VariableType>(res[0].first.type);
+    EXPECT_EQ(t, hgdb::SymbolTableProvider::VariableType::delay);
+}
