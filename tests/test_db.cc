@@ -874,6 +874,10 @@ TEST(json, var_index_assign) {  // NOLINT
                 "value": "var[4]",
                 "rtl": true
               }
+            },
+            {
+               "type": "none",
+               "line": 7
             }
           ]
         }
@@ -915,6 +919,11 @@ TEST(json, var_index_assign) {  // NOLINT
         auto [id, value, cond] = assigns[1];
         EXPECT_EQ(cond, "");
         EXPECT_EQ(value, "var[4]");
+    }
+
+    {
+        auto context_vars = db.get_context_variables(2);
+        EXPECT_EQ(context_vars.size(), 2);
     }
 }
 
