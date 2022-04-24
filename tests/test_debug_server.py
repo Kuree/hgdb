@@ -67,11 +67,11 @@ def test_bp_location_request(start_server, find_free_port):
         assert not resp["request"]
         assert resp["type"] == "bp-location"
         bps = resp["payload"]
-        assert len(bps) == 6 * num_instances
+        assert len(bps) == 7 * num_instances
         lines = set()
         for bp in bps:
             lines.add(bp["line_num"])
-        assert len(lines) == 6
+        assert len(lines) == 7
         assert 5 in lines
 
         # single line
@@ -169,12 +169,12 @@ def test_breakpoint_step_over(start_server, find_free_port):
         await client.step_over()  # second instance
         bp3 = await client.recv_bp()
         bp4 = None
-        for i in range(3):  # skip the 6 and 7
+        for i in range(4):  # skip the 6 and 7
             await client.step_over()
             await client.recv_bp()  # second instance
             await client.step_over()  # second instance
             bp4 = await client.recv_bp()
-        # the sequence should be 1, 2, 5, 6, 7, 1, ...
+        # the sequence should be 1, 2, 5, 6, 7, 8, 1, ...
         assert bp1["payload"]["line_num"] == 1 and bp4["payload"]["line_num"] == 1
         assert bp2["payload"]["line_num"] == 2
         assert bp3["payload"]["line_num"] == 5
@@ -503,7 +503,7 @@ def test_delayed_value(start_server, find_free_port):
     async def test_logic():
         async with hgdb.HGDBClient(uri, None) as client:
             await client.connect()
-            await client.set_breakpoint("/tmp/test.py", 99)
+            await client.set_breakpoint("/tmp/test.py", 8)
             for i in range(4):
                 await client.continue_()
                 bp = await client.recv_bp()
@@ -520,4 +520,4 @@ if __name__ == "__main__":
     sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
     from conftest import start_server_fn, find_free_port_fn
 
-    test_delayed_value(start_server_fn, find_free_port_fn)
+    test_breakpoint_step_over(start_server_fn, find_free_port_fn)

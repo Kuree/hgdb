@@ -142,7 +142,7 @@ auto setup_db_vpi(MockVPIProvider &vpi) {
         store_context_variable(*db, "e", 4 + base_id, variable_ids.at("e"));
         // a new value f. notice that f is solely introduced for testing delayed breakpoint
         // it does not have corresponding value in the source code
-        store_breakpoint(*db, 5 + base_id, dut_id, filename, 99, 0);
+        store_breakpoint(*db, 5 + base_id, dut_id, filename, 8, 0);
         store_context_variable(*db, "f", 5 + base_id, variable_ids.at("f"));
         // delaying e's value
         store_context_variable(*db, "f0", 5 + base_id, variable_ids.at("f"), true);
