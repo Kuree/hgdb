@@ -103,7 +103,7 @@ auto setup_db_vpi(MockVPIProvider &vpi) {
             var_id++;
         }
 
-        auto temp_variables = {"c", "c_0", "c_1", "c_2", "c_3", "d", "e"};
+        auto temp_variables = {"c", "c_0", "c_1", "c_2", "c_3", "d", "e", "f"};
         for (auto const &name : temp_variables) {
             auto var_name = fmt::format("{0}.{1}", dut_instance_name, name);
             auto var_full_name = fmt::format("{0}.{1}", dut_instance_full_name, name);
@@ -116,7 +116,7 @@ auto setup_db_vpi(MockVPIProvider &vpi) {
 
         // now we need to deal with breakpoints
         constexpr auto filename = "/tmp/test.py";
-        auto base_id = (dut_id - 1) * 6;
+        auto base_id = (dut_id - 1) * 7;
         // assign c_0 = ~a; // a = a  en: a           -> c = ~a
         store_breakpoint(*db, 0 + base_id, dut_id, filename, 2, 0, "a");
         store_context_variable(*db, "a", 0 + base_id, variable_ids.at("a"));
@@ -140,12 +140,16 @@ auto setup_db_vpi(MockVPIProvider &vpi) {
         store_breakpoint(*db, 4 + base_id, dut_id, filename, 6, 0, "", "e");
         store_context_variable(*db, "d", 4 + base_id, variable_ids.at("d"));
         store_context_variable(*db, "e", 4 + base_id, variable_ids.at("e"));
+        // a new value f. notice that f is solely introduced for testing delayed breakpoint
+        // it does not have corresponding value in the source code
+        store_breakpoint(*db, 5 + base_id, dut_id, filename, 99, 0);
+        store_context_variable(*db, "f", 5 + base_id, variable_ids.at("f"));
         // delaying e's value
-        store_context_variable(*db, "e0", 4 + base_id, variable_ids.at("e"), true);
+        store_context_variable(*db, "f0", 5 + base_id, variable_ids.at("f"), true);
 
         // array assignment
-        store_breakpoint(*db, 5 + base_id, dut_id, filename, 7, 0, "1");
-        store_assignment(*db, "array", "array", 5 + base_id);
+        store_breakpoint(*db, 6 + base_id, dut_id, filename, 7, 0, "1");
+        store_assignment(*db, "array", "array", 6 + base_id);
         // also store array to gen context
         for (auto i = 0; i < 4; i++) {
             auto name = fmt::format("array[{0}]", i);
@@ -226,6 +230,7 @@ int main(int argc, char *argv[]) {
     // evaluate the inserted breakpoint
     raw_vpi->set_time(0);
     constexpr const char *mod1_e = "top.dut.e";
+    constexpr const char *mod1_f = "top.dut.f";
     constexpr const char *mod1_array_1 = "top.dut.array[1]";
     using namespace std::chrono_literals;
     while (debug.is_running().load()) {
@@ -246,6 +251,9 @@ int main(int argc, char *argv[]) {
                     raw_vpi->vpi_handle_by_name(const_cast<char *>(mod1_array_1), nullptr),
                     static_cast<int64_t>(time + 1));
             }
+            raw_vpi->set_signal_value(
+                raw_vpi->vpi_handle_by_name(const_cast<char *>(mod1_f), nullptr),
+                static_cast<int64_t>(time));
             // sleep a little to avoid high CPU load
             std::this_thread::sleep_for(10ms);
         }

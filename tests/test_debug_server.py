@@ -503,12 +503,12 @@ def test_delayed_value(start_server, find_free_port):
     async def test_logic():
         async with hgdb.HGDBClient(uri, None) as client:
             await client.connect()
-            await client.set_breakpoint("/tmp/test.py", 6)
-            for i in range(2):
+            await client.set_breakpoint("/tmp/test.py", 99)
+            for i in range(4):
                 await client.continue_()
                 bp = await client.recv_bp()
             context_vars = bp["payload"]["instances"][0]["local"]
-            assert context_vars["e"] != context_vars["e0"]
+            assert context_vars["f0"] == (context_vars["f"] - 1)
 
     asyncio.get_event_loop().run_until_complete(test_logic())
     kill_server(s)
