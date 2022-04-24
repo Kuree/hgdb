@@ -2,6 +2,7 @@
 #define HGDB_SYMBOL_HH
 
 #include <map>
+#include <functional>
 
 #include "schema.hh"
 
@@ -49,6 +50,9 @@ public:
     // tuple info: breakpoint_id, var_name, condition (can be empty)
     [[nodiscard]] virtual std::vector<std::tuple<uint32_t, std::string, std::string>>
     get_assigned_breakpoints(const std::string &var_name, uint32_t breakpoint_id) = 0;
+    // set method for getting symbol tables. currently not accessible to network-based symbol
+    // table
+    void set_get_symbol_value(std::function<std::optional<int64_t>(const std::string &)> func);
 
     // accessors
     [[nodiscard]] virtual std::vector<uint32_t> execution_bp_orders() = 0;
@@ -57,6 +61,7 @@ public:
 
 protected:
     [[nodiscard]] bool has_src_remap() const { return !src_remap_.empty(); }
+    std::optional<std::function<std::optional<int64_t>(const std::string &)>> get_symbol_value_;
 
 private:
     // we handle the source remap here

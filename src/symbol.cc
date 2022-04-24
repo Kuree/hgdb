@@ -95,6 +95,11 @@ std::optional<std::string> SymbolTableProvider::resolve_scoped_name_instance(
     return std::nullopt;
 }
 
+void SymbolTableProvider::set_get_symbol_value(
+    std::function<std::optional<int64_t>(const std::string &)> func) {
+    get_symbol_value_ = std::move(func);
+}
+
 std::unordered_map<std::string, int64_t> SymbolTableProvider::get_context_static_values(
     uint32_t breakpoint_id) {
     auto vars = get_context_variables(breakpoint_id);

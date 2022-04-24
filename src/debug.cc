@@ -61,6 +61,10 @@ void Debugger::initialize_db(std::unique_ptr<SymbolTableProvider> db) {
         (*on_client_connected_)(*db_);
     }
 
+    // setting methods to help the symbol table understand the design
+    db_->set_get_symbol_value(
+        [this](const std::string &symbol_name) { return rtl_->get_value(symbol_name); });
+
     // setup breakpoints from env
     setup_init_breakpoint_from_env();
 }

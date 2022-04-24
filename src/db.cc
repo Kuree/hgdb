@@ -1324,6 +1324,7 @@ JSONSymbolTableProvider::get_context_variables(uint32_t breakpoint_id) {  // NOL
     auto const *entry = v.raw_results[0];
     std::unordered_set<std::string> var_names;
     std::vector<std::pair<std::string, const db::json::VarDef *>> vars;
+    std::vector<std::unique_ptr<db::json::VarDef>> temp_vars;
 
     // walk all the way up to the module and query its previous siblings
     // notice that this is not super efficient, but for now it's fine since it only gets
@@ -1346,6 +1347,29 @@ JSONSymbolTableProvider::get_context_variables(uint32_t breakpoint_id) {  // NOL
                     if (var_names.find(var->name) == var_names.end()) {
                         var_names.emplace(var->name);
                         vars.emplace_back(std::make_pair(var->name, var.get()));
+                    }
+                }
+                if (assign->vars[0]->type == VariableType::delay && assign->has_index()) {
+                    // need to be careful about the indexed value here
+                    auto const &indexed_var = assign->index.var;
+                    if (indexed_var->rtl) {
+                        if (get_symbol_value_) {
+                            // if it's enabled
+                            auto indexed_name =
+                                resolve_scoped_name_breakpoint(indexed_var->value, breakpoint_id);
+                            auto value =
+                                indexed_name ? (*get_symbol_value_)(*indexed_name) : std::nullopt;
+                            if (value) {
+                                auto new_var = std::make_unique<db::json::VarDef>();
+                                // use the first one
+                                new_var->name =
+                                    fmt::format("{0}.{1}", assign->vars[0]->name, *value);
+                                new_var->value =
+                                    fmt::format("{0}[{1}]", assign->vars[0]->value, *value);
+                                vars.emplace_back(new_var->name, new_var.get());
+                                temp_vars.emplace_back(std::move(new_var));
+                            }
+                        }
                     }
                 }
             }
