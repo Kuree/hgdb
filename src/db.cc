@@ -1322,7 +1322,8 @@ JSONSymbolTableProvider::get_context_variables(uint32_t breakpoint_id) {  // NOL
     v.visit(*root_);
     if (v.raw_results.empty()) return {};
     auto const *entry = v.raw_results[0];
-    std::map<std::string, const db::json::VarDef *> vars;
+    std::unordered_set<std::string> var_names;
+    std::vector<std::pair<std::string, const db::json::VarDef *>> vars;
 
     // walk all the way up to the module and query its previous siblings
     // notice that this is not super efficient, but for now it's fine since it only gets
@@ -1333,16 +1334,18 @@ JSONSymbolTableProvider::get_context_variables(uint32_t breakpoint_id) {  // NOL
             if (pre->type == db::json::ScopeEntryType::Declaration) {
                 auto const *decl = reinterpret_cast<const db::json::VarDeclEntry *>(pre);
                 for (auto const &var : decl->vars) {
-                    if (vars.find(var->name) == vars.end()) {
-                        vars.emplace(var->name, var.get());
+                    if (var_names.find(var->name) == var_names.end()) {
+                        var_names.emplace(var->name);
+                        vars.emplace_back(std::make_pair(var->name, var.get()));
                     }
                 }
 
             } else if (pre->type == db::json::ScopeEntryType::Assign) {
                 auto const *assign = reinterpret_cast<const db::json::AssignEntry *>(pre);
                 for (auto const &var : assign->vars) {
-                    if (vars.find(var->name) == vars.end()) {
-                        vars.emplace(var->name, var.get());
+                    if (var_names.find(var->name) == var_names.end()) {
+                        var_names.emplace(var->name);
+                        vars.emplace_back(std::make_pair(var->name, var.get()));
                     }
                 }
             }
