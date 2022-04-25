@@ -67,6 +67,8 @@ auto setup_db_vpi(MockVPIProvider &vpi) {
     db->sync_schema();
     // store
     auto variables = std::vector<std::string>{"clk", "rst", "a", "b", "addr", "value", "array"};
+    // some global variables to make things easier to track
+    std::set<uint32_t> context_array_breakpoint_ids;
     // notice that mod and mod2 have the same definition
     // we do so to test out multiple hierarchy mapping
     std::vector<std::pair<std::string, std::string>> instance_names = {
@@ -155,11 +157,11 @@ auto setup_db_vpi(MockVPIProvider &vpi) {
             auto name = fmt::format("array[{0}]", i);
             store_variable(*db, var_id, name);
             store_generator_variable(*db, name, dut_id, var_id);
-            // and context
-            store_context_variable(*db, name, 6 + base_id, var_id);
+            // and context with delay mode
+            store_context_variable(*db, name, 6 + base_id, var_id, true);
             var_id++;
         }
-
+        context_array_breakpoint_ids.emplace(6 + base_id);
         // set values
         // we simulate the case where a is 1
         // in this case we have
@@ -182,6 +184,10 @@ auto setup_db_vpi(MockVPIProvider &vpi) {
     }
 
     auto db_client = std::make_unique<hgdb::DBSymbolTableProvider>(std::move(db));
+    for (auto const id : context_array_breakpoint_ids) {
+        db_client->set_context_delay_var(id, "array[0]", "array[0]");
+    }
+
     return db_client;
 }
 
@@ -233,7 +239,6 @@ int main(int argc, char *argv[]) {
     raw_vpi->set_time(0);
     constexpr const char *mod1_e = "top.dut.e";
     constexpr const char *mod1_f = "top.dut.f";
-    constexpr const char *mod1_array_1 = "top.dut.array[1]";
     using namespace std::chrono_literals;
     while (debug.is_running().load()) {
         // eval loop
@@ -249,8 +254,16 @@ int main(int argc, char *argv[]) {
                 time > 1 ? 1 : static_cast<int64_t>(time));
             // also set the array
             if (time % 2) {
+                for (auto i = 0; i < 4; i++) {
+                    auto array_name = fmt::format("top.dut.array[{0}]", i);
+                    raw_vpi->set_signal_value(raw_vpi->vpi_handle_by_name(
+                                                  const_cast<char *>(array_name.c_str()), nullptr),
+                                              static_cast<int64_t>(time + 1));
+                }
+            } else {
+                constexpr const char *array_3 = "top.dut.array[3]";
                 raw_vpi->set_signal_value(
-                    raw_vpi->vpi_handle_by_name(const_cast<char *>(mod1_array_1), nullptr),
+                    raw_vpi->vpi_handle_by_name(const_cast<char *>(array_3), nullptr),
                     static_cast<int64_t>(time + 1));
             }
             raw_vpi->set_signal_value(

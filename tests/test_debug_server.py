@@ -35,6 +35,13 @@ def setup_server(start_server, find_free_port, no_eval=False, stdout=False, env=
     return s, uri
 
 
+def get_instance(instances, inst_id):
+    for entry in instances:
+        if entry["instance_id"] == inst_id:
+            return entry
+    return None
+
+
 def test_continue_stop(start_server, find_free_port):
     s, uri = setup_server(start_server, find_free_port, True)
 
@@ -478,7 +485,7 @@ def test_debug_array_change_value(start_server, find_free_port):
             await client.set_breakpoint("/tmp/test.py", 7)
             await client.continue_()
             bp = await client.recv_bp()
-            bp_id = bp["payload"]["instances"][0]["breakpoint_id"]
+            bp_id = get_instance(bp["payload"]["instances"], 1)["breakpoint_id"]
             # times = [0]
             times = [bp["payload"]["time"]]
             # remove the breakpoint
@@ -507,8 +514,25 @@ def test_delayed_value(start_server, find_free_port):
             for i in range(4):
                 await client.continue_()
                 bp = await client.recv_bp()
-            context_vars = bp["payload"]["instances"][0]["local"]
+            context_vars = get_instance(bp["payload"]["instances"], 1)["local"]
             assert int(context_vars["f0"]) == (int(context_vars["f"]) - 1)
+
+    asyncio.get_event_loop_policy().get_event_loop().run_until_complete(test_logic())
+    kill_server(s)
+
+
+def test_array_ssa(start_server, find_free_port):
+    s, uri = setup_server(start_server, find_free_port, stdout=True)
+
+    async def test_logic():
+        async with hgdb.HGDBClient(uri, None) as client:
+            await client.connect()
+            await client.set_breakpoint("/tmp/test.py", 7)
+            for i in range(8):
+                await client.continue_()
+                bp = await client.recv_bp()
+                context_vars = get_instance(bp["payload"]["instances"], 1)["local"]
+                print(context_vars)
 
     asyncio.get_event_loop_policy().get_event_loop().run_until_complete(test_logic())
     kill_server(s)
@@ -520,4 +544,4 @@ if __name__ == "__main__":
     sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
     from conftest import start_server_fn, find_free_port_fn
 
-    test_breakpoint_step_over(start_server_fn, find_free_port_fn)
+    test_array_ssa(start_server_fn, find_free_port_fn)

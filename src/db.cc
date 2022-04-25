@@ -370,7 +370,7 @@ std::vector<uint32_t> DBSymbolTableProvider::execution_bp_orders() {
     return result;
 }
 
-void DBSymbolTableProvider::set_context_var(uint32_t breakpoint_id, const std::string &name,
+void DBSymbolTableProvider::set_context_delay_var(uint32_t breakpoint_id, const std::string &name,
                                             const std::string &value) {
     debug_mode_ = true;
     debug_context_vars_[breakpoint_id] = std::make_pair(name, value);
