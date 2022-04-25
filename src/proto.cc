@@ -267,6 +267,8 @@ GenericResponse::GenericResponse(status_code status, RequestType type, std::stri
 template <typename T, typename K, typename A>
 void set_member(K &json_value, A &allocator, const char *name, const T &value) {
     rapidjson::Value key(name, allocator);  // NOLINT
+    using LocalVarCompareMap =
+        std::map<std::string, std::string, BreakPointResponse::LocalVarNameCompare>;
     if constexpr (std::is_same<T, std::string>::value) {
         rapidjson::Value v(value.c_str(), allocator);
         json_value.AddMember(key, v, allocator);
@@ -275,7 +277,8 @@ void set_member(K &json_value, A &allocator, const char *name, const T &value) {
     } else if constexpr (std::is_same<T, rapidjson::Value>::value) {
         rapidjson::Value v_copy(value, allocator);
         json_value.AddMember(key.Move(), v_copy.Move(), allocator);
-    } else if constexpr (std::is_same<T, std::map<std::string, std::string>>::value) {
+    } else if constexpr (std::is_same<T, std::map<std::string, std::string>>::value ||
+                         std::is_same<T, LocalVarCompareMap>::value) {
         rapidjson::Value v(rapidjson::kObjectType);
         for (auto const &[n, value_] : value) {
             set_member(v, allocator, n.c_str(), value_);
