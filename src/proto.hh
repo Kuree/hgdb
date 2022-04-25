@@ -98,13 +98,17 @@ public:
     [[nodiscard]] std::string str(bool pretty_print) const override;
     [[nodiscard]] std::string type() const override { return to_string(RequestType::breakpoint); }
 
+    struct LocalVarNameCompare {
+        bool operator()(const std::string &var1, const std::string &var2) const;
+    };
+
     struct Scope {
     public:
         uint64_t instance_id;
         uint64_t breakpoint_id;
         std::string instance_name;
         std::string bp_type;
-        std::map<std::string, std::string> local_values;
+        std::map<std::string, std::string, LocalVarNameCompare> local_values;
         std::map<std::string, std::string> generator_values;
 
         Scope(uint64_t instance_id, std::string instance_name, uint64_t breakpoint_id);

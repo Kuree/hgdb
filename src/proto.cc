@@ -9,6 +9,7 @@
 #include "rapidjson/stringbuffer.h"
 #include "rapidjson/writer.h"
 #include "scheduler.hh"
+#include "util.hh"
 
 namespace hgdb {
 
@@ -466,6 +467,38 @@ std::string BreakPointResponse::str(bool pretty_print) const {
     return to_string(document, pretty_print);
 }
 
+bool BreakPointResponse::LocalVarNameCompare::operator()(const std::string &var1,
+                                                         const std::string &var2) const {
+    // we also want to preserve the array ordering, if possible
+    auto var1_tokens = util::get_tokens(var1, ".[]");
+    auto var2_tokens = util::get_tokens(var2, ".[]");
+    // compare them one by one
+    auto max_size = std::max(var1_tokens.size(), var2_tokens.size());
+    for (auto i = 0u; i < max_size; i++) {
+        if (i >= var1_tokens.size()) {
+            return true;
+        } else if (i >= var2_tokens.size()) {
+            return false;
+        } else {
+            auto const &t1 = var1_tokens[i];
+            auto const &t2 = var2_tokens[i];
+
+            if (std::all_of(t1.begin(), t1.end(), ::isdigit) &&
+                std::all_of(t2.begin(), t2.end(), ::isdigit)) {
+                auto v1 = std::stoul(t1);
+                auto v2 = std::stoul(t2);
+                if (v1 != v2) {
+                    return v1 < v2;
+                }
+            } else if (t1 != t2) {
+                return t1 < t2;
+            }
+        }
+    }
+    // at this point they are identical
+    return false;
+}
+
 BreakPointResponse::Scope::Scope(uint64_t instance_id, std::string instance_name,
                                  uint64_t breakpoint_id)
     : instance_id(instance_id),
@@ -473,7 +506,11 @@ BreakPointResponse::Scope::Scope(uint64_t instance_id, std::string instance_name
       instance_name(std::move(instance_name)) {}
 
 void BreakPointResponse::Scope::add_local_value(const std::string &name, const std::string &value) {
-    local_values.emplace(name, value);
+    // we need to be extra careful about overriding. Because the ordering is overriding items first
+    // later values cannot override the existing ones
+    if (local_values.find(name) == local_values.end()) {
+        local_values.emplace(name, value);
+    }
 }
 
 void BreakPointResponse::Scope::add_generator_value(const std::string &name,
