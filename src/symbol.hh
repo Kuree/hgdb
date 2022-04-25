@@ -1,8 +1,8 @@
 #ifndef HGDB_SYMBOL_HH
 #define HGDB_SYMBOL_HH
 
-#include <map>
 #include <functional>
+#include <map>
 
 #include "schema.hh"
 

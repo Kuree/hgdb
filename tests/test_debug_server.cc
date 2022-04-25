@@ -63,7 +63,7 @@ auto setup_db_vpi(MockVPIProvider &vpi) {
     using namespace hgdb;
     // create a mock design, see comments above
     const auto *db_filename = ":memory:";
-    auto db = std::make_unique<DebugDatabase>(init_debug_db(db_filename));
+    auto db = std::make_unique<SQLiteDebugDatabase>(init_debug_db(db_filename));
     db->sync_schema();
     // store
     auto variables = std::vector<std::string>{"clk", "rst", "a", "b", "addr", "value", "array"};
@@ -155,6 +155,8 @@ auto setup_db_vpi(MockVPIProvider &vpi) {
             auto name = fmt::format("array[{0}]", i);
             store_variable(*db, var_id, name);
             store_generator_variable(*db, name, dut_id, var_id);
+            // and context
+            store_context_variable(*db, name, 6 + base_id, var_id);
             var_id++;
         }
 

@@ -13,12 +13,12 @@ class DBTestHelper : public ::testing::Test {
 protected:
     void SetUp() override {
         const auto *db_filename = ":memory:";
-        db = std::make_unique<hgdb::DebugDatabase>(hgdb::init_debug_db(db_filename));
+        db = std::make_unique<hgdb::SQLiteDebugDatabase>(hgdb::init_debug_db(db_filename));
         db->sync_schema();
     }
 
     void TearDown() override { db.reset(); }
-    std::unique_ptr<hgdb::DebugDatabase> db;
+    std::unique_ptr<hgdb::SQLiteDebugDatabase> db;
 };
 
 class MockVPIProvider : public hgdb::AVPIProvider {

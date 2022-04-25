@@ -53,7 +53,7 @@ TEST_F(SchemaTest, store_variable) {  // NOLINT
     EXPECT_FALSE(result->is_rtl);
 }
 
-void add_breakpoint_var(hgdb::DebugDatabase &db) {
+void add_breakpoint_var(hgdb::SQLiteDebugDatabase &db) {
     constexpr uint32_t breakpoint_id = 42, variable_id = 432, instance_id = 163;
     constexpr auto instance_name = "top.mod";
     constexpr auto value1 = "top.mod.test";

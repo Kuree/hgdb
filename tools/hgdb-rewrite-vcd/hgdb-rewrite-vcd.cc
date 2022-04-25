@@ -46,7 +46,7 @@ public:
                 const std::string &new_filename)
         : parser_(filename) {
         stream_ = std::ofstream(new_filename);
-        db_ = std::make_unique<hgdb::DebugDatabase>(hgdb::init_debug_db(db_name));
+        db_ = std::make_unique<hgdb::SQLiteDebugDatabase>(hgdb::init_debug_db(db_name));
         db_->sync_schema();
 
         // need to set up all the callback functions
@@ -89,7 +89,7 @@ public:
 private:
     hgdb::vcd::VCDParser parser_;
     std::ofstream stream_;
-    std::unique_ptr<hgdb::DebugDatabase> db_;
+    std::unique_ptr<hgdb::SQLiteDebugDatabase> db_;
 
     static constexpr auto new_scope_name = "module";
 

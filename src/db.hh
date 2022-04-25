@@ -16,7 +16,7 @@ class DBSymbolTableProvider : public SymbolTableProvider {
 public:
     explicit DBSymbolTableProvider(const std::string &filename);
     // take over the DB ownership. normally used for testing
-    explicit DBSymbolTableProvider(std::unique_ptr<DebugDatabase> db);
+    explicit DBSymbolTableProvider(std::unique_ptr<SQLiteDebugDatabase> db);
     void close();
 
     // helper functions to query the database
@@ -49,8 +49,11 @@ public:
 
     [[nodiscard]] bool bad() const override { return db_ == nullptr; }
 
+    // used for testing and benchmarking. not for normal usage
+    void set_context_var(uint32_t breakpoint_id, const std::string &name, const std::string &value);
+
 private:
-    std::unique_ptr<DebugDatabase> db_;
+    std::unique_ptr<SQLiteDebugDatabase> db_;
     bool is_closed_ = false;
     std::mutex db_lock_;
 
@@ -59,6 +62,11 @@ private:
     std::vector<uint32_t> build_execution_order_from_bp();
 
     void compute_use_base_name();
+
+    // used for testing and debugging, not for production use
+    bool debug_mode_ = false;
+    // only need one for now
+    std::unordered_map<uint32_t, std::pair<std::string, std::string>> debug_context_vars_;
 };
 
 namespace db::json {

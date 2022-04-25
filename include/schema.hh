@@ -395,10 +395,10 @@ auto inline init_debug_db(const std::string &filename) {
 }
 
 // type aliasing
-using DebugDatabase = decltype(init_debug_db(""));
+using SQLiteDebugDatabase = decltype(init_debug_db(""));
 
 // helper functions
-inline void store_breakpoint(DebugDatabase &db, uint32_t id, uint32_t instance_id,
+inline void store_breakpoint(SQLiteDebugDatabase &db, uint32_t id, uint32_t instance_id,
                              const std::string &filename, uint32_t line_num,
                              uint32_t column_num = 0, const std::string &condition = "",
                              const std::string &trigger = "") {
@@ -412,16 +412,16 @@ inline void store_breakpoint(DebugDatabase &db, uint32_t id, uint32_t instance_i
     // NOLINTNEXTLINE
 }
 
-inline void store_instance(DebugDatabase &db, uint32_t id, const std::string &name,
+inline void store_instance(SQLiteDebugDatabase &db, uint32_t id, const std::string &name,
                            const std::string &annotation = "") {
     db.replace(Instance{.id = id, .name = name, .annotation = annotation});
 }
 
-inline void store_scope(DebugDatabase &db, uint32_t id, const std::string &breakpoints) {
+inline void store_scope(SQLiteDebugDatabase &db, uint32_t id, const std::string &breakpoints) {
     db.replace(Scope{.id = id, .breakpoints = breakpoints});
 }
 
-inline void store_scope(DebugDatabase &db, uint32_t id, const std::vector<uint32_t> &breakpoints) {
+inline void store_scope(SQLiteDebugDatabase &db, uint32_t id, const std::vector<uint32_t> &breakpoints) {
     std::stringstream ss;
     for (auto i = 0u; i < breakpoints.size(); i++) {
         if (i == breakpoints.size() - 1)
@@ -433,16 +433,16 @@ inline void store_scope(DebugDatabase &db, uint32_t id, const std::vector<uint32
 }
 
 template <typename... Ts>
-inline void store_scope(DebugDatabase &db, uint32_t id, Ts... ids) {
+inline void store_scope(SQLiteDebugDatabase &db, uint32_t id, Ts... ids) {
     store_scope(db, id, std::vector<uint32_t>{ids...});
 }
 
-inline void store_variable(DebugDatabase &db, uint32_t id, const std::string &value,
+inline void store_variable(SQLiteDebugDatabase &db, uint32_t id, const std::string &value,
                            bool is_rtl = true) {
     db.replace(Variable{.id = id, .value = value, .is_rtl = is_rtl});
 }
 
-inline void store_context_variable(DebugDatabase &db, const std::string &name,
+inline void store_context_variable(SQLiteDebugDatabase &db, const std::string &name,
                                    uint32_t breakpoint_id, uint32_t variable_id,
                                    bool delay_mode = false) {
     db.replace(ContextVariable{.name = name,
@@ -452,7 +452,7 @@ inline void store_context_variable(DebugDatabase &db, const std::string &name,
     // NOLINTNEXTLINE
 }
 
-inline void store_generator_variable(DebugDatabase &db, const std::string &name,
+inline void store_generator_variable(SQLiteDebugDatabase &db, const std::string &name,
                                      uint32_t instance_id, uint32_t variable_id,
                                      const std::string &annotation = "") {
     db.replace(GeneratorVariable{.name = name,
@@ -462,11 +462,11 @@ inline void store_generator_variable(DebugDatabase &db, const std::string &name,
     // NOLINTNEXTLINE
 }
 
-inline void store_annotation(DebugDatabase &db, const std::string &name, const std::string &value) {
+inline void store_annotation(SQLiteDebugDatabase &db, const std::string &name, const std::string &value) {
     db.replace(Annotation{.name = name, .value = value});
 }
 
-inline void store_event(DebugDatabase &db, const std::string &name, const std::string &transaction,
+inline void store_event(SQLiteDebugDatabase &db, const std::string &name, const std::string &transaction,
                         uint64_t action, const std::string &fields, const std::string &matches,
                         uint32_t breakpoint_id) {
     db.replace(Event{.name = name,
@@ -478,7 +478,7 @@ inline void store_event(DebugDatabase &db, const std::string &name, const std::s
     // NOLINTNEXTLINE
 }
 
-[[maybe_unused]] inline void store_assignment(DebugDatabase &db, const std::string &var_name,
+[[maybe_unused]] inline void store_assignment(SQLiteDebugDatabase &db, const std::string &var_name,
                                               const std::string &var_value, uint32_t breakpoint_id,
                                               const std::string &condition, uint32_t scope_id) {
     db.replace(AssignmentInfo{.name = var_name,
@@ -489,7 +489,7 @@ inline void store_event(DebugDatabase &db, const std::string &name, const std::s
     // NOLINTNEXTLINE
 }
 
-inline void store_assignment(DebugDatabase &db, const std::string &var_name,
+inline void store_assignment(SQLiteDebugDatabase &db, const std::string &var_name,
                              const std::string &var_value, uint32_t breakpoint_id,
                              const std::string &condition) {
     db.replace(AssignmentInfo{.name = var_name,
@@ -500,7 +500,7 @@ inline void store_assignment(DebugDatabase &db, const std::string &var_name,
     // NOLINTNEXTLINE
 }
 
-inline void store_assignment(DebugDatabase &db, const std::string &var_name,
+inline void store_assignment(SQLiteDebugDatabase &db, const std::string &var_name,
                              const std::string &var_value, uint32_t breakpoint_id) {
     store_assignment(db, var_name, var_value, breakpoint_id, "");
     // NOLINTNEXTLINE

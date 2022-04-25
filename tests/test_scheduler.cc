@@ -47,7 +47,7 @@ protected:
     void SetUp() override {
         vpi_ = reverse ? std::make_unique<ReverseMockVPIProvider>()
                        : std::make_unique<MockVPIProvider>();
-        auto db = std::make_unique<hgdb::DebugDatabase>(hgdb::init_debug_db(""));
+        auto db = std::make_unique<hgdb::SQLiteDebugDatabase>(hgdb::init_debug_db(""));
         db->sync_schema();
 
         auto constexpr instances = std::array{"top", "top.inst0", "top.inst1"};

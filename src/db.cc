@@ -18,13 +18,13 @@
 namespace hgdb {
 
 DBSymbolTableProvider::DBSymbolTableProvider(const std::string &filename) {
-    db_ = std::make_unique<DebugDatabase>(init_debug_db(filename));
+    db_ = std::make_unique<SQLiteDebugDatabase>(init_debug_db(filename));
     db_->sync_schema();
 
     compute_use_base_name();
 }
 
-DBSymbolTableProvider::DBSymbolTableProvider(std::unique_ptr<DebugDatabase> db) {
+DBSymbolTableProvider::DBSymbolTableProvider(std::unique_ptr<SQLiteDebugDatabase> db) {
     // this will transfer ownership
     db_ = std::move(db);
     compute_use_base_name();
@@ -170,6 +170,18 @@ DBSymbolTableProvider::get_context_variables(uint32_t breakpoint_id) {
                             .variable_id = std::make_unique<uint32_t>(id),
                             .type = type},
             Variable{.id = id, .value = actual_value, .is_rtl = is_rtl}));
+    }
+    // notice that this is a makeshift attempt to inject context index values
+    if (debug_mode_) [[unlikely]] {
+        if (debug_context_vars_.find(breakpoint_id) != debug_context_vars_.end()) {
+            auto const &[name, value] = debug_context_vars_.at(breakpoint_id);
+            result.emplace_back(std::make_pair(
+                ContextVariable{.name = name,
+                                .breakpoint_id = std::make_unique<uint32_t>(breakpoint_id),
+                                .variable_id = nullptr,
+                                .type = static_cast<uint32_t>(VariableType::delay)},
+                Variable{.id = 0, .value = value, .is_rtl = true}));
+        }
     }
     return result;
 }
@@ -356,6 +368,12 @@ std::vector<uint32_t> DBSymbolTableProvider::execution_bp_orders() {
         }
     }
     return result;
+}
+
+void DBSymbolTableProvider::set_context_var(uint32_t breakpoint_id, const std::string &name,
+                                            const std::string &value) {
+    debug_mode_ = true;
+    debug_context_vars_[breakpoint_id] = std::make_pair(name, value);
 }
 
 std::vector<uint32_t> DBSymbolTableProvider::build_execution_order_from_bp() {
