@@ -102,7 +102,7 @@ def test_kratos_single_instance(find_free_port, simulator):
                 assert bp["payload"]["instances"][0]["local"]["i"] == "3"
                 assert bp["payload"]["instances"][0]["local"]["data.2"] == "3"
 
-            asyncio.get_event_loop().run_until_complete(client_logic())
+            asyncio.get_event_loop_policy().get_event_loop().run_until_complete(client_logic())
 
 
 @pytest.mark.parametrize("simulator", [VerilatorTester, XceliumTester])
@@ -167,7 +167,7 @@ def test_kratos_multiple_instances(find_free_port, simulator):
                 assert len({bp["payload"]["instances"][0]["instance_id"],
                             bp["payload"]["instances"][1]["instance_id"]}) == 2
 
-            asyncio.get_event_loop().run_until_complete(client_logic())
+            asyncio.get_event_loop_policy().get_event_loop().run_until_complete(client_logic())
 
 
 @pytest.mark.parametrize("simulator", [VerilatorTester, XceliumTester])
@@ -230,7 +230,7 @@ def test_kratos_data_breakpoint(find_free_port, simulator):
                 # go to the end
                 await client.continue_()
 
-            asyncio.get_event_loop().run_until_complete(client_logic())
+            asyncio.get_event_loop_policy().get_event_loop().run_until_complete(client_logic())
 
 
 if __name__ == "__main__":

@@ -44,7 +44,7 @@ def test_continue_stop(start_server, find_free_port):
         await client.continue_()
         await client.stop()
 
-    asyncio.get_event_loop().run_until_complete(test_logic())
+    asyncio.get_event_loop_policy().get_event_loop().run_until_complete(test_logic())
     # check if process exit
     killed = is_killed(s)
     if not killed:
@@ -85,7 +85,7 @@ def test_bp_location_request(start_server, find_free_port):
         assert not resp["request"]
         assert len(resp["payload"]) == 0
 
-    asyncio.get_event_loop().run_until_complete(test_logic())
+    asyncio.get_event_loop_policy().get_event_loop().run_until_complete(test_logic())
     kill_server(s)
 
 
@@ -120,7 +120,7 @@ def test_breakpoint_request(start_server, find_free_port):
         info = (await client.get_info())["payload"]
         assert len(info["breakpoints"]) == 0
 
-    asyncio.get_event_loop().run_until_complete(test_logic())
+    asyncio.get_event_loop_policy().get_event_loop().run_until_complete(test_logic())
     kill_server(s)
 
 
@@ -147,7 +147,7 @@ def test_breakpoint_hit_continue(start_server, find_free_port):
         bp_info2 = await client.recv_bp()
         assert bp_info2["payload"]["line_num"] == 1
 
-    asyncio.get_event_loop().run_until_complete(test_logic())
+    asyncio.get_event_loop_policy().get_event_loop().run_until_complete(test_logic())
     kill_server(s)
 
 
@@ -179,7 +179,7 @@ def test_breakpoint_step_over(start_server, find_free_port):
         assert bp2["payload"]["line_num"] == 2
         assert bp3["payload"]["line_num"] == 5
 
-    asyncio.get_event_loop().run_until_complete(test_logic())
+    asyncio.get_event_loop_policy().get_event_loop().run_until_complete(test_logic())
     kill_server(s)
 
 
@@ -202,7 +202,7 @@ def test_trigger(start_server, find_free_port):
     # should not trigger any more since things are stable
     # as a result the simulation should finish
 
-    asyncio.get_event_loop().run_until_complete(test_logic())
+    asyncio.get_event_loop_policy().get_event_loop().run_until_complete(test_logic())
 
     kill_server(s)
 
@@ -222,7 +222,7 @@ def test_src_mapping(start_server, find_free_port):
         bp = await client.recv_bp()
         assert bp["payload"]["filename"] == filename
 
-    asyncio.get_event_loop().run_until_complete(test_logic())
+    asyncio.get_event_loop_policy().get_event_loop().run_until_complete(test_logic())
     kill_server(s)
 
 
@@ -246,7 +246,7 @@ def test_evaluate(start_server, find_free_port):
         resp = await client.evaluate("", "test.a", check_error=False)
         assert resp["status"] == "error"
 
-    asyncio.get_event_loop().run_until_complete(test_logic())
+    asyncio.get_event_loop_policy().get_event_loop().run_until_complete(test_logic())
     kill_server(s)
 
 
@@ -265,7 +265,7 @@ def test_options(start_server, find_free_port):
         assert not resp["payload"]["options"]["log_enabled"]
         assert resp["payload"]["options"]["single_thread_mode"]
 
-    asyncio.get_event_loop().run_until_complete(test_logic())
+    asyncio.get_event_loop_policy().get_event_loop().run_until_complete(test_logic())
     kill_server(s)
 
 
@@ -294,7 +294,7 @@ def test_watch(start_server, find_free_port):
         bp = await client.recv_bp()
         assert bp["type"] == "breakpoint"
 
-    asyncio.get_event_loop().run_until_complete(test_logic())
+    asyncio.get_event_loop_policy().get_event_loop().run_until_complete(test_logic())
     kill_server(s)
 
 
@@ -315,8 +315,8 @@ def test_detach(start_server, find_free_port):
         info = await client.get_info("status")
         assert "Simulation paused: false" in info["payload"]["status"]
 
-    asyncio.get_event_loop().run_until_complete(test_logic1())
-    asyncio.get_event_loop().run_until_complete(test_logic2())
+    asyncio.get_event_loop_policy().get_event_loop().run_until_complete(test_logic1())
+    asyncio.get_event_loop_policy().get_event_loop().run_until_complete(test_logic2())
     kill_server(s)
 
 
@@ -339,7 +339,7 @@ def test_step_back(start_server, find_free_port):
             # this will be stuck at the very beginning of the evaluation loop
             assert bp4 == bp1
 
-    asyncio.get_event_loop().run_until_complete(test_logic())
+    asyncio.get_event_loop_policy().get_event_loop().run_until_complete(test_logic())
     kill_server(s)
 
 
@@ -356,7 +356,7 @@ def test_set_value(start_server, find_free_port):
             assert bp["payload"]["instances"][0]["local"]["a"] == "42"
             assert bp["payload"]["instances"][1]["local"]["a"] == "1"
 
-    asyncio.get_event_loop().run_until_complete(test_logic())
+    asyncio.get_event_loop_policy().get_event_loop().run_until_complete(test_logic())
     kill_server(s)
 
 
@@ -374,7 +374,7 @@ def test_special_value(start_server, find_free_port):
             res = await client.evaluate("0", "$time + 1")
             assert res["payload"]["result"] == "5"
 
-    asyncio.get_event_loop().run_until_complete(test_logic())
+    asyncio.get_event_loop_policy().get_event_loop().run_until_complete(test_logic())
     kill_server(s)
 
 
@@ -392,7 +392,7 @@ def test_debug_env_value(start_server, find_free_port):
                 bp = await client.recv_bp()
                 assert bp["payload"]["instances"][0]["instance_id"] == 1
 
-    asyncio.get_event_loop().run_until_complete(test_logic())
+    asyncio.get_event_loop_policy().get_event_loop().run_until_complete(test_logic())
     kill_server(s)
 
 
@@ -450,7 +450,7 @@ def test_data_breakpoint(start_server, find_free_port):
         assert times[1] == 2
         assert times[2] == 2
 
-    asyncio.get_event_loop().run_until_complete(test_logic())
+    asyncio.get_event_loop_policy().get_event_loop().run_until_complete(test_logic())
     kill_server(s)
 
 
@@ -465,7 +465,7 @@ def test_debug_get_filenames(start_server, find_free_port):
             assert len(filenames) > 0
             assert filenames[0] == "/tmp/test.py"
 
-    asyncio.get_event_loop().run_until_complete(test_logic())
+    asyncio.get_event_loop_policy().get_event_loop().run_until_complete(test_logic())
     kill_server(s)
 
 
@@ -493,7 +493,7 @@ def test_debug_array_change_value(start_server, find_free_port):
                 times.append(bp["payload"]["time"])
             assert times == [0, 1, 2, 4, 6]
 
-    asyncio.get_event_loop().run_until_complete(test_logic())
+    asyncio.get_event_loop_policy().get_event_loop().run_until_complete(test_logic())
     kill_server(s)
 
 
@@ -510,7 +510,7 @@ def test_delayed_value(start_server, find_free_port):
             context_vars = bp["payload"]["instances"][0]["local"]
             assert int(context_vars["f0"]) == (int(context_vars["f"]) - 1)
 
-    asyncio.get_event_loop().run_until_complete(test_logic())
+    asyncio.get_event_loop_policy().get_event_loop().run_until_complete(test_logic())
     kill_server(s)
 
 

@@ -102,7 +102,7 @@ def test_symbol_table_provider_ws(start_server, find_free_port, get_tools_vector
         assert inst_bp["local"]["b"] == "0x1"
         assert inst_bp["generator"]["b"] == "0x1"
 
-    asyncio.get_event_loop().run_until_complete(test_logic())
+    asyncio.get_event_loop_policy().get_event_loop().run_until_complete(test_logic())
     sym_provider.stop()
     s.kill()
 

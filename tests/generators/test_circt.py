@@ -45,7 +45,7 @@ def test_circt(find_free_port, simulator):
                 bp = await client.recv()
                 assert bp["payload"]["instances"][0]["generator"]["value"] == "4"
 
-            asyncio.get_event_loop().run_until_complete(client_logic())
+            asyncio.get_event_loop_policy().get_event_loop().run_until_complete(client_logic())
 
 
 if __name__ == "__main__":

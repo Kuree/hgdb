@@ -52,7 +52,7 @@ def test_set_value(find_free_port, simulator):
                 # a value is changed. Verilator and Xcelium seems to agree with each other
                 # but VCS produces different result
 
-            asyncio.get_event_loop().run_until_complete(test_logic())
+            asyncio.get_event_loop_policy().get_event_loop().run_until_complete(test_logic())
 
 
 def create_iverilog_db(db_filename):
@@ -86,7 +86,7 @@ def test_other_simulators(find_free_port, simulator):
                 assert bp["payload"]["time"] == 10
                 assert bp["payload"]["instances"][0]["generator"]["clk"] == "1"
 
-            asyncio.get_event_loop().run_until_complete(test_logic())
+            asyncio.get_event_loop_policy().get_event_loop().run_until_complete(test_logic())
 
 
 @pytest.mark.parametrize("simulator", [VerilatorTester, XceliumTester, VCSTester])
@@ -123,7 +123,7 @@ def test_complex_construct(find_free_port, simulator):
                         assert "b.a" in gen_vars and gen_vars["b.a"] != "ERROR"
                         assert "b.b.15" in gen_vars and gen_vars["b.b.15"] != "ERROR"
 
-            asyncio.get_event_loop().run_until_complete(test_logic())
+            asyncio.get_event_loop_policy().get_event_loop().run_until_complete(test_logic())
 
 
 if __name__ == "__main__":

@@ -108,7 +108,7 @@ def test_replay3(start_server, find_free_port, get_tools_vector_dir):
             bp = await client.recv()
             assert bp["payload"]["time"] == 15
 
-        asyncio.get_event_loop().run_until_complete(test_logic())
+        asyncio.get_event_loop_policy().get_event_loop().run_until_complete(test_logic())
 
     s.kill()
 
@@ -137,7 +137,7 @@ def test_replay4(start_server, find_free_port, get_tools_vector_dir):
             bp = await client.recv()
             assert bp["payload"]["instances"][0]["generator"]["a[0][0]"] == "0x000B"
 
-        asyncio.get_event_loop().run_until_complete(test_logic())
+        asyncio.get_event_loop_policy().get_event_loop().run_until_complete(test_logic())
 
     s.kill()
 

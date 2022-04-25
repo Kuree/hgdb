@@ -20,7 +20,7 @@ def test_echo(start_server, find_free_port):
             echo = await ws.recv()
             assert echo == payload
 
-    asyncio.get_event_loop().run_until_complete(send_msg())
+    asyncio.get_event_loop_policy().get_event_loop().run_until_complete(send_msg())
     # kill the server
     s.terminate()
     while s.poll() is None:
@@ -37,7 +37,7 @@ def test_shutdown(start_server, find_free_port):
         async with websockets.connect(uri) as ws:
             await ws.send(payload)
 
-    asyncio.get_event_loop().run_until_complete(send_msg())
+    asyncio.get_event_loop_policy().get_event_loop().run_until_complete(send_msg())
     # check if process exit
     t = time.time()
     killed = False
@@ -68,7 +68,7 @@ def test_topic_pub(start_server, find_free_port):
                 echo2 = await ws1.recv()
                 assert(echo2 == payload2 * 2)
 
-    asyncio.get_event_loop().run_until_complete(send_msg())
+    asyncio.get_event_loop_policy().get_event_loop().run_until_complete(send_msg())
     # kill the server
     s.terminate()
     while s.poll() is None:
