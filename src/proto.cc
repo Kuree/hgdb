@@ -494,7 +494,9 @@ bool BreakPointResponse::LocalVarNameCompare::operator()(const std::string &var1
                     return v1 < v2;
                 }
             } else if (t1 != t2) {
-                return t1 < t2;
+                // for some reason clang-tidy wants us to use nullptr here
+                // https://github.com/Kuree/hgdb/runs/6166140093
+                return t1 < t2;  // NOLINT
             }
         }
     }
