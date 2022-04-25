@@ -470,6 +470,64 @@ TEST(proto, breakpoint_response) {  // NOLINT
     EXPECT_EQ(s, expected_value);
 }
 
+TEST(proro, breakpoint_response_scope) {  // NOLINT
+    {
+        auto scope = hgdb::BreakPointResponse::Scope(0, "", 0);
+        scope.add_local_value("a", "1");
+        scope.add_local_value("a", "2");
+        EXPECT_EQ(scope.local_values.size(), 1);
+        EXPECT_EQ(scope.local_values.at("a"), "1");
+    }
+
+    {
+        auto scope = hgdb::BreakPointResponse::Scope(0, "", 0);
+        scope.add_local_value("a", "1");
+        scope.add_local_value("b", "2");
+        EXPECT_EQ(scope.local_values.size(), 2);
+        EXPECT_EQ(scope.local_values.at("a"), "1");
+        EXPECT_EQ(scope.local_values.at("b"), "2");
+    }
+
+    {
+        auto scope = hgdb::BreakPointResponse::Scope(0, "", 0);
+        scope.add_local_value("a", "1");
+        scope.add_local_value("a.a", "2");
+        EXPECT_EQ(scope.local_values.size(), 2);
+        EXPECT_EQ(scope.local_values.at("a"), "1");
+        EXPECT_EQ(scope.local_values.at("a.a"), "2");
+    }
+
+    {
+        auto scope = hgdb::BreakPointResponse::Scope(0, "", 0);
+        scope.add_local_value("a.a", "1");
+        scope.add_local_value("a.1.2", "2");
+        scope.add_local_value("b.1.3", "3");
+        EXPECT_EQ(scope.local_values.size(), 3);
+        EXPECT_EQ(scope.local_values.at("a.a"), "1");
+        EXPECT_EQ(scope.local_values.at("a.1.2"), "2");
+        EXPECT_EQ(scope.local_values.at("b.1.3"), "3");
+    }
+
+    {
+        // check numeric ordering
+        auto scope = hgdb::BreakPointResponse::Scope(0, "", 0);
+        scope.add_local_value("b", "4");
+        scope.add_local_value("a.10.3", "3");
+        scope.add_local_value("a.10.2", "2");
+        scope.add_local_value("a.1.0", "1");
+        EXPECT_EQ(scope.local_values.size(), 4);
+        std::vector<std::string> keys;
+        keys.reserve(scope.local_values.size());
+        for (auto const &[key, value] : scope.local_values) {
+            keys.emplace_back(key);
+        }
+        EXPECT_EQ(keys[0], "a.1.0");
+        EXPECT_EQ(keys[1], "a.10.2");
+        EXPECT_EQ(keys[2], "a.10.3");
+        EXPECT_EQ(keys[3], "b");
+    }
+}
+
 TEST(proto, debugger_info_response_breakpoint) {  // NOLINT
     auto bp = hgdb::DebugBreakPoint{.id = 42, .filename = "/tmp/a", .line_num = 1, .column_num = 1};
     std::vector<const hgdb::DebugBreakPoint *> bps = {&bp};
