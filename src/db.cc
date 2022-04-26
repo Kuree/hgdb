@@ -175,12 +175,14 @@ DBSymbolTableProvider::get_context_variables(uint32_t breakpoint_id) {
     if (debug_mode_) [[unlikely]] {
         if (debug_context_vars_.find(breakpoint_id) != debug_context_vars_.end()) {
             auto const &[name, value] = debug_context_vars_.at(breakpoint_id);
-            result.emplace_back(std::make_pair(
-                ContextVariable{.name = name,
-                                .breakpoint_id = std::make_unique<uint32_t>(breakpoint_id),
-                                .variable_id = nullptr,
-                                .type = static_cast<uint32_t>(VariableType::delay)},
-                Variable{.id = 0, .value = value, .is_rtl = true}));
+            result.insert(
+                result.begin(),
+                std::make_pair(
+                    ContextVariable{.name = name,
+                                    .breakpoint_id = std::make_unique<uint32_t>(breakpoint_id),
+                                    .variable_id = nullptr,
+                                    .type = static_cast<uint32_t>(VariableType::delay)},
+                    Variable{.id = 0, .value = value, .is_rtl = true}));
         }
     }
     return result;
@@ -371,7 +373,7 @@ std::vector<uint32_t> DBSymbolTableProvider::execution_bp_orders() {
 }
 
 void DBSymbolTableProvider::set_context_delay_var(uint32_t breakpoint_id, const std::string &name,
-                                            const std::string &value) {
+                                                  const std::string &value) {
     debug_mode_ = true;
     debug_context_vars_[breakpoint_id] = std::make_pair(name, value);
 }

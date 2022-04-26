@@ -157,8 +157,8 @@ auto setup_db_vpi(MockVPIProvider &vpi) {
             auto name = fmt::format("array[{0}]", i);
             store_variable(*db, var_id, name);
             store_generator_variable(*db, name, dut_id, var_id);
-            // and context with delay mode
-            store_context_variable(*db, name, 6 + base_id, var_id, true);
+            // and context without delay mode
+            store_context_variable(*db, name, 6 + base_id, var_id, false);
             var_id++;
         }
         context_array_breakpoint_ids.emplace(6 + base_id);
@@ -185,7 +185,7 @@ auto setup_db_vpi(MockVPIProvider &vpi) {
 
     auto db_client = std::make_unique<hgdb::DBSymbolTableProvider>(std::move(db));
     for (auto const id : context_array_breakpoint_ids) {
-        db_client->set_context_delay_var(id, "array[0]", "array[0]");
+        db_client->set_context_delay_var(id, "array[3]", "array[3]");
     }
 
     return db_client;
@@ -255,12 +255,13 @@ int main(int argc, char *argv[]) {
             // also set the array
             if (time % 2) {
                 for (auto i = 0; i < 4; i++) {
+                    if (i == 3) continue;
                     auto array_name = fmt::format("top.dut.array[{0}]", i);
                     raw_vpi->set_signal_value(raw_vpi->vpi_handle_by_name(
                                                   const_cast<char *>(array_name.c_str()), nullptr),
                                               static_cast<int64_t>(time + 1));
                 }
-            } else {
+            } else if (time % 3 == 2) {
                 constexpr const char *array_3 = "top.dut.array[3]";
                 raw_vpi->set_signal_value(
                     raw_vpi->vpi_handle_by_name(const_cast<char *>(array_3), nullptr),

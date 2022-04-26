@@ -50,7 +50,8 @@ public:
     [[nodiscard]] bool bad() const override { return db_ == nullptr; }
 
     // used for testing and benchmarking. not for normal usage
-    void set_context_delay_var(uint32_t breakpoint_id, const std::string &name, const std::string &value);
+    void set_context_delay_var(uint32_t breakpoint_id, const std::string &name,
+                               const std::string &value);
 
 private:
     std::unique_ptr<SQLiteDebugDatabase> db_;

@@ -525,14 +525,21 @@ def test_array_ssa(start_server, find_free_port):
     s, uri = setup_server(start_server, find_free_port, stdout=True)
 
     async def test_logic():
-        async with hgdb.HGDBClient(uri, None) as client:
+        async with hgdb.HGDBClient(uri, None, debug=True) as client:
             await client.connect()
             await client.set_breakpoint("/tmp/test.py", 7)
-            for i in range(8):
+            for i in range(3):
                 await client.continue_()
-                bp = await client.recv_bp()
-                context_vars = get_instance(bp["payload"]["instances"], 1)["local"]
-                print(context_vars)
+                await client.recv_bp()
+            await client.continue_()
+            bp3 = await client.recv_bp()
+            await client.continue_()
+            bp4 = await client.recv_bp()
+            # array[3] is set here, but due to delay it shows up one cycle later
+            context_vars = get_instance(bp3["payload"]["instances"], 1)["local"]
+            assert context_vars["array[3]"] == "0"
+            context_vars = get_instance(bp4["payload"]["instances"], 1)["local"]
+            assert context_vars["array[3]"] == "3"
 
     asyncio.get_event_loop_policy().get_event_loop().run_until_complete(test_logic())
     kill_server(s)
