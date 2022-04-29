@@ -2,8 +2,8 @@
 #define HGDB_MONITOR_HH
 
 #include <functional>
-#include <unordered_set>
 #include <queue>
+#include <unordered_set>
 
 #include "proto.hh"
 
@@ -18,6 +18,8 @@ public:
     uint64_t add_monitor_variable(const std::string& full_name, WatchType watch_type);
     uint64_t add_monitor_variable(const std::string& full_name, WatchType watch_type,
                                   std::shared_ptr<std::optional<int64_t>> value);
+    uint64_t add_monitor_variable(const std::string& full_name, uint32_t depth,
+                                  std::optional<int64_t> v);
     void remove_monitor_variable(uint64_t watch_id);
     [[nodiscard]] std::optional<uint64_t> is_monitored(const std::string& full_name,
                                                        WatchType watch_type) const;
@@ -60,12 +62,11 @@ private:
 
     class WatchVariableBuffer : public WatchVariable {
     public:
-        WatchVariableBuffer(WatchType type, std::string full_name, uint32_t depth = 1);
+        WatchVariableBuffer(std::string full_name, uint32_t depth = 1);
 
         [[nodiscard]] std::optional<int64_t> get_value() const override;
         void set_value(std::optional<int64_t> v) override;
         [[nodiscard]] std::shared_ptr<std::optional<int64_t>> get_value_ptr() const override;
-
 
     private:
         uint32_t depth_;
@@ -74,6 +75,8 @@ private:
 
     uint64_t watch_id_count_ = 0;
     std::unordered_map<uint64_t, std::unique_ptr<WatchVariable>> watched_variables_;
+
+    uint32_t add_watch_var(std::unique_ptr<WatchVariable> w);
 };
 
 }  // namespace hgdb

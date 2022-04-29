@@ -19,8 +19,7 @@ uint64_t Monitor::add_monitor_variable(const std::string& full_name, WatchType w
         return *watched;
     }
     auto w = std::make_unique<WatchVariable>(watch_type, full_name);
-    watched_variables_.emplace(watch_id_count_, std::move(w));
-    return watch_id_count_++;
+    return add_watch_var(std::move(w));
 }
 
 uint64_t Monitor::add_monitor_variable(const std::string& full_name, WatchType watch_type,
@@ -30,8 +29,15 @@ uint64_t Monitor::add_monitor_variable(const std::string& full_name, WatchType w
         return *watched;
     }
     auto w = std::make_unique<WatchVariable>(watch_type, full_name, std::move(value));
-    watched_variables_.emplace(watch_id_count_, std::move(w));
-    return watch_id_count_++;
+    return add_watch_var(std::move(w));
+}
+
+uint64_t Monitor::add_monitor_variable(const std::string& full_name, uint32_t depth,
+                                       std::optional<int64_t> v) {
+    // for now, no existing check?
+    auto w = std::make_unique<WatchVariableBuffer>(full_name, depth);
+    w->set_value(v);
+    return add_watch_var(std::move(w));
 }
 
 void Monitor::remove_monitor_variable(uint64_t watch_id) {
@@ -140,6 +146,11 @@ std::pair<bool, std::optional<int64_t>> Monitor::var_changed(uint64_t id) {
     return {false, {}};
 }
 
+uint32_t Monitor::add_watch_var(std::unique_ptr<WatchVariable> w) {
+    watched_variables_.emplace(watch_id_count_, std::move(w));
+    return watch_id_count_++;
+}
+
 std::optional<int64_t> Monitor::WatchVariable::get_value() const { return *value_; }
 
 void Monitor::WatchVariable::set_value(std::optional<int64_t> v) { *value_ = v; }
@@ -157,12 +168,11 @@ Monitor::WatchVariable::WatchVariable(WatchType type, std::string full_name,
                                       std::shared_ptr<std::optional<int64_t>> v)
     : type(type), full_name(std::move(full_name)), value_(std::move(v)) {}
 
-Monitor::WatchVariableBuffer::WatchVariableBuffer(WatchType type, std::string full_name,
-                                                  uint32_t depth)
-    : WatchVariable(type, std::move(full_name)), depth_(depth) {}
+Monitor::WatchVariableBuffer::WatchVariableBuffer(std::string full_name, uint32_t depth)
+    : WatchVariable(WatchType::delay_clock_edge, std::move(full_name)), depth_(depth) {}
 
 std::optional<int64_t> Monitor::WatchVariableBuffer::get_value() const {
-    if (!values_.empty()) [[likely]] {
+    if (values_.size() == depth_) [[likely]] {
         return values_.front();
     } else {
         return std::nullopt;

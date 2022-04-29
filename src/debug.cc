@@ -1305,7 +1305,6 @@ void Debugger::process_delayed_breakpoint(uint32_t bp_id) {
     auto context_vars = db_->get_context_variables(bp_id);
     for (auto const &[ctx, v] : context_vars) {
         using VariableType = SymbolTableProvider::VariableType;
-        using WatchType = MonitorRequest::MonitorType;
         if (!v.is_rtl || static_cast<VariableType>(ctx.type) != VariableType::delay) [[likely]] {
             continue;
         }
@@ -1315,9 +1314,8 @@ void Debugger::process_delayed_breakpoint(uint32_t bp_id) {
             // get current value as initialization. this allows the breakpoint next cycle
             // has the proper value before monitor logic kicks in
             auto value = rtl_->get_value(rtl_name);
-            auto value_ptr = std::make_shared<std::optional<int64_t>>(value);
-            auto watch_id =
-                monitor_.add_monitor_variable(rtl_name, WatchType::delay_clock_edge, value_ptr);
+            // for now, we use depth 1. need to add fields to specify the depth and condition
+            auto watch_id = monitor_.add_monitor_variable(rtl_name, 1, value);
             DelayedVariable delayed_var;
             delayed_var.rtl_name = rtl_name;
             delayed_var.watch_id = watch_id;
