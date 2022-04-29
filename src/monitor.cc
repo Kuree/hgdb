@@ -18,8 +18,8 @@ uint64_t Monitor::add_monitor_variable(const std::string& full_name, WatchType w
     if (watched) {
         return *watched;
     }
-    auto w = WatchVariable(watch_type, full_name);
-    watched_variables_.emplace(watch_id_count_, w);
+    auto w = std::make_unique<WatchVariable>(watch_type, full_name);
+    watched_variables_.emplace(watch_id_count_, std::move(w));
     return watch_id_count_++;
 }
 
@@ -29,8 +29,8 @@ uint64_t Monitor::add_monitor_variable(const std::string& full_name, WatchType w
     if (watched) {
         return *watched;
     }
-    auto w = WatchVariable(watch_type, full_name, std::move(value));
-    watched_variables_.emplace(watch_id_count_, w);
+    auto w = std::make_unique<WatchVariable>(watch_type, full_name, std::move(value));
+    watched_variables_.emplace(watch_id_count_, std::move(w));
     return watch_id_count_++;
 }
 
@@ -43,7 +43,7 @@ void Monitor::remove_monitor_variable(uint64_t watch_id) {
 std::optional<uint64_t> Monitor::is_monitored(const std::string& full_name,
                                               WatchType watch_type) const {
     for (auto const& [id, var] : watched_variables_) {
-        if (var.full_name == full_name && var.type == watch_type) [[unlikely]] {
+        if (var->full_name == full_name && var->type == watch_type) [[unlikely]] {
             // reuse the existing ID
             return id;
         }
@@ -54,9 +54,9 @@ std::optional<uint64_t> Monitor::is_monitored(const std::string& full_name,
 std::shared_ptr<std::optional<int64_t>> Monitor::get_watched_value_ptr(
     const std::unordered_set<std::string>& var_names, WatchType type) const {
     for (auto const& [id, var] : watched_variables_) {
-        if (var_names.find(var.full_name) != var_names.end() && var.type == type) {
+        if (var_names.find(var->full_name) != var_names.end() && var->type == type) {
             // reuse the existing ID
-            return var.get_value_ptr();
+            return var->get_value_ptr();
         }
     }
     return nullptr;
@@ -78,11 +78,11 @@ std::vector<std::pair<uint64_t, std::string>> Monitor::get_watched_values(WatchT
     result.reserve(watched_variables_.size());
 
     for (auto& [watch_id, watch_var] : watched_variables_) {
-        if (watch_var.type != type) continue;
-        switch (watch_var.type) {
+        if (watch_var->type != type) continue;
+        switch (watch_var->type) {
             case WatchType::breakpoint:
             case WatchType::clock_edge: {
-                auto value = get_value(watch_var.full_name);
+                auto value = get_value(watch_var->full_name);
                 auto str_value = get_string_value(value);
                 result.emplace_back(std::make_pair(watch_id, str_value));
                 break;
@@ -99,10 +99,10 @@ std::vector<std::pair<uint64_t, std::string>> Monitor::get_watched_values(WatchT
             }
             case WatchType::delay_clock_edge: {
                 // we assume this will be called every clock cycle
-                auto new_value = get_value(watch_var.full_name);
+                auto new_value = get_value(watch_var->full_name);
                 // we use the old value
-                auto old_value_str = get_string_value(*watch_var.get_value());
-                watch_var.set_value(new_value);
+                auto old_value_str = get_string_value(*watch_var->get_value());
+                watch_var->set_value(new_value);
                 result.emplace_back(std::make_pair(watch_id, old_value_str));
             }
         }
@@ -114,7 +114,7 @@ std::vector<std::pair<uint64_t, std::string>> Monitor::get_watched_values(WatchT
 uint64_t Monitor::num_watches(const std::string& name, WatchType type) const {
     uint64_t result = 0;
     for (auto const& iter : watched_variables_) {
-        if (iter.second.full_name == name && iter.second.type == type) {
+        if (iter.second->full_name == name && iter.second->type == type) {
             result++;
         }
     }
@@ -127,13 +127,13 @@ std::pair<bool, std::optional<int64_t>> Monitor::var_changed(uint64_t id) {
         return {false, {}};
     }
     auto& watch_var = watched_variables_.at(id);
-    auto value = get_value(watch_var.full_name);
+    auto value = get_value(watch_var->full_name);
     if (value) {
         bool changed = false;
-        auto const& watch_var_value = watch_var.get_value();
+        auto const& watch_var_value = watch_var->get_value();
         if (!watch_var_value.has_value() || watch_var_value.value() != *value) changed = true;
         if (changed) {
-            watch_var.set_value(value);
+            watch_var->set_value(value);
         }
         return {changed, value};
     }

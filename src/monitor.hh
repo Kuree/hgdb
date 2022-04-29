@@ -52,6 +52,8 @@ private:
         WatchVariable(WatchType type, std::string full_name,
                       std::shared_ptr<std::optional<int64_t>> v);
 
+        virtual ~WatchVariable() = default;
+
     private:
         std::shared_ptr<std::optional<int64_t>> value_;  // actual value
     };
@@ -71,7 +73,7 @@ private:
     };
 
     uint64_t watch_id_count_ = 0;
-    std::unordered_map<uint64_t, WatchVariable> watched_variables_;
+    std::unordered_map<uint64_t, std::unique_ptr<WatchVariable>> watched_variables_;
 };
 
 }  // namespace hgdb
