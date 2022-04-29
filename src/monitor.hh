@@ -3,6 +3,7 @@
 
 #include <functional>
 #include <unordered_set>
+#include <queue>
 
 #include "proto.hh"
 
@@ -53,6 +54,20 @@ private:
 
     private:
         std::shared_ptr<std::optional<int64_t>> value_;  // actual value
+    };
+
+    class WatchVariableBuffer : public WatchVariable {
+    public:
+        WatchVariableBuffer(WatchType type, std::string full_name, uint32_t depth = 1);
+
+        [[nodiscard]] std::optional<int64_t> get_value() const override;
+        void set_value(std::optional<int64_t> v) override;
+        [[nodiscard]] std::shared_ptr<std::optional<int64_t>> get_value_ptr() const override;
+
+
+    private:
+        uint32_t depth_;
+        std::queue<std::optional<int64_t>> values_;
     };
 
     uint64_t watch_id_count_ = 0;

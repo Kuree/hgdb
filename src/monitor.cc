@@ -157,4 +157,28 @@ Monitor::WatchVariable::WatchVariable(WatchType type, std::string full_name,
                                       std::shared_ptr<std::optional<int64_t>> v)
     : type(type), full_name(std::move(full_name)), value_(std::move(v)) {}
 
+Monitor::WatchVariableBuffer::WatchVariableBuffer(WatchType type, std::string full_name,
+                                                  uint32_t depth)
+    : WatchVariable(type, std::move(full_name)), depth_(depth) {}
+
+std::optional<int64_t> Monitor::WatchVariableBuffer::get_value() const {
+    if (!values_.empty()) [[likely]] {
+        return values_.front();
+    } else {
+        return std::nullopt;
+    }
+}
+
+void Monitor::WatchVariableBuffer::set_value(std::optional<int64_t> v) {
+    values_.emplace(v);
+    if (values_.size() > depth_) {
+        values_.pop();
+    }
+}
+
+std::shared_ptr<std::optional<int64_t>> Monitor::WatchVariableBuffer::get_value_ptr() const {
+    // buffer-based watch point will never use method
+    return nullptr;
+}
+
 }  // namespace hgdb
