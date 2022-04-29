@@ -38,10 +38,21 @@ private:
     // as a result, it needs to take these from the constructor
     std::function<std::optional<int64_t>(const std::string&)> get_value;
 
-    struct WatchVariable {
+    class WatchVariable {
+    public:
         WatchType type;
-        std::string full_name;                          // RTL name
-        std::shared_ptr<std::optional<int64_t>> value;  // actual value
+        std::string full_name;  // RTL name
+
+        [[nodiscard]] virtual std::optional<int64_t> get_value() const;
+        virtual void set_value(std::optional<int64_t> v);
+        [[nodiscard]] virtual std::shared_ptr<std::optional<int64_t>> get_value_ptr() const;
+
+        WatchVariable(WatchType type, std::string full_name);
+        WatchVariable(WatchType type, std::string full_name,
+                      std::shared_ptr<std::optional<int64_t>> v);
+
+    private:
+        std::shared_ptr<std::optional<int64_t>> value_;  // actual value
     };
 
     uint64_t watch_id_count_ = 0;

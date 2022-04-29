@@ -18,18 +18,20 @@ uint64_t Monitor::add_monitor_variable(const std::string& full_name, WatchType w
     if (watched) {
         return *watched;
     }
-    // old clang-tidy reports memory leak for .value = make_shared
-    auto value_ptr = std::make_shared<std::optional<int64_t>>();
-    auto w = WatchVariable{.type = watch_type, .full_name = full_name, .value = value_ptr};
+    auto w = WatchVariable(watch_type, full_name);
     watched_variables_.emplace(watch_id_count_, w);
     return watch_id_count_++;
 }
 
 uint64_t Monitor::add_monitor_variable(const std::string& full_name, WatchType watch_type,
                                        std::shared_ptr<std::optional<int64_t>> value) {
-    auto v = add_monitor_variable(full_name, watch_type);
-    watched_variables_.at(v).value = std::move(value);
-    return v;
+    auto watched = is_monitored(full_name, watch_type);
+    if (watched) {
+        return *watched;
+    }
+    auto w = WatchVariable(watch_type, full_name, std::move(value));
+    watched_variables_.emplace(watch_id_count_, w);
+    return watch_id_count_++;
 }
 
 void Monitor::remove_monitor_variable(uint64_t watch_id) {
@@ -54,7 +56,7 @@ std::shared_ptr<std::optional<int64_t>> Monitor::get_watched_value_ptr(
     for (auto const& [id, var] : watched_variables_) {
         if (var_names.find(var.full_name) != var_names.end() && var.type == type) {
             // reuse the existing ID
-            return var.value;
+            return var.get_value_ptr();
         }
     }
     return nullptr;
@@ -99,8 +101,8 @@ std::vector<std::pair<uint64_t, std::string>> Monitor::get_watched_values(WatchT
                 // we assume this will be called every clock cycle
                 auto new_value = get_value(watch_var.full_name);
                 // we use the old value
-                auto old_value_str = get_string_value(*watch_var.value);
-                *watch_var.value = new_value;
+                auto old_value_str = get_string_value(*watch_var.get_value());
+                watch_var.set_value(new_value);
                 result.emplace_back(std::make_pair(watch_id, old_value_str));
             }
         }
@@ -128,13 +130,31 @@ std::pair<bool, std::optional<int64_t>> Monitor::var_changed(uint64_t id) {
     auto value = get_value(watch_var.full_name);
     if (value) {
         bool changed = false;
-        if (!watch_var.value->has_value() || watch_var.value->value() != *value) changed = true;
+        auto const& watch_var_value = watch_var.get_value();
+        if (!watch_var_value.has_value() || watch_var_value.value() != *value) changed = true;
         if (changed) {
-            *watch_var.value = value;
+            watch_var.set_value(value);
         }
         return {changed, value};
     }
     return {false, {}};
 }
+
+std::optional<int64_t> Monitor::WatchVariable::get_value() const { return *value_; }
+
+void Monitor::WatchVariable::set_value(std::optional<int64_t> v) { *value_ = v; }
+
+std::shared_ptr<std::optional<int64_t>> Monitor::WatchVariable::get_value_ptr() const {
+    return value_;
+}
+
+Monitor::WatchVariable::WatchVariable(WatchType type, std::string full_name)
+    : type(type),
+      full_name(std::move(full_name)),
+      value_(std::make_shared<std::optional<int64_t>>()) {}
+
+Monitor::WatchVariable::WatchVariable(WatchType type, std::string full_name,
+                                      std::shared_ptr<std::optional<int64_t>> v)
+    : type(type), full_name(std::move(full_name)), value_(std::move(v)) {}
 
 }  // namespace hgdb
