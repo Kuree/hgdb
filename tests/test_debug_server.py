@@ -26,9 +26,11 @@ def is_killed(s):
     return killed
 
 
-def setup_server(start_server, find_free_port, no_eval=False, stdout=False, env=None):
+def setup_server(start_server, find_free_port, no_eval=False, stdout=False, env=None, json=False):
     port = find_free_port()
     args = ["+DEBUG_LOG", "+NO_EVAL"] if no_eval else ["+DEBUG_LOG"]
+    if json:
+        args.append("+JSON")
     s = start_server(port, "test_debug_server", args, stdout=stdout, env=env)
     assert s.poll() is None
     uri = "ws://localhost:{0}".format(port)
@@ -545,10 +547,26 @@ def test_array_ssa(start_server, find_free_port):
     kill_server(s)
 
 
+def test_array_delay(start_server, find_free_port):
+    s, uri = setup_server(start_server, find_free_port, stdout=True, json=True)
+
+    async def test_logic():
+        async with hgdb.HGDBClient(uri, None, debug=True) as client:
+            await client.connect()
+            await client.set_breakpoint("/tmp/test.py", 2)
+            for i in range(3):
+                await client.continue_()
+                bp = await client.recv_bp()
+                print(bp)
+
+    asyncio.get_event_loop_policy().get_event_loop().run_until_complete(test_logic())
+    kill_server(s)
+
+
 if __name__ == "__main__":
     import sys
 
     sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
     from conftest import start_server_fn, find_free_port_fn
 
-    test_array_ssa(start_server_fn, find_free_port_fn)
+    test_array_delay(start_server_fn, find_free_port_fn)

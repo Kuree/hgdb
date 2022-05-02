@@ -59,7 +59,7 @@
  *
  */
 
-auto setup_db_vpi(MockVPIProvider &vpi) {
+auto setup_sqlite_db_vpi(MockVPIProvider &vpi) {
     using namespace hgdb;
     // create a mock design, see comments above
     const auto *db_filename = ":memory:";
@@ -191,12 +191,138 @@ auto setup_db_vpi(MockVPIProvider &vpi) {
     return db_client;
 }
 
+std::unique_ptr<hgdb::SymbolTableProvider> setup_json_db_vpi(MockVPIProvider &vpi) {
+    auto constexpr *raw_db = R"(
+{
+  "generator": "hgdb",
+  "table": [
+    {
+      "type": "module",
+      "name": "mod",
+      "scope": [
+        {
+          "type": "block",
+          "filename": "/tmp/test.py",
+          "scope": [
+            {
+              "type": "assign",
+              "line": 2,
+              "condition": "a",
+              "variable": {
+                "name": "c",
+                "value": "c_0",
+                "rtl": true
+              }
+            },
+            {
+              "type": "assign",
+              "line": 4,
+              "condition": "!a",
+              "variable": {
+                "name": "c",
+                "value": "c_1",
+                "rtl": true
+              }
+            },
+            {
+              "type": "assign",
+              "line": 1,
+              "variable": {
+                "name": "c",
+                "value": "0",
+                "rtl": false
+              }
+            },
+            {
+              "type": "assign",
+              "line": 5,
+              "variable": {
+                "name": "c",
+                "value": "c_3",
+                "rtl": true
+              }
+            }
+          ]
+        }
+      ],
+      "variables": [
+        {
+          "name": "a",
+          "value": "a",
+          "rtl": true
+        },
+        {
+          "name": "clk",
+          "value": "clk",
+          "rtl": true
+        },
+        {
+          "name": "rst",
+          "value": "rst",
+          "rtl": true
+        },
+        {
+          "name": "b",
+          "value": "b",
+          "rtl": true
+        }
+      ],
+      "instances": []
+    }
+  ],
+  "top": "mod"
+}
+)";
+    // notice that the JSON db is slightly different from the SQLite DB
+    auto variables = std::vector<std::string>{"clk", "rst", "a", "b", "addr", "array"};
+    // some global variables to make things easier to track
+    std::set<uint32_t> context_array_breakpoint_ids;
+    // notice that mod and mod2 have the same definition
+    // we do so to test out multiple hierarchy mapping
+    std::vector<std::pair<std::string, std::string>> instance_names = {{"top", "top"},
+                                                                       {"mod", "top.dut"}};
+    vpiHandle dut_instance_handle = nullptr;
+    for (auto const &[def_name, inst_name] : instance_names) {
+        bool top = !dut_instance_handle;
+        dut_instance_handle = vpi.add_module(def_name, inst_name);
+        if (top) {
+            vpi.set_top(dut_instance_handle);
+        }
+    }
+
+    auto rtl_variables = {"a", "c", "c_0", "c_1",   "c_2",   "c_3",
+                          "d", "e", "f",   "array", "value", "addr"};
+    auto constexpr dut_instance_full_name = "top.dut";
+    std::unordered_map<std::string, vpiHandle> variable_handles;
+    for (auto const &name : rtl_variables) {
+        auto var_full_name = fmt::format("{0}.{1}", dut_instance_full_name, name);
+        auto *handle = vpi.add_signal(dut_instance_handle, var_full_name);
+        variable_handles[name] = handle;
+    }
+
+    vpi.set_signal_value(variable_handles.at("c_0"), 0);
+    vpi.set_signal_value(variable_handles.at("c_1"), 0);
+    vpi.set_signal_value(variable_handles.at("c_2"), 0);
+    vpi.set_signal_value(variable_handles.at("c_3"), 1);
+    vpi.set_signal_value(variable_handles.at("a"), 1);
+
+    // set signal dim and then set the value
+    vpi.set_signal_dim(variable_handles.at("array"), 4);
+    vpi.set_signal_value(variable_handles.at("value"), 4);
+    vpi.set_signal_value(variable_handles.at("addr"), 1);
+
+    auto db = std::make_unique<hgdb::JSONSymbolTableProvider>();
+    db->parse(raw_db);
+    return db;
+}
+
 auto set_mock() {
     auto vpi = std::make_unique<MockVPIProvider>();
 
     return vpi;
 }
 
+// NOLINTNEXTLINE
 int main(int argc, char *argv[]) {
     // can only run if there is a +DEBUG_LOG flag
     std::vector<std::string> args;
@@ -207,6 +333,7 @@ int main(int argc, char *argv[]) {
     bool should_run = false;
     bool no_eval = false;
     bool rewind = false;
+    bool use_json = false;
     for (auto const &arg : args) {
         if (arg == "+DEBUG_LOG") {
             should_run = true;
@@ -214,6 +341,8 @@ int main(int argc, char *argv[]) {
             no_eval = true;
         } else if (arg == "+REWIND") {
             rewind = true;
+        } else if (arg == "+JSON") {
+            use_json = true;
         }
     }
     if (!should_run) {
@@ -222,7 +351,8 @@ int main(int argc, char *argv[]) {
     }
 
     auto vpi = set_mock();
-    auto db = setup_db_vpi(*vpi);
+    std::unique_ptr<hgdb::SymbolTableProvider> db =
+        use_json ? setup_json_db_vpi(*vpi) : setup_sqlite_db_vpi(*vpi);
 
     vpi->set_argv(args);
     auto *raw_vpi = vpi.get();
