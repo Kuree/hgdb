@@ -462,6 +462,7 @@ struct VarDef {
     std::string value;
     bool rtl = true;
     VariableType type = VariableType::normal;
+    uint32_t depth = 1;
 };
 
 struct Instance {
@@ -723,6 +724,10 @@ std::vector<std::shared_ptr<VarDef>> parse_var(const rapidjson::Value &value, JS
             std::string t = value["type"].GetString();
             if (t == "delay") {
                 var->type = VariableType::delay;
+
+                if (value.HasMember("depth")) {
+                    var->depth = value["depth"].GetUint();
+                }
             }
         }
     }
@@ -1407,6 +1412,7 @@ JSONSymbolTableProvider::get_context_variables(uint32_t breakpoint_id) {  // NOL
         ctx_var.breakpoint_id = nullptr;
         ctx_var.variable_id = nullptr;
         ctx_var.type = static_cast<uint32_t>(var->type);
+        ctx_var.depth = var->depth;
 
         Variable db_var;
         db_var.value = var->value;

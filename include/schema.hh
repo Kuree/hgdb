@@ -216,9 +216,14 @@ struct ContextVariable {
     /**
      * Context variable type. By default it's 0
      * 0: normal
-     * 1: Last cycle
+     * 1: buffered cycle
      */
     uint32_t type = 0;
+
+    /**
+     * Used to indicate the buffer depth. only valid when the type is set to 1
+     */
+    uint32_t depth = 1;
 };
 
 /**

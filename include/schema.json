@@ -77,6 +77,11 @@
             "normal",
             "delay"
           ]
+        },
+        "depth": {
+          "description": "Indicates the delay FIFO depth. If not indicated, it's default to 1, i.e. one cycle delay",
+          "type": "integer",
+          "min": 1
         }
       }
     },

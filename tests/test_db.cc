@@ -980,7 +980,8 @@ TEST(json, delay_var) {  // NOLINT
                 "name": "var",
                 "value": "var",
                 "rtl": true,
-                "type": "delay"
+                "type": "delay",
+                "depth": 42
               }
             },
             {
@@ -1005,4 +1006,5 @@ TEST(json, delay_var) {  // NOLINT
     EXPECT_EQ(res.size(), 1);
     auto t = static_cast<hgdb::SymbolTableProvider::VariableType>(res[0].first.type);
     EXPECT_EQ(t, hgdb::SymbolTableProvider::VariableType::delay);
+    EXPECT_EQ(res[0].first.depth, 42);
 }
