@@ -113,6 +113,7 @@ public:
     [[nodiscard]] bool is_verilator() const { return is_verilator_; }
     [[nodiscard]] bool is_vcs() const { return is_vcs_; }
     [[maybe_unused]] [[nodiscard]] bool is_xcelium() const { return is_xcelium_; }
+    [[nodiscard]] bool is_mock() const { return is_mock_; }
 
     // search for clock signals
     [[nodiscard]] std::vector<std::string> get_clocks_from_design();
@@ -182,6 +183,7 @@ private:
     bool is_verilator_ = false;
     bool is_xcelium_ = false;
     bool is_vcs_ = false;
+    bool is_mock_ = false;
 
     static std::pair<std::string, std::string> get_path(const std::string &name);
     void compute_hierarchy_name_prefix(std::unordered_set<std::string> &top_names);

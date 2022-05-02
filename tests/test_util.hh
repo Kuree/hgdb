@@ -3,10 +3,10 @@
 
 #include <unordered_map>
 
+#include "debug.hh"
 #include "fmt/format.h"
 #include "gtest/gtest.h"
 #include "rtl.hh"
-#include "debug.hh"
 #include "schema.hh"
 
 class DBTestHelper : public ::testing::Test {
@@ -47,11 +47,11 @@ public:
     void stop() {
         // need to find debugger instance
         // assume there is no shutdown events
-        for (auto const &iter: callbacks_) {
+        for (auto const &iter : callbacks_) {
             auto const &cb = iter.second;
             if (cb.data.reason == cbEndOfSimulation) {
                 auto *ptr = cb.data.user_data;
-                auto *debugger = reinterpret_cast<hgdb::Debugger*>(ptr);
+                auto *debugger = reinterpret_cast<hgdb::Debugger *>(ptr);
                 debugger->stop();
                 return;
             }
@@ -60,6 +60,7 @@ public:
 
     PLI_INT32 vpi_get(PLI_INT32 property, vpiHandle object) override {
         if (property == vpiType) {
+            if (array_handles_.find(object) != array_handles_.end()) return vpiRegArray;
             if (signals_.find(object) != signals_.end()) return vpiNet;
             if (modules_.find(object) != modules_.end()) return vpiModule;
             // search for array
@@ -154,6 +155,10 @@ public:
                 if (module_hierarchy_.find(refHandle) == module_hierarchy_.end()) return nullptr;
                 handles = module_hierarchy_.at(refHandle);
             }
+        } else if (type == vpiRange) {
+            if (array_handles_.find(refHandle) == array_handles_.end()) return nullptr;
+            auto const &values = array_handles_.at(refHandle);
+            handles = std::unordered_set<vpiHandle>(values.begin(), values.end());
         }
         if (!handles.empty()) {
             auto *iter = get_new_handle();
@@ -183,7 +188,7 @@ public:
 
     vpiHandle vpi_register_cb(p_cb_data cb_data_p) override {
         auto *handle = get_new_handle();
-        callbacks_.emplace(handle, cb_data{.data=*cb_data_p});
+        callbacks_.emplace(handle, cb_data{.data = *cb_data_p});
         return handle;
     }
 

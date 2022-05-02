@@ -476,7 +476,7 @@ TEST(proro, breakpoint_response_scope) {  // NOLINT
         scope.add_local_value("a", "1");
         scope.add_local_value("a", "2");
         EXPECT_EQ(scope.local_values.size(), 1);
-        EXPECT_EQ(scope.local_values.at("a"), "1");
+        EXPECT_EQ(scope.local_values.at("a"), "2");
     }
 
     {

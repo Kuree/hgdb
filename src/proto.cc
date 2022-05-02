@@ -513,9 +513,7 @@ BreakPointResponse::Scope::Scope(uint64_t instance_id, std::string instance_name
 void BreakPointResponse::Scope::add_local_value(const std::string &name, const std::string &value) {
     // we need to be extra careful about overriding. Because the ordering is overriding items first
     // later values cannot override the existing ones
-    if (local_values.find(name) == local_values.end()) {
-        local_values.emplace(name, value);
-    }
+    local_values[name] = value;
 }
 
 void BreakPointResponse::Scope::add_generator_value(const std::string &name,

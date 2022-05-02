@@ -243,6 +243,36 @@ std::unique_ptr<hgdb::SymbolTableProvider> setup_json_db_vpi(MockVPIProvider &vp
               }
             }
           ]
+        },
+        {
+          "type": "block",
+          "filename": "/tmp/test.py",
+          "scope": [
+            {
+              "type": "decl",
+              "line": 10,
+              "variable": {
+                "name": "array",
+                "value": "array",
+                "rtl": true
+              }
+            },
+            {
+              "type": "assign",
+              "line": 11,
+              "variable": {
+                "name": "array[0]",
+                "value": "array[0]",
+                "rtl": true,
+                "type": "delay",
+                "depth": 4
+              }
+            },
+            {
+              "type": "none",
+              "line": 12
+            }
+          ]
         }
       ],
       "variables": [

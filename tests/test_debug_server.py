@@ -553,11 +553,15 @@ def test_array_delay(start_server, find_free_port):
     async def test_logic():
         async with hgdb.HGDBClient(uri, None, debug=True) as client:
             await client.connect()
-            await client.set_breakpoint("/tmp/test.py", 2)
-            for i in range(3):
+            await client.set_breakpoint("/tmp/test.py", 12)
+            for i in range(20):
                 await client.continue_()
                 bp = await client.recv_bp()
-                print(bp)
+            context_vars = get_instance(bp["payload"]["instances"], 0)["local"]
+            # depth size is 4
+            array0 = int(context_vars["array.0"])
+            array1 = int(context_vars["array.1"])
+            assert array0 == (array1 - 4)
 
     asyncio.get_event_loop_policy().get_event_loop().run_until_complete(test_logic())
     kill_server(s)

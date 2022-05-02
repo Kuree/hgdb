@@ -1314,7 +1314,6 @@ void Debugger::process_delayed_breakpoint(uint32_t bp_id) {
             // get current value as initialization. this allows the breakpoint next cycle
             // has the proper value before monitor logic kicks in
             auto value = rtl_->get_value(rtl_name);
-            // for now, we use depth 1. need to add fields to specify the depth and condition
             auto watch_id = monitor_.add_monitor_variable(rtl_name, ctx.depth, value);
             DelayedVariable delayed_var;
             delayed_var.rtl_name = rtl_name;

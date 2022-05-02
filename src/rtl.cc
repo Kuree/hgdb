@@ -601,7 +601,7 @@ std::vector<std::pair<std::string, std::string>> RTLSimulatorClient::resolve_rtl
         case vpiMemory:
         case vpiNetArray:
         case vpiRegArray: {
-            if (!is_verilator()) {
+            if (!is_verilator() && !is_mock()) {
                 brute_force_array(res);
             } else {
                 array_iteration(vpiRange, res);
@@ -689,6 +689,7 @@ void RTLSimulatorClient::set_simulator_info() {
     // to be safe all the matching is done by string find, instead of exact match, except
     // verilator
     is_vcs_ = sim_info_.name.find("VCS") != std::string::npos;
+    is_mock_ = sim_info_.name == "RTLMock";
 }
 
 void RTLSimulatorClient::compute_verilator_name_prefix(std::unordered_set<std::string> &top_names) {
