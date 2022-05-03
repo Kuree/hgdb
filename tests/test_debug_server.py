@@ -407,6 +407,7 @@ def test_debug_env_value(start_server, find_free_port):
 
 def test_data_breakpoint(start_server, find_free_port):
     s, uri = setup_server(start_server, find_free_port)
+
     # c_0 = 0  -> 2
     # c_1 = 0  -> 4
     # c_2 = 0  -> 1
@@ -569,8 +570,7 @@ def test_array_delay(start_server, find_free_port):
 
 @pytest.mark.skip(reason="not working yet")
 def test_array_delay_index(start_server, find_free_port):
-    #s, uri = setup_server(start_server, find_free_port, stdout=True, json=True)
-    uri = "ws://localhost:8888"
+    s, uri = setup_server(start_server, find_free_port, stdout=True, json=True)
 
     async def test_logic():
         async with hgdb.HGDBClient(uri, None, debug=True) as client:
@@ -579,12 +579,15 @@ def test_array_delay_index(start_server, find_free_port):
             for i in range(8):
                 await client.continue_()
                 bp = await client.recv_bp()
-                print(bp)
             context_vars = get_instance(bp["payload"]["instances"], 0)["local"]
-
+            addr = int(get_instance(bp["payload"]["instances"], 0)["generator"]["addr"])
+            array = int(context_vars[f"array.{addr}"])
+            ref = int(context_vars[f"array.{addr + 1}"])
+            # the one pointed by the addr has to be delayed by 1
+            assert array == (ref - 1)
 
     asyncio.get_event_loop_policy().get_event_loop().run_until_complete(test_logic())
-    # kill_server(s)
+    kill_server(s)
 
 
 if __name__ == "__main__":

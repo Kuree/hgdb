@@ -98,6 +98,8 @@ public:
     [[nodiscard]] std::optional<uint64_t> get_instance_id(uint64_t breakpoint_id) override;
     [[nodiscard]] std::vector<ContextVariableInfo> get_context_variables(
         uint32_t breakpoint_id) override;
+    [[nodiscard]] std::vector<ContextVariableInfo> get_context_delayed_variables(
+        uint32_t breakpoint_id) override;
     [[nodiscard]] std::vector<GeneratorVariableInfo> get_generator_variable(
         uint32_t instance_id) override;
     [[nodiscard]] std::vector<std::string> get_instance_names() override;

@@ -1302,12 +1302,8 @@ void Debugger::update_delayed_values() {
 void Debugger::process_delayed_breakpoint(uint32_t bp_id) {
     if (!db_) [[unlikely]]
         return;
-    auto context_vars = db_->get_context_variables(bp_id);
+    auto context_vars = db_->get_context_delayed_variables(bp_id);
     for (auto const &[ctx, v] : context_vars) {
-        using VariableType = SymbolTableProvider::VariableType;
-        if (!v.is_rtl || static_cast<VariableType>(ctx.type) != VariableType::delay) [[likely]] {
-            continue;
-        }
         auto var_names = resolve_context_name(v.value, ctx.name, bp_id, rtl_.get(), db_.get());
         for (auto const &[front_var, rtl_name] : var_names) {
             // we really don't care about front end name

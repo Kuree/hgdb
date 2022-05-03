@@ -461,6 +461,12 @@ struct VarDef {
     bool rtl = true;
     VariableType type = VariableType::normal;
     uint32_t depth = 1;
+
+    [[nodiscard]] inline std::unique_ptr<VarDef> clone() const {
+        auto ptr = std::make_unique<VarDef>();
+        *ptr = *this;
+        return ptr;
+    }
 };
 
 struct Instance {
@@ -1338,66 +1344,21 @@ std::optional<uint64_t> JSONSymbolTableProvider::get_instance_id(const std::stri
     return std::nullopt;
 }
 
-std::vector<SymbolTableProvider::ContextVariableInfo>
-JSONSymbolTableProvider::get_context_variables(uint32_t breakpoint_id) {  // NOLINT
-    if (!root_) return {};
-    BreakPointVisitor v(breakpoint_id);
-    v.visit(*root_);
-    if (v.raw_results.empty()) return {};
-    auto const *entry = v.raw_results[0];
-    std::vector<std::pair<std::string, const db::json::VarDef *>> vars;
-    std::vector<std::unique_ptr<db::json::VarDef>> temp_vars;
-
-    // walk all the way up to the module and query its previous siblings
-    // notice that this is not super efficient, but for now it's fine since it only gets
-    // called during user interaction
+void walk_up_nodes(const db::json::ScopeEntry *root,
+                   const std::function<void(const db::json::ScopeEntry *)> &func) {
+    auto const *entry = root;
     while (entry && entry->type != db::json::ScopeEntryType::Module) {
         auto const *node = entry;
         while (auto const *pre = node->get_previous()) {
-            if (pre->type == db::json::ScopeEntryType::Declaration) {
-                auto const *decl = reinterpret_cast<const db::json::VarDeclEntry *>(pre);
-                for (auto const &var : decl->vars) {
-                    vars.emplace_back(std::make_pair(var->name, var.get()));
-                }
-
-            } else if (pre->type == db::json::ScopeEntryType::Assign) {
-                auto const *assign = reinterpret_cast<const db::json::AssignEntry *>(pre);
-                if (assign->has_index()) [[unlikely]] {
-                    // need to be careful about the indexed value here
-                    auto const &indexed_var = assign->index.var;
-                    auto instance_id = get_instance_id(breakpoint_id);
-                    if (indexed_var->rtl && instance_id) {
-                        if (get_symbol_value_) {
-                            // if it's enabled
-                            auto indexed_name =
-                                resolve_scoped_name_instance(indexed_var->value, *instance_id);
-                            auto value =
-                                indexed_name ? (*get_symbol_value_)(*indexed_name) : std::nullopt;
-                            if (value) {
-                                auto new_var = std::make_unique<db::json::VarDef>();
-                                // follow index_var's type
-                                new_var->type = indexed_var->type;
-                                // use the first one
-                                new_var->name =
-                                    fmt::format("{0}.{1}", assign->vars[0]->name, *value);
-                                new_var->value =
-                                    fmt::format("{0}[{1}]", assign->vars[0]->value, *value);
-                                vars.emplace_back(new_var->name, new_var.get());
-                                temp_vars.emplace_back(std::move(new_var));
-                            }
-                        }
-                    }
-                } else {
-                    for (auto const &var : assign->vars) {
-                        vars.emplace_back(std::make_pair(var->name, var.get()));
-                    }
-                }
-            }
+            func(pre);
             node = pre;
         }
         entry = entry->parent;
     }
+}
 
+std::vector<SymbolTableProvider::ContextVariableInfo> convert_to_db_result(
+    const std::vector<std::pair<std::string, const db::json::VarDef *>> &vars) {
     std::vector<SymbolTableProvider::ContextVariableInfo> result;
     // convert var information
     for (auto const &[name, var] : vars) {
@@ -1415,6 +1376,112 @@ JSONSymbolTableProvider::get_context_variables(uint32_t breakpoint_id) {  // NOL
         db_var.id = 0;
         result.emplace_back(std::make_pair(std::move(ctx_var), db_var));
     }
+    return result;
+}
+
+std::vector<SymbolTableProvider::ContextVariableInfo>
+JSONSymbolTableProvider::get_context_variables(uint32_t breakpoint_id) {  // NOLINT
+    if (!root_) return {};
+    BreakPointVisitor v(breakpoint_id);
+    v.visit(*root_);
+    if (v.raw_results.empty()) return {};
+    auto const *entry = v.raw_results[0];
+    std::vector<std::pair<std::string, const db::json::VarDef *>> vars;
+    std::vector<std::unique_ptr<db::json::VarDef>> temp_vars;
+
+    // walk all the way up to the module and query its previous siblings
+    // notice that this is not super efficient, but for now it's fine since it only gets
+    // called during user interaction
+    // NOLINTNEXTLINE
+    auto process_node = [this, &vars, &temp_vars, breakpoint_id](const db::json::ScopeEntry *pre) {
+        if (pre->type == db::json::ScopeEntryType::Declaration) {
+            auto const *decl = reinterpret_cast<const db::json::VarDeclEntry *>(pre);
+            for (auto const &var : decl->vars) {
+                vars.emplace_back(std::make_pair(var->name, var.get()));
+            }
+
+        } else if (pre->type == db::json::ScopeEntryType::Assign) {
+            auto const *assign = reinterpret_cast<const db::json::AssignEntry *>(pre);
+            if (assign->has_index()) [[unlikely]] {
+                // need to be careful about the indexed value here
+                auto const &indexed_var = assign->index.var;
+                auto instance_id = get_instance_id(breakpoint_id);
+                if (indexed_var->rtl && instance_id) {
+                    if (get_symbol_value_) {
+                        // if it's enabled
+                        auto indexed_name =
+                            resolve_scoped_name_instance(indexed_var->value, *instance_id);
+                        auto value =
+                            indexed_name ? (*get_symbol_value_)(*indexed_name) : std::nullopt;
+                        if (value) {
+                            auto new_var = std::make_unique<db::json::VarDef>();
+                            // follow index_var's type
+                            new_var->type = indexed_var->type;
+                            // use the first one
+                            new_var->name = fmt::format("{0}.{1}", assign->vars[0]->name, *value);
+                            new_var->value =
+                                fmt::format("{0}[{1}]", assign->vars[0]->value, *value);
+                            vars.emplace_back(new_var->name, new_var.get());
+                            temp_vars.emplace_back(std::move(new_var));
+                        }
+                    }
+                }
+            } else {
+                for (auto const &var : assign->vars) {
+                    vars.emplace_back(std::make_pair(var->name, var.get()));
+                }
+            }
+        }
+    };
+    walk_up_nodes(entry, process_node);
+
+    auto result = convert_to_db_result(vars);
+
+    // because we walk the stack in reverse order, we need to reverse it to
+    // appear that the variable is declared in order
+    std::reverse(result.begin(), result.end());
+
+    return result;
+}
+
+std::vector<JSONSymbolTableProvider::ContextVariableInfo>
+JSONSymbolTableProvider::get_context_delayed_variables(uint32_t breakpoint_id) {  // NOLINT
+    if (!root_) return {};
+    BreakPointVisitor v(breakpoint_id);
+    v.visit(*root_);
+    if (v.raw_results.empty()) return {};
+    auto const *entry = v.raw_results[0];
+    std::vector<std::pair<std::string, const db::json::VarDef *>> vars;
+
+    auto process_node = [&vars](const db::json::ScopeEntry *pre) {
+        if (pre->type == db::json::ScopeEntryType::Declaration) {
+            auto const *decl = reinterpret_cast<const db::json::VarDeclEntry *>(pre);
+            for (auto const &var : decl->vars) {
+                if (var->type == VariableType::delay)
+                    vars.emplace_back(std::make_pair(var->name, var.get()));
+            }
+
+        } else if (pre->type == db::json::ScopeEntryType::Assign) {
+            auto const *assign = reinterpret_cast<const db::json::AssignEntry *>(pre);
+            bool add_delay = assign->vars[0]->type == VariableType::delay;
+            if (assign->has_index()) [[unlikely]] {
+                // need to be careful about the indexed value here
+                auto const &indexed_var = assign->index.var;
+                if (indexed_var->rtl && indexed_var->type == VariableType::delay) {
+                    add_delay |= true;
+                }
+            }
+
+            if (add_delay) {
+                for (auto const &var : assign->vars) {
+                    vars.emplace_back(std::make_pair(var->name, var.get()));
+                }
+            }
+        }
+    };
+    walk_up_nodes(entry, process_node);
+
+    auto result = convert_to_db_result(vars);
 
     // because we walk the stack in reverse order, we need to reverse it to
     // appear that the variable is declared in order

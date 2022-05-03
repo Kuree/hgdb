@@ -27,6 +27,8 @@ public:
     using ContextVariableInfo = std::pair<ContextVariable, Variable>;
     [[nodiscard]] virtual std::vector<ContextVariableInfo> get_context_variables(
         uint32_t breakpoint_id) = 0;
+    [[nodiscard]] virtual std::vector<ContextVariableInfo> get_context_delayed_variables(
+        uint32_t breakpoint_id);
 
     using GeneratorVariableInfo = std::pair<GeneratorVariable, Variable>;
     [[nodiscard]] virtual std::vector<GeneratorVariableInfo> get_generator_variable(

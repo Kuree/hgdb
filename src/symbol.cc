@@ -106,6 +106,20 @@ void SymbolTableProvider::set_get_symbol_value(
     get_symbol_value_ = std::move(func);
 }
 
+std::vector<SymbolTableProvider::ContextVariableInfo>
+SymbolTableProvider::get_context_delayed_variables(uint32_t breakpoint_id) {
+    std::vector<ContextVariableInfo> result;
+    auto context_vars = get_context_variables(breakpoint_id);
+    for (auto &[ctx, v] : context_vars) {
+        using VariableType = SymbolTableProvider::VariableType;
+        if (!v.is_rtl || static_cast<VariableType>(ctx.type) != VariableType::delay) [[likely]] {
+            continue;
+        }
+        result.emplace_back(std::make_pair(std::move(ctx), std::move(v)));
+    }
+    return result;
+}
+
 std::unordered_map<std::string, int64_t> SymbolTableProvider::get_context_static_values(
     uint32_t breakpoint_id) {
     auto vars = get_context_variables(breakpoint_id);
