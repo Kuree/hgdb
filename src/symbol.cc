@@ -1,9 +1,7 @@
 #include "symbol.hh"
 
-#include <atomic>
 #include <filesystem>
 #include <mutex>
-#include <ranges>
 
 #include "asio.hpp"
 #include "db.hh"
