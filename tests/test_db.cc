@@ -527,11 +527,11 @@ TEST_F(JSONDBTest, get_variable) {  // NOLINT
         // context value overwritten
         auto bp_id = db->get_breakpoints("hgdb.cc", 6);
         auto res = db->get_context_variables(bp_id[0].id);
-        EXPECT_EQ(res.size(), 2);
+        EXPECT_EQ(res.size(), 3);
         EXPECT_EQ(res[0].first.name, "var.a");
-        EXPECT_EQ(res[1].first.name, "i");
+        EXPECT_EQ(res[2].first.name, "i");
         EXPECT_EQ(res[0].second.value, "var_a");
-        EXPECT_EQ(res[1].second.value, "43");
+        EXPECT_EQ(res[2].second.value, "43");
     }
 
     {
@@ -923,7 +923,7 @@ TEST(json, var_index_assign) {  // NOLINT
 
     {
         auto context_vars = db.get_context_variables(2);
-        EXPECT_EQ(context_vars.size(), 2);
+        EXPECT_EQ(context_vars.size(), 1);
     }
 }
 

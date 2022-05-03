@@ -2,8 +2,8 @@
 
 #include <atomic>
 #include <filesystem>
-#include <fstream>
 #include <mutex>
+#include <ranges>
 
 #include "asio.hpp"
 #include "db.hh"
@@ -58,7 +58,13 @@ std::optional<std::string> SymbolTableProvider::resolve_scoped_name_breakpoint(
     auto vars = get_context_variables(breakpoint_id);
     auto inst_name = get_instance_name_from_bp(breakpoint_id);
     if (!inst_name) return std::nullopt;
-    for (auto const &[ctx, var] : vars) {
+    // we loop them in reverse order since the later one is the newest
+    // Notice this bug in clang:
+    // https://github.com/llvm/llvm-project/issues/44178
+    // as a result, we cannot use std::views::reverse to reverse view the variables
+    // NOLINTNEXTLINE
+    for (auto it = vars.rbegin(); it != vars.rend(); it++) {
+        auto const &[ctx, var] = *it;
         if (rtl_equivalent(ctx.name, scoped_name) || var.value == scoped_name) {
             if (var.is_rtl) {
                 if (var.value.starts_with(*inst_name)) {
@@ -105,7 +111,9 @@ std::unordered_map<std::string, int64_t> SymbolTableProvider::get_context_static
     auto vars = get_context_variables(breakpoint_id);
     std::unordered_map<std::string, int64_t> result;
 
-    for (auto const &[ctx, var] : vars) {
+    // NOLINTNEXTLINE
+    for (auto it = vars.rbegin(); it != vars.rend(); it++) {
+        auto const &[ctx, var] = *it;
         if (!var.is_rtl) {
             if (std::all_of(var.value.begin(), var.value.end(), ::isdigit)) {
                 auto v = std::stoll(var.value);

@@ -1345,7 +1345,6 @@ JSONSymbolTableProvider::get_context_variables(uint32_t breakpoint_id) {  // NOL
     v.visit(*root_);
     if (v.raw_results.empty()) return {};
     auto const *entry = v.raw_results[0];
-    std::unordered_set<std::string> var_names;
     std::vector<std::pair<std::string, const db::json::VarDef *>> vars;
     std::vector<std::unique_ptr<db::json::VarDef>> temp_vars;
 
@@ -1358,21 +1357,12 @@ JSONSymbolTableProvider::get_context_variables(uint32_t breakpoint_id) {  // NOL
             if (pre->type == db::json::ScopeEntryType::Declaration) {
                 auto const *decl = reinterpret_cast<const db::json::VarDeclEntry *>(pre);
                 for (auto const &var : decl->vars) {
-                    if (var_names.find(var->name) == var_names.end()) {
-                        var_names.emplace(var->name);
-                        vars.emplace_back(std::make_pair(var->name, var.get()));
-                    }
+                    vars.emplace_back(std::make_pair(var->name, var.get()));
                 }
 
             } else if (pre->type == db::json::ScopeEntryType::Assign) {
                 auto const *assign = reinterpret_cast<const db::json::AssignEntry *>(pre);
-                for (auto const &var : assign->vars) {
-                    if (var_names.find(var->name) == var_names.end()) {
-                        var_names.emplace(var->name);
-                        vars.emplace_back(std::make_pair(var->name, var.get()));
-                    }
-                }
-                if (assign->vars[0]->type == VariableType::delay && assign->has_index()) {
+                if (assign->has_index()) [[unlikely]] {
                     // need to be careful about the indexed value here
                     auto const &indexed_var = assign->index.var;
                     auto instance_id = get_instance_id(breakpoint_id);
@@ -1385,6 +1375,8 @@ JSONSymbolTableProvider::get_context_variables(uint32_t breakpoint_id) {  // NOL
                                 indexed_name ? (*get_symbol_value_)(*indexed_name) : std::nullopt;
                             if (value) {
                                 auto new_var = std::make_unique<db::json::VarDef>();
+                                // follow index_var's type
+                                new_var->type = indexed_var->type;
                                 // use the first one
                                 new_var->name =
                                     fmt::format("{0}.{1}", assign->vars[0]->name, *value);
@@ -1394,6 +1386,10 @@ JSONSymbolTableProvider::get_context_variables(uint32_t breakpoint_id) {  // NOL
                                 temp_vars.emplace_back(std::move(new_var));
                             }
                         }
+                    }
+                } else {
+                    for (auto const &var : assign->vars) {
+                        vars.emplace_back(std::make_pair(var->name, var.get()));
                     }
                 }
             }
