@@ -1375,11 +1375,12 @@ JSONSymbolTableProvider::get_context_variables(uint32_t breakpoint_id) {  // NOL
                 if (assign->vars[0]->type == VariableType::delay && assign->has_index()) {
                     // need to be careful about the indexed value here
                     auto const &indexed_var = assign->index.var;
-                    if (indexed_var->rtl) {
+                    auto instance_id = get_instance_id(breakpoint_id);
+                    if (indexed_var->rtl && instance_id) {
                         if (get_symbol_value_) {
                             // if it's enabled
                             auto indexed_name =
-                                resolve_scoped_name_breakpoint(indexed_var->value, breakpoint_id);
+                                resolve_scoped_name_instance(indexed_var->value, *instance_id);
                             auto value =
                                 indexed_name ? (*get_symbol_value_)(*indexed_name) : std::nullopt;
                             if (value) {

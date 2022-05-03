@@ -271,6 +271,29 @@ std::unique_ptr<hgdb::SymbolTableProvider> setup_json_db_vpi(MockVPIProvider &vp
             {
               "type": "none",
               "line": 12
+            },
+            {
+              "type": "assign",
+              "line": 13,
+              "variable": {
+                "name": "array",
+                "value": "array",
+                "rtl": true,
+                "type": "delay"
+              },
+              "index": {
+                "var": {
+                  "name": "addr",
+                  "value": "value",
+                  "rtl": true
+                },
+                "min": 0,
+                "max": 3
+              }
+            },
+            {
+              "type": "none",
+              "line": 14
             }
           ]
         }
@@ -287,13 +310,8 @@ std::unique_ptr<hgdb::SymbolTableProvider> setup_json_db_vpi(MockVPIProvider &vp
           "rtl": true
         },
         {
-          "name": "rst",
-          "value": "rst",
-          "rtl": true
-        },
-        {
-          "name": "b",
-          "value": "b",
+          "name": "addr",
+          "value": "addr",
           "rtl": true
         }
       ],
@@ -407,29 +425,45 @@ int main(int argc, char *argv[]) {
             auto time = raw_vpi->get_time();
             raw_vpi->set_time(time + 1);
 
-            // notice that we only set dut here, so after the first breakpoint hits
-            // only one will be hit later on
-            raw_vpi->set_signal_value(
-                raw_vpi->vpi_handle_by_name(const_cast<char *>(mod1_e), nullptr),
-                time > 1 ? 1 : static_cast<int64_t>(time));
-            // also set the array
-            if (time % 2) {
+            if (!use_json) {
+                // notice that we only set dut here, so after the first breakpoint hits
+                // only one will be hit later on
+                raw_vpi->set_signal_value(
+                    raw_vpi->vpi_handle_by_name(const_cast<char *>(mod1_e), nullptr),
+                    time > 1 ? 1 : static_cast<int64_t>(time));
+                // also set the array
+                if (time % 2) {
+                    for (auto i = 0; i < 4; i++) {
+                        if (i == 3) continue;
+                        auto array_name = fmt::format("top.dut.array[{0}]", i);
+                        raw_vpi->set_signal_value(
+                            raw_vpi->vpi_handle_by_name(const_cast<char *>(array_name.c_str()),
+                                                        nullptr),
+                            static_cast<int64_t>(time + 1));
+                    }
+                } else if (time % 3 == 2) {
+                    constexpr const char *array_3 = "top.dut.array[3]";
+                    raw_vpi->set_signal_value(
+                        raw_vpi->vpi_handle_by_name(const_cast<char *>(array_3), nullptr),
+                        static_cast<int64_t>(time + 1));
+                }
+                raw_vpi->set_signal_value(
+                    raw_vpi->vpi_handle_by_name(const_cast<char *>(mod1_f), nullptr),
+                    static_cast<int64_t>(time));
+            } else {
+                // json table is slightly different so we use different values
                 for (auto i = 0; i < 4; i++) {
-                    if (i == 3) continue;
                     auto array_name = fmt::format("top.dut.array[{0}]", i);
                     raw_vpi->set_signal_value(raw_vpi->vpi_handle_by_name(
                                                   const_cast<char *>(array_name.c_str()), nullptr),
                                               static_cast<int64_t>(time + 1));
                 }
-            } else if (time % 3 == 2) {
-                constexpr const char *array_3 = "top.dut.array[3]";
+                auto constexpr *addr_name = "top.dut.addr";
                 raw_vpi->set_signal_value(
-                    raw_vpi->vpi_handle_by_name(const_cast<char *>(array_3), nullptr),
-                    static_cast<int64_t>(time + 1));
+                    raw_vpi->vpi_handle_by_name(const_cast<char *>(addr_name), nullptr),
+                    static_cast<int64_t>(time % 4));
             }
-            raw_vpi->set_signal_value(
-                raw_vpi->vpi_handle_by_name(const_cast<char *>(mod1_f), nullptr),
-                static_cast<int64_t>(time));
+
             // sleep a little to avoid high CPU load
             std::this_thread::sleep_for(10ms);
         }

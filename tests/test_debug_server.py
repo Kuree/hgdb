@@ -554,7 +554,7 @@ def test_array_delay(start_server, find_free_port):
         async with hgdb.HGDBClient(uri, None, debug=True) as client:
             await client.connect()
             await client.set_breakpoint("/tmp/test.py", 12)
-            for i in range(20):
+            for i in range(8):
                 await client.continue_()
                 bp = await client.recv_bp()
             context_vars = get_instance(bp["payload"]["instances"], 0)["local"]
@@ -567,10 +567,30 @@ def test_array_delay(start_server, find_free_port):
     kill_server(s)
 
 
+@pytest.mark.skip(reason="not working yet")
+def test_array_delay_index(start_server, find_free_port):
+    #s, uri = setup_server(start_server, find_free_port, stdout=True, json=True)
+    uri = "ws://localhost:8888"
+
+    async def test_logic():
+        async with hgdb.HGDBClient(uri, None, debug=True) as client:
+            await client.connect()
+            await client.set_breakpoint("/tmp/test.py", 14)
+            for i in range(8):
+                await client.continue_()
+                bp = await client.recv_bp()
+                print(bp)
+            context_vars = get_instance(bp["payload"]["instances"], 0)["local"]
+
+
+    asyncio.get_event_loop_policy().get_event_loop().run_until_complete(test_logic())
+    # kill_server(s)
+
+
 if __name__ == "__main__":
     import sys
 
     sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
     from conftest import start_server_fn, find_free_port_fn
 
-    test_array_delay(start_server_fn, find_free_port_fn)
+    test_array_delay_index(start_server_fn, find_free_port_fn)
