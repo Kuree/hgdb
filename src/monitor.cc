@@ -46,6 +46,12 @@ void Monitor::remove_monitor_variable(uint64_t watch_id) {
     }
 }
 
+void Monitor::set_monitor_variable_condition(uint64_t id, std::function<bool()> cond) {
+    if (watched_variables_.find(id) != watched_variables_.end()) [[likely]] {
+        watched_variables_.at(id)->enable_cond = std::move(cond);
+    }
+}
+
 std::optional<uint64_t> Monitor::is_monitored(const std::string& full_name,
                                               WatchType watch_type) const {
     for (auto const& [id, var] : watched_variables_) {
@@ -88,7 +94,13 @@ std::vector<std::pair<uint64_t, std::string>> Monitor::get_watched_values(WatchT
         switch (watch_var->type) {
             case WatchType::breakpoint:
             case WatchType::clock_edge: {
-                auto value = get_value(watch_var->full_name);
+                std::optional<int64_t> value;
+                if (!watch_var->enable_cond || (*watch_var->enable_cond)()) {
+                    value = get_value(watch_var->full_name);
+                } else {
+                    value = watch_var->get_value();
+                }
+
                 auto str_value = get_string_value(value);
                 result.emplace_back(std::make_pair(watch_id, str_value));
                 break;

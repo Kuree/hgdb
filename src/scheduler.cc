@@ -225,6 +225,16 @@ std::vector<DebugBreakPoint *> Scheduler::next_reverse_breakpoints() {
     return result;
 }
 
+DebugBreakPoint *Scheduler::get_breakpoint(uint32_t id) const {
+    auto pos = std::find_if(breakpoints_.begin(), breakpoints_.end(),
+                            [id](auto const &b) { return b->id == id; });
+    if (pos != breakpoints_.end()) [[likely]] {
+        return pos->get();
+    } else {
+        return nullptr;
+    }
+}
+
 DebugBreakPoint *Scheduler::create_next_breakpoint(const std::optional<BreakPoint> &bp_info) {
     if (!bp_info) return nullptr;
     std::string cond = bp_info->condition.empty() ? "1" : bp_info->condition;

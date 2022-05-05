@@ -23,6 +23,7 @@ public:
     void remove_monitor_variable(uint64_t watch_id);
     [[nodiscard]] std::optional<uint64_t> is_monitored(const std::string& full_name,
                                                        WatchType watch_type) const;
+    void set_monitor_variable_condition(uint64_t id, std::function<bool()> cond);
     [[nodiscard]] std::shared_ptr<std::optional<int64_t>> get_watched_value_ptr(
         const std::unordered_set<std::string>& var_names, WatchType type) const;
     // called every cycle
@@ -45,6 +46,8 @@ private:
     public:
         WatchType type;
         std::string full_name;  // RTL name
+        // enable condition associated with the watch variable. by default, it's always enabled
+        std::optional<std::function<bool()>> enable_cond;
 
         [[nodiscard]] virtual std::optional<int64_t> get_value() const;
         virtual void set_value(std::optional<int64_t> v);
@@ -53,7 +56,6 @@ private:
         WatchVariable(WatchType type, std::string full_name);
         WatchVariable(WatchType type, std::string full_name,
                       std::shared_ptr<std::optional<int64_t>> v);
-
         virtual ~WatchVariable() = default;
 
     private:
@@ -62,7 +64,7 @@ private:
 
     class WatchVariableBuffer : public WatchVariable {
     public:
-        WatchVariableBuffer(std::string full_name, uint32_t depth = 1);
+        explicit WatchVariableBuffer(std::string full_name, uint32_t depth = 1);
 
         [[nodiscard]] std::optional<int64_t> get_value() const override;
         void set_value(std::optional<int64_t> v) override;

@@ -1165,10 +1165,9 @@ std::optional<int64_t> Debugger::get_value(const std::string &signal_name) {
     }
 }
 
-void Debugger::eval_breakpoint(DebugBreakPoint *bp, std::vector<bool> &result, uint32_t index) {
+bool Debugger::eval_breakpoint(DebugBreakPoint *bp) {
     const auto &bp_expr = scheduler_->breakpoint_only() ? bp->expr : bp->enable_expr;
-    // if not correct just always enable
-    if (!bp_expr->correct()) return;
+    if (!bp_expr->correct()) return false;
     // since at this point we have checked everything, just used the resolved name
     auto const &symbol_full_names = bp_expr->resolved_symbol_names();
     auto values = get_expr_values(bp_expr.get(), bp->instance_id);
@@ -1186,9 +1185,14 @@ void Debugger::eval_breakpoint(DebugBreakPoint *bp, std::vector<bool> &result, u
         }
         if (enabled && data_bp) {
             // trigger a breakpoint!
-            result[index] = true;
+            return true;
         }
     }
+    return false;
+}
+
+void Debugger::eval_breakpoint(DebugBreakPoint *bp, std::vector<bool> &result, uint32_t index) {
+    result[index] = eval_breakpoint(bp);
 }
 
 void Debugger::add_breakpoint(const BreakPoint &bp_info, const BreakPoint &db_bp) {
@@ -1302,7 +1306,11 @@ void Debugger::update_delayed_values() {
 void Debugger::process_delayed_breakpoint(uint32_t bp_id) {
     if (!db_) [[unlikely]]
         return;
+    auto *bp = scheduler_->get_breakpoint(bp_id);
+    if (!bp) return;
     auto context_vars = db_->get_context_delayed_variables(bp_id);
+    auto func = [this, bp]() { return eval_breakpoint(bp); };
+
     for (auto const &[ctx, v] : context_vars) {
         auto var_names = resolve_context_name(v.value, ctx.name, bp_id, rtl_.get(), db_.get());
         for (auto const &[front_var, rtl_name] : var_names) {
@@ -1311,6 +1319,7 @@ void Debugger::process_delayed_breakpoint(uint32_t bp_id) {
             // has the proper value before monitor logic kicks in
             auto value = rtl_->get_value(rtl_name);
             auto watch_id = monitor_.add_monitor_variable(rtl_name, ctx.depth, value);
+            monitor_.set_monitor_variable_condition(watch_id, func);
             DelayedVariable delayed_var;
             delayed_var.rtl_name = rtl_name;
             delayed_var.watch_id = watch_id;

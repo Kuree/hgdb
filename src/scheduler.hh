@@ -45,6 +45,7 @@ public:
     std::vector<DebugBreakPoint *> next_normal_breakpoints();
     DebugBreakPoint *next_step_back_breakpoint();
     std::vector<DebugBreakPoint *> next_reverse_breakpoints();
+    DebugBreakPoint *get_breakpoint(uint32_t id) const;
     void start_breakpoint_evaluation();
 
     // change scheduling semantics
