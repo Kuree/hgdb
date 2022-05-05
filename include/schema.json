@@ -218,14 +218,16 @@
             ]
           }
         },
-        "index": {
+        "indices": {
           "description": "Variable index information",
-          "type": "object",
-          "allOf": [
-            {
-              "$ref": "#/$defs/index"
-            }
-          ]
+          "type": "array",
+          "items": {
+            "allOf": [
+              {
+                "$ref": "#/$defs/index"
+              }
+            ]
+          }
         }
       },
       "required": [

@@ -859,11 +859,13 @@ TEST(json, var_index_assign) {  // NOLINT
               "line": 6,
               "column": 4,
               "variable": "42",
-              "index": {
-                "var": "420",
-                "min": 0,
-                "max": 15
-              }
+              "indices": [
+                {
+                  "var": "420",
+                  "min": 0,
+                  "max": 15
+                }
+              ]
             },
             {
               "type": "assign",
@@ -876,8 +878,8 @@ TEST(json, var_index_assign) {  // NOLINT
               }
             },
             {
-               "type": "none",
-               "line": 7
+              "type": "none",
+              "line": 7
             }
           ]
         }

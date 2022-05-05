@@ -525,11 +525,11 @@ struct AssignEntry : public ScopeEntry {
         uint32_t max = 0;
     };
 
-    IndexInfo index;
+    std::vector<IndexInfo> indices;
 
     AssignEntry() : ScopeEntry(ScopeEntryType::Assign) {}
 
-    [[nodiscard]] bool has_index() const { return index.var != nullptr; }
+    [[nodiscard]] bool has_index() const { return !indices.empty(); }
 };
 
 struct BlockEntry : public ScopeEntry {
@@ -699,11 +699,15 @@ std::shared_ptr<AssignEntry> parse_assign(const rapidjson::Value &value, JSONPar
 
     result->vars = parse_var(value["variable"], info);
 
-    if (value.HasMember("index")) {
-        auto const &index = value["index"];
-        result->index.var = parse_var(index["var"], info)[0];
-        result->index.min = index["min"].GetUint();
-        result->index.max = index["max"].GetUint();
+    if (value.HasMember("indices")) {
+        auto const &indices = value["indices"];
+        for (auto const &index : indices.GetArray()) {
+            AssignEntry::IndexInfo idx;
+            idx.var = parse_var(index["var"], info)[0];
+            idx.min = index["min"].GetUint();
+            idx.max = index["max"].GetUint();
+            result->indices.emplace_back(idx);
+        }
     }
 
     return result;
@@ -1404,25 +1408,28 @@ JSONSymbolTableProvider::get_context_variables(uint32_t breakpoint_id) {  // NOL
             auto const *assign = reinterpret_cast<const db::json::AssignEntry *>(pre);
             if (assign->has_index()) [[unlikely]] {
                 // need to be careful about the indexed value here
-                auto const &indexed_var = assign->index.var;
-                auto instance_id = get_instance_id(breakpoint_id);
-                if (indexed_var->rtl && instance_id) {
-                    if (get_symbol_value_) {
-                        // if it's enabled
-                        auto indexed_name =
-                            resolve_scoped_name_instance(indexed_var->value, *instance_id);
-                        auto value =
-                            indexed_name ? (*get_symbol_value_)(*indexed_name) : std::nullopt;
-                        if (value) {
-                            auto new_var = std::make_unique<db::json::VarDef>();
-                            // follow index_var's type
-                            new_var->type = indexed_var->type;
-                            // use the first one
-                            new_var->name = fmt::format("{0}.{1}", assign->vars[0]->name, *value);
-                            new_var->value =
-                                fmt::format("{0}[{1}]", assign->vars[0]->value, *value);
-                            vars.emplace_back(new_var->name, new_var.get());
-                            temp_vars.emplace_back(std::move(new_var));
+                for (auto const &index : assign->indices) {
+                    auto const &indexed_var = index.var;
+                    auto instance_id = get_instance_id(breakpoint_id);
+                    if (indexed_var->rtl && instance_id) {
+                        if (get_symbol_value_) {
+                            // if it's enabled
+                            auto indexed_name =
+                                resolve_scoped_name_instance(indexed_var->value, *instance_id);
+                            auto value =
+                                indexed_name ? (*get_symbol_value_)(*indexed_name) : std::nullopt;
+                            if (value) {
+                                auto new_var = std::make_unique<db::json::VarDef>();
+                                // follow index_var's type
+                                new_var->type = indexed_var->type;
+                                // use the first one
+                                new_var->name =
+                                    fmt::format("{0}.{1}", assign->vars[0]->name, *value);
+                                new_var->value =
+                                    fmt::format("{0}[{1}]", assign->vars[0]->value, *value);
+                                vars.emplace_back(new_var->name, new_var.get());
+                                temp_vars.emplace_back(std::move(new_var));
+                            }
                         }
                     }
                 }
@@ -1466,9 +1473,11 @@ JSONSymbolTableProvider::get_context_delayed_variables(uint32_t breakpoint_id) {
             bool add_delay = assign->vars[0]->type == VariableType::delay;
             if (assign->has_index()) [[unlikely]] {
                 // need to be careful about the indexed value here
-                auto const &indexed_var = assign->index.var;
-                if (indexed_var->rtl && indexed_var->type == VariableType::delay) {
-                    add_delay |= true;
+                for (auto const &indexed : assign->indices) {
+                    auto const &indexed_var = indexed.var;
+                    if (indexed_var->rtl && indexed_var->type == VariableType::delay) {
+                        add_delay |= true;
+                    }
                 }
             }
 
@@ -1627,13 +1636,15 @@ private:
                 auto index_str = var_names_.back();
                 if (auto idx = util::stoul(index_str)) {
                     // found the actual index. now check if it's within the boundary
-                    if (assign.index.min <= idx && assign.index.max >= idx) {
-                        // we have found it. create a condition now
-                        auto cond = fmt::format("{0} == {1}", assign.index.var->value, *idx);
-                        // and rtl value
-                        auto value =
-                            fmt::format(fmt::format("{0}[{1}]", assign.vars[0]->value, *idx));
-                        return Info{&assign, value, cond};
+                    for (auto const &index : assign.indices) {
+                        if (index.min <= idx && index.max >= idx) {
+                            // we have found it. create a condition now
+                            auto cond = fmt::format("{0} == {1}", index.var->value, *idx);
+                            // and rtl value
+                            auto value =
+                                fmt::format(fmt::format("{0}[{1}]", assign.vars[0]->value, *idx));
+                            return Info{&assign, value, cond};
+                        }
                     }
                 }
             }

@@ -280,16 +280,18 @@ std::unique_ptr<hgdb::SymbolTableProvider> setup_json_db_vpi(MockVPIProvider &vp
                 "value": "array",
                 "rtl": true
               },
-              "index": {
-                "var": {
-                  "name": "addr",
-                  "value": "addr",
-                  "rtl": true,
-                  "type": "delay"
-                },
-                "min": 0,
-                "max": 3
-              }
+              "indices": [
+                {
+                  "var": {
+                    "name": "addr",
+                    "value": "addr",
+                    "rtl": true,
+                    "type": "delay"
+                  },
+                  "min": 0,
+                  "max": 3
+                }
+              ]
             },
             {
               "type": "none",
