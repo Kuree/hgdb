@@ -1,4 +1,6 @@
 import _hgdb
+import json
+import typing
 
 
 class DebugSymbolTableException(Exception):
@@ -69,3 +71,99 @@ class DebugSymbolTable:
 
     def end_transaction(self):
         return _hgdb.end_transaction(self.db)
+
+
+# pure Python implementation
+class Scope:
+    def __init__(self, parent: typing.Union["Scope", None]):
+        self.children = []
+        self.filename = ""
+        self.line = 0
+        self.col = 0
+        self.parent = parent
+        if parent is not None:
+            parent.children.append(self)
+
+    def get_filename(self):
+        p = self
+        while p is not None:
+            if p.filename:
+                return p.filename
+            p = p.parent
+
+    def type(self):
+        if len(self.children) > 0:
+            return "block"
+        else:
+            return "none"
+
+    def to_dict(self):
+        res = {"type": self.type(), "line": self.line}
+        if self.col > 0:
+            res["col"] = self.col
+        scopes = []
+        for scope in self.children:
+            scopes.append(scope.to_dict())
+        if len(scopes):
+            res["scopes"] = scopes
+        if self.filename:
+            res["filename"] = self.filename
+        return res
+
+
+class Variable:
+    def __init__(self, name: str, value: str, rtl: bool = True):
+        self.name = name
+        self.value = value
+        self.rtl = rtl
+
+    def to_dict(self):
+        return {"name": self.name, "value": self.value, "rtl": self.rtl}
+
+
+class VarAssign(Scope):
+    def __init__(self, var: Variable, parent):
+        super(VarAssign, self).__init__(parent)
+        self.var = var
+
+    def type(self):
+        return "assign"
+
+    def to_dict(self):
+        res = super(VarAssign, self).to_dict()
+        res["var"] = self.var.to_dict()
+        return res
+
+
+class VarDecl(VarAssign):
+    def __init__(self, var: Variable, parent):
+        super(VarDecl, self).__init__(var, parent)
+
+    def type(self):
+        return "decl"
+
+
+class Module(Scope):
+    def __init__(self, name: str):
+        super(Module, self).__init__(None)
+        self.name = name
+
+
+class JSONSymbolTable:
+
+    def __init__(self, filename: str):
+        self.__filename = filename
+        self.__fd = open(self.__filename, "w+")
+
+        # indexed by definition name
+        self.scopes = {}
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.close()
+
+    def __enter__(self):
+        pass
+
+    def close(self):
+        json.dump(self.scopes, self.__fd)
+        self.__fd.close()
