@@ -4,6 +4,7 @@ import hgdb
 import os
 import pytest
 import subprocess
+import json
 
 
 def get_conn_cursor(db_name):
@@ -127,5 +128,23 @@ def test_toml_scope_parsing():
         conn.close()
 
 
+def test_python_json_table():
+    from hgdb.db import JSONSymbolTable, Module, Variable, VarAssign, Scope
+    with tempfile.TemporaryDirectory() as temp:
+        temp = "temp"
+        filename = os.path.join(temp, "debug.json")
+        mod = Module("mod")
+        block = mod.add_child(Scope, filename="test.py")
+        block.filename = "test.py"
+        block.add_child(Scope, line=1)
+        var = Variable("a", "a0", True)
+        block.add_child(VarAssign, var, line=2)
+        child_mod = Module("child")
+        mod.add_instance(child_mod.name, "inst")
+        with JSONSymbolTable("mod", filename) as db:
+            db.add_definition(mod)
+            db.add_definition(child_mod)
+
+
 if __name__ == "__main__":
-    test_toml_scope_parsing()
+    test_python_json_table()

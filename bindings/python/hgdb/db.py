@@ -76,13 +76,13 @@ class DebugSymbolTable:
 # pure Python implementation
 class Scope:
     def __init__(self, parent: typing.Union["Scope", None]):
-        self.children = []
+        self.__children = []
         self.filename = ""
         self.line = 0
         self.col = 0
         self.parent = parent
         if parent is not None:
-            parent.children.append(self)
+            parent.__children.append(self)
 
     def get_filename(self):
         p = self
@@ -92,7 +92,7 @@ class Scope:
             p = p.parent
 
     def type(self):
-        if len(self.children) > 0:
+        if len(self.__children) > 0:
             return "block"
         else:
             return "none"
@@ -102,13 +102,21 @@ class Scope:
         if self.col > 0:
             res["col"] = self.col
         scopes = []
-        for scope in self.children:
+        for scope in self.__children:
+            assert scope.type() != "module"
             scopes.append(scope.to_dict())
-        if len(scopes):
-            res["scopes"] = scopes
+        if len(scopes) > 0 or self.type() == "module":
+            assert self.type() in {"block", "module"}
+            res["scope"] = scopes
         if self.filename:
             res["filename"] = self.filename
         return res
+
+    def add_child(self, t: type, *args, **kwargs):
+        c = t(*args, self)
+        for key, value in kwargs.items():
+            setattr(c, key, value)
+        return c
 
 
 class Variable:
@@ -131,7 +139,7 @@ class VarAssign(Scope):
 
     def to_dict(self):
         res = super(VarAssign, self).to_dict()
-        res["var"] = self.var.to_dict()
+        res["variable"] = self.var.to_dict()
         return res
 
 
@@ -147,23 +155,48 @@ class Module(Scope):
     def __init__(self, name: str):
         super(Module, self).__init__(None)
         self.name = name
+        self.instances = {}
+
+    def add_instance(self, def_name, inst_name):
+        self.instances[inst_name] = def_name
+
+    def type(self):
+        return "module"
+
+    def to_dict(self):
+        res = super(Module, self).to_dict()
+        res["name"] = self.name
+        instances = []
+        for mod, inst in self.instances.items():
+            instances.append({"name": inst, "module": mod})
+        res["instances"] = instances
+        res["variables"] = []
+        return res
 
 
 class JSONSymbolTable:
-
-    def __init__(self, filename: str):
+    def __init__(self, top: str, filename: str, generator: str = "python"):
+        self.__top = top
         self.__filename = filename
+        self.__generator = generator
         self.__fd = open(self.__filename, "w+")
+        self.table = []
 
-        # indexed by definition name
-        self.scopes = {}
+    def add_definition(self, mod: Module):
+        self.table.append(mod)
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         self.close()
 
     def __enter__(self):
-        pass
+        return self
+
+    def __to_dict(self):
+        res = {"top": self.__top, "generator": self.__generator, "table": []}
+        for entry in self.table:
+            res["table"].append(entry.to_dict())
+        return res
 
     def close(self):
-        json.dump(self.scopes, self.__fd)
+        json.dump(self.__to_dict(), self.__fd)
         self.__fd.close()
