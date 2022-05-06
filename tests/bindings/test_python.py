@@ -4,13 +4,18 @@ import hgdb
 import os
 import pytest
 import subprocess
-import json
+import filecmp
 
 
 def get_conn_cursor(db_name):
     conn = sqlite3.connect(db_name)
     c = conn.cursor()
     return conn, c
+
+
+def get_vector_folder():
+    root = os.path.dirname(os.path.abspath(__file__))
+    return os.path.join(root, "vectors")
 
 
 def test_store_instance():
@@ -104,8 +109,7 @@ def test_store_scope():
 
 
 def test_toml_scope_parsing():
-    root = os.path.dirname(os.path.abspath(__file__))
-    vectors_dir = os.path.join(root, "vectors")
+    vectors_dir = get_vector_folder()
     t = os.path.join(vectors_dir, "test_toml_scope_parsing.toml")
     with tempfile.TemporaryDirectory() as temp:
         db_name = os.path.join(temp, "debug.db")
@@ -130,8 +134,8 @@ def test_toml_scope_parsing():
 
 def test_python_json_table():
     from hgdb.db import JSONSymbolTable, Module, Variable, VarAssign, Scope
+    gold_file = os.path.join(get_vector_folder(), "python.json")
     with tempfile.TemporaryDirectory() as temp:
-        temp = "temp"
         filename = os.path.join(temp, "debug.json")
         mod = Module("mod")
         block = mod.add_child(Scope, filename="test.py")
@@ -140,10 +144,11 @@ def test_python_json_table():
         var = Variable("a", "a0", True)
         block.add_child(VarAssign, var, line=2)
         child_mod = Module("child")
-        mod.add_instance(child_mod.name, "inst")
+        mod.add_instance(child_mod, "inst")
         with JSONSymbolTable("mod", filename) as db:
             db.add_definition(mod)
             db.add_definition(child_mod)
+        assert filecmp.cmp(gold_file, filename)
 
 
 if __name__ == "__main__":

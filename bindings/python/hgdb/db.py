@@ -130,7 +130,7 @@ class Variable:
 
 
 class VarAssign(Scope):
-    def __init__(self, var: Variable, parent):
+    def __init__(self, var: Variable, parent: Scope):
         super(VarAssign, self).__init__(parent)
         self.var = var
 
@@ -144,7 +144,7 @@ class VarAssign(Scope):
 
 
 class VarDecl(VarAssign):
-    def __init__(self, var: Variable, parent):
+    def __init__(self, var: Variable, parent: Scope):
         super(VarDecl, self).__init__(var, parent)
 
     def type(self):
@@ -155,10 +155,10 @@ class Module(Scope):
     def __init__(self, name: str):
         super(Module, self).__init__(None)
         self.name = name
-        self.instances = {}
+        self.instances: typing.Dict[str, str] = {}
 
-    def add_instance(self, def_name, inst_name):
-        self.instances[inst_name] = def_name
+    def add_instance(self, mod: "Module", inst_name: str):
+        self.instances[inst_name] = mod.name
 
     def type(self):
         return "module"
