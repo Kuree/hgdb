@@ -1,6 +1,8 @@
 #ifndef HGDB_TOOLS_VPI_HH
 #define HGDB_TOOLS_VPI_HH
 
+#include <atomic>
+
 #include "rtl.hh"
 #include "vcd_db.hh"
 
@@ -45,6 +47,7 @@ public:
     // used to override values in get_value
     void add_overridden_value(vpiHandle handle, int64_t value);
     void clear_overridden_values();
+    void set_running(std::atomic<bool> *running);
 
     // build array table
     // we assume the rtl name is already mapped
@@ -95,6 +98,9 @@ private:
     std::optional<std::function<void(p_cb_data)>> on_cb_added_;
     std::optional<std::function<void(const s_cb_data &)>> on_cb_removed_;
     std::optional<std::function<bool(rewind_data *)>> on_rewound_;
+
+    // vpi_control to stop
+    std::atomic<bool> *running_ = nullptr;
 };
 }  // namespace hgdb::replay
 

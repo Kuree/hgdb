@@ -173,7 +173,7 @@ def test_fsdb_replay(start_server, find_free_port, get_tools_vector_dir):
             bp = await client.recv()
             assert bp["payload"]["instances"][0]["local"]["b"] == "0x2"
 
-        asyncio.get_event_loop().run_until_complete(test_logic())
+        asyncio.get_event_loop_policy().get_event_loop().run_until_complete(test_logic())
 
     s.kill()
 

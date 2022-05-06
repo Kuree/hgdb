@@ -10,6 +10,9 @@ EmulationEngine::EmulationEngine(ReplayVPIProvider* vcd) : vpi_(vcd) {
     vpi_->set_on_cb_removed([this](const s_cb_data& cb_data) { on_cb_removed(cb_data); });
     vpi_->set_on_reversed([this](reverse_data* reverse_data) { return on_rewound(reverse_data); });
 
+    // set other control signals
+    vpi_->set_running(&running_);
+
     timestamp_ = vpi_->get_timestamp();
 }
 
@@ -67,13 +70,13 @@ bool EmulationEngine::on_rewound(hgdb::AVPIProvider::rewind_data* rewind_data) {
     if (times.empty()) return false;
     std::sort(times.begin(), times.end());
     auto next_time = times.back();
-    // move back a little bit so we can evaluate the posedge
+    // move back a little so we can evaluate the posedge
     change_time(next_time - 1);
     return true;
 }
 
 void EmulationEngine::emulation_loop() {
-    while (true) {
+    while (running_.load()) {
         std::vector<uint64_t> times = get_next_changed_times();
         // if there is no time to schedule, we break the loop
         if (times.empty()) break;

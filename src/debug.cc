@@ -706,7 +706,6 @@ void Debugger::handle_path_mapping(const PathMappingRequest &req, uint64_t conn_
 
 void Debugger::handle_evaluation(const EvaluationRequest &req, uint64_t conn_id) {
     std::string error_reason = req.error_reason();
-    // linux kernel style error handling
     auto send_error = [&error_reason, this, &req, conn_id]() {
         auto resp = GenericResponse(status_code::error, req, error_reason);
         send_message(resp.str(log_enabled_), conn_id);

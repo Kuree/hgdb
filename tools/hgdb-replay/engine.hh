@@ -36,6 +36,9 @@ private:
 
     // helper functions
     std::vector<uint64_t> get_next_changed_times();
+
+    // when to sop running
+    std::atomic<bool> running_ = true;
 };
 
 }  // namespace hgdb::replay
