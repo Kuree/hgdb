@@ -1,6 +1,7 @@
 import _hgdb
 import json
 import typing
+import enum
 
 
 class DebugSymbolTableException(Exception):
@@ -119,14 +120,37 @@ class Scope:
         return c
 
 
+class VariableType(enum.Enum):
+    normal = "normal"
+    delay = "delay"
+
+
+class VariableIndex:
+    def __init__(self, var: "Variable", min_: int, max_: int):
+        self.var = var
+        self.min = min_
+        self.max = max_
+
+    def to_dict(self):
+        return {"var": self.var.to_dict(), "min": self.min, "max": self.max}
+
+
 class Variable:
     def __init__(self, name: str, value: str, rtl: bool = True):
         self.name = name
         self.value = value
         self.rtl = rtl
+        self.indices: typing.List[VariableIndex] = []
+        self.type = VariableType.normal
 
     def to_dict(self):
-        return {"name": self.name, "value": self.value, "rtl": self.rtl}
+        res = {"name": self.name, "value": self.value, "rtl": self.rtl}
+        if self.indices:
+            indices = [v.to_dict() for v in self.indices]
+            res["indices"] = indices
+        if self.type != VariableType.normal:
+            res["type"] = self.type.value
+        return res
 
 
 class VarAssign(Scope):
