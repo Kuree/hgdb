@@ -14,7 +14,7 @@ static std::string to_string(const std::chrono::system_clock::time_point& tp) {
 }
 
 namespace hgdb::log {
-void log(log_level level, const std::string& msg) {
+void log(log_level level, std::string_view msg) {
     const auto* tag = level == log_level::error ? "ERROR" : "INFO";
     auto str = fmt::format("[{0}][{1}] {2}", tag, to_string(std::chrono::system_clock::now()), msg);
     if (level == log_level::error) {

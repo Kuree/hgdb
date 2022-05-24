@@ -3,6 +3,8 @@
 #include <stack>
 #include <tao/pegtl.hpp>
 
+#include "log.hh"
+
 namespace hgdb {
 
 // construct peg grammar
@@ -308,8 +310,9 @@ Expr* parse(const std::string& value, DebugExpression& debug_expression) {
     bool r = false;
     try {
         r = tao::pegtl::parse<grammar, action>(in, state);
-    } catch (tao::pegtl::parse_error&) {
+    } catch (tao::pegtl::parse_error& error) {
         // maybe disable exceptions in the compiler?
+        log::log(log::log_level::error, error.message());
     }
     if (!r) {
         debug_expression.set_error();
