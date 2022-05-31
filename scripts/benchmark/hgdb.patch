@@ -1,0 +1,29 @@
+diff --git a/vsim/Makefrag b/vsim/Makefrag
+index 278384769..d17db39eb 100644
+--- a/vsim/Makefrag
++++ b/vsim/Makefrag
+@@ -58,6 +58,8 @@ VCS_OPTS = -notice -line +lint=all,noVCDE,noONGS,noUI -error=PCWM-L -timescale=1
+ 	+define+RANDOMIZE_INVALID_ASSIGN \
+ 	+define+RANDOMIZE_DELAY=0.1 \
+ 	+define+MODEL=$(MODEL) \
++        -debug_access+class \
++        -load /usr/local/lib/python3.8/dist-packages/libhgdb.so \
+ 	+libext+.v \
+ 
+ #--------------------------------------------------------------------
+diff --git a/vsim/Makefrag-verilog b/vsim/Makefrag-verilog
+index 0ec2530ad..f45628a04 100644
+--- a/vsim/Makefrag-verilog
++++ b/vsim/Makefrag-verilog
+@@ -14,9 +14,10 @@ $(generated_dir)/%.fir $(generated_dir)/%.d: $(ROCKET_CHIP_JAR) $(bootrom_img)
+ 
+ $(generated_dir)/%.v $(generated_dir)/%.conf: $(generated_dir)/%.fir $(ROCKET_CHIP_JAR)
+ 	mkdir -p $(dir $@)
+-	$(FIRRTL) -i $< \
++	/hgdb-firrtl/bin/firrtl -i $< \
+     -o $(generated_dir)/$*.v \
+     -X verilog \
++    --hgdb-toml /rocket-chip/debug.toml \
+     --infer-rw $(MODEL) \
+     --repl-seq-mem -c:$(MODEL):-o:$(generated_dir)/$*.conf \
+     -faf $(generated_dir)/$*.anno.json \
