@@ -162,7 +162,7 @@ Runtime command-line arguments
 You can change the runtime settings using plus-args when invoking the simulator. Here is
 a short list of options you can change:
 
-- ``+DEBUG_PORT=num``, where ``num`` is the port number. By default this is ``888```
+- ``+DEBUG_PORT=num``, where ``num`` is the port number. By default this is ``8888``
 - ``+DEBUG_LOG=1``, enable the debugging log. Useful when debugging the behavior of the
   runtime
 
@@ -172,6 +172,7 @@ is not recommended for production usage:
 - ``DEBUG_DISABLE_BLOCKING``: when present, will disable the initial blocking. As a result,
   the simulator will starts execution without user's explicit "start" or "continue"
   command.
+- ``DEBUG_DATABASE_FILENAME=filename``: when present, will preload the debug table into the system.
 - ``DEBUG_DATABASE_FILENAME#=filename:line_num``: where ``#`` counts from 0. The runtime will
   query the predefined breakpoints starting from 0 and stops if corresponding environment
   variable name not found.
