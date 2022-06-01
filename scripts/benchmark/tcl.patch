@@ -1,0 +1,56 @@
+diff --git a/src/main/resources/csrc/SimDTM.cc b/src/main/resources/csrc/SimDTM.cc
+index aee4edd2c..ff777ce3d 100644
+--- a/src/main/resources/csrc/SimDTM.cc
++++ b/src/main/resources/csrc/SimDTM.cc
+@@ -3,6 +3,7 @@
+ #include <fesvr/dtm.h>
+ #include <vpi_user.h>
+ #include <svdpi.h>
++#include <vector>
+ 
+ dtm_t* dtm;
+ 
+@@ -23,7 +24,23 @@ extern "C" int debug_tick
+     s_vpi_vlog_info info;
+     if (!vpi_get_vlog_info(&info))
+       abort();
+-      dtm = new dtm_t(info.argc, info.argv);
++      // notice that dtm has a bug that process any filename without
++      // checking the file extension
++      std::vector<char *> args;
++      args.reserve(info.argc);
++      for (int i = 0; i < info.argc; i++) {
++        std::string arg = info.argv[i];
++        const static std::string suffix = ".tcl";
++        if (arg.size() > 4 && std::equal(suffix.rbegin(), suffix.rend(), arg.rbegin())) {
++          // pop previous ones as well
++          // assuming we're doing -ucli -i script.tcl
++          args.pop_back();
++          args.pop_back();
++          continue;
++        }
++        args.emplace_back(info.argv[i]);
++      }
++      dtm = new dtm_t(static_cast<int>(args.size()), const_cast<char **>(args.data()));
+   }
+ 
+   dtm_t::resp resp_bits;
+diff --git a/vsim/Makefrag b/vsim/Makefrag
+index 278384769..dd9a9b23b 100644
+--- a/vsim/Makefrag
++++ b/vsim/Makefrag
+@@ -58,6 +58,7 @@ VCS_OPTS = -notice -line +lint=all,noVCDE,noONGS,noUI -error=PCWM-L -timescale=1
+ 	+define+RANDOMIZE_INVALID_ASSIGN \
+ 	+define+RANDOMIZE_DELAY=0.1 \
+ 	+define+MODEL=$(MODEL) \
++	+debug_acc=all \
+ 	+libext+.v \
+ 
+ #--------------------------------------------------------------------
+@@ -83,5 +84,5 @@ $(simv_debug) : $(sim_vsrcs) $(sim_csrcs)
+ #--------------------------------------------------------------------
+ 
+ seed = $(shell date +%s)
+-exec_simv = $(simv) +permissive -q +ntb_random_seed_automatic +permissive-off
++exec_simv = $(simv) -ucli -i /vcs_break.tcl +permissive -q +ntb_random_seed_automatic +permissive-off
+ exec_simv_debug = $(simv_debug) +permissive -q +ntb_random_seed_automatic +permissive-off
