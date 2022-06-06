@@ -121,41 +121,16 @@ void ReplayVPIProvider::vpi_get_value(vpiHandle expr, p_vpi_value value_p) {
         // if there is any error, we return
         value_p->value.integer = 0;
         value_p->value.str = nullptr;
-        // need to slice out the information we need
-        auto const &[parent_handle, slice_info] = array_info_.at(expr);
-        if (signal_id_map_.find(parent_handle) != signal_id_map_.end()) {
-            auto raw_value = db_->get_signal_value(signal_id_map_.at(parent_handle), current_time_);
-            if (!raw_value) return;
-            auto signal = db_->get_signal(signal_id_map_.at(parent_handle));
-            auto array_size = array_map_.at(parent_handle).size();
-            auto slice_size = signal->width / array_size;
-            auto lo = slice_size * slice_info[0];
-            auto hi = lo + slice_size;
-            auto *handle = array_map_.at(parent_handle)[slice_info[0]];
-            for (auto index = 1; index < slice_info.size(); index++) {
-                auto const &array = array_map_.at(handle);
-                handle = array[slice_info[index]];
-                if (!handle) return;
-                auto width = hi - lo;
-                array_size = array.size();
-                slice_size = width / array_size;
-                auto i = slice_info[index];
-                lo = lo + slice_size * i;
-                hi = lo + slice_size;
-            }
-            // need to slice out the raw value
-            if (lo >= raw_value->size()) {
-                return;
-            }
-            // need to slice out the raw_value
-            hi = std::min<uint64_t>(hi, raw_value->size());
-            auto width = hi - lo;
-            // notice that everything is reversed
-            hi = raw_value->size() - lo;
-            lo = hi - width;
-            auto value = raw_value->substr(lo, hi - lo);
-            set_value(value_p, value, str_buffer_);
-        }
+        auto info = get_array_info(expr);
+        if (!info) return;
+        auto hi = info->hi;
+        auto lo = info->lo;
+        auto width = hi - lo;
+        // notice that everything is reversed
+        hi = info->raw_value.size() - lo;
+        lo = hi - width;
+        auto value = info->raw_value.substr(lo, hi - lo);
+        set_value(value_p, value, str_buffer_);
     }
 }
 
@@ -170,16 +145,19 @@ PLI_INT32 ReplayVPIProvider::vpi_get(PLI_INT32 property, vpiHandle object) {
     } else if (property == vpiSize) {
         // don't care about vpi size since we can't read array size from VCD files
         // it has to be a signal
-        if (signal_id_map_.find(object) == signal_id_map_.end()) {
-            return vpiUndefined;
+        if (signal_id_map_.find(object) != signal_id_map_.end()) {
+            // query about the signal object
+            auto signal_id = signal_id_map_.at(object);
+            auto signal = db_->get_signal(signal_id);
+            if (signal) {
+                return static_cast<int32_t>(signal->width);
+            }
         }
-        // query about the signal object
-        auto signal_id = signal_id_map_.at(object);
-        auto signal = db_->get_signal(signal_id);
-        if (signal) {
-            return signal->width;
-        } else {
-            return vpiUndefined;
+        // brute force the search
+        auto info = get_array_info(object);
+        if (info) {
+            auto width = info->lo > info->hi ? (info->lo - info->hi) : (info->hi - info->lo);
+            return static_cast<int32_t>(width);
         }
     }
     return vpiUndefined;
@@ -537,7 +515,8 @@ void ReplayVPIProvider::build_array_table(const std::vector<std::string> &rtl_na
             continue;
         }
         // found a non-digit root
-        auto handle_name = util::join(tokens.begin(), tokens.begin() + *start_index + 1, ".");
+        auto handle_name =
+            util::join(tokens.begin(), tokens.begin() + static_cast<int>(*start_index) + 1, ".");
         std::vector<uint64_t> slices;
 
         // see if we can find the handle name or not
@@ -594,6 +573,42 @@ vpiHandle ReplayVPIProvider::get_signal_handle(uint64_t signal_id) const {
         }
     }
     return nullptr;
+}
+
+std::optional<ReplayVPIProvider::PackedArrayInfo> ReplayVPIProvider::get_array_info(
+    vpiHandle expr) {
+    if (array_info_.find(expr) == array_info_.end()) return std::nullopt;
+    // need to slice out the information we need
+    auto const &[parent_handle, slice_info] = array_info_.at(expr);
+    if (signal_id_map_.find(parent_handle) != signal_id_map_.end()) {
+        auto raw_value = db_->get_signal_value(signal_id_map_.at(parent_handle), current_time_);
+        if (!raw_value) return std::nullopt;
+        auto signal = db_->get_signal(signal_id_map_.at(parent_handle));
+        auto array_size = array_map_.at(parent_handle).size();
+        auto slice_size = signal->width / array_size;
+        uint32_t lo = slice_size * slice_info[0];
+        uint32_t hi = lo + slice_size;
+        auto *handle = array_map_.at(parent_handle)[slice_info[0]];
+        for (auto index = 1; index < slice_info.size(); index++) {
+            auto const &array = array_map_.at(handle);
+            handle = array[slice_info[index]];
+            if (!handle) return std::nullopt;
+            auto width = hi - lo;
+            array_size = array.size();
+            slice_size = width / array_size;
+            auto i = slice_info[index];
+            lo = lo + slice_size * i;
+            hi = lo + slice_size;
+        }
+        // need to slice out the raw value
+        if (lo >= raw_value->size()) {
+            return std::nullopt;
+        }
+        // need to slice out the raw_value
+        hi = std::min<uint64_t>(hi, raw_value->size());
+        return ReplayVPIProvider::PackedArrayInfo{.lo = lo, .hi = hi, .raw_value = *raw_value};
+    }
+    return std::nullopt;
 }
 
 }  // namespace hgdb::replay

@@ -28,7 +28,7 @@ public:
         const std::unordered_set<std::string>& var_names, WatchType type) const;
     // called every cycle
     // compute a list of signals that need to be sent
-    std::vector<std::pair<uint64_t, std::string>> get_watched_values(WatchType type);
+    std::vector<std::pair<uint64_t, std::optional<int64_t>>> get_watched_values(WatchType type);
 
     [[nodiscard]] bool empty() const { return watched_variables_.empty(); }
     [[nodiscard]] uint64_t num_watches(const std::string& name, WatchType type) const;

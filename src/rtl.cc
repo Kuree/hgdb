@@ -259,6 +259,16 @@ std::optional<int64_t> RTLSimulatorClient::get_value(vpiHandle handle) {
     if (type == vpiModule) [[unlikely]] {
         return std::nullopt;
     }
+    // get value size. Verilator will freak out if the width is larger than 64
+    // notice this is mostly cached result
+    auto width = get_vpi_size(handle);
+    if (width > 64) [[unlikely]] {
+        auto *name = vpi_->vpi_get_str(vpiName, handle);
+        log::log(log::log_level::info,
+                 fmt::format("{0} is too large to display as an integer", name));
+        return {};
+    }
+
     vpiHandle request_handle = handle;
 
     // if we have mock vpi handle, use it
@@ -277,6 +287,15 @@ std::optional<int64_t> RTLSimulatorClient::get_value(vpiHandle handle) {
     }
 
     return result;
+}
+
+std::optional<uint32_t> RTLSimulatorClient::get_signal_width(vpiHandle handle) {
+    auto w = get_vpi_size(handle);
+    if (w == 0) [[unlikely]] {
+        return std::nullopt;
+    } else {
+        return w;
+    }
 }
 
 std::optional<int64_t> RTLSimulatorClient::get_value(const std::string &name) {
@@ -799,8 +818,11 @@ uint32_t RTLSimulatorClient::get_vpi_size(vpiHandle handle) {
         return cached_vpi_size_.at(handle);
     } else {
         auto t = vpi_->vpi_get(vpiSize, handle);
-        cached_vpi_size_.emplace(handle, t);
-        return t;
+        if (t != vpiUndefined) [[likely]] {
+            cached_vpi_size_.emplace(handle, t);
+            return t;
+        }
+        return 0;
     }
 }
 

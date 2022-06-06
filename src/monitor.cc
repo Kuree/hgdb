@@ -74,18 +74,9 @@ std::shared_ptr<std::optional<int64_t>> Monitor::get_watched_value_ptr(
     return nullptr;
 }
 
-std::string get_string_value(const std::optional<int64_t>& value) {
-    std::string str_value;
-    if (value) {
-        str_value = std::to_string(*value);
-    } else {
-        str_value = Debugger::error_value_str;
-    }
-    return str_value;
-}
-
-std::vector<std::pair<uint64_t, std::string>> Monitor::get_watched_values(WatchType type) {
-    std::vector<std::pair<uint64_t, std::string>> result;
+std::vector<std::pair<uint64_t, std::optional<int64_t>>> Monitor::get_watched_values(
+    WatchType type) {
+    std::vector<std::pair<uint64_t, std::optional<int64_t>>> result;
     // this is the maximum size
     result.reserve(watched_variables_.size());
 
@@ -100,9 +91,7 @@ std::vector<std::pair<uint64_t, std::string>> Monitor::get_watched_values(WatchT
                 } else {
                     value = watch_var->get_value();
                 }
-
-                auto str_value = get_string_value(value);
-                result.emplace_back(std::make_pair(watch_id, str_value));
+                result.emplace_back(std::make_pair(watch_id, value));
                 break;
             }
             case WatchType::data:
@@ -110,8 +99,7 @@ std::vector<std::pair<uint64_t, std::string>> Monitor::get_watched_values(WatchT
                 // only if values are changed
                 auto [changed, value] = var_changed(watch_id);
                 if (changed) {
-                    auto str_value = get_string_value(value);
-                    result.emplace_back(std::make_pair(watch_id, str_value));
+                    result.emplace_back(std::make_pair(watch_id, value));
                 }
                 break;
             }
@@ -119,9 +107,9 @@ std::vector<std::pair<uint64_t, std::string>> Monitor::get_watched_values(WatchT
                 // we assume this will be called every clock cycle
                 auto new_value = get_value(watch_var->full_name);
                 // we use the old value
-                auto old_value_str = get_string_value(*watch_var->get_value());
+                auto old_value = *watch_var->get_value();
                 watch_var->set_value(new_value);
-                result.emplace_back(std::make_pair(watch_id, old_value_str));
+                result.emplace_back(std::make_pair(watch_id, old_value));
             }
         }
     }

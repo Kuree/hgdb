@@ -38,7 +38,7 @@ def write_out_db4(filename, sv):
             db.store_variable(id_ + 1, "b[{0}][{1}]".format(i, j))
             db.store_generator_variable("a[{0}][{1}]".format(i, j), 0, id_)
             db.store_generator_variable("b[{0}][{1}]".format(i, j), 0, id_ + 1)
-            id_ += 1
+            id_ += 2
 
 
 def write_out_db6(filename, sv):
@@ -116,6 +116,7 @@ def test_replay3(start_server, find_free_port, get_tools_vector_dir):
 def test_replay4(start_server, find_free_port, get_tools_vector_dir):
     vector_dir = get_tools_vector_dir()
     vcd_path = os.path.join(vector_dir, "waveform4.vcd")
+    port = 8888
     port = find_free_port()
     s = start_server(port, ("tools", "hgdb-replay", "hgdb-replay"), args=[vcd_path], use_plus_arg=False)
     if s is None:
@@ -126,7 +127,7 @@ def test_replay4(start_server, find_free_port, get_tools_vector_dir):
         write_out_db4(db, sv)
 
         async def test_logic():
-            client = hgdb.client.HGDBClient("ws://localhost:{0}".format(port), db)
+            client = hgdb.client.HGDBClient("ws://localhost:{0}".format(port), db, debug=True)
             await client.connect()
             time.sleep(0.1)
             await client.set_breakpoint(sv, get_line_num(sv, "logic [15:0] b[3:0][1:0];"))

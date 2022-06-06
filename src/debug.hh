@@ -75,7 +75,7 @@ private:
     // delay logic for symbols. no lock since they don't run interactively
     struct DelayedVariable {
         std::string rtl_name;
-        std::string value;
+        std::optional<int64_t> value;
         uint64_t watch_id;
     };
     std::unordered_map<vpiHandle, DelayedVariable> delayed_variables_;
@@ -106,7 +106,7 @@ private:
     void log_info(const std::string &msg) const;
     bool has_cli_flag(const std::string &flag);
     [[nodiscard]] static std::string get_monitor_topic(uint64_t watch_id);
-    std::string get_var_value(const std::string &rtl_name, bool is_rtl, bool use_delay = false);
+    std::string get_value_str(const std::string &rtl_name, bool is_rtl, bool use_delay = false);
     std::optional<std::string> resolve_var_name(const std::string &var_name,
                                                 const std::optional<uint64_t> &instance_id,
                                                 const std::optional<uint64_t> &breakpoint_id);
@@ -147,7 +147,9 @@ private:
     void start_breakpoint_evaluation();
 
     // cached wrapper
-    std::optional<int64_t> get_value(const std::string &signal_name);
+    std::optional<int64_t> get_signal_value(const std::string &signal_name,
+                                            bool use_delayed = false);
+    std::optional<int64_t> get_value(const std::string &expression);
     std::string get_full_name(uint64_t instance_id, const std::string &var_name);
 
     // callbacks

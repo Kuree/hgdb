@@ -26,7 +26,10 @@ Debugger::Debugger(std::unique_ptr<AVPIProvider> vpi) {
     server_ = std::make_unique<DebugServer>();
     log_enabled_ = get_logging();
     // initialize the monitor
-    monitor_ = Monitor([this](const std::string &name) { return this->get_value(name); });
+    monitor_ = Monitor([this](const std::string &name) {
+        // monitor does not need delay since it's the entity that handles the delay
+        return this->get_signal_value(name, false);
+    });
 
     // set up some call backs
     server_->set_on_call_client_disconnect([this]() {
@@ -378,39 +381,50 @@ std::string Debugger::get_monitor_topic(uint64_t watch_id) {
     return fmt::format("watch-{0}", watch_id);
 }
 
+std::string value_to_str(std::optional<int64_t> value, bool use_hex, uint32_t width = 0) {
+    if (!value) {
+        return Debugger::error_value_str;
+    }
+    if (use_hex) {
+        std::string format;
+        if (width == 0) {
+            format = "0x{0:X}";
+        } else if (width == 1) {
+            // this is bit format
+            format = "{0}";
+        } else {
+            width = (width % 4 == 0) ? width / 4 : (width / 4 + 1);
+            format = fmt::format("0x{{0:0{0}X}}", width);
+        }
+        return fmt::format(format.c_str(), *value);
+
+    } else {
+        return fmt::format("{0}", *value);
+    }
+}
+
 // NOLINTNEXTLINE
-std::string Debugger::get_var_value(const std::string &rtl_name, bool is_rtl, bool use_delay) {
+std::string Debugger::get_value_str(const std::string &rtl_name, bool is_rtl, bool use_delay) {
     std::string value_str;
     if (is_rtl) {
-        // get value size. Verilator will freak out if the width is larger than 64
-        // notice that this logic is not on the critical path since it's only used when
-        // constructing the frame
         auto *handle = rtl_->get_handle(rtl_name);
-        auto width = vpi_get(vpiSize, handle);
-        if (width > 64) [[unlikely]] {
-            value_str = error_value_str;
-            log_info(fmt::format("{0} is too large to display as an integer", rtl_name));
-        } else {
-            // for now hex string version doesn't work. need to rework on that part
-            if (use_delay) {
-                if (use_hex_str_) [[unlikely]] {
-                    log_error("Hex string format not support delayed variables");
-                }
-                if (delayed_variables_.find(handle) == delayed_variables_.end()) [[unlikely]] {
-                    log_error("Internal error on handling delayed variables");
-                    value_str = error_value_str;
-                } else {
-                    value_str = delayed_variables_.at(handle).value;
-                }
+        uint32_t width = 0;
+        // width is only used for hex string
+        if (use_hex_str_) [[unlikely]] {
+            auto width_opt = rtl_->get_signal_width(handle);
+            width = width_opt ? *width_opt : 0u;
+        }
+
+        if (use_delay) {
+            if (delayed_variables_.find(handle) == delayed_variables_.end()) [[unlikely]] {
+                log_error("Internal error on handling delayed variables");
+                value_str = error_value_str;
             } else {
-                if (!use_hex_str_) {
-                    auto value = rtl_->get_value(handle);
-                    value_str = value ? std::to_string(*value) : error_value_str;
-                } else {
-                    auto value = rtl_->get_str_value(handle);
-                    value_str = value ? *value : error_value_str;
-                }
+                value_str = value_to_str(delayed_variables_.at(handle).value, use_hex_str_, width);
             }
+        } else {
+            auto value = rtl_->get_value(handle);
+            value_str = value_to_str(value, use_hex_str_, width);
         }
     } else {
         value_str = rtl_name;
@@ -740,7 +754,7 @@ void Debugger::handle_evaluation(const EvaluationRequest &req, uint64_t conn_id)
         std::unordered_map<std::string, int64_t> values;
         auto const &names = expr.resolved_symbol_names();
         for (auto const &[name, full_name] : names) {
-            auto v = get_value(full_name);
+            auto v = get_signal_value(full_name);
             if (v) values.emplace(name, *v);
         }
 
@@ -1025,7 +1039,7 @@ void Debugger::send_breakpoint_hit(const std::vector<const DebugBreakPoint *> &b
             auto var_names = resolve_generator_name(var.value, gen_var.name, bp->instance_id,
                                                     rtl_.get(), db_.get());
             for (auto const &[front_name, rtl_name] : var_names) {
-                std::string value_str = get_var_value(rtl_name, var.is_rtl);
+                std::string value_str = get_value_str(rtl_name, var.is_rtl);
                 scope.add_generator_value(front_name, value_str);
             }
         }
@@ -1036,7 +1050,7 @@ void Debugger::send_breakpoint_hit(const std::vector<const DebugBreakPoint *> &b
             for (auto const &[front_name, rtl_name] : var_names) {
                 using VariableType = SymbolTableProvider::VariableType;
                 std::string value_str =
-                    get_var_value(rtl_name, var.is_rtl,
+                    get_value_str(rtl_name, var.is_rtl,
                                   static_cast<VariableType>(ctx_var.type) == VariableType::delay);
                 scope.add_local_value(front_name, value_str);
             }
@@ -1055,7 +1069,8 @@ void Debugger::send_monitor_values(MonitorRequest::MonitorType type) {
     auto values = monitor_.get_watched_values(type);
     for (auto const &[id, value] : values) {
         auto topic = get_monitor_topic(id);
-        auto resp = MonitorResponse(id, value);
+        auto value_str = value_to_str(value, use_hex_str_);
+        auto resp = MonitorResponse(id, value_str);
         send_message(resp.str(log_enabled_));
     }
 }
@@ -1101,7 +1116,7 @@ bool Debugger::should_trigger(DebugBreakPoint *bp) {
     for (auto const &symbol : symbols) {
         // if we haven't seen the value yet, definitely trigger it
         auto full_name = get_full_name(bp->instance_id, symbol);
-        auto op_v = get_value(full_name);
+        auto op_v = get_signal_value(full_name);
         if (!op_v) {
             log_error(fmt::format("Unable to find signal {0} associated with breakpoint id {1}",
                                   full_name, bp->id));
@@ -1137,7 +1152,8 @@ std::string Debugger::get_full_name(uint64_t instance_id, const std::string &var
     return full_name;
 }
 
-std::optional<int64_t> Debugger::get_value(const std::string &signal_name) {
+std::optional<int64_t> Debugger::get_signal_value(const std::string &signal_name,
+                                                  bool use_delayed) {
     // assume the name is already elaborated/mapped
     {
         std::lock_guard guard(cached_signal_values_lock_);
@@ -1148,7 +1164,14 @@ std::optional<int64_t> Debugger::get_value(const std::string &signal_name) {
     // need to actually get the value
     std::optional<int64_t> value;
     if (signal_name != util::time_var_name) [[likely]] {
-        value = rtl_->get_value(signal_name);
+        // handle delayed value, if any
+        auto *handle = rtl_->get_handle(signal_name);
+        if (use_delayed && delayed_variables_.find(handle) != delayed_variables_.end())
+            [[unlikely]] {
+            return delayed_variables_.at(handle).value;
+        }
+
+        value = rtl_->get_value(handle);
     } else {
         value = rtl_->get_simulation_time();
     }
@@ -1162,6 +1185,11 @@ std::optional<int64_t> Debugger::get_value(const std::string &signal_name) {
     } else {
         return {};
     }
+}
+
+std::optional<int64_t> Debugger::get_value(const std::string &expression) {
+    (void)expression;
+    return {};
 }
 
 bool Debugger::eval_breakpoint(DebugBreakPoint *bp) {
@@ -1281,7 +1309,7 @@ std::unordered_map<std::string, int64_t> Debugger::get_expr_values(const DebugEx
             values.emplace(symbol_name, instance_id);
             continue;
         }
-        auto v = get_value(full_name);
+        auto v = get_signal_value(full_name);
         if (!v) break;
         values.emplace(symbol_name, *v);
     }

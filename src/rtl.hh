@@ -83,6 +83,7 @@ public:
     bool is_valid_signal(const std::string &name);
     std::optional<int64_t> get_value(const std::string &name);
     std::optional<int64_t> get_value(vpiHandle handle);
+    std::optional<uint32_t> get_signal_width(vpiHandle handle);
     std::optional<std::string> get_str_value(const std::string &name);
     std::optional<std::string> get_str_value(vpiHandle handle);
     bool set_value(vpiHandle handle, int64_t value);

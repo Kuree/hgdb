@@ -94,6 +94,14 @@ private:
     vpiHandle get_instance_handle(uint64_t instance_id) const;
     vpiHandle get_signal_handle(uint64_t signal_id) const;
 
+    // brute-force array stuff
+    struct PackedArrayInfo {
+        uint32_t lo;
+        uint32_t hi;
+        std::string raw_value;
+    };
+    std::optional<PackedArrayInfo> get_array_info(vpiHandle handle);
+
     // callbacks
     std::optional<std::function<void(p_cb_data)>> on_cb_added_;
     std::optional<std::function<void(const s_cb_data &)>> on_cb_removed_;

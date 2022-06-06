@@ -16,17 +16,17 @@ TEST(monitor, get_watched_values) {  // NOLINT
     {
         auto values = monitor.get_watched_values(hgdb::Monitor::WatchType::breakpoint);
         EXPECT_EQ(values.size(), 1);
-        EXPECT_EQ(values.begin()->second, "42");
+        EXPECT_EQ(values.begin()->second, 42);
     }
     {
         auto values = monitor.get_watched_values(hgdb::Monitor::WatchType::clock_edge);
         EXPECT_EQ(values.size(), 1);
-        EXPECT_EQ(values.begin()->second, "43");
+        EXPECT_EQ(values.begin()->second, 43);
     }
     {
         auto values = monitor.get_watched_values(hgdb::Monitor::WatchType::changed);
         EXPECT_EQ(values.size(), 1);
-        EXPECT_EQ(values.begin()->second, "44");
+        EXPECT_EQ(values.begin()->second, 44);
         values = monitor.get_watched_values(hgdb::Monitor::WatchType::changed);
         EXPECT_EQ(values.size(), 0);
     }
