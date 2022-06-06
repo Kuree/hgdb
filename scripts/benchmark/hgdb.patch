@@ -6,7 +6,7 @@ index 278384769..d17db39eb 100644
  	+define+RANDOMIZE_INVALID_ASSIGN \
  	+define+RANDOMIZE_DELAY=0.1 \
  	+define+MODEL=$(MODEL) \
-+        -debug_access+class \
++        -debug_access+cbk \
 +        -load /usr/local/lib/python3.8/dist-packages/libhgdb.so \
  	+libext+.v \
  
