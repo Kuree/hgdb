@@ -1190,8 +1190,15 @@ std::optional<int64_t> Debugger::get_signal_value(const std::string &signal_name
 std::optional<int64_t> Debugger::get_value(const std::string &expression, uint32_t instance_id) {
     DebugExpression expr(expression);
     if (!expr.correct()) return std::nullopt;
-    (void)expression;
-    return {};
+    auto const &symbol_full_names = expr.resolved_symbol_names();
+    auto values = get_expr_values(&expr, instance_id);
+    if (values.size() != symbol_full_names.size()) {
+        log_error(fmt::format("Unable to evaluate expression {0} against instance {1}", expression,
+                              instance_id));
+        return std::nullopt;
+    }
+    auto eval_result = expr.eval(values);
+    return eval_result;
 }
 
 bool Debugger::eval_breakpoint(DebugBreakPoint *bp) {
