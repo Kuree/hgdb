@@ -5,6 +5,7 @@
 
 #include "asio.hpp"
 #include "db.hh"
+#include "eval.hh"
 #include "log.hh"
 #include "proto.hh"
 #include "thread.hh"
@@ -104,16 +105,61 @@ void SymbolTableProvider::set_get_symbol_value(
     get_symbol_value_ = std::move(func);
 }
 
+std::optional<uint32_t> parse_depth(const std::string &name) {
+    const static std::string_view depth_str = "$depth";
+    if (!name.starts_with(depth_str)) [[likely]]
+        return std::nullopt;
+    auto end_pos = name.find_first_of('.');
+    if (end_pos != std::string::npos) {
+        auto int_str = name.substr(depth_str.size(), end_pos);
+        auto v = util::stoul(int_str);
+        if (v) {
+            return static_cast<uint32_t>(*v);
+        }
+    }
+    return std::nullopt;
+}
+
 std::vector<SymbolTableProvider::ContextVariableInfo>
 SymbolTableProvider::get_context_delayed_variables(uint32_t breakpoint_id) {
     std::vector<ContextVariableInfo> result;
     auto context_vars = get_context_variables(breakpoint_id);
-    for (auto &[ctx, v] : context_vars) {
+    for (auto const &iter : context_vars) {
         using VariableType = SymbolTableProvider::VariableType;
-        if (!v.is_rtl || static_cast<VariableType>(ctx.type) != VariableType::delay) [[likely]] {
-            continue;
+        // notice that the rtl expression may contain multiple values, i.e. an expression
+        auto const &ctx = iter.first;
+        auto const &v = iter.second;
+        auto expr = v.value;
+        if (!v.is_rtl) continue;
+        DebugExpression expression(expr);
+        // unable to parse the expression
+        if (!expression.correct()) continue;
+        auto const &syms = expression.symbols();
+
+        auto add_ctx = [&result, &ctx, this](const std::string &n, std::optional<uint32_t> depth) {
+            // create new ones
+            Variable new_v{.id = id_allocator_--, .value = n, .is_rtl = true};
+            ContextVariable new_ctx{
+                .name = ctx.name,
+                .breakpoint_id = nullptr,
+                .variable_id = nullptr,
+                .type = static_cast<uint32_t>(VariableType::delay),
+                .depth = depth ? *depth : ctx.depth,
+            };
+            result.emplace_back(std::make_pair(std::move(new_ctx), std::move(new_v)));
+        };
+
+        if (static_cast<VariableType>(ctx.type) == VariableType::delay) {
+            for (auto const &n : syms) {
+                add_ctx(n, std::nullopt);
+            }
+        } else [[likely]] {
+            for (auto const &n : syms) {
+                if (auto depth = parse_depth(n)) {
+                    add_ctx(n, depth);
+                }
+            }
         }
-        result.emplace_back(std::make_pair(std::move(ctx), std::move(v)));
     }
     return result;
 }

@@ -2,6 +2,7 @@
 #define HGDB_SYMBOL_HH
 
 #include <functional>
+#include <limits>
 #include <map>
 
 #include "schema.hh"
@@ -68,6 +69,10 @@ protected:
 private:
     // we handle the source remap here
     std::map<std::string, std::string> src_remap_;
+    // we also allocate temp ID here. notice that we never reuse ID, even for variable
+    // with the same name
+    // any id larger than 2^31 are reserved for system
+    uint32_t id_allocator_ = std::numeric_limits<uint32_t>::max();
 };
 
 // based on the schema we make different symbol table
