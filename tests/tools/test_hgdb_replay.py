@@ -152,7 +152,7 @@ def test_fsdb_replay(start_server, find_free_port, get_tools_vector_dir):
 
     s = start_server(port, ("tools", "hgdb-replay", "hgdb-replay"), args=[fsdb_path], use_plus_arg=False)
     if s is None:
-        pytest.skip("hgdb-deplay not available")
+        pytest.skip("hgdb-replay not available")
     sv = os.path.join(vector_dir, "waveform6.sv")
     with tempfile.TemporaryDirectory() as tempdir:
         db = os.path.join(tempdir, "debug.db")
@@ -166,7 +166,8 @@ def test_fsdb_replay(start_server, find_free_port, get_tools_vector_dir):
             await client.continue_()
             bp = await client.recv()
             # at the first clock edge, b is not initialized
-            assert bp["payload"]["instances"][0]["local"]["b"] == "0xx"
+            # notice that we use 0 for any invalid values
+            assert bp["payload"]["instances"][0]["local"]["b"] == "0x0"
             await client.continue_()
             bp = await client.recv()
             assert bp["payload"]["instances"][0]["local"]["b"] == "0x1"
