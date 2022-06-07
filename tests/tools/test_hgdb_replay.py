@@ -143,10 +143,12 @@ def test_replay4(start_server, find_free_port, get_tools_vector_dir):
     s.kill()
 
 
-def test_fsdb_replay(start_server, find_free_port, get_tools_vector_dir):
+def test_fsdb_replay(start_server, find_free_port, get_tools_vector_dir, get_build_folder):
     vector_dir = get_tools_vector_dir()
     fsdb_path = os.path.join(vector_dir, "waveform6.fsdb")
-    if not os.path.exists(fsdb_path):
+    build_dir = get_build_folder()
+    fsdb_lib = os.path.join(build_dir, "tools", "fsdb", "libfsdb.a")
+    if not os.path.exists(fsdb_lib):
         pytest.skip("FSDB not available")
     port = find_free_port()
 

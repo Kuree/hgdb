@@ -107,6 +107,7 @@ private:
     bool has_cli_flag(const std::string &flag);
     [[nodiscard]] static std::string get_monitor_topic(uint64_t watch_id);
     std::string get_value_str(const std::string &rtl_name, bool is_rtl, bool use_delay = false);
+    std::optional<int64_t> get_value(const std::string &expression, uint32_t instance_id);
     std::optional<std::string> resolve_var_name(const std::string &var_name,
                                                 const std::optional<uint64_t> &instance_id,
                                                 const std::optional<uint64_t> &breakpoint_id);
@@ -149,7 +150,6 @@ private:
     // cached wrapper
     std::optional<int64_t> get_signal_value(const std::string &signal_name,
                                             bool use_delayed = false);
-    std::optional<int64_t> get_value(const std::string &expression);
     std::string get_full_name(uint64_t instance_id, const std::string &var_name);
 
     // callbacks

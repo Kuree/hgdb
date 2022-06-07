@@ -1187,7 +1187,9 @@ std::optional<int64_t> Debugger::get_signal_value(const std::string &signal_name
     }
 }
 
-std::optional<int64_t> Debugger::get_value(const std::string &expression) {
+std::optional<int64_t> Debugger::get_value(const std::string &expression, uint32_t instance_id) {
+    DebugExpression expr(expression);
+    if (!expr.correct()) return std::nullopt;
     (void)expression;
     return {};
 }
