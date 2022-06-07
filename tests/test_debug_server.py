@@ -568,7 +568,6 @@ def test_array_delay(start_server, find_free_port):
     kill_server(s)
 
 
-@pytest.mark.skip(reason="not working yet")
 def test_array_delay_index(start_server, find_free_port):
     s, uri = setup_server(start_server, find_free_port, stdout=True, json=True)
 
