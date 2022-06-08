@@ -45,9 +45,10 @@ public:
         return result;
     }
 
-    [[nodiscard]] uint64_t get_new_instance_id() const {
-        return (1ull << 63ull) | (instance_map.size());
-    }
+    [[nodiscard]] uint64_t get_new_instance_id() { return instance_id_++; }
+
+private:
+    uint64_t instance_id_ = 0;
 };
 
 static bool_T null_trace_cb(fsdbTreeCBType, void *, void *) { return true; }
@@ -73,22 +74,21 @@ static bool_T parse_var_def(fsdbTreeCBType cb_type, void *client_data, void *tre
             scopes.emplace_back(scope->name);
             auto scope_type = static_cast<int>(scope->type);
             // we are not interested in the hidden scope
-            if ((scope_type == FSDB_ST_SV_INTERFACE || scope_type == FSDB_ST_VCD_MODULE) &&
-                !scope->is_hidden_scope) {
+            if ((scope_type == FSDB_ST_SV_INTERFACE || scope_type == FSDB_ST_VCD_MODULE)) {
                 // parent info
                 if (!info->current_instance_ids.empty()) {
                     auto parent_id = info->current_instance_ids.top();
                     info->instance_hierarchy[parent_id].emplace_back(id);
                 }
-                info->current_instance_ids.emplace(id);
                 if (scope_type == FSDB_ST_VCD_MODULE && scope->module) {
                     info->instance_def_map[scope->module].emplace(id);
-                    if (!info->top_instance_id) {
-                        // the first one is always the TOP
+                    if (!info->top_instance_id && !scope->is_hidden_scope) {
+                        // skipping random top instances such as $attribute_root from vcs
                         info->top_instance_id = id;
                     }
                 }
             }
+            info->current_instance_ids.emplace(id);
             break;
         }
 
@@ -143,13 +143,11 @@ static bool_T parse_var_def(fsdbTreeCBType cb_type, void *client_data, void *tre
             break;
         }
         case FSDB_TREE_CBT_UPSCOPE: {
-            auto *scope = reinterpret_cast<fsdbTreeCBDataScope *>(tree_cb_data);
-            auto scope_type = static_cast<int>(scope->type);
             scopes.pop_back();
-            // notice that we need to be symmetric
-            if (scope_type == FSDB_ST_SV_INTERFACE || scope_type == FSDB_ST_VCD_MODULE) {
-                info->current_instance_ids.pop();
+            if (info->current_instance_ids.empty()) {
+                throw std::runtime_error("Error parsing FSDB definition");
             }
+            info->current_instance_ids.pop();
             break;
         }
 

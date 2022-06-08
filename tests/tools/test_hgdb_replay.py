@@ -151,7 +151,6 @@ def test_fsdb_replay(start_server, find_free_port, get_tools_vector_dir, get_bui
     if not os.path.exists(fsdb_lib):
         pytest.skip("FSDB not available")
     port = find_free_port()
-
     s = start_server(port, ("tools", "hgdb-replay", "hgdb-replay"), args=[fsdb_path], use_plus_arg=False)
     if s is None:
         pytest.skip("hgdb-replay not available")
@@ -186,5 +185,5 @@ if __name__ == "__main__":
     import sys
 
     sys.path.append(os.getcwd())
-    from conftest import start_server_fn, find_free_port_fn, get_tools_vector_dir_fn
-    test_replay3(start_server_fn, find_free_port_fn, get_tools_vector_dir_fn)
+    from conftest import start_server_fn, find_free_port_fn, get_tools_vector_dir_fn, get_build_folder_fn
+    test_fsdb_replay(start_server_fn, find_free_port_fn, get_tools_vector_dir_fn, get_build_folder_fn)
