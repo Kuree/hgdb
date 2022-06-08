@@ -13,6 +13,8 @@ using ExpressionType = int64_t;
 namespace expr {
 enum class Operator {
     None,
+    UAdd,
+    UMinus,
     Add,
     Minus,
     Multiply,
@@ -42,7 +44,6 @@ public:
     Expr *unary = nullptr;
 
     Operator op = Operator::None;
-    bool bracketed = false;
 
     [[nodiscard]] ExpressionType eval() const;
 
