@@ -89,6 +89,8 @@ private:
     bool use_hex_str_ = false;
     // whether to pause at clock edge
     bool pause_at_posedge = false;
+    // whether to collect perf. only useful when PERF_COUNT is turned on in cmake
+    bool perf_count_ = false;
 
     void detach();
 
@@ -102,6 +104,7 @@ private:
     std::optional<std::string> get_value_plus_arg(const std::string &arg_name);
     bool get_test_plus_arg(const std::string &arg_name, bool check_env = false);
     bool get_logging();
+    bool get_perf_count();
     static void log_error(const std::string &msg);
     void log_info(const std::string &msg) const;
     bool has_cli_flag(const std::string &flag);

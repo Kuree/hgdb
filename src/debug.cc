@@ -6,6 +6,7 @@
 
 #include "fmt/format.h"
 #include "log.hh"
+#include "perf.hh"
 #include "util.hh"
 
 namespace fs = std::filesystem;
@@ -14,6 +15,7 @@ constexpr auto DISABLE_BLOCKING_ENV = "DEBUG_DISABLE_BLOCKING";
 constexpr auto DATABASE_FILENAME_ENV = "DEBUG_DATABASE_FILENAME";
 constexpr auto DEBUG_LOGGING_ENV = "DEBUG_HGDB_LOG";
 constexpr auto DEBUG_LOG_PLUS_ARG = "DEBUG_LOG";
+constexpr auto DEBUG_PERF_COUNT = "DEBUG_PERF_COUNT";
 
 namespace hgdb {
 Debugger::Debugger() : Debugger(nullptr) {}
@@ -25,6 +27,7 @@ Debugger::Debugger(std::unique_ptr<AVPIProvider> vpi) {
     // initialize the webserver here
     server_ = std::make_unique<DebugServer>();
     log_enabled_ = get_logging();
+    perf_count_ = get_perf_count();
     // initialize the monitor
     monitor_ = Monitor([this](const std::string &name) {
         // monitor does not need delay since it's the entity that handles the delay
@@ -362,6 +365,8 @@ bool Debugger::get_logging() {
         get_test_plus_arg(DEBUG_LOGGING_ENV, true) || get_test_plus_arg(DEBUG_LOG_PLUS_ARG);
     return logging ? true : default_logging;  // NOLINT
 }
+
+bool Debugger::get_perf_count() { return get_test_plus_arg(DEBUG_PERF_COUNT, true); }
 
 void Debugger::log_error(const std::string &msg) { log::log(log::log_level::error, msg); }
 
@@ -1082,6 +1087,7 @@ util::Options Debugger::get_options() {
     options.add_option("detach_after_disconnect", &detach_after_disconnect_);
     options.add_option("use_hex_str", &use_hex_str_);
     options.add_option("pause_at_posedge", &pause_at_posedge);
+    options.add_option("perf_count", &perf_count_);
     return options;
 }
 
@@ -1206,12 +1212,21 @@ bool Debugger::eval_breakpoint(DebugBreakPoint *bp) {
     if (!bp_expr->correct()) return false;
     // since at this point we have checked everything, just used the resolved name
     auto const &symbol_full_names = bp_expr->resolved_symbol_names();
-    auto values = get_expr_values(bp_expr.get(), bp->instance_id);
+    std::unordered_map<std::string, int64_t> values;
+    {
+        perf::PerfCount count("get_rtl_values", perf_count_);
+        values = get_expr_values(bp_expr.get(), bp->instance_id);
+    }
     if (values.size() != symbol_full_names.size()) {
         // something went wrong with the querying symbol
         log_error(fmt::format("Unable to evaluate breakpoint {0}", bp->id));
     } else {
-        auto eval_result = bp_expr->eval(values);
+        long eval_result;
+        {
+            perf::PerfCount count("eval breakpoint", perf_count_);
+            eval_result = bp_expr->eval(values);
+        }
+
         auto trigger_result = should_trigger(bp);
         bool data_bp = true;
         bool enabled = eval_result && trigger_result;
