@@ -23,6 +23,8 @@ PerfCount::PerfCount(std::string_view name, bool collect) : collect_(collect) {
 #endif
 }
 
+// need to do this because when the perf is not turned on, this is a compiler warning
+// NOLINTNEXTLINE
 PerfCount::~PerfCount() {
 #ifdef PERF_COUNT
     if (collect_) [[likely]] {
