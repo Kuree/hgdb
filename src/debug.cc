@@ -109,6 +109,7 @@ void Debugger::stop() {
 }
 
 void Debugger::eval() {
+    perf::PerfCount perf("eval loop", perf_count_);
     // if we set to pause at posedge, need to do that at the very beginning!
     if (pause_at_posedge) [[unlikely]] {
         lock_.wait();
