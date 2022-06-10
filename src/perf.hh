@@ -2,6 +2,7 @@
 #define HGDB_PERF_HH
 
 #include <chrono>
+#include <mutex>
 #include <string_view>
 #include <unordered_map>
 
@@ -19,6 +20,7 @@ private:
     bool collect_;
     std::chrono::time_point<std::chrono::high_resolution_clock> start_;
 
+    static std::mutex count_mutex_;
     static std::unordered_map<std::string_view, int64_t> counts_;
 };
 
