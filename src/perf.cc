@@ -8,7 +8,7 @@
 namespace hgdb::perf {
 
 // static variable initialization
-std::unordered_map<std::string_view, int64_t> PerfCount::counts_ = {};
+std::unordered_map<std::string_view, double> PerfCount::counts_ = {};
 std::mutex PerfCount::count_mutex_ = {};
 
 PerfCount::PerfCount(std::string_view name, bool collect) : collect_(collect) {
@@ -28,7 +28,7 @@ PerfCount::~PerfCount() {
     if (collect_) [[likely]] {
         // time measurement is not on the locked path
         auto end = std::chrono::high_resolution_clock::now();
-        auto diff = end - start_;
+        std::chrono::duration<double, std::nano> diff = (end - start_);
         {
             std::lock_guard guard(count_mutex_);
             if (counts_.find(name_) == counts_.end()) [[unlikely]] {
@@ -50,8 +50,9 @@ void PerfCount::print_out() {
     }
 
     for (auto const &[n, c] : counts_) {
-        auto d = static_cast<std::chrono::duration<double> >(c);
-        std::cout << std::setw(s) << n << ": " << d.count() << "s" << std::endl;
+        auto d = c / std::nano::den;
+        std::cout << std::left << std::setw(s) << n << ": " << std::fixed << std::setprecision(9)
+                  << d << "s" << std::endl;
     }
 }
 

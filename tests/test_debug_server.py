@@ -589,10 +589,28 @@ def test_array_delay_index(start_server, find_free_port):
     kill_server(s)
 
 
+def test_perf_count(start_server, find_free_port):
+    s, uri = setup_server(start_server, find_free_port, env={"DEBUG_PERF_COUNT": "1"})
+
+    async def test_logic():
+        client = hgdb.HGDBClient(uri, None)
+        await client.connect()
+        await client.set_breakpoint("/tmp/test.py", 1, token="bp1")
+        await client.continue_()
+        await client.recv_bp()
+        await client.stop()
+
+    asyncio.get_event_loop_policy().get_event_loop().run_until_complete(test_logic())
+    out, _ = s.communicate()
+    out = out.decode("ascii")
+    assert "eval breakpoint:" in out
+    kill_server(s)
+
+
 if __name__ == "__main__":
     import sys
 
     sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
     from conftest import start_server_fn, find_free_port_fn
 
-    test_array_ssa(start_server_fn, find_free_port_fn)
+    test_perf_count(start_server_fn, find_free_port_fn)

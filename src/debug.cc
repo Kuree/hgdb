@@ -205,9 +205,11 @@ void Debugger::detach() {
 
     // set evaluation mode to normal
     if (scheduler_) scheduler_->set_evaluation_mode(Scheduler::EvaluationMode::None);
-    __sync_synchronize();
 
-    // clear out inserted breakpoints
+    // print out perf if enabled
+    if (perf_count_) {
+        perf::PerfCount::print_out();
+    }
 
     // need to put this here to avoid compiler/cpu to reorder the code
     // such that lock is released before the breakpoints is cleared

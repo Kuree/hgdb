@@ -21,7 +21,7 @@ private:
     std::chrono::time_point<std::chrono::high_resolution_clock> start_;
 
     static std::mutex count_mutex_;
-    static std::unordered_map<std::string_view, int64_t> counts_;
+    static std::unordered_map<std::string_view, double> counts_;
 };
 
 }  // namespace hgdb::perf
