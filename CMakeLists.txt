@@ -26,6 +26,9 @@ endif()
 # set checker flags
 include(cmake/SetFlags.cmake)
 
+# some options
+option(PERF_COUNT "Collect performance counter" OFF)
+
 # main library
 add_subdirectory(src)
 # tools

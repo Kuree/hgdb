@@ -1,5 +1,5 @@
 add_library(hgdb SHARED db.cc debug.cc server.cc util.cc rtl.cc eval.cc
-        proto.cc log.cc thread.cc sim.cc monitor.cc scheduler.cc symbol.cc)
+        proto.cc log.cc thread.cc sim.cc monitor.cc scheduler.cc symbol.cc perf.cc)
 
 target_compile_definitions(hgdb PUBLIC ASIO_STANDALONE)
 
@@ -21,6 +21,11 @@ target_link_libraries(hgdb fmt sqlite3 Threads::Threads ${STATIC_GCC_FLAG} ${STA
 
 # turn on as many warning flags as possible
 target_compile_options(hgdb PRIVATE -Wall -Werror -Wpedantic ${EXTRA_FLAGS})
+
+# if we need to collect performance flags
+if (PERF_COUNT)
+    target_compile_definitions(hgdb PRIVATE PERF_COUNT)
+endif()
 
 # okay here is the part that's always painful for me to debug since I don't have access to macos
 if (APPLE)
