@@ -45,9 +45,13 @@ is not recommended for production usage:
 - `DEBUG_DISABLE_BLOCKING`: when present, will disable the initial blocking. As a result,
   the simulator will start execution without user's explicit "start" or "continue"
   command.
-- `DEBUG_DATABASE_FILENAME#=filename:line_num`: where `#` counts from 0. The runtime will
+- `DEBUG_BREAKPOINT#=filename:line_num@[condition]`: where `#` counts from 0. The runtime will
   query the predefined breakpoints starting from 0 and stops if corresponding environment
-  variable name not found.
+  variable name not found. `condition`` is optional.
+- `DEBUG_PERF_COUNT`: when present, the system will collect performance information. Only valid
+  when the library is build with `-DPERF_COUNT=ON` when invoking `cmake`.
+- `DEBUG_PERF_COUNT_LOG`: when set, the system will dump the performance data into the set value
+  instead of cout;
 
 ## Usage
 To use hgdb, see [simulators](simulator.md) and [debuggers](debugger.md).
