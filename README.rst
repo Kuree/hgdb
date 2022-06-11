@@ -173,9 +173,9 @@ is not recommended for production usage:
   the simulator will starts execution without user's explicit "start" or "continue"
   command.
 - ``DEBUG_DATABASE_FILENAME=filename``: when present, will preload the debug table into the system.
-- ``DEBUG_DATABASE_FILENAME#=filename:line_num``: where ``#`` counts from 0. The runtime will
+- ``DEBUG_BREAKPOINT#=filename:line_num@[condition]``: where ``#`` counts from 0. The runtime will
   query the predefined breakpoints starting from 0 and stops if corresponding environment
-  variable name not found.
+  variable name not found. ``condition`` is optional.
 
 
 Which debugger to use

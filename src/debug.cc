@@ -16,6 +16,7 @@ constexpr auto DATABASE_FILENAME_ENV = "DEBUG_DATABASE_FILENAME";
 constexpr auto DEBUG_LOGGING_ENV = "DEBUG_HGDB_LOG";
 constexpr auto DEBUG_LOG_PLUS_ARG = "DEBUG_LOG";
 constexpr auto DEBUG_PERF_COUNT = "DEBUG_PERF_COUNT";
+constexpr auto DEBUG_BREAKPOINT_ENV = "DEBUG_BREAKPOINT{0}";
 
 namespace hgdb {
 Debugger::Debugger() : Debugger(nullptr) {}
@@ -1270,10 +1271,9 @@ void Debugger::add_cb_clocks() {
 }
 
 void Debugger::setup_init_breakpoint_from_env() {
-    constexpr auto BREAKPOINT_NAME = "DEBUG_BREAKPOINT{0}";
     uint64_t i = 0;
     while (true) {
-        auto breakpoint_name = fmt::format(BREAKPOINT_NAME, i++);
+        auto breakpoint_name = fmt::format(DEBUG_BREAKPOINT_ENV, i++);
         auto const *bp = std::getenv(breakpoint_name.c_str());
         if (!bp) {
             break;
