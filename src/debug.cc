@@ -17,6 +17,7 @@ constexpr auto DEBUG_LOGGING_ENV = "DEBUG_HGDB_LOG";
 constexpr auto DEBUG_LOG_PLUS_ARG = "DEBUG_LOG";
 constexpr auto DEBUG_PERF_COUNT = "DEBUG_PERF_COUNT";
 constexpr auto DEBUG_BREAKPOINT_ENV = "DEBUG_BREAKPOINT{0}";
+constexpr auto DEBUG_PERF_COUNT_LOG = "DEBUG_PERF_COUNT_LOG";
 
 namespace hgdb {
 Debugger::Debugger() : Debugger(nullptr) {}
@@ -210,7 +211,8 @@ void Debugger::detach() {
 
     // print out perf if enabled
     if (perf_count_) {
-        perf::PerfCount::print_out();
+        auto filename = get_value_plus_arg(DEBUG_PERF_COUNT_LOG, true);
+        perf::PerfCount::print_out(filename ? *filename : "");
     }
 
     // need to put this here to avoid compiler/cpu to reorder the code
@@ -337,7 +339,8 @@ uint16_t Debugger::get_port() {
     return value;
 }
 
-std::optional<std::string> Debugger::get_value_plus_arg(const std::string &arg_name) {
+std::optional<std::string> Debugger::get_value_plus_arg(const std::string &arg_name,
+                                                        bool check_env) {
     if (!rtl_) return std::nullopt;
     auto const &args = rtl_->get_argv();
     auto const plus_arg = fmt::format("+{0}=", arg_name);
@@ -347,21 +350,30 @@ std::optional<std::string> Debugger::get_value_plus_arg(const std::string &arg_n
             return value;
         }
     }
+    // check env as well
+    auto *res = std::getenv(arg_name.c_str());
+    printf("env is null %d %s\n", res == nullptr, arg_name.c_str());
+    if (res) {
+        return std::string(res);
+    }
     return std::nullopt;
 }
 
 bool Debugger::get_test_plus_arg(const std::string &arg_name, bool check_env) {
     if (!rtl_) return false;
+    // we check env the last since we allow plus args to override env values
+    auto const &args = rtl_->get_argv();
+    auto plus_arg = "+" + arg_name;
+    auto r = std::any_of(args.begin(), args.end(),
+                         [&plus_arg](const auto &arg) { return arg == plus_arg; });
+
     // check env as well if allowed
-    if (check_env) {
+    if (!r && check_env) {
         if (std::getenv(arg_name.c_str())) {
             return true;
         }
     }
-    auto const &args = rtl_->get_argv();
-    auto plus_arg = "+" + arg_name;
-    return std::any_of(args.begin(), args.end(),
-                       [&plus_arg](const auto &arg) { return arg == plus_arg; });
+    return r;
 }
 
 bool Debugger::get_logging() {

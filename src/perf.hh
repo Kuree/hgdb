@@ -3,6 +3,7 @@
 
 #include <chrono>
 #include <mutex>
+#include <ostream>
 #include <string_view>
 #include <unordered_map>
 
@@ -13,7 +14,7 @@ public:
 
     ~PerfCount();
 
-    static void print_out();
+    static void print_out(std::string_view filename);
 
 private:
     std::string_view name_;

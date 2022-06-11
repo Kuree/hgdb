@@ -1,9 +1,8 @@
 #include "perf.hh"
 
+#include <fstream>
 #include <iomanip>
 #include <iostream>
-
-#include "fmt/format.h"
 
 namespace hgdb::perf {
 
@@ -42,7 +41,16 @@ PerfCount::~PerfCount() {
 #endif
 }
 
-void PerfCount::print_out() {
+void PerfCount::print_out(std::string_view filename) {
+    std::ostream *os = &std::cout;
+    std::ofstream fs;
+    if (!filename.empty()) {
+        fs.open(filename.data(), std::ios_base::trunc);
+        if (!fs.bad()) {
+            os = &fs;
+        }
+    }
+
     // first pass to determine the max length
     std::lock_guard guard(count_mutex_);
     int s = 0;
@@ -53,8 +61,13 @@ void PerfCount::print_out() {
 
     for (auto const &[n, c] : counts_) {
         auto d = c / std::nano::den;
-        std::cout << std::left << std::setw(s) << n << ": " << std::fixed << std::setprecision(9)
-                  << d << "s" << std::endl;
+        (*os) << std::left << std::setw(s) << n << ": " << std::fixed << std::setprecision(9) << d
+              << "s" << std::endl;
+    }
+
+    // clean up
+    if (os != &std::cout) {
+        fs.close();
     }
 }
 

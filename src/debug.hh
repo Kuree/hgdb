@@ -101,7 +101,8 @@ private:
 
     // helper functions
     uint16_t get_port();
-    std::optional<std::string> get_value_plus_arg(const std::string &arg_name);
+    std::optional<std::string> get_value_plus_arg(const std::string &arg_name,
+                                                  bool check_eng = false);
     bool get_test_plus_arg(const std::string &arg_name, bool check_env = false);
     bool get_logging();
     bool get_perf_count();
