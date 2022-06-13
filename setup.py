@@ -77,6 +77,9 @@ class CMakeBuild(build_ext):
                 ]
                 build_args += ["--config", cfg]
 
+        if "PERF" in os.environ:
+            cmake_args += ["-DPERF_COUNT=ON"]
+
         build_args += ["-j2"]
 
         if not os.path.exists(self.build_temp):
