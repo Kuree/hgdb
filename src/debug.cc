@@ -126,13 +126,19 @@ void Debugger::eval() {
 
     // main loop to fetch breakpoints
     while (true) {
-        auto bps = scheduler_->next_breakpoints();
+        std::vector<DebugBreakPoint *> bps;
+        {
+            perf::PerfCount perf_get_bp("next breakpoints", perf_count_);
+            bps = scheduler_->next_breakpoints();
+        }
+
         if (bps.empty()) break;
         std::vector<bool> hits(bps.size());
         std::fill(hits.begin(), hits.end(), false);
         // to avoid multithreading overhead, only if there is more than 1 breakpoint
         if (bps.size() > 1) {
             // multi-threading for the win
+            perf::PerfCount perf_bp_threads("eval bp threads", perf_count_);
             std::vector<std::thread> threads;
             threads.reserve(bps.size());
             for (auto i = 0u; i < bps.size(); i++) {
@@ -146,6 +152,7 @@ void Debugger::eval() {
         } else {
             // directly evaluate it in the current thread to avoid creating threads
             // overhead
+            perf::PerfCount perf_bp_threads("eval bp single thread", perf_count_);
             this->eval_breakpoint(bps[0], hits, 0);
         }
 
