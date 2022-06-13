@@ -13,8 +13,7 @@ namespace fs = std::filesystem;
 
 constexpr auto DISABLE_BLOCKING_ENV = "DEBUG_DISABLE_BLOCKING";
 constexpr auto DATABASE_FILENAME_ENV = "DEBUG_DATABASE_FILENAME";
-constexpr auto DEBUG_LOGGING_ENV = "DEBUG_HGDB_LOG";
-constexpr auto DEBUG_LOG_PLUS_ARG = "DEBUG_LOG";
+constexpr auto DEBUG_LOGGING_ENV = "DEBUG_LOG";
 constexpr auto DEBUG_PERF_COUNT = "DEBUG_PERF_COUNT";
 constexpr auto DEBUG_BREAKPOINT_ENV = "DEBUG_BREAKPOINT{0}";
 constexpr auto DEBUG_PERF_COUNT_LOG = "DEBUG_PERF_COUNT_LOG";
@@ -78,6 +77,11 @@ void Debugger::initialize_db(std::unique_ptr<SymbolTableProvider> db) {
 }
 
 void Debugger::run() {
+    // we also allow users to preload the database directly without a user connection
+    // from the environment variable
+    // this is only used for benchmark!
+    preload_db_from_env();
+
     auto on_ = [this](const std::string &msg, uint64_t conn_id) { on_message(msg, conn_id); };
     server_thread_ = std::thread([on_, this]() {
         server_->set_on_message(on_);
@@ -96,10 +100,6 @@ void Debugger::run() {
     if (!disable_blocking) [[likely]] {
         lock_.wait();
     }
-    // we also allow users to preload the database directly without a user connection
-    // from the environment variable
-    // this is only used for benchmark!
-    preload_db_from_env();
 }
 
 void Debugger::stop() {
@@ -376,8 +376,7 @@ bool Debugger::get_test_plus_arg(const std::string &arg_name, bool check_env) {
 }
 
 bool Debugger::get_logging() {
-    auto logging =
-        get_test_plus_arg(DEBUG_LOGGING_ENV, true) || get_test_plus_arg(DEBUG_LOG_PLUS_ARG);
+    auto logging = get_test_plus_arg(DEBUG_LOGGING_ENV, true);
     return logging ? true : default_logging;  // NOLINT
 }
 
