@@ -352,7 +352,6 @@ std::optional<std::string> Debugger::get_value_plus_arg(const std::string &arg_n
     }
     // check env as well
     auto *res = std::getenv(arg_name.c_str());
-    printf("env is null %d %s\n", res == nullptr, arg_name.c_str());
     if (res) {
         return std::string(res);
     }
@@ -1322,7 +1321,9 @@ void Debugger::setup_init_breakpoint_from_env() {
         if (tokens.size() > 1) {
             breakpoint.condition = tokens[1];
         }
-
+        log::log(log::log_level::info,
+                 fmt::format("Preloading breakpoint @ {0}:{1} with condition {2}",
+                             breakpoint.filename, breakpoint.line_num, breakpoint.condition));
         BreakPointRequest req(breakpoint, BreakPointRequest::action::add);
         // use max channel ID just in case. in
         handle_breakpoint(req, std::numeric_limits<uint64_t>::max());

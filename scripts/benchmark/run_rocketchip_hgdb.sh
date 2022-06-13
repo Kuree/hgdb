@@ -25,6 +25,7 @@ docker exec -it rocket-chip-hgdb bash -c "cd /rocket-chip/vsim && make verilog"
 docker exec -it rocket-chip-hgdb bash -c "toml2hgdb /rocket-chip/debug.toml /rocket-chip/debug.db"
 # build vsim, change this based on how you load your vcs
 docker exec -it rocket-chip-hgdb bash -c "source /cad/load.sh && cd /rocket-chip/vsim && make"
+exit
 # set the hgdb env variable to automatically start simulation without blocking
 export ENV="DEBUG_DATABASE_FILENAME=/rocket-chip/debug.db DEBUG_DISABLE_BLOCKING=1"
 rm -rf hgdb.log
@@ -33,3 +34,5 @@ for app in mm spmv mt-vvadd median multiply qsort towers vvadd dhrystone mt-matm
 done
 
 docker stop rocket-chip-hgdb
+
+# WidthWidget.scala:149@auto_in_a_ready==2
