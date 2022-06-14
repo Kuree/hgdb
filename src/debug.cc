@@ -1347,8 +1347,9 @@ void Debugger::setup_init_breakpoint_from_env() {
             breakpoint.condition = tokens[1];
         }
         log::log(log::log_level::info,
-                 fmt::format("Preloading breakpoint @ {0}:{1} with condition {2}",
-                             breakpoint.filename, breakpoint.line_num, breakpoint.condition));
+                 fmt::format("Preloading breakpoint @ {0}:{1}:{2} with condition {3}",
+                             breakpoint.filename, breakpoint.line_num, breakpoint.column_num,
+                             breakpoint.condition));
         BreakPointRequest req(breakpoint, BreakPointRequest::action::add);
         // use max channel ID just in case. in
         handle_breakpoint(req, std::numeric_limits<uint64_t>::max());
