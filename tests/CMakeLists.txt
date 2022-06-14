@@ -42,6 +42,7 @@ add_mock(test_debug_server)
 
 add_test(test_schema)
 add_test(test_db)
+add_test(test_debug)
 add_test(test_rtl)
 add_test(test_eval)
 add_test(test_proto)

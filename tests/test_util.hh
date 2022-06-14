@@ -371,4 +371,25 @@ public:
     constexpr static auto version = "0.1";
 };
 
+uint16_t get_free_port() {
+    int fd;
+    struct sockaddr_in addr {
+        .sin_family = AF_INET, .sin_port = 0
+    };
+    addr.sin_addr.s_addr = inet_addr("0.0.0.0");
+    fd = socket(AF_INET, SOCK_STREAM, 0);
+    auto res = bind(fd, (struct sockaddr *)&addr, sizeof(struct sockaddr_in));
+    if (res) return 8888;
+    // set socket options
+    int enable = 1;
+    setsockopt(fd, SOL_SOCKET, SO_REUSEPORT, &enable, sizeof(int));
+    socklen_t sa_len = sizeof(addr);
+    res = getsockname(fd, (struct sockaddr *)&addr, &sa_len);
+    if (res) return 8888;
+    close(fd);
+    auto port = addr.sin_port;
+    auto result = ntohs(port);
+    return result;
+}
+
 #endif  // HGDB_TEST_UTIL_HH

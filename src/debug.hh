@@ -13,6 +13,8 @@ namespace util {
 class Options;
 }
 
+class DebuggerTestFriend;
+
 class Debugger {
 public:
     Debugger();
@@ -36,7 +38,9 @@ public:
     // status to expose to outside world
     [[nodiscard]] const std::atomic<bool> &is_running() const { return is_running_; }
     // outside world can directly control the RTL client if necessary
-    [[nodiscard]] RTLSimulatorClient *rtl_client() { return rtl_.get(); }
+    [[nodiscard]] RTLSimulatorClient *rtl_client() const { return rtl_.get(); }
+    [[nodiscard]] SymbolTableProvider *db() const { return db_.get(); }
+    [[nodiscard]] Scheduler *scheduler() const { return scheduler_.get(); }
 
     // directly set options from function API instead of through ws
     void set_option(const std::string &name, bool value);
@@ -55,6 +59,7 @@ private:
 
     // server thread
     std::thread server_thread_;
+    std::atomic<bool> server_started_ = false;
     // runtime lock
     RuntimeLock lock_;
     std::atomic<bool> is_running_ = false;
@@ -149,6 +154,7 @@ private:
     bool eval_breakpoint(DebugBreakPoint *bp);
     void eval_breakpoint(const std::vector<DebugBreakPoint *> &bps, std::vector<bool> &result,
                          uint64_t start, uint64_t end);
+    std::vector<bool> eval_breakpoints(const std::vector<DebugBreakPoint *> &bps);
     void add_breakpoint(const BreakPoint &bp_info, const BreakPoint &db_bp);
     void start_breakpoint_evaluation();
 
@@ -172,6 +178,10 @@ private:
     // update delayed values
     void update_delayed_values();
     void process_delayed_breakpoint(uint32_t bp_id);
+
+    // test related
+public:
+    friend class DebuggerTestFriend;
 };
 
 }  // namespace hgdb

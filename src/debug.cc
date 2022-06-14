@@ -91,6 +91,8 @@ void Debugger::run() {
         log_info(fmt::format("Debugging server started at :{0}", port));
         server_->run(port);
     });
+    // this is strong csq
+    server_started_.store(true);
     // block this thread until we receive the continue command from user
     //
     // by default we block the execution. but if user desires, e.g. during a benchmark
@@ -133,35 +135,7 @@ void Debugger::eval() {
         }
 
         if (bps.empty()) break;
-        std::vector<bool> hits(bps.size());
-        std::fill(hits.begin(), hits.end(), false);
-        // most of the time is on getting simulation values, so using many threads
-        // doesn't make any sense
-        const static auto processor_count = std::thread::hardware_concurrency();
-        auto constexpr minimum_batch_size = 16;
-        auto const batch_min_size = processor_count * minimum_batch_size;
-        if (bps.size() > batch_min_size) {
-            // multi-threading for two threads
-            perf::PerfCount perf_bp_threads("eval bp threads", perf_count_);
-            std::vector<std::thread> threads;
-            threads.reserve(processor_count);
-            auto batch_size = bps.size() / processor_count;
-            for (auto i = 0u; i < processor_count; i++) {
-                // lock-free map
-                auto start = i * batch_size;
-                auto end = std::min<uint64_t>(bps.size(), (i + 1) * batch_size);
-                threads.emplace_back(std::thread([start, end, &bps, &hits, this]() {
-                    this->eval_breakpoint(bps, hits, start, end);
-                }));
-            }
-            for (auto &t : threads) t.join();
-
-        } else {
-            // directly evaluate it in the current thread to avoid creating threads
-            // overhead
-            perf::PerfCount perf_bp_threads("eval bp single thread", perf_count_);
-            this->eval_breakpoint(bps, hits, 0, bps.size());
-        }
+        auto hits = eval_breakpoints(bps);
 
         std::vector<const DebugBreakPoint *> result;
         result.reserve(bps.size());
@@ -201,7 +175,9 @@ void Debugger::set_on_client_connected(
     on_client_connected_ = func;
 }
 
-Debugger::~Debugger() { server_thread_.join(); }
+Debugger::~Debugger() {
+    if (server_started_.load()) server_thread_.join();
+}
 
 void Debugger::detach() {
     // remove all the clock related callback
@@ -1268,6 +1244,39 @@ bool Debugger::eval_breakpoint(DebugBreakPoint *bp) {
         }
     }
     return false;
+}
+
+std::vector<bool> Debugger::eval_breakpoints(const std::vector<DebugBreakPoint *> &bps) {
+    std::vector<bool> hits(bps.size());
+    std::fill(hits.begin(), hits.end(), false);
+    // most of the time is on getting simulation values, so using many threads
+    // doesn't make any sense
+    const static auto processor_count = std::thread::hardware_concurrency();
+    auto constexpr minimum_batch_size = 16;
+    auto const batch_min_size = processor_count * minimum_batch_size;
+    if (bps.size() > batch_min_size) {
+        // multi-threading for two threads
+        perf::PerfCount perf_bp_threads("eval bp threads", perf_count_);
+        std::vector<std::thread> threads;
+        threads.reserve(processor_count);
+        auto batch_size = bps.size() / processor_count;
+        for (auto i = 0u; i < processor_count; i++) {
+            // lock-free map
+            auto start = i * batch_size;
+            auto end = std::min<uint64_t>(bps.size(), (i + 1) * batch_size);
+            threads.emplace_back(std::thread([start, end, &bps, &hits, this]() {
+                this->eval_breakpoint(bps, hits, start, end);
+            }));
+        }
+        for (auto &t : threads) t.join();
+
+    } else {
+        // directly evaluate it in the current thread to avoid creating threads
+        // overhead
+        perf::PerfCount perf_bp_threads("eval bp single thread", perf_count_);
+        this->eval_breakpoint(bps, hits, 0, bps.size());
+    }
+    return hits;
 }
 
 void Debugger::eval_breakpoint(const std::vector<DebugBreakPoint *> &bps, std::vector<bool> &result,
