@@ -1252,7 +1252,8 @@ std::vector<bool> Debugger::eval_breakpoints(const std::vector<DebugBreakPoint *
     const static auto processor_count = std::thread::hardware_concurrency();
     auto constexpr minimum_batch_size = 16;
     auto const batch_min_size = processor_count * minimum_batch_size;
-    if (bps.size() > batch_min_size) {
+    const static auto commercial = rtl_->is_vcs() || rtl_->is_xcelium();
+    if (bps.size() > batch_min_size && !commercial) {
         // multi-threading for two threads
         perf::PerfCount perf_bp_threads("eval bp threads", perf_count_);
         std::vector<std::thread> threads;
