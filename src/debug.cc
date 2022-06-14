@@ -1282,7 +1282,8 @@ std::vector<bool> Debugger::eval_breakpoints(const std::vector<DebugBreakPoint *
 void Debugger::eval_breakpoint(const std::vector<DebugBreakPoint *> &bps, std::vector<bool> &result,
                                uint64_t start, uint64_t end) {
     for (auto index = start; index < end; index++) {
-        result[index] = eval_breakpoint(bps[index]);
+        bool r = eval_breakpoint(bps[index]);
+        result[index] = r;
     }
 }
 

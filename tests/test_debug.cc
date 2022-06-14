@@ -49,7 +49,7 @@ protected:
     std::unique_ptr<Debugger> debugger_;
     std::unique_ptr<DebuggerTestFriend> friend_;
 
-    hgdb::SymbolTableProvider *db_;
+    hgdb::SymbolTableProvider *db_ = nullptr;
 
     static auto constexpr *filename = "test.cc";
     static auto constexpr line = 0u;
