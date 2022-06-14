@@ -43,6 +43,11 @@ public:
         std::vector<vpiHandle> clock_signals;
     };
     virtual bool vpi_rewind(rewind_data *reverse_data) { return false; }
+
+    void set_use_lock_getting_value(bool value) { use_lock_getting_value_ = value; }
+
+protected:
+    bool use_lock_getting_value_ = true;
 };
 
 class VPIProvider : public AVPIProvider {

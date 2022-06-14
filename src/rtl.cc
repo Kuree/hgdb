@@ -13,8 +13,14 @@
 namespace hgdb {
 
 void VPIProvider::vpi_get_value(vpiHandle expr, p_vpi_value value_p) {
-    std::lock_guard guard(vpi_lock_);
-    return ::vpi_get_value(expr, value_p);
+    if (use_lock_getting_value_) {
+        std::lock_guard guard(vpi_lock_);
+        return ::vpi_get_value(expr, value_p);
+    } else {
+        // if we know for certain this is no contention when getting values
+        // we can disable this lock
+        return ::vpi_get_value(expr, value_p);
+    }
 }
 
 PLI_INT32 VPIProvider::vpi_get(PLI_INT32 property, vpiHandle object) {
@@ -139,6 +145,8 @@ void RTLSimulatorClient::initialize_vpi(std::unique_ptr<AVPIProvider> vpi) {
 
     // compute the vpiNet target. this is a special case for Verilator
     vpi_net_target_ = is_verilator() ? vpiReg : vpiNet;
+    const static bool is_commercial = is_vcs() || is_xcelium();
+    vpi_->set_use_lock_getting_value(is_commercial);
 }
 
 vpiHandle RTLSimulatorClient::get_handle(const std::string &name) {
