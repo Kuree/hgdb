@@ -45,7 +45,7 @@ void PerfCount::print_out(std::string_view filename) {
     std::ostream *os = &std::cout;
     std::ofstream fs;
     if (!filename.empty()) {
-        fs.open(filename.data(), std::ios_base::trunc);
+        fs.open(filename.data(), std::ios_base::app);
         if (!fs.bad()) {
             os = &fs;
         }

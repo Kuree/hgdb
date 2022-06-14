@@ -12,7 +12,19 @@ docker exec -it rocket-chip-hgdb bash -c "git clone https://github.com/chipsalli
 # build jar file
 docker exec -it rocket-chip-hgdb bash -c "cd /rocket-chip/vsim/ && make /rocket-chip/rocketchip.jar"
 # install firrtl2hgdb converter so that we can create symbol table for benchmarking
-docker exec -it rocket-chip-hgdb bash -c "apt-get update && apt-get install -y python3-pip && pip3 install hgdb[all] libhgdb"
+docker exec -it rocket-chip-hgdb bash -c "apt-get update && apt-get install -y python3-pip && pip3 install hgdb[all]"
+if [ -z "${BP_ENV}" ]
+then
+  docker exec -it rocket-chip-hgdb bash -c "pip3 install libhgdb"
+else
+  # need to install it from scratch
+  docker exec -it rocket-chip-hgdb bash -c "apt-get install -y cmake g++"
+  docker exec -it rocket-chip-hgdb bash -c "git clone https://github.com/Kuree/hgdb"
+  docker exec -it rocket-chip-hgdb bash -c "cd hgdb && git submodule update --init --recursive"
+  docker exec -it rocket-chip-hgdb bash -c "cd hgdb && python3 setup.py bdist_wheel && pip3 install dist/*.whl"
+  # set perf count on
+  BP_ENV="${BP_ENV} DEBUG_PERF_COUNT=1"
+fi
 # install hgdb-firrtl
 docker exec -it rocket-chip-hgdb bash -c "git clone https://github.com/Kuree/hgdb-firrtl"
 docker exec -it rocket-chip-hgdb bash -c "/hgdb-firrtl/bin/install /rocket-chip/rocketchip.jar"
@@ -25,14 +37,11 @@ docker exec -it rocket-chip-hgdb bash -c "cd /rocket-chip/vsim && make verilog"
 docker exec -it rocket-chip-hgdb bash -c "toml2hgdb /rocket-chip/debug.toml /rocket-chip/debug.db"
 # build vsim, change this based on how you load your vcs
 docker exec -it rocket-chip-hgdb bash -c "source /cad/load.sh && cd /rocket-chip/vsim && make"
-exit
 # set the hgdb env variable to automatically start simulation without blocking
-export ENV="DEBUG_DATABASE_FILENAME=/rocket-chip/debug.db DEBUG_DISABLE_BLOCKING=1"
+export ENV="DEBUG_DATABASE_FILENAME=/rocket-chip/debug.db DEBUG_DISABLE_BLOCKING=1 ${BP_ENV}"
 rm -rf hgdb.log
 for app in mm spmv mt-vvadd median multiply qsort towers vvadd dhrystone mt-matmul; do
   /usr/bin/time -a -o hgdb.log -f "%E" sh -c "echo '${app}' >> hgdb.log; docker exec -it rocket-chip-hgdb bash -c 'source /cad/load.sh && cd /rocket-chip/vsim && ${ENV} make output/${app}.riscv.out'"
 done
 
 docker stop rocket-chip-hgdb
-
-# WidthWidget.scala:149@auto_in_a_ready==2
