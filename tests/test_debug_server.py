@@ -603,7 +603,7 @@ def test_perf_count(start_server, find_free_port):
     asyncio.get_event_loop_policy().get_event_loop().run_until_complete(test_logic())
     out, _ = s.communicate()
     out = out.decode("ascii")
-    assert "eval breakpoint:" in out
+    assert "eval breakpoint" in out
     kill_server(s)
 
 
