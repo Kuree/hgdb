@@ -532,11 +532,15 @@ namespace util {
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wmaybe-uninitialized"
 #endif
+// NOLINTNEXTLINE
 void validate_expr(RTLSimulatorClient *rtl, SymbolTableProvider *db, DebugExpression *expr,
                    std::optional<uint32_t> breakpoint_id, std::optional<uint32_t> instance_id) {
-    auto context_static_values = breakpoint_id ? db->get_context_static_values(*breakpoint_id)
-                                               : std::unordered_map<std::string, int64_t>{};
-    expr->set_static_values(context_static_values);
+    if (!expr->symbols().empty()) {
+        // only fill in context static values if the breakpoint has any required symbols
+        auto context_static_values = breakpoint_id ? db->get_context_static_values(*breakpoint_id)
+                                                   : std::unordered_map<std::string, int64_t>{};
+        expr->set_static_values(context_static_values);
+    }
     auto required_symbols = expr->get_required_symbols();
     const static std::unordered_set<std::string> predefined_symbols = {time_var_name,
                                                                        instance_var_name};
