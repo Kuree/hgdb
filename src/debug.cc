@@ -1263,7 +1263,7 @@ std::vector<bool> Debugger::eval_breakpoints(const std::vector<DebugBreakPoint *
         for (auto i = 0u; i < processor_count; i++) {
             // lock-free map
             auto start = i * batch_size;
-            auto end = std::min<uint64_t>(bps.size(), (i + 1) * batch_size);
+            auto end = (i == (processor_count - 1)) ? bps.size() : (i + 1) * batch_size;
             threads.emplace_back(std::thread([start, end, &bps, &hits, this]() {
                 this->eval_breakpoint(bps, hits, start, end);
             }));
