@@ -1249,7 +1249,7 @@ std::vector<bool> Debugger::eval_breakpoints(const std::vector<DebugBreakPoint *
     std::fill(hits.begin(), hits.end(), false);
     // most of the time is on getting simulation values, so using many threads
     // doesn't make any sense
-    const static auto processor_count = std::thread::hardware_concurrency();
+    const static auto processor_count = 2;
     auto constexpr minimum_batch_size = 16;
     auto const batch_min_size = processor_count * minimum_batch_size;
     const static auto commercial = rtl_->is_vcs() || rtl_->is_xcelium();
