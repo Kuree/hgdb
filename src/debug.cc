@@ -135,17 +135,24 @@ void Debugger::eval() {
         if (bps.empty()) break;
         std::vector<bool> hits(bps.size());
         std::fill(hits.begin(), hits.end(), false);
-        // to avoid multithreading overhead, only if there is more than 1 breakpoint
-        if (bps.size() > 1) {
-            // multi-threading for the win
+        // most of the time is on getting simulation values, so using many threads
+        // doesn't make any sense
+        const static auto processor_count = std::thread::hardware_concurrency();
+        auto constexpr minimum_batch_size = 16;
+        auto const batch_min_size = processor_count * minimum_batch_size;
+        if (bps.size() > batch_min_size) {
+            // multi-threading for two threads
             perf::PerfCount perf_bp_threads("eval bp threads", perf_count_);
             std::vector<std::thread> threads;
-            threads.reserve(bps.size());
-            for (auto i = 0u; i < bps.size(); i++) {
-                auto *bp = bps[i];
+            threads.reserve(processor_count);
+            auto batch_size = bps.size() / processor_count;
+            for (auto i = 0u; i < processor_count; i++) {
                 // lock-free map
-                threads.emplace_back(
-                    std::thread([bp, i, &hits, this]() { this->eval_breakpoint(bp, hits, i); }));
+                auto start = i * batch_size;
+                auto end = std::min<uint64_t>(bps.size(), (i + 1) * batch_size);
+                threads.emplace_back(std::thread([start, end, &bps, &hits, this]() {
+                    this->eval_breakpoint(bps, hits, start, end);
+                }));
             }
             for (auto &t : threads) t.join();
 
@@ -153,7 +160,7 @@ void Debugger::eval() {
             // directly evaluate it in the current thread to avoid creating threads
             // overhead
             perf::PerfCount perf_bp_threads("eval bp single thread", perf_count_);
-            this->eval_breakpoint(bps[0], hits, 0);
+            this->eval_breakpoint(bps, hits, 0, bps.size());
         }
 
         std::vector<const DebugBreakPoint *> result;
@@ -1263,8 +1270,11 @@ bool Debugger::eval_breakpoint(DebugBreakPoint *bp) {
     return false;
 }
 
-void Debugger::eval_breakpoint(DebugBreakPoint *bp, std::vector<bool> &result, uint32_t index) {
-    result[index] = eval_breakpoint(bp);
+void Debugger::eval_breakpoint(const std::vector<DebugBreakPoint *> &bps, std::vector<bool> &result,
+                               uint64_t start, uint64_t end) {
+    for (auto index = start; index < end; index++) {
+        result[index] = eval_breakpoint(bps[index]);
+    }
 }
 
 void Debugger::add_breakpoint(const BreakPoint &bp_info, const BreakPoint &db_bp) {

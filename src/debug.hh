@@ -147,7 +147,8 @@ private:
     // scheduler
     bool should_trigger(DebugBreakPoint *bp);
     bool eval_breakpoint(DebugBreakPoint *bp);
-    void eval_breakpoint(DebugBreakPoint *bp, std::vector<bool> &result, uint32_t index);
+    void eval_breakpoint(const std::vector<DebugBreakPoint *> &bps, std::vector<bool> &result,
+                         uint64_t start, uint64_t end);
     void add_breakpoint(const BreakPoint &bp_info, const BreakPoint &db_bp);
     void start_breakpoint_evaluation();
 
