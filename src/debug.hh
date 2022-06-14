@@ -59,7 +59,6 @@ private:
 
     // server thread
     std::thread server_thread_;
-    std::atomic<bool> server_started_ = false;
     // runtime lock
     RuntimeLock lock_;
     std::atomic<bool> is_running_ = false;

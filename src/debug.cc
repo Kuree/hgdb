@@ -91,8 +91,6 @@ void Debugger::run() {
         log_info(fmt::format("Debugging server started at :{0}", port));
         server_->run(port);
     });
-    // this is strong csq
-    server_started_.store(true);
     // block this thread until we receive the continue command from user
     //
     // by default we block the execution. but if user desires, e.g. during a benchmark
@@ -176,7 +174,7 @@ void Debugger::set_on_client_connected(
 }
 
 Debugger::~Debugger() {
-    if (server_started_.load()) server_thread_.join();
+    if (server_thread_.joinable()) server_thread_.join();
 }
 
 void Debugger::detach() {
