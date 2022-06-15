@@ -6,7 +6,7 @@ ROOT="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 
 # notice that you need to change the following command to have VCS in the $PATH
 # I will use the one I have
-docker run -it --rm -d --name rocket-chip-hgdb -v /home/keyi/workspace/cad:/cad keyiz/rocket-chip bash
+docker run -it --rm -d --name rocket-chip-hgdb -v /home/keyi/workspace/cad:/cad -v "${ROOT}":/data keyiz/rocket-chip bash
 # clone the repo
 docker exec -it rocket-chip-hgdb bash -c "git clone https://github.com/chipsalliance/rocket-chip && cd rocket-chip/ && git submodule update --init"
 # build jar file
@@ -23,7 +23,7 @@ else
   docker exec -it rocket-chip-hgdb bash -c "cd hgdb && git submodule update --init --recursive"
   docker exec -it rocket-chip-hgdb bash -c "cd hgdb && python3 setup.py bdist_wheel && pip3 install dist/*.whl"
   # set perf count on
-  BP_ENV="${BP_ENV} DEBUG_PERF_COUNT=1"
+  BP_ENV="${BP_ENV} DEBUG_PERF_COUNT=1 DEBUG_PERF_COUNT_LOG=${DEBUG_PERF_COUNT_LOG}"
 fi
 # install hgdb-firrtl
 docker exec -it rocket-chip-hgdb bash -c "git clone https://github.com/Kuree/hgdb-firrtl"
