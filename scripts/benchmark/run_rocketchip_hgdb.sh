@@ -21,7 +21,7 @@ else
   docker exec -it rocket-chip-hgdb bash -c "apt-get install -y cmake g++"
   docker exec -it rocket-chip-hgdb bash -c "git clone https://github.com/Kuree/hgdb"
   docker exec -it rocket-chip-hgdb bash -c "cd hgdb && git submodule update --init --recursive"
-  docker exec -it rocket-chip-hgdb bash -c "cd hgdb && python3 setup.py bdist_wheel && pip3 install dist/*.whl"
+  docker exec -it rocket-chip-hgdb bash -c "cd hgdb && PERF=1 python3 setup.py bdist_wheel && pip3 install dist/*.whl"
   # set perf count on
   BP_ENV="${BP_ENV} DEBUG_PERF_COUNT=1 DEBUG_PERF_COUNT_LOG=${DEBUG_PERF_COUNT_LOG}"
 fi
