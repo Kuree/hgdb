@@ -30,6 +30,8 @@ std::string join(T begin, T end, const std::string &sep) {
 [[maybe_unused]] std::optional<int64_t> stol(const std::string &value);
 std::optional<uint64_t> stoul(const std::string &value);
 
+std::optional<std::string> getenv(std::string_view name);
+
 class Options {
 public:
     [[maybe_unused]] void add_option(const std::string &option_name, [[maybe_unused]] bool *value);

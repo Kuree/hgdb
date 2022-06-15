@@ -4,6 +4,10 @@
 #include <iomanip>
 #include <iostream>
 
+#include "util.hh"
+
+auto constexpr DEBUG_PERF_COUNT_NAME = "DEBUG_PERF_COUNT_NAME";
+
 namespace hgdb::perf {
 
 // static variable initialization
@@ -49,6 +53,11 @@ void PerfCount::print_out(std::string_view filename) {
         if (!fs.bad()) {
             os = &fs;
         }
+    }
+
+    // dump the name if possible
+    if (auto name = util::getenv(DEBUG_PERF_COUNT_NAME)) {
+        (*os) << *name << std::endl;
     }
 
     // first pass to determine the max length

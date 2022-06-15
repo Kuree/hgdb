@@ -38,6 +38,15 @@ std::optional<uint64_t> stoul(const std::string &value) {
     }
 }
 
+std::optional<std::string> getenv(std::string_view name) {
+    auto *ptr = std::getenv(name.data());
+    if (ptr) {
+        return std::string(ptr);
+    } else {
+        return std::nullopt;
+    }
+}
+
 [[maybe_unused]] void Options::add_option(const std::string &option_name, bool *value) {
     bool_options_.emplace(option_name, value);
 }

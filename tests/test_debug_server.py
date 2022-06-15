@@ -4,6 +4,7 @@
 
 import asyncio
 import os
+import tempfile
 
 import hgdb
 import pytest
@@ -590,21 +591,26 @@ def test_array_delay_index(start_server, find_free_port):
 
 
 def test_perf_count(start_server, find_free_port):
-    s, uri = setup_server(start_server, find_free_port, env={"DEBUG_PERF_COUNT": "1"})
+    with tempfile.TemporaryDirectory() as temp:
+        log_file = os.path.join(temp, "log")
+        s, uri = setup_server(start_server, find_free_port,
+                              env={"DEBUG_PERF_COUNT": "1", "DEBUG_PERF_COUNT_LOG": log_file,
+                                   "DEBUG_PERF_COUNT_NAME": "server_test"})
 
-    async def test_logic():
-        client = hgdb.HGDBClient(uri, None)
-        await client.connect()
-        await client.set_breakpoint("/tmp/test.py", 1, token="bp1")
-        await client.continue_()
-        await client.recv_bp()
-        await client.stop()
+        async def test_logic():
+            client = hgdb.HGDBClient(uri, None)
+            await client.connect()
+            await client.set_breakpoint("/tmp/test.py", 1, token="bp1")
+            await client.continue_()
+            await client.recv_bp()
+            await client.stop()
 
-    asyncio.get_event_loop_policy().get_event_loop().run_until_complete(test_logic())
-    out, _ = s.communicate()
-    out = out.decode("ascii")
-    assert "eval breakpoint" in out
-    kill_server(s)
+        asyncio.get_event_loop_policy().get_event_loop().run_until_complete(test_logic())
+        with open(log_file) as f:
+            out = f.read()
+        assert "eval breakpoint" in out
+        assert "server_test\n" in out
+        kill_server(s)
 
 
 if __name__ == "__main__":

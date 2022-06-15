@@ -339,11 +339,7 @@ std::optional<std::string> Debugger::get_value_plus_arg(const std::string &arg_n
         }
     }
     // check env as well
-    auto *res = std::getenv(arg_name.c_str());
-    if (res) {
-        return std::string(res);
-    }
-    return std::nullopt;
+    return util::getenv(arg_name);
 }
 
 bool Debugger::get_test_plus_arg(const std::string &arg_name, bool check_env) {
@@ -356,7 +352,7 @@ bool Debugger::get_test_plus_arg(const std::string &arg_name, bool check_env) {
 
     // check env as well if allowed
     if (!r && check_env) {
-        if (std::getenv(arg_name.c_str())) {
+        if (util::getenv(arg_name)) {
             return true;
         }
     }
@@ -1310,13 +1306,13 @@ void Debugger::setup_init_breakpoint_from_env() {
     uint64_t i = 0;
     while (true) {
         auto breakpoint_name = fmt::format(DEBUG_BREAKPOINT_ENV, i++);
-        auto const *bp = std::getenv(breakpoint_name.c_str());
+        auto const bp = util::getenv(breakpoint_name);
         if (!bp) {
             break;
         }
         // need to parse the actual filename and conditions
         // don't think @ is a normal filename, so use it to delimit string
-        auto tokens = util::get_tokens(bp, "@");
+        auto tokens = util::get_tokens(*bp, "@");
         if (tokens.empty()) {
             std::cerr << "Invalid breakpoint expression " << breakpoint_name << std::endl;
             continue;
@@ -1357,11 +1353,11 @@ void Debugger::setup_init_breakpoint_from_env() {
 }
 
 void Debugger::preload_db_from_env() {
-    auto const *db_name = std::getenv(DATABASE_FILENAME_ENV);
+    auto const db_name = util::getenv(DATABASE_FILENAME_ENV);
     if (!db_name) [[likely]] {
         return;
     }
-    initialize_db(db_name);
+    initialize_db(*db_name);
     // also need to load clock signals
     add_cb_clocks();
 }
