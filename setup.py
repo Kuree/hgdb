@@ -2,6 +2,7 @@ import os
 import sys
 import subprocess
 import shutil
+import multiprocessing
 from setuptools import setup, Extension
 from setuptools.command.build_ext import build_ext
 
@@ -80,7 +81,8 @@ class CMakeBuild(build_ext):
         if "PERF" in os.environ:
             cmake_args += ["-DPERF_COUNT=ON"]
 
-        build_args += ["-j2"]
+        num_proc = int(max(int(multiprocessing.cpu_count() / 2), 2))
+        build_args += ["-j" + str(num_proc)]
 
         if not os.path.exists(self.build_temp):
             os.makedirs(self.build_temp)
