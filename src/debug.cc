@@ -1375,7 +1375,7 @@ const std::unordered_map<std::string, int64_t> &Debugger::get_expr_values(DebugE
     auto &values = expr->values();
     for (auto const &[symbol_name, full_name] : symbol_full_names) {
         if (symbol_name == util::instance_var_name) [[unlikely]] {
-            values.emplace(symbol_name, instance_id);
+            values[symbol_name] = instance_id;
             continue;
         }
         auto v = get_signal_value(full_name);

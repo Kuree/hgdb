@@ -619,4 +619,4 @@ if __name__ == "__main__":
     sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
     from conftest import start_server_fn, find_free_port_fn
 
-    test_perf_count(start_server_fn, find_free_port_fn)
+    test_special_value(start_server_fn, find_free_port_fn)
