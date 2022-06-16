@@ -40,18 +40,17 @@ def parse_bp_perf(filename):
     return df
 
 
-def parse_time(filename, entry):
+def parse_time(filename):
     with open(filename) as f:
         lines = f.readlines()
         lines = filter_lines(lines)
 
-    result = {"Application": [], "Time": [], "Entry": []}
+    result = {"Application": [], "Time": []}
 
     for i in range(len(lines)):
         v = lines[i]
         if i % 2 == 0:
             result["Application"].append(v)
-            result["Entry"].append(entry)
         else:
             t = time.strptime(v, "%M:%S.%f")
             t = t.tm_sec + t.tm_min * 60
@@ -62,15 +61,14 @@ def parse_time(filename, entry):
 
 
 def parse_overhead(names, filenames):
-    df = None
+    dfs = []
+    keys = []
     assert len(names) == len(filenames)
     for i in range(len(names)):
-        r = parse_time(filenames[i], names[i])
-        if df is None:
-            df = r
-        else:
-            df = pandas.concat([df, r])
-    return df
+        r = parse_time(filenames[i])
+        dfs.append(r)
+        keys.append(names[i])
+    return dfs, keys
 
 
 def visualize_bp_perf(df, filename):
@@ -79,6 +77,8 @@ def visualize_bp_perf(df, filename):
     df = df.rename(columns={"app": "Application", "get_rtl_values": "Get RTL Value", "next breakpoints": "Scheduler",
                             "eval breakpoint": "Expression Evaluation"})
     sns.set()
+    sns.set_style("whitegrid")
+    sns.set_context("paper")
     df.set_index("Application").plot(kind="bar", stacked=True)
     plt.ylabel("Time (s)")
     plt.xlabel("Application")
@@ -89,10 +89,22 @@ def visualize_bp_perf(df, filename):
     fig.savefig(filename)
 
 
-def visualize_performance_overhead(df, filename):
+def visualize_performance_overhead(value, filename):
     sns.set()
-    df.set_index("Application").plot(kind="bar", rot=0)
-    plt.show()
+    sns.set_style("whitegrid")
+    sns.set_context("paper")
+    data = {}
+    index = None
+    dfs, keys = value
+    for i, name in enumerate(keys):
+        data[name] = list(dfs[i]["Time"])
+        index = dfs[i]["Application"]
+    df = pandas.DataFrame(data, index=index)
+    df.plot(kind="bar", rot=45)
+    plt.xlabel("Time (s)")
+    fig = plt.gcf()
+    fig.set_size_inches(20, 10)
+    fig.savefig(filename)
 
 
 def get_args():
