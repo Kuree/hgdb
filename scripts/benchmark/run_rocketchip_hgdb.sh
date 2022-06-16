@@ -41,7 +41,7 @@ docker exec -it rocket-chip-hgdb bash -c "source /cad/load.sh && cd /rocket-chip
 export ENV="DEBUG_DATABASE_FILENAME=/rocket-chip/debug.db DEBUG_DISABLE_BLOCKING=1 ${BP_ENV}"
 rm -rf hgdb.log
 for app in mm spmv mt-vvadd median multiply qsort towers vvadd dhrystone mt-matmul; do
-  /usr/bin/time -a -o hgdb.log -f "%E" sh -c "echo '${app}' >> hgdb.log; docker exec -it rocket-chip-hgdb bash -c 'source /cad/load.sh && cd /rocket-chip/vsim && ${ENV} make output/${app}.riscv.out'"
+  /usr/bin/time -a -o hgdb.log -f "%E" sh -c "echo '${app}' >> hgdb.log; docker exec -it rocket-chip-hgdb bash -c 'source /cad/load.sh && cd /rocket-chip/vsim && ${ENV} DEBUG_PERF_COUNT_NAME=${app} make output/${app}.riscv.out'"
 done
 
 docker stop rocket-chip-hgdb
