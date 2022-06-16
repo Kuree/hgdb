@@ -754,20 +754,15 @@ void Debugger::handle_evaluation(const EvaluationRequest &req, uint64_t conn_id)
             return;
         }
 
-        std::unordered_map<std::string, int64_t> values;
-        auto const &names = expr.resolved_symbol_names();
-        for (auto const &[name, full_name] : names) {
-            auto v = get_signal_value(full_name);
-            if (v) values.emplace(name, *v);
-        }
+        auto res = set_expr_values(&expr, instance_id ? *instance_id : 0);
 
-        if (values.size() != names.size()) {
+        if (!res) {
             error_reason = "Unable to get symbol values";
             send_error();
             return;
         }
 
-        auto value = expr.eval(values);
+        auto value = expr.eval();
         EvaluationResponse eval_resp(scope, std::to_string(value));
         req.set_token(eval_resp);
         send_message(eval_resp.str(log_enabled_), conn_id);
@@ -1200,35 +1195,32 @@ std::optional<int64_t> Debugger::get_signal_value(const std::string &signal_name
 std::optional<int64_t> Debugger::get_value(const std::string &expression, uint32_t instance_id) {
     DebugExpression expr(expression);
     if (!expr.correct()) return std::nullopt;
-    auto const &symbol_full_names = expr.resolved_symbol_names();
-    auto values = get_expr_values(&expr, instance_id);
-    if (values.size() != symbol_full_names.size()) {
+    auto res = set_expr_values(&expr, instance_id);
+    if (!res) {
         log_error(fmt::format("Unable to evaluate expression {0} against instance {1}", expression,
                               instance_id));
         return std::nullopt;
     }
-    auto eval_result = expr.eval(values);
+    auto eval_result = expr.eval();
     return eval_result;
 }
 
 bool Debugger::eval_breakpoint(DebugBreakPoint *bp) {
     const auto &bp_expr = scheduler_->breakpoint_only() ? bp->expr : bp->enable_expr;
     if (!bp_expr->correct()) return false;
-    // since at this point we have checked everything, just used the resolved name
-    auto const &symbol_full_names = bp_expr->resolved_symbol_names();
-    const std::unordered_map<std::string, int64_t> *values;
+    bool res;
     {
         perf::PerfCount count("get_rtl_values", perf_count_);
-        values = &get_expr_values(bp_expr.get(), bp->instance_id);
+        res = set_expr_values(bp_expr.get(), bp->instance_id);
     }
-    if (values->size() != symbol_full_names.size()) {
+    if (!res) [[unlikely]] {
         // something went wrong with the querying symbol
         log_error(fmt::format("Unable to evaluate breakpoint {0}", bp->id));
     } else {
         long eval_result;
         {
             perf::PerfCount count("eval breakpoint", perf_count_);
-            eval_result = bp_expr->eval(*values);
+            eval_result = bp_expr->eval();
         }
 
         auto trigger_result = should_trigger(bp);
@@ -1368,21 +1360,19 @@ void Debugger::preload_db_from_env() {
     add_cb_clocks();
 }
 
-const std::unordered_map<std::string, int64_t> &Debugger::get_expr_values(DebugExpression *expr,
-                                                                          uint32_t instance_id) {
+bool Debugger::set_expr_values(DebugExpression *expr, uint32_t instance_id) {
     auto const &symbol_full_names = expr->resolved_symbol_names();
     const static std::unordered_map<std::string, int64_t> error = {};
-    auto &values = expr->values();
     for (auto const &[symbol_name, full_name] : symbol_full_names) {
         if (symbol_name == util::instance_var_name) [[unlikely]] {
-            values[symbol_name] = instance_id;
+            expr->set_value(symbol_name, instance_id);
             continue;
         }
         auto v = get_signal_value(full_name);
-        if (!v) return error;
-        values[symbol_name] = *v;
+        if (!v) return false;
+        expr->set_value(symbol_name, *v);
     }
-    return values;
+    return true;
 }
 
 void Debugger::update_delayed_values() {

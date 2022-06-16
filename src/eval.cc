@@ -429,13 +429,11 @@ expr::Symbol* DebugExpression::add_symbol(const std::string& name) {
     return symbols_.at(name);
 }
 
-int64_t DebugExpression::eval(const std::unordered_map<std::string, int64_t>& symbol_value) {
+int64_t DebugExpression::eval() const {
     if (!root_) [[unlikely]]
         return 0;
-    for (auto const& [name, value] : symbol_value) {
-        if (symbols_.find(name) != symbols_.end()) [[likely]] {
-            symbols_.at(name)->set_value(value);
-        }
+    for (auto const& [name, value] : values_) {
+        symbols_.at(name)->set_value(value);
     }
     return root_->eval();
 }
@@ -465,6 +463,14 @@ void DebugExpression::set_resolved_symbol_name(const std::string& name, const st
     if (symbols_str_.find(name) != symbols_str_.end()) {
         resolved_symbol_names_.emplace(name, value);
         values_.emplace(name, 0);
+    }
+}
+
+void DebugExpression::set_value(const std::string& name, int64_t value) { values_[name] = value; }
+
+void DebugExpression::set_values(const std::unordered_map<std::string, int64_t>& values) {
+    for (auto const& [name, value] : values) {
+        set_value(name, value);
     }
 }
 

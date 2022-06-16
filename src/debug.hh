@@ -173,8 +173,7 @@ private:
     void setup_init_breakpoint_from_env();
     void preload_db_from_env();
 
-    const std::unordered_map<std::string, int64_t> &get_expr_values(DebugExpression *expr,
-                                                                    uint32_t instance_id);
+    bool set_expr_values(DebugExpression *expr, uint32_t instance_id);
 
     // update delayed values
     void update_delayed_values();

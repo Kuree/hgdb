@@ -68,7 +68,7 @@ public:
     auto find(const std::string &value) const { return symbols_str_.find(value); }
     auto end() const { return symbols_str_.end(); }
     [[nodiscard]] bool empty() const { return symbols_str_.empty(); }
-    int64_t eval(const std::unordered_map<std::string, int64_t> &symbol_value);
+    [[nodiscard]] int64_t eval() const;
     [[nodiscard]] bool correct() const { return correct_ && root_ != nullptr; }
     void set_error() { correct_ = false; }
     [[nodiscard]] const expr::Expr *root() const { return root_; }
@@ -88,7 +88,8 @@ public:
 
     [[nodiscard]] const std::string &expression() const { return expression_; }
 
-    std::unordered_map<std::string, int64_t> &values() { return values_; }
+    void set_value(const std::string &name, int64_t value);
+    void set_values(const std::unordered_map<std::string, int64_t> &values);
 
 private:
     std::string expression_;
