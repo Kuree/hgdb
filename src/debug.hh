@@ -95,6 +95,8 @@ private:
     bool pause_at_posedge = false;
     // whether to collect perf. only useful when PERF_COUNT is turned on in cmake
     bool perf_count_ = false;
+    // whether to use signal value cache. by default, it is false
+    bool use_signal_cache_ = false;
 
     void detach();
 
@@ -171,8 +173,8 @@ private:
     void setup_init_breakpoint_from_env();
     void preload_db_from_env();
 
-    std::unordered_map<std::string, int64_t> get_expr_values(const DebugExpression *expr,
-                                                             uint32_t instance_id);
+    const std::unordered_map<std::string, int64_t> &get_expr_values(DebugExpression *expr,
+                                                                    uint32_t instance_id);
 
     // update delayed values
     void update_delayed_values();

@@ -464,6 +464,7 @@ std::unordered_set<std::string> DebugExpression::get_required_symbols() const {
 void DebugExpression::set_resolved_symbol_name(const std::string& name, const std::string& value) {
     if (symbols_str_.find(name) != symbols_str_.end()) {
         resolved_symbol_names_.emplace(name, value);
+        values_.emplace(name, 0);
     }
 }
 

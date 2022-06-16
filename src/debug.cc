@@ -855,9 +855,11 @@ void Debugger::handle_set_value(const SetValueRequest &req, uint64_t conn_id) { 
         auto res = rtl_->set_value(*full_name, req.value());
         if (res) {
             // we need to remove cached value
-            std::lock_guard guard(cached_signal_values_lock_);
-            if (cached_signal_values_.find(*full_name) != cached_signal_values_.end()) {
-                cached_signal_values_.erase(*full_name);
+            if (use_signal_cache_) {
+                std::lock_guard guard(cached_signal_values_lock_);
+                if (cached_signal_values_.find(*full_name) != cached_signal_values_.end()) {
+                    cached_signal_values_.erase(*full_name);
+                }
             }
             auto resp = GenericResponse(status_code::success, req);
             send_message(resp.str(log_enabled_), conn_id);
@@ -1086,6 +1088,7 @@ util::Options Debugger::get_options() {
     options.add_option("use_hex_str", &use_hex_str_);
     options.add_option("pause_at_posedge", &pause_at_posedge);
     options.add_option("perf_count", &perf_count_);
+    options.add_option("use_signal_cache", &use_signal_cache_);
     return options;
 }
 
@@ -1159,7 +1162,7 @@ std::string Debugger::get_full_name(uint64_t instance_id, const std::string &var
 std::optional<int64_t> Debugger::get_signal_value(const std::string &signal_name,
                                                   bool use_delayed) {
     // assume the name is already elaborated/mapped
-    {
+    if (use_signal_cache_) [[unlikely]] {
         std::lock_guard guard(cached_signal_values_lock_);
         if (cached_signal_values_.find(signal_name) != cached_signal_values_.end()) {
             return cached_signal_values_.at(signal_name);
@@ -1183,8 +1186,11 @@ std::optional<int64_t> Debugger::get_signal_value(const std::string &signal_name
     if (!value) log_info("Failed to obtain RTL value for " + signal_name);
 
     if (value) {
-        std::lock_guard guard(cached_signal_values_lock_);
-        cached_signal_values_.emplace(signal_name, *value);
+        if (use_signal_cache_) {
+            std::lock_guard guard(cached_signal_values_lock_);
+            cached_signal_values_.emplace(signal_name, *value);
+        }
+
         return *value;
     } else {
         return {};
@@ -1210,19 +1216,19 @@ bool Debugger::eval_breakpoint(DebugBreakPoint *bp) {
     if (!bp_expr->correct()) return false;
     // since at this point we have checked everything, just used the resolved name
     auto const &symbol_full_names = bp_expr->resolved_symbol_names();
-    std::unordered_map<std::string, int64_t> values;
+    const std::unordered_map<std::string, int64_t> *values;
     {
         perf::PerfCount count("get_rtl_values", perf_count_);
-        values = get_expr_values(bp_expr.get(), bp->instance_id);
+        values = &get_expr_values(bp_expr.get(), bp->instance_id);
     }
-    if (values.size() != symbol_full_names.size()) {
+    if (values->size() != symbol_full_names.size()) {
         // something went wrong with the querying symbol
         log_error(fmt::format("Unable to evaluate breakpoint {0}", bp->id));
     } else {
         long eval_result;
         {
             perf::PerfCount count("eval breakpoint", perf_count_);
-            eval_result = bp_expr->eval(values);
+            eval_result = bp_expr->eval(*values);
         }
 
         auto trigger_result = should_trigger(bp);
@@ -1362,18 +1368,19 @@ void Debugger::preload_db_from_env() {
     add_cb_clocks();
 }
 
-std::unordered_map<std::string, int64_t> Debugger::get_expr_values(const DebugExpression *expr,
-                                                                   uint32_t instance_id) {
+const std::unordered_map<std::string, int64_t> &Debugger::get_expr_values(DebugExpression *expr,
+                                                                          uint32_t instance_id) {
     auto const &symbol_full_names = expr->resolved_symbol_names();
-    std::unordered_map<std::string, int64_t> values;
+    const static std::unordered_map<std::string, int64_t> error = {};
+    auto &values = expr->values();
     for (auto const &[symbol_name, full_name] : symbol_full_names) {
         if (symbol_name == util::instance_var_name) [[unlikely]] {
             values.emplace(symbol_name, instance_id);
             continue;
         }
         auto v = get_signal_value(full_name);
-        if (!v) break;
-        values.emplace(symbol_name, *v);
+        if (!v) return error;
+        values[symbol_name] = *v;
     }
     return values;
 }

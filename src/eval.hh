@@ -88,6 +88,8 @@ public:
 
     [[nodiscard]] const std::string &expression() const { return expression_; }
 
+    std::unordered_map<std::string, int64_t> &values() { return values_; }
+
 private:
     std::string expression_;
     // only for strings for fast access during evaluation
@@ -96,6 +98,7 @@ private:
     // used for holding static values
     std::unordered_set<std::string> static_values_;
     std::unordered_map<std::string, std::string> resolved_symbol_names_;
+    std::unordered_map<std::string, int64_t> values_;
 
     std::vector<std::unique_ptr<expr::Expr>> expressions_;
 

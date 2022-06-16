@@ -68,4 +68,58 @@ TEST_F(InMemoryDebuggerTester, parallel_eval) {
     EXPECT_TRUE(std::all_of(hits.begin(), hits.end(), [](auto b) { return b; }));
 }
 
+
+class InMemoryPerfDebuggerTester : public InMemoryDebuggerTester {
+public:
+    void SetUp() override {
+        auto port = get_free_port();
+        auto mock = std::make_unique<MockVPIProvider>();
+        mock->set_argv({"+DEBUG_PORT=" + std::to_string(port)});
+
+        // setting up the debug symbol table
+        const auto *db_filename = ":memory:";
+        auto db = std::make_unique<SQLiteDebugDatabase>(init_debug_db(db_filename));
+        db->sync_schema();
+
+        // instances
+        for (auto i = 0; i < num_instances; i++) {
+            auto instance_name = fmt::format("inst{0}", i);
+            store_instance(*db, i, instance_name);
+            // store breakpoint as well in the same location
+            store_breakpoint(*db, i, i, filename, line, 0, "a==1");
+            auto *p = mock->add_module("mod", instance_name);
+            auto *v = mock->add_signal(p, "a");
+            mock->set_signal_value(v, 1);
+        }
+
+        debugger_ = std::make_unique<Debugger>(std::move(mock));
+        friend_ = std::make_unique<DebuggerTestFriend>(debugger_.get());
+
+
+
+        auto db_client = std::make_unique<hgdb::DBSymbolTableProvider>(std::move(db));
+        debugger_->initialize_db(std::move(db_client));
+        db_ = debugger_->db();
+    }
+
+protected:
+    static auto constexpr *filename = "test.cc";
+    static auto constexpr line = 0u;
+    static auto constexpr num_instances = 10;
+};
+
+TEST_F(InMemoryPerfDebuggerTester, eval_perf) {
+    auto breakpoints = db_->get_breakpoints(filename, line);
+    for (auto const &bp : breakpoints) {
+        debugger_->scheduler()->add_breakpoint(bp, bp);
+    }
+    for (auto i = 0; i < 10000; i++) {
+        debugger_->scheduler()->start_breakpoint_evaluation();
+        auto bps = debugger_->scheduler()->next_breakpoints();
+        EXPECT_EQ(bps.size(), num_instances);
+        auto hits = friend_->eval_breakpoints(bps);
+        EXPECT_EQ(hits.size(), num_instances);
+        EXPECT_TRUE(std::all_of(hits.begin(), hits.end(), [](auto b) { return b; }));
+    }
+}
 }  // namespace hgdb
