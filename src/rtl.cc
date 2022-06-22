@@ -263,18 +263,16 @@ std::optional<int64_t> RTLSimulatorClient::get_value(vpiHandle handle) {
     if (!handle) [[unlikely]] {
         return std::nullopt;
     }
-    auto type = get_vpi_type(handle);
-    if (type == vpiModule) [[unlikely]] {
-        return std::nullopt;
-    }
     // get value size. Verilator will freak out if the width is larger than 64
     // notice this is mostly cached result
-    auto width = get_vpi_size(handle);
-    if (width > 64) [[unlikely]] {
-        auto *name = vpi_->vpi_get_str(vpiName, handle);
-        log::log(log::log_level::info,
-                 fmt::format("{0} is too large to display as an integer", name));
-        return {};
+    if (is_verilator()) {
+        auto width = get_vpi_size(handle);
+        if (width > 64) [[unlikely]] {
+            auto *name = vpi_->vpi_get_str(vpiName, handle);
+            log::log(log::log_level::info,
+                     fmt::format("{0} is too large to display as an integer", name));
+            return {};
+        }
     }
 
     vpiHandle request_handle = handle;
