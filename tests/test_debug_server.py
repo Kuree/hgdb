@@ -500,9 +500,9 @@ def test_debug_array_change_value(start_server, find_free_port):
                 await client.continue_()
                 bp = await client.recv_bp()
                 # value changes every 2 unit. notice that the value is time + 1.
-                # so it's [0, 1, 3, 5] -> [1, 2, 4, 6]. 0 being the first one is due to from x to have a value
+                # so it's [0, 1, 3, 5] -> [0, 2, 4, 6]. 0 being the first one is due to from x to have a value
                 times.append(bp["payload"]["time"])
-            assert times == [0, 1, 2, 4, 6]
+            assert times == [0, 0, 2, 4, 6]
 
     asyncio.get_event_loop_policy().get_event_loop().run_until_complete(test_logic())
     kill_server(s)
@@ -619,4 +619,4 @@ if __name__ == "__main__":
     sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
     from conftest import start_server_fn, find_free_port_fn
 
-    test_special_value(start_server_fn, find_free_port_fn)
+    test_debug_array_change_value(start_server_fn, find_free_port_fn)

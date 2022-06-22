@@ -24,6 +24,9 @@ struct DebugBreakPoint {
     std::vector<std::string> trigger_symbols;
     std::unordered_map<std::string, int64_t> trigger_values;
 
+    // used to mimic software behavior
+    bool evaluated = false;
+
     // used for data breakpoint
     Type type = Type::normal;
     std::string full_rtl_var_name;
@@ -73,7 +76,6 @@ public:
     [[nodiscard]] const std::vector<vpiHandle> &clock_handles() const { return clock_handles_; }
 
 private:
-    std::unordered_set<uint32_t> evaluated_ids_;
     std::optional<uint32_t> current_breakpoint_id_;
 
     EvaluationMode evaluation_mode_ = EvaluationMode::BreakPointOnly;

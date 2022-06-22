@@ -73,7 +73,6 @@ DebugBreakPoint *Scheduler::next_step_over_breakpoint() {
     }
     if (!next_breakpoint_id) return nullptr;
     current_breakpoint_id_ = next_breakpoint_id;
-    evaluated_ids_.emplace(*current_breakpoint_id_);
     // need to get a new breakpoint
     auto bp_info = db_->get_breakpoint(*current_breakpoint_id_);
     return create_next_breakpoint(bp_info);
@@ -92,8 +91,7 @@ std::vector<DebugBreakPoint *> Scheduler::next_normal_breakpoints() {
     // find index
     std::optional<uint64_t> pos;
     for (uint64_t i = 0; i < breakpoints_.size(); i++) {
-        auto id = breakpoints_[i]->id;
-        if (evaluated_ids_.find(id) != evaluated_ids_.end()) {
+        if (breakpoints_[i]->evaluated) {
             pos = i;
         }
     }
@@ -121,8 +119,8 @@ std::vector<DebugBreakPoint *> Scheduler::next_normal_breakpoints() {
     // the first will be current breakpoint id since we might skip some of them
     // in the middle
     current_breakpoint_id_ = result.front()->id;
-    for (auto const *bp : result) {
-        evaluated_ids_.emplace(bp->id);
+    for (auto *bp : result) {
+        bp->evaluated = true;
     }
     return result;
 }
@@ -157,7 +155,6 @@ DebugBreakPoint *Scheduler::next_step_back_breakpoint() {
     if (!next_breakpoint_id) return nullptr;
 
     current_breakpoint_id_ = next_breakpoint_id;
-    evaluated_ids_.emplace(*current_breakpoint_id_);
     // need to get a new breakpoint
     auto bp_info = db_->get_breakpoint(*current_breakpoint_id_);
     return create_next_breakpoint(bp_info);
@@ -220,7 +217,7 @@ std::vector<DebugBreakPoint *> Scheduler::next_reverse_breakpoints() {
     current_breakpoint_id_ = result.back()->id;
 
     for (auto *bp : result) {
-        evaluated_ids_.emplace(bp->id);
+        bp->evaluated = true;
     }
     return result;
 }
@@ -244,6 +241,7 @@ DebugBreakPoint *Scheduler::create_next_breakpoint(const std::optional<BreakPoin
     next_temp_breakpoint_.filename = bp_info->filename;
     next_temp_breakpoint_.line_num = bp_info->line_num;
     next_temp_breakpoint_.column_num = bp_info->column_num;
+    next_temp_breakpoint_.evaluated = true;
     util::validate_expr(rtl_, db_, next_temp_breakpoint_.enable_expr.get(),
                         next_temp_breakpoint_.id, next_temp_breakpoint_.instance_id);
     return &next_temp_breakpoint_;
@@ -273,14 +271,20 @@ std::unique_ptr<DebugBreakPoint> Scheduler::remove_breakpoint(uint64_t bp_id,
     return nullptr;
 }
 
+void clear_breakpoints(std::vector<std::unique_ptr<DebugBreakPoint>> &breakpoints) {
+    for (auto &bp : breakpoints) {
+        bp->evaluated = false;
+    }
+}
+
 void Scheduler::start_breakpoint_evaluation() {
-    evaluated_ids_.clear();
+    clear_breakpoints(breakpoints_);
     current_breakpoint_id_ = std::nullopt;
 }
 
 void Scheduler::set_evaluation_mode(EvaluationMode mode) {
     if (evaluation_mode_ != mode) {
-        evaluated_ids_.clear();
+        clear_breakpoints(breakpoints_);
         evaluation_mode_ = mode;
     }
 }
