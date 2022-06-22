@@ -23,13 +23,14 @@ uint64_t Monitor::add_monitor_variable(const std::string& full_name, WatchType w
     return add_watch_var(std::move(w));
 }
 
-uint64_t Monitor::add_monitor_variable(vpiHandle handle, WatchType watch_type,
+uint64_t Monitor::add_monitor_variable(const std::string& full_name, WatchType watch_type,
                                        std::shared_ptr<std::optional<int64_t>> value) {
+    auto* handle = get_handle(full_name);
     auto watched = is_monitored(handle, watch_type);
     if (watched) {
         return *watched;
     }
-    auto w = std::make_unique<WatchVariable>(watch_type, "", handle, std::move(value));
+    auto w = std::make_unique<WatchVariable>(watch_type, full_name, handle, std::move(value));
     return add_watch_var(std::move(w));
 }
 

@@ -18,7 +18,7 @@ public:
     explicit Monitor(std::function<std::optional<int64_t>(vpiHandle)> get_value,
                      std::function<vpiHandle(const std::string&)> get_handle);
     uint64_t add_monitor_variable(const std::string& full_name, WatchType watch_type);
-    uint64_t add_monitor_variable(vpiHandle handle, WatchType watch_type,
+    uint64_t add_monitor_variable(const std::string& full_name, WatchType watch_type,
                                   std::shared_ptr<std::optional<int64_t>> value);
     uint64_t add_monitor_variable(const std::string& full_name, uint32_t depth,
                                   std::optional<int64_t> v);

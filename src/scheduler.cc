@@ -406,6 +406,7 @@ DebugBreakPoint *Scheduler::add_breakpoint(const BreakPoint &bp_info, const Brea
             return nullptr;
         }
         data_bp->full_rtl_handle = handles.begin()->second;
+        data_bp->full_rtl_name = rtl_->get_full_name(data_bp->full_rtl_handle);
         data_bp->target_rtl_var_name = target_var;
         return data_bp;
     }

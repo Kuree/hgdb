@@ -96,6 +96,7 @@ public:
     using ModuleSignals = std::unordered_map<std::string, vpiHandle>;
     ModuleSignals get_module_signals(const std::string &name);
     [[nodiscard]] std::string get_full_name(const std::string &name) const;
+    [[nodiscard]] std::string get_full_name(vpiHandle handle);
     [[nodiscard]] bool is_absolute_path(const std::string &name) const;
     [[nodiscard]] const std::vector<std::string> &get_argv() const;
     [[nodiscard]] const std::string &get_simulator_name() const;

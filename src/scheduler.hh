@@ -30,6 +30,7 @@ struct DebugBreakPoint {
     // used for data breakpoint
     Type type = Type::normal;
     vpiHandle full_rtl_handle;
+    std::string full_rtl_name;
     std::string target_rtl_var_name;
     uint64_t watch_id = 0;
 

@@ -955,7 +955,7 @@ void Debugger::handle_data_breakpoint(const DataBreakpointRequest &req, uint64_t
                                                          MonitorRequest::MonitorType::data);
                     if (!watched) {
                         bp->watch_id = monitor_.add_monitor_variable(
-                            bp->full_rtl_handle, MonitorRequest::MonitorType::data, value_ptr);
+                            bp->full_rtl_name, MonitorRequest::MonitorType::data, value_ptr);
                         log_info(fmt::format("Added watch variable with ID {0}", bp->watch_id));
                     }
                 }

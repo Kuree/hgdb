@@ -97,6 +97,8 @@ public:
         } else if (property == vpiFullName) {
             if (modules_.find(object) != modules_.end()) {
                 str_buffer_ = modules_.at(object);
+            } else if (signals_.find(object) != signals_.end()) {
+                str_buffer_ = signals_.at(object);
             }
         } else if (property == vpiName) {
             std::string name;
