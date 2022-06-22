@@ -55,6 +55,7 @@ void Monitor::set_monitor_variable_condition(uint64_t id, std::function<bool()> 
     }
 }
 
+// NOLINTNEXTLINE
 std::optional<uint64_t> Monitor::is_monitored(vpiHandle handle, WatchType watch_type) const {
     for (auto const& [id, var] : watched_variables_) {
         if (var->handle == handle && var->type == watch_type) [[unlikely]] {
