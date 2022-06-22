@@ -1,41 +1,43 @@
 #include "monitor.hh"
 
-#include "debug.hh"
-
 namespace hgdb {
 Monitor::Monitor() {
     // everything is 0 if not set up
-    get_value = [](const std::string&) { return 0; };
+    get_value = [](vpiHandle) { return 0; };
+    get_handle = [](const std::string&) { return nullptr; };
 }
 
-Monitor::Monitor(std::function<std::optional<int64_t>(const std::string&)> get_value)
-    : get_value(std::move(get_value)) {}
+Monitor::Monitor(std::function<std::optional<int64_t>(vpiHandle)> get_value,
+                 std::function<vpiHandle(const std::string&)> get_handle)
+    : get_value(std::move(get_value)), get_handle(std::move(get_handle)) {}
 
 uint64_t Monitor::add_monitor_variable(const std::string& full_name, WatchType watch_type) {
     // we assume full name is checked already
-    // need to search if we have the same name already
-    auto watched = is_monitored(full_name, watch_type);
+    // need to search if we have the same handle already
+    auto* handle = get_handle(full_name);
+    auto watched = is_monitored(handle, watch_type);
     if (watched) {
         return *watched;
     }
-    auto w = std::make_unique<WatchVariable>(watch_type, full_name);
+    auto w = std::make_unique<WatchVariable>(watch_type, full_name, handle);
     return add_watch_var(std::move(w));
 }
 
-uint64_t Monitor::add_monitor_variable(const std::string& full_name, WatchType watch_type,
+uint64_t Monitor::add_monitor_variable(vpiHandle handle, WatchType watch_type,
                                        std::shared_ptr<std::optional<int64_t>> value) {
-    auto watched = is_monitored(full_name, watch_type);
+    auto watched = is_monitored(handle, watch_type);
     if (watched) {
         return *watched;
     }
-    auto w = std::make_unique<WatchVariable>(watch_type, full_name, std::move(value));
+    auto w = std::make_unique<WatchVariable>(watch_type, "", handle, std::move(value));
     return add_watch_var(std::move(w));
 }
 
 uint64_t Monitor::add_monitor_variable(const std::string& full_name, uint32_t depth,
                                        std::optional<int64_t> v) {
     // for now, no existing check?
-    auto w = std::make_unique<WatchVariableBuffer>(full_name, depth);
+    auto* handle = get_handle(full_name);
+    auto w = std::make_unique<WatchVariableBuffer>(full_name, handle, depth);
     w->set_value(v);
     return add_watch_var(std::move(w));
 }
@@ -52,10 +54,9 @@ void Monitor::set_monitor_variable_condition(uint64_t id, std::function<bool()> 
     }
 }
 
-std::optional<uint64_t> Monitor::is_monitored(const std::string& full_name,
-                                              WatchType watch_type) const {
+std::optional<uint64_t> Monitor::is_monitored(vpiHandle handle, WatchType watch_type) const {
     for (auto const& [id, var] : watched_variables_) {
-        if (var->full_name == full_name && var->type == watch_type) [[unlikely]] {
+        if (var->handle == handle && var->type == watch_type) [[unlikely]] {
             // reuse the existing ID
             return id;
         }
@@ -87,7 +88,7 @@ std::vector<std::pair<uint64_t, std::optional<int64_t>>> Monitor::get_watched_va
             case WatchType::clock_edge: {
                 std::optional<int64_t> value;
                 if (!watch_var->enable_cond || (*watch_var->enable_cond)()) {
-                    value = get_value(watch_var->full_name);
+                    value = get_value(watch_var->handle);
                 } else {
                     value = watch_var->get_value();
                 }
@@ -105,7 +106,7 @@ std::vector<std::pair<uint64_t, std::optional<int64_t>>> Monitor::get_watched_va
             }
             case WatchType::delay_clock_edge: {
                 // we assume this will be called every clock cycle
-                auto new_value = get_value(watch_var->full_name);
+                auto new_value = get_value(watch_var->handle);
                 // we use the old value
                 auto old_value = *watch_var->get_value();
                 watch_var->set_value(new_value);
@@ -133,7 +134,7 @@ std::pair<bool, std::optional<int64_t>> Monitor::var_changed(uint64_t id) {
         return {false, {}};
     }
     auto& watch_var = watched_variables_.at(id);
-    auto value = get_value(watch_var->full_name);
+    auto value = get_value(watch_var->handle);
     if (value) {
         bool changed = false;
         auto const& watch_var_value = watch_var->get_value();
@@ -159,17 +160,19 @@ std::shared_ptr<std::optional<int64_t>> Monitor::WatchVariable::get_value_ptr() 
     return value_;
 }
 
-Monitor::WatchVariable::WatchVariable(WatchType type, std::string full_name)
+Monitor::WatchVariable::WatchVariable(WatchType type, std::string full_name, vpiHandle handle)
     : type(type),
       full_name(std::move(full_name)),
+      handle(handle),
       value_(std::make_shared<std::optional<int64_t>>()) {}
 
-Monitor::WatchVariable::WatchVariable(WatchType type, std::string full_name,
+Monitor::WatchVariable::WatchVariable(WatchType type, std::string full_name, vpiHandle handle,
                                       std::shared_ptr<std::optional<int64_t>> v)
-    : type(type), full_name(std::move(full_name)), value_(std::move(v)) {}
+    : type(type), full_name(std::move(full_name)), handle(handle), value_(std::move(v)) {}
 
-Monitor::WatchVariableBuffer::WatchVariableBuffer(std::string full_name, uint32_t depth)
-    : WatchVariable(WatchType::delay_clock_edge, std::move(full_name)), depth_(depth) {}
+Monitor::WatchVariableBuffer::WatchVariableBuffer(std::string full_name, vpiHandle handle,
+                                                  uint32_t depth)
+    : WatchVariable(WatchType::delay_clock_edge, std::move(full_name), handle), depth_(depth) {}
 
 std::optional<int64_t> Monitor::WatchVariableBuffer::get_value() const {
     if (values_.size() == depth_) [[likely]] {

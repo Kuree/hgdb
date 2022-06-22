@@ -30,10 +30,12 @@ Debugger::Debugger(std::unique_ptr<AVPIProvider> vpi) {
     log_enabled_ = get_logging();
     perf_count_ = get_perf_count();
     // initialize the monitor
-    monitor_ = Monitor([this](const std::string &name) {
-        // monitor does not need delay since it's the entity that handles the delay
-        return this->get_signal_value(name, false);
-    });
+    monitor_ = Monitor(
+        [this](vpiHandle handle) {
+            // monitor does not need delay since it's the entity that handles the delay
+            return this->get_signal_value(handle, false);
+        },
+        [this](const std::string &name) { return rtl_->get_handle(name); });
 
     // set up some call backs
     server_->set_on_call_client_disconnect([this]() {
@@ -851,9 +853,10 @@ void Debugger::handle_set_value(const SetValueRequest &req, uint64_t conn_id) { 
         if (res) {
             // we need to remove cached value
             if (use_signal_cache_) {
+                auto *handle = rtl_->get_handle(*full_name);
                 std::lock_guard guard(cached_signal_values_lock_);
-                if (cached_signal_values_.find(*full_name) != cached_signal_values_.end()) {
-                    cached_signal_values_.erase(*full_name);
+                if (cached_signal_values_.find(handle) != cached_signal_values_.end()) {
+                    cached_signal_values_.erase(handle);
                 }
             }
             auto resp = GenericResponse(status_code::success, req);
@@ -948,11 +951,11 @@ void Debugger::handle_data_breakpoint(const DataBreakpointRequest &req, uint64_t
 
                 // add it to the monitor
                 if (!dry_run) {
-                    auto watched = monitor_.is_monitored(bp->full_rtl_var_name,
+                    auto watched = monitor_.is_monitored(bp->full_rtl_handle,
                                                          MonitorRequest::MonitorType::data);
                     if (!watched) {
                         bp->watch_id = monitor_.add_monitor_variable(
-                            bp->full_rtl_var_name, MonitorRequest::MonitorType::data, value_ptr);
+                            bp->full_rtl_handle, MonitorRequest::MonitorType::data, value_ptr);
                         log_info(fmt::format("Added watch variable with ID {0}", bp->watch_id));
                     }
                 }
@@ -1115,11 +1118,11 @@ bool Debugger::should_trigger(DebugBreakPoint *bp) {
     // empty symbols means always trigger
     if (symbols.empty()) return true;
     bool should_trigger = false;
-    for (auto const &symbol : symbols) {
+    for (auto const &[symbol, handle] : symbols) {
         // if we haven't seen the value yet, definitely trigger it
-        auto full_name = get_full_name(bp->instance_id, symbol);
-        auto op_v = get_signal_value(full_name);
+        auto op_v = get_signal_value(handle);
         if (!op_v) {
+            auto full_name = get_full_name(bp->instance_id, symbol);
             log_error(fmt::format("Unable to find signal {0} associated with breakpoint id {1}",
                                   full_name, bp->id));
             return true;
@@ -1154,36 +1157,30 @@ std::string Debugger::get_full_name(uint64_t instance_id, const std::string &var
     return full_name;
 }
 
-std::optional<int64_t> Debugger::get_signal_value(const std::string &signal_name,
-                                                  bool use_delayed) {
+std::optional<int64_t> Debugger::get_signal_value(vpiHandle handle, bool use_delayed) {
     // assume the name is already elaborated/mapped
     if (use_signal_cache_) [[unlikely]] {
         std::lock_guard guard(cached_signal_values_lock_);
-        if (cached_signal_values_.find(signal_name) != cached_signal_values_.end()) {
-            return cached_signal_values_.at(signal_name);
+        if (cached_signal_values_.find(handle) != cached_signal_values_.end()) {
+            return cached_signal_values_.at(handle);
         }
     }
     // need to actually get the value
     std::optional<int64_t> value;
-    if (signal_name != util::time_var_name) [[likely]] {
-        // handle delayed value, if any
-        auto *handle = rtl_->get_handle(signal_name);
-        if (use_delayed && delayed_variables_.find(handle) != delayed_variables_.end())
-            [[unlikely]] {
-            return delayed_variables_.at(handle).value;
-        }
-
-        value = rtl_->get_value(handle);
-    } else {
-        value = rtl_->get_simulation_time();
+    if (use_delayed && delayed_variables_.find(handle) != delayed_variables_.end()) [[unlikely]] {
+        return delayed_variables_.at(handle).value;
     }
 
-    if (!value) log_info("Failed to obtain RTL value for " + signal_name);
+    value = rtl_->get_value(handle);
+
+    if (!value)
+        log_info(fmt::format("Failed to obtain RTL value for handle id 0x{0}",
+                             static_cast<void *>(handle)));
 
     if (value) {
         if (use_signal_cache_) {
             std::lock_guard guard(cached_signal_values_lock_);
-            cached_signal_values_.emplace(signal_name, *value);
+            cached_signal_values_.emplace(handle, *value);
         }
 
         return *value;
@@ -1361,14 +1358,17 @@ void Debugger::preload_db_from_env() {
 }
 
 bool Debugger::set_expr_values(DebugExpression *expr, uint32_t instance_id) {
-    auto const &symbol_full_names = expr->resolved_symbol_names();
+    auto const &symbol_handles = expr->get_resolved_symbol_handles();
     const static std::unordered_map<std::string, int64_t> error = {};
-    for (auto const &[symbol_name, full_name] : symbol_full_names) {
+    for (auto const &[symbol_name, handle] : symbol_handles) {
         if (symbol_name == util::instance_var_name) [[unlikely]] {
             expr->set_value(symbol_name, instance_id);
             continue;
+        } else if (symbol_name == util::time_var_name) [[unlikely]] {
+            expr->set_value(symbol_name, static_cast<int64_t>(rtl_->get_simulation_time()));
+            continue;
         }
-        auto v = get_signal_value(full_name);
+        auto v = get_signal_value(handle);
         if (!v) return false;
         expr->set_value(symbol_name, *v);
     }

@@ -67,7 +67,7 @@ private:
     std::unique_ptr<Scheduler> scheduler_;
 
     // reduce VPI traffic
-    std::unordered_map<std::string, int64_t> cached_signal_values_;
+    std::unordered_map<vpiHandle, int64_t> cached_signal_values_;
     std::mutex cached_signal_values_lock_;
     // reduce DB traffic and remapping computation
     std::unordered_map<uint64_t, std::string> cached_instance_name_;
@@ -160,8 +160,7 @@ private:
     void start_breakpoint_evaluation();
 
     // cached wrapper
-    std::optional<int64_t> get_signal_value(const std::string &signal_name,
-                                            bool use_delayed = false);
+    std::optional<int64_t> get_signal_value(vpiHandle handle, bool use_delayed = false);
     std::string get_full_name(uint64_t instance_id, const std::string &var_name);
 
     // callbacks

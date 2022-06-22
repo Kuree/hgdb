@@ -21,7 +21,7 @@ struct DebugBreakPoint {
     // this is to match with the always_comb semantics
     // first table stores the overall symbols that triggers
     // second table stores the seen value
-    std::vector<std::string> trigger_symbols;
+    std::unordered_map<std::string, vpiHandle> trigger_symbols;
     std::unordered_map<std::string, int64_t> trigger_values;
 
     // used to mimic software behavior
@@ -29,7 +29,7 @@ struct DebugBreakPoint {
 
     // used for data breakpoint
     Type type = Type::normal;
-    std::string full_rtl_var_name;
+    vpiHandle full_rtl_handle;
     std::string target_rtl_var_name;
     uint64_t watch_id = 0;
 

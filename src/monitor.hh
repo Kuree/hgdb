@@ -12,16 +12,18 @@ namespace hgdb {
 class Monitor {
 public:
     using WatchType = MonitorRequest::MonitorType;
+    using vpiHandle = unsigned int*;
 
     Monitor();
-    explicit Monitor(std::function<std::optional<int64_t>(const std::string&)> get_value);
+    explicit Monitor(std::function<std::optional<int64_t>(vpiHandle)> get_value,
+                     std::function<vpiHandle(const std::string&)> get_handle);
     uint64_t add_monitor_variable(const std::string& full_name, WatchType watch_type);
-    uint64_t add_monitor_variable(const std::string& full_name, WatchType watch_type,
+    uint64_t add_monitor_variable(vpiHandle handle, WatchType watch_type,
                                   std::shared_ptr<std::optional<int64_t>> value);
     uint64_t add_monitor_variable(const std::string& full_name, uint32_t depth,
                                   std::optional<int64_t> v);
     void remove_monitor_variable(uint64_t watch_id);
-    [[nodiscard]] std::optional<uint64_t> is_monitored(const std::string& full_name,
+    [[nodiscard]] std::optional<uint64_t> is_monitored(vpiHandle handle,
                                                        WatchType watch_type) const;
     void set_monitor_variable_condition(uint64_t id, std::function<bool()> cond);
     [[nodiscard]] std::shared_ptr<std::optional<int64_t>> get_watched_value_ptr(
@@ -40,12 +42,15 @@ private:
     // notice that monitor itself doesn't care how to get values
     // or how to resolve signal names
     // as a result, it needs to take these from the constructor
-    std::function<std::optional<int64_t>(const std::string&)> get_value;
+    std::function<std::optional<int64_t>(vpiHandle)> get_value;
+    std::function<vpiHandle(const std::string&)> get_handle;
 
     class WatchVariable {
     public:
         WatchType type;
         std::string full_name;  // RTL name
+        vpiHandle handle;       // RTL handle
+
         // enable condition associated with the watch variable. by default, it's always enabled
         std::optional<std::function<bool()>> enable_cond;
 
@@ -53,8 +58,8 @@ private:
         virtual void set_value(std::optional<int64_t> v);
         [[nodiscard]] virtual std::shared_ptr<std::optional<int64_t>> get_value_ptr() const;
 
-        WatchVariable(WatchType type, std::string full_name);
-        WatchVariable(WatchType type, std::string full_name,
+        WatchVariable(WatchType type, std::string full_name, vpiHandle handle);
+        WatchVariable(WatchType type, std::string full_name, vpiHandle handle,
                       std::shared_ptr<std::optional<int64_t>> v);
         virtual ~WatchVariable() = default;
 
@@ -64,7 +69,7 @@ private:
 
     class WatchVariableBuffer : public WatchVariable {
     public:
-        explicit WatchVariableBuffer(std::string full_name, uint32_t depth = 1);
+        explicit WatchVariableBuffer(std::string full_name, vpiHandle handle, uint32_t depth = 1);
 
         [[nodiscard]] std::optional<int64_t> get_value() const override;
         void set_value(std::optional<int64_t> v) override;

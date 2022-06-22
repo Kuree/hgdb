@@ -60,6 +60,8 @@ public:
 
 class DebugExpression {
 public:
+    // unsigned int * is vpiHandle
+    using vpiHandle = unsigned int *;
     explicit DebugExpression(const std::string &expression);
 
     // symbol table related functions
@@ -80,8 +82,8 @@ public:
     // querying db
     [[nodiscard]] std::unordered_set<std::string> get_required_symbols() const;
     void set_static_values(const std::unordered_map<std::string, int64_t> &static_values);
-    void set_resolved_symbol_name(const std::string &name, const std::string &value);
-    [[nodiscard]] auto const &resolved_symbol_names() const { return resolved_symbol_names_; }
+    void set_resolved_symbol_handle(const std::string &name, vpiHandle handle);
+    [[nodiscard]] auto const &get_resolved_symbol_handles() const { return handles_; }
 
     // no copy construction
     DebugExpression(const DebugExpression &) = delete;
@@ -98,8 +100,8 @@ private:
     std::unordered_map<std::string, expr::Symbol *> symbols_;
     // used for holding static values
     std::unordered_set<std::string> static_values_;
-    std::unordered_map<std::string, std::string> resolved_symbol_names_;
     std::unordered_map<std::string, int64_t> values_;
+    std::unordered_map<std::string, vpiHandle> handles_;
 
     std::vector<std::unique_ptr<expr::Expr>> expressions_;
 

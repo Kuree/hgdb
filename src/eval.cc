@@ -459,9 +459,9 @@ std::unordered_set<std::string> DebugExpression::get_required_symbols() const {
     return result;
 }
 
-void DebugExpression::set_resolved_symbol_name(const std::string& name, const std::string& value) {
+void DebugExpression::set_resolved_symbol_handle(const std::string& name, vpiHandle handle) {
     if (symbols_str_.find(name) != symbols_str_.end()) {
-        resolved_symbol_names_.emplace(name, value);
+        handles_.emplace(name, handle);
         values_.emplace(name, 0);
     }
 }

@@ -295,10 +295,26 @@ void Scheduler::clear() {
 }
 
 // functions that compute the trigger values
-std::vector<std::string> compute_trigger_symbol(const BreakPoint &bp) {
+std::unordered_map<std::string, vpiHandle> compute_trigger_symbol(const BreakPoint &bp,
+                                                                  RTLSimulatorClient *rtl,
+                                                                  SymbolTableProvider *db) {
     auto const &trigger_str = bp.trigger;
     auto tokens = util::get_tokens(trigger_str, " ");
-    return tokens;
+    std::unordered_map<std::string, vpiHandle> result;
+    if (!tokens.empty()) {
+        auto instance_name = db->get_instance_name(*bp.instance_id);
+        if (!instance_name) return {};
+        for (auto const &symbol : tokens) {
+            auto full_name = fmt::format("{0}.{1}", *instance_name, symbol);
+            auto *handle = rtl->get_handle(full_name);
+            if (!handle) {
+                return {};
+            }
+            result.emplace(symbol, handle);
+        }
+    }
+
+    return result;
 }
 
 // NOLINTNEXTLINE
@@ -322,7 +338,7 @@ DebugBreakPoint *Scheduler::add_breakpoint(const BreakPoint &bp_info, const Brea
         bp->filename = db_bp.filename;
         bp->line_num = db_bp.line_num;
         bp->column_num = db_bp.column_num;
-        bp->trigger_symbols = compute_trigger_symbol(db_bp);
+        bp->trigger_symbols = compute_trigger_symbol(db_bp, rtl_, db_);
         bp->type = bp_type;
         util::validate_expr(rtl_, db_, bp->expr.get(), db_bp.id, *db_bp.instance_id);
         if (!bp->expr->correct()) [[unlikely]] {
@@ -384,12 +400,12 @@ DebugBreakPoint *Scheduler::add_breakpoint(const BreakPoint &bp_info, const Brea
         auto *data_bp = insert_bp();
         auto expr = DebugExpression(target_var);
         util::validate_expr(rtl_, db_, &expr, db_bp.id, *db_bp.instance_id);
-        auto const &full_names = expr.resolved_symbol_names();
-        if (!expr.correct() || full_names.size() != 1) {
+        auto const &handles = expr.get_resolved_symbol_handles();
+        if (!expr.correct() || handles.size() != 1) {
             log_error("Unable to validate variable in data breakpoint: " + target_var);
             return nullptr;
         }
-        data_bp->full_rtl_var_name = full_names.begin()->second;
+        data_bp->full_rtl_handle = handles.begin()->second;
         data_bp->target_rtl_var_name = target_var;
         return data_bp;
     }
@@ -550,7 +566,7 @@ void validate_expr(RTLSimulatorClient *rtl, SymbolTableProvider *db, DebugExpres
                                                                        instance_var_name};
     for (auto const &symbol : required_symbols) {
         if (predefined_symbols.find(symbol) != predefined_symbols.end()) [[unlikely]] {
-            expr->set_resolved_symbol_name(symbol, symbol);
+            expr->set_resolved_symbol_handle(symbol, nullptr);
             continue;
         }
         std::optional<std::string> name;
@@ -586,7 +602,8 @@ void validate_expr(RTLSimulatorClient *rtl, SymbolTableProvider *db, DebugExpres
             expr->set_error();
             return;
         }
-        expr->set_resolved_symbol_name(symbol, full_name);  // NOLINT
+        auto *handle = rtl->get_handle(full_name);
+        expr->set_resolved_symbol_handle(symbol, handle);
     }
 }
 #ifndef __clang__
