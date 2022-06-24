@@ -122,4 +122,18 @@ TEST_F(InMemoryPerfDebuggerTester, eval_perf) {
         EXPECT_TRUE(std::all_of(hits.begin(), hits.end(), [](auto b) { return b; }));
     }
 }
+
+TEST_F(InMemoryPerfDebuggerTester, debugger_misc_perf) {
+    auto breakpoints = db_->get_breakpoints(filename, line);
+    // change the condition
+    for (auto &bp: breakpoints) {
+        bp.condition = "0";
+    }
+    for (auto const &bp : breakpoints) {
+        debugger_->scheduler()->add_breakpoint(bp, bp);
+    }
+    for (auto i = 0; i < 10000; i++) {
+        debugger_->eval();
+    }
+}
 }  // namespace hgdb
