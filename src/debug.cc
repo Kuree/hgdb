@@ -1377,6 +1377,7 @@ bool Debugger::set_expr_values(DebugExpression *expr, uint32_t instance_id) {
 
 void Debugger::update_delayed_values() {
     // notice that we never delete them, which can be a future improvement
+    if (delayed_variables_.empty()) return;
     auto values = monitor_.get_watched_values(MonitorRequest::MonitorType::delay_clock_edge);
     for (auto &iter : delayed_variables_) {
         auto &var_info = iter.second;

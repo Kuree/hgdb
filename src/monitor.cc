@@ -79,6 +79,7 @@ std::shared_ptr<std::optional<int64_t>> Monitor::get_watched_value_ptr(
 
 std::vector<std::pair<uint64_t, std::optional<int64_t>>> Monitor::get_watched_values(
     WatchType type) {
+    if (watched_variables_.empty()) return {};
     std::vector<std::pair<uint64_t, std::optional<int64_t>>> result;
     // this is the maximum size
     result.reserve(watched_variables_.size());
