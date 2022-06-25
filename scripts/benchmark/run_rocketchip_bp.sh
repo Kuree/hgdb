@@ -23,6 +23,12 @@ BP_ENV_TEXT=(
     "DEBUG_BREAKPOINT5=${DEBUG_BREAKPOINT5} "
     "DEBUG_BREAKPOINT6=${DEBUG_BREAKPOINT6} "
     "DEBUG_BREAKPOINT7=${DEBUG_BREAKPOINT7} ")
+
+if [ $# -ne 0 ]
+then
+  BP_ENV_TEXT=("${BP_ENV_TEXT[@]:0:$1}")
+fi
+
 export BP_ENV=${BP_ENV_TEXT[*]}
 export DEBUG_PERF_COUNT_LOG="/data/hgdb_perf.log"
 

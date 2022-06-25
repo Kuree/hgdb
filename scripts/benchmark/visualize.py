@@ -1,4 +1,6 @@
 import argparse
+
+import matplotlib.markers
 import matplotlib.pyplot as plt
 import seaborn as sns
 import pandas
@@ -71,6 +73,18 @@ def parse_overhead(names, filenames):
     return dfs, keys
 
 
+def compute_overhead_percentage(dfs):
+    # we assume the first one is the base
+    ref = dfs[0]
+    res = []
+    for i in range(1, len(dfs)):
+        df = dfs[i].copy()
+        df["Time"] = df["Time"] / ref["Time"]
+        res.append(df)
+
+    return res
+
+
 def visualize_bp_perf(df, filename):
     df["Other"] = df["eval loop"] - df["get_rtl_values"] - df["next breakpoints"] - df["eval breakpoint"]
     df = df[["app", "Other", "get_rtl_values", "next breakpoints", "eval breakpoint"]]
@@ -79,13 +93,14 @@ def visualize_bp_perf(df, filename):
     sns.set()
     sns.set_style("whitegrid")
     sns.set_context("paper")
+    sns.set(font_scale=2)
     df.set_index("Application").plot(kind="bar", stacked=True)
     plt.ylabel("Time (s)")
     plt.xlabel("Application")
     plt.title("Overhead breakdown when 8 breakpoints are inserted")
-    plt.xticks(rotation=45)
+    plt.xticks(rotation=15)
     fig = plt.gcf()
-    fig.set_size_inches(20, 10)
+    fig.set_size_inches(20, 12)
     fig.savefig(filename)
 
 
@@ -93,6 +108,7 @@ def visualize_performance_overhead(value, filename):
     sns.set()
     sns.set_style("whitegrid")
     sns.set_context("paper")
+    sns.set(font_scale=2)
     data = {}
     index = None
     dfs, keys = value
@@ -100,10 +116,27 @@ def visualize_performance_overhead(value, filename):
         data[name] = list(dfs[i]["Time"])
         index = dfs[i]["Application"]
     df = pandas.DataFrame(data, index=index)
-    df.plot(kind="bar", rot=45)
-    plt.xlabel("Time (s)")
+    ax = df.plot(kind="bar", rot=15)
+    line_data = compute_overhead_percentage(dfs)
+    twinx = ax.twinx()
+    markers = matplotlib.markers.MarkerStyle.filled_markers
+    for i, name in enumerate(keys):
+        if i == 0:
+            continue
+        data = {name: list(line_data[i - 1]["Time"])}
+        df = pandas.DataFrame(data, index=index)
+        df.plot(kind="line", ax=twinx, legend=False, marker=markers[i - 1], color="black")
+    twinx.set_ylim(0.8, 1.5)
+    ax.set_ylabel("Time (s)")
+    twinx.set_ylabel("Overhead ratio")
+    ax.set_xlabel("Application")
+    # swap legends
+    legend = ax.legend()
+    legend.remove()
+    twinx.add_artist(legend)
+    plt.title("Performance overhead when breakpoints are inserted")
     fig = plt.gcf()
-    fig.set_size_inches(20, 10)
+    fig.set_size_inches(20, 12)
     fig.savefig(filename)
 
 
