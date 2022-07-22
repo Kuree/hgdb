@@ -71,35 +71,35 @@ std::optional<uint64_t> VCDDatabase::get_signal_id(const std::string &full_name)
     return vars[0];
 }
 
-std::vector<WaveformSignal> VCDDatabase::get_instance_signals(uint64_t instance_id) {
+std::vector<waveform::WaveformSignal> VCDDatabase::get_instance_signals(uint64_t instance_id) {
     using namespace sqlite_orm;
     auto vars =
         vcd_table_->get_all<VCDDBSignal>(where(c(&VCDDBSignal::instance_id) == instance_id));
-    std::vector<WaveformSignal> result;
+    std::vector<waveform::WaveformSignal> result;
     result.reserve(vars.size());
     for (auto const &v : vars) {
-        result.emplace_back(WaveformSignal{v.id, v.name, v.width});
+        result.emplace_back(waveform::WaveformSignal{v.id, v.name, v.width});
     }
     return result;
 }
 
-std::vector<WaveformInstance> VCDDatabase::get_child_instances(uint64_t instance_id) {
+std::vector<waveform::WaveformInstance> VCDDatabase::get_child_instances(uint64_t instance_id) {
     using namespace sqlite_orm;
     auto vars = vcd_table_->select(columns(&VCDDBModule::name, &VCDDBModule::id),
                                    where(c(&VCDDBModuleHierarchy::parent_id) == instance_id &&
                                          c(&VCDDBModuleHierarchy::child_id) == &VCDDBModule::id));
-    std::vector<WaveformInstance> result;
+    std::vector<waveform::WaveformInstance> result;
     result.reserve(vars.size());
     for (auto const &[name, id] : vars) {
-        result.emplace_back(WaveformInstance{.id = id, .name = name});
+        result.emplace_back(waveform::WaveformInstance{.id = id, .name = name});
     }
     return result;
 }
 
-std::optional<WaveformSignal> VCDDatabase::get_signal(uint64_t signal_id) {
+std::optional<waveform::WaveformSignal> VCDDatabase::get_signal(uint64_t signal_id) {
     auto ptr = vcd_table_->get_pointer<VCDDBSignal>(signal_id);
     if (ptr) {
-        return WaveformSignal{.id = ptr->id, .name = ptr->name, .width = ptr->width};
+        return waveform::WaveformSignal{.id = ptr->id, .name = ptr->name, .width = ptr->width};
     } else {
         return std::nullopt;
     }

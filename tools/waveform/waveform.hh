@@ -5,6 +5,7 @@
 #include <unordered_set>
 #include <vector>
 
+namespace hgdb::waveform {
 struct WaveformSignal {
     uint64_t id;
     std::string name;
@@ -16,7 +17,6 @@ struct WaveformInstance {
     std::string name;
 };
 
-namespace hgdb::waveform {
 class WaveformProvider {
 public:
     virtual std::optional<uint64_t> get_instance_id(const std::string &full_name) = 0;

@@ -66,9 +66,9 @@ public:
     VCDDatabase(const std::string &filename, bool store_converted_db);
     std::optional<uint64_t> get_instance_id(const std::string &full_name) override;
     std::optional<uint64_t> get_signal_id(const std::string &full_name) override;
-    std::vector<WaveformSignal> get_instance_signals(uint64_t instance_id) override;
-    std::vector<WaveformInstance> get_child_instances(uint64_t instance_id) override;
-    std::optional<WaveformSignal> get_signal(uint64_t signal_id) override;
+    std::vector<waveform::WaveformSignal> get_instance_signals(uint64_t instance_id) override;
+    std::vector<waveform::WaveformInstance> get_child_instances(uint64_t instance_id) override;
+    std::optional<waveform::WaveformSignal> get_signal(uint64_t signal_id) override;
     std::optional<std::string> get_instance(uint64_t instance_id) override;
     std::optional<std::string> get_signal_value(uint64_t id, uint64_t timestamp) override;
     std::string get_full_signal_name(uint64_t signal_id) override;

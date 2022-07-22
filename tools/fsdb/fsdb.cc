@@ -16,10 +16,10 @@
 struct parser_info {
 public:
     std::vector<std::string> scopes;
-    std::unordered_map<uint64_t, WaveformInstance> instance_map;
+    std::unordered_map<uint64_t, hgdb::waveform::WaveformInstance> instance_map;
     // for fast look up
     std::unordered_map<std::string, uint64_t> instance_name_map;
-    std::unordered_map<uint64_t, WaveformSignal> variable_map;
+    std::unordered_map<uint64_t, hgdb::waveform::WaveformSignal> variable_map;
     std::unordered_map<std::string, uint64_t> variable_id_map;
 
     std::unordered_map<uint64_t, std::vector<uint64_t>> instance_vars;
@@ -69,7 +69,7 @@ static bool_T parse_var_def(fsdbTreeCBType cb_type, void *client_data, void *tre
             auto full_name = info->full_name();
             full_name.append(scope->name);
             auto id = info->get_new_instance_id();
-            info->instance_map.emplace(id, WaveformInstance{id, full_name});
+            info->instance_map.emplace(id, hgdb::waveform::WaveformInstance{id, full_name});
             info->instance_name_map.emplace(full_name, id);
             scopes.emplace_back(scope->name);
             auto scope_type = static_cast<int>(scope->type);
@@ -98,7 +98,7 @@ static bool_T parse_var_def(fsdbTreeCBType cb_type, void *client_data, void *tre
             auto full_name = info->full_name();
             full_name.append(s->name);
             auto id = info->get_new_instance_id();
-            info->instance_map.emplace(id, WaveformInstance{id, full_name});
+            info->instance_map.emplace(id, hgdb::waveform::WaveformInstance{id, full_name});
             info->instance_name_map.emplace(full_name, id);
             scopes.emplace_back(s->name);
             break;
@@ -126,7 +126,7 @@ static bool_T parse_var_def(fsdbTreeCBType cb_type, void *client_data, void *tre
             }
             // we use the ID inside FSDB to avoid extra layer of translation
             auto id = static_cast<uint64_t>(var->u.idcode);
-            info->variable_map.emplace(id, WaveformSignal{id, full_name, width});
+            info->variable_map.emplace(id, hgdb::waveform::WaveformSignal{id, full_name, width});
             info->variable_id_map.emplace(full_name, id);
             // map parent
             if (info->current_instance_ids.empty()) {
@@ -248,10 +248,10 @@ std::optional<uint64_t> FSDBProvider::get_signal_id(const std::string &full_name
     }
 }
 
-std::vector<WaveformSignal> FSDBProvider::get_instance_signals(uint64_t instance_id) {
+std::vector<waveform::WaveformSignal> FSDBProvider::get_instance_signals(uint64_t instance_id) {
     if (instance_vars_.find(instance_id) != instance_vars_.end()) {
         auto const &ids = instance_vars_.at(instance_id);
-        std::vector<WaveformSignal> result;
+        std::vector<waveform::WaveformSignal> result;
         result.reserve(ids.size());
         for (auto id : ids) {
             result.emplace_back(variable_map_.at(id));
@@ -262,10 +262,10 @@ std::vector<WaveformSignal> FSDBProvider::get_instance_signals(uint64_t instance
     }
 }
 
-std::vector<WaveformInstance> FSDBProvider::get_child_instances(uint64_t instance_id) {
+std::vector<waveform::WaveformInstance> FSDBProvider::get_child_instances(uint64_t instance_id) {
     if (instance_hierarchy_.find(instance_id) != instance_hierarchy_.end()) {
         auto const &ids = instance_hierarchy_.at(instance_id);
-        std::vector<WaveformInstance> result;
+        std::vector<waveform::WaveformInstance> result;
         result.reserve(ids.size());
         for (auto id : ids) {
             result.emplace_back(instance_map_.at(id));
@@ -276,7 +276,7 @@ std::vector<WaveformInstance> FSDBProvider::get_child_instances(uint64_t instanc
     }
 }
 
-std::optional<WaveformSignal> FSDBProvider::get_signal(uint64_t signal_id) {
+std::optional<waveform::WaveformSignal> FSDBProvider::get_signal(uint64_t signal_id) {
     if (variable_map_.find(signal_id) != variable_map_.end()) {
         return variable_map_.at(signal_id);
     } else {
