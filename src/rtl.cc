@@ -93,7 +93,7 @@ vpiHandle VPIProvider::vpi_put_value(vpiHandle object, p_vpi_value value_p, p_vp
     return ::vpi_put_value(object, value_p, time_p, flags);
 }
 
-RTLSimulatorClient::RTLSimulatorClient(std::unique_ptr<AVPIProvider> vpi) {
+RTLSimulatorClient::RTLSimulatorClient(std::shared_ptr<AVPIProvider> vpi) {
     initialize_vpi(std::move(vpi));
 }
 
@@ -101,12 +101,12 @@ RTLSimulatorClient::RTLSimulatorClient(const std::vector<std::string> &instance_
     : RTLSimulatorClient(instance_names, nullptr) {}
 
 RTLSimulatorClient::RTLSimulatorClient(const std::vector<std::string> &instance_names,
-                                       std::unique_ptr<AVPIProvider> vpi) {
+                                       std::shared_ptr<AVPIProvider> vpi) {
     initialize(instance_names, std::move(vpi));
 }
 
 void RTLSimulatorClient::initialize(const std::vector<std::string> &instance_names,
-                                    std::unique_ptr<AVPIProvider> vpi) {
+                                    std::shared_ptr<AVPIProvider> vpi) {
     initialize_vpi(std::move(vpi));
     initialize_instance_mapping(instance_names);
 }
@@ -132,10 +132,10 @@ void RTLSimulatorClient::set_custom_hierarchy_func(
     custom_hierarchy_func_ = func;
 }
 
-void RTLSimulatorClient::initialize_vpi(std::unique_ptr<AVPIProvider> vpi) {
+void RTLSimulatorClient::initialize_vpi(std::shared_ptr<AVPIProvider> vpi) {
     // if vpi provider is null, we use the system default one
     if (!vpi) {
-        vpi_ = std::make_unique<VPIProvider>();
+        vpi_ = std::make_shared<VPIProvider>();
     } else {
         // we take the ownership
         vpi_ = std::move(vpi);

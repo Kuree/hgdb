@@ -73,16 +73,16 @@ private:
 
 class RTLSimulatorClient {
 public:
-    explicit RTLSimulatorClient(std::unique_ptr<AVPIProvider> vpi);
+    explicit RTLSimulatorClient(std::shared_ptr<AVPIProvider> vpi);
     explicit RTLSimulatorClient(const std::vector<std::string> &instance_names);
     RTLSimulatorClient(const std::vector<std::string> &instance_names,
-                       std::unique_ptr<AVPIProvider> vpi);
+                       std::shared_ptr<AVPIProvider> vpi);
     void initialize(const std::vector<std::string> &instance_names,
-                    std::unique_ptr<AVPIProvider> vpi);
+                    std::shared_ptr<AVPIProvider> vpi);
     void initialize_instance_mapping(const std::vector<std::string> &instance_names);
     void set_custom_hierarchy_func(const std::function<std::unordered_map<std::string, std::string>(
                                        const std::unordered_set<std::string> &)> &func);
-    void initialize_vpi(std::unique_ptr<AVPIProvider> vpi);
+    void initialize_vpi(std::shared_ptr<AVPIProvider> vpi);
     vpiHandle get_handle(const std::string &name);
     vpiHandle get_handle(const std::vector<std::string> &tokens);
     bool is_valid_signal(const std::string &name);
@@ -157,7 +157,7 @@ private:
     // in this case, each top needs to get mapped to a different hierarchy
     std::unordered_map<std::string, std::string> hierarchy_name_prefix_map_;
     // VPI provider
-    std::unique_ptr<AVPIProvider> vpi_;
+    std::shared_ptr<AVPIProvider> vpi_;
     uint32_t vpi_net_target_ = vpiNet;
     // callbacks
     std::unordered_map<std::string, vpiHandle> cb_handles_;

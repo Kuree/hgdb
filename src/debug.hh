@@ -15,10 +15,18 @@ class Options;
 
 class DebuggerTestFriend;
 
+struct DebuggerNamespace {
+    uint32_t id = 0;
+    std::unique_ptr<RTLSimulatorClient> rtl;
+    std::unique_ptr<Monitor> monitor;
+
+    explicit DebuggerNamespace(uint32_t id) : id(id) {}
+};
+
 class Debugger {
 public:
     Debugger();
-    explicit Debugger(std::unique_ptr<AVPIProvider> vpi);
+    explicit Debugger(std::shared_ptr<AVPIProvider> vpi);
 
     bool initialize_db(const std::string &filename);
     void initialize_db(std::unique_ptr<SymbolTableProvider> db);
@@ -38,7 +46,7 @@ public:
     // status to expose to outside world
     [[nodiscard]] const std::atomic<bool> &is_running() const { return is_running_; }
     // outside world can directly control the RTL client if necessary
-    [[nodiscard]] RTLSimulatorClient *rtl_client() const { return rtl_.get(); }
+    [[nodiscard]] std::vector<RTLSimulatorClient *> rtl_clients() const;
     [[nodiscard]] SymbolTableProvider *db() const { return db_.get(); }
     [[nodiscard]] Scheduler *scheduler() const { return scheduler_.get(); }
 
@@ -51,8 +59,8 @@ public:
     ~Debugger();
 
 private:
-    std::unique_ptr<RTLSimulatorClient> rtl_;
     std::unique_ptr<SymbolTableProvider> db_;
+    std::vector<DebuggerNamespace> namespaces_;
     std::unique_ptr<DebugServer> server_;
     // logging
     bool log_enabled_ = default_logging;
@@ -72,9 +80,6 @@ private:
     // reduce DB traffic and remapping computation
     std::unordered_map<uint64_t, std::string> cached_instance_name_;
     std::mutex cached_instance_name_lock_;
-
-    // monitor logic
-    Monitor monitor_;
 
     // delay logic for symbols. no lock since they don't run interactively
     struct DelayedVariable {
@@ -116,9 +121,11 @@ private:
     void log_info(const std::string &msg) const;
     bool has_cli_flag(const std::string &flag);
     [[nodiscard]] static std::string get_monitor_topic(uint64_t watch_id);
-    std::string get_value_str(const std::string &rtl_name, bool is_rtl, bool use_delay = false);
-    std::optional<int64_t> get_value(const std::string &expression, uint32_t instance_id);
-    std::optional<std::string> resolve_var_name(const std::string &var_name,
+    std::string get_value_str(uint32_t ns_id, const std::string &rtl_name, bool is_rtl,
+                              bool use_delay = false);
+    std::optional<int64_t> get_value(uint32_t ns_id, const std::string &expression,
+                                     uint32_t instance_id);
+    std::optional<std::string> resolve_var_name(uint32_t ns_id, const std::string &var_name,
                                                 const std::optional<uint64_t> &instance_id,
                                                 const std::optional<uint64_t> &breakpoint_id);
 
@@ -160,8 +167,9 @@ private:
     void start_breakpoint_evaluation();
 
     // cached wrapper
-    std::optional<int64_t> get_signal_value(vpiHandle handle, bool use_delayed = false);
-    std::string get_full_name(uint64_t instance_id, const std::string &var_name);
+    std::optional<int64_t> get_signal_value(uint32_t ns_id, vpiHandle handle,
+                                            bool use_delayed = false);
+    std::string get_full_name(uint32_t ns_id, uint64_t instance_id, const std::string &var_name);
 
     // callbacks
     std::optional<std::function<void(hgdb::SymbolTableProvider &)>> on_client_connected_;
@@ -172,11 +180,14 @@ private:
     void setup_init_breakpoint_from_env();
     void preload_db_from_env();
 
-    bool set_expr_values(DebugExpression *expr, uint32_t instance_id);
+    bool set_expr_values(uint32_t ns_id, DebugExpression *expr, uint32_t instance_id);
 
     // update delayed values
     void update_delayed_values();
     void process_delayed_breakpoint(uint32_t bp_id);
+
+    // namespace
+    void add_namespace(std::shared_ptr<AVPIProvider> vpi);
 
     // test related
 public:

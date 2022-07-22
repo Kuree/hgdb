@@ -34,6 +34,9 @@ struct DebugBreakPoint {
     std::string target_rtl_var_name;
     uint64_t watch_id = 0;
 
+    // use to indicate namespace
+    uint32_t ns_id = 0;
+
     [[nodiscard]] inline bool has_type_flag(Type type_) const {
         return static_cast<uint64_t>(type) & static_cast<uint64_t>(type_);
     }

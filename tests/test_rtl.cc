@@ -34,7 +34,7 @@ protected:
     static constexpr uint32_t array_dim = 4;
 
     void SetUp() override {
-        auto vpi_ = std::make_unique<MockVPIProvider>();
+        auto vpi_ = std::make_shared<MockVPIProvider>();
         auto *top = vpi_->add_module("top", "top");
         vpi_->set_top(top);
         auto *dut = vpi_->add_module("parent_mod", "top.dut");
@@ -67,7 +67,7 @@ protected:
         vpi_->set_time(time);
 
         auto *raw_vpi = vpi_.get();
-        std::unique_ptr<hgdb::AVPIProvider> vpi = std::move(vpi_);
+        std::shared_ptr<hgdb::AVPIProvider> vpi = std::move(vpi_);
         client = std::make_unique<hgdb::RTLSimulatorClient>(std::vector<std::string>{"parent_mod"},
                                                             std::move(vpi));
         client->set_vpi_allocator([raw_vpi]() { return raw_vpi->get_new_handle(); });

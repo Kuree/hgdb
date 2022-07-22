@@ -36,7 +36,10 @@ std::optional<argparse::ArgumentParser> get_args(int argc, char **argv) {
         .default_value<uint16_t>(0)
         .scan<'d', uint16_t>();
     program.add_argument("--debug").implicit_value(true).default_value(false);
-    program.add_argument("--start-time", "-s").default_value<uint64_t>(0).help("When to start the replay").scan<'d', uint64_t>();
+    program.add_argument("--start-time", "-s")
+        .default_value<uint64_t>(0)
+        .help("When to start the replay")
+        .scan<'d', uint64_t>();
 
     try {
         program.parse_args(argc, argv);
@@ -121,16 +124,21 @@ int main(int argc, char *argv[]) {
     debugger->set_option("use_hex_str", true);
 
     // set the custom vpi allocator
-    debugger->rtl_client()->set_vpi_allocator([vpi_]() { return vpi_->get_new_handle(); });
+    auto const rtl_clients = debugger->rtl_clients();
+    for (auto *r : rtl_clients) {
+        r->set_vpi_allocator([vpi_]() { return vpi_->get_new_handle(); });
+    }
 
     // set callback on client connected
     debugger->set_on_client_connected([vpi_, debugger](hgdb::SymbolTableProvider &table) {
         auto names = table.get_all_array_names();
         std::vector<std::string> full_names;
-        full_names.reserve(names.size());
-        std::transform(
-            names.begin(), names.end(), std::back_inserter(full_names),
-            [debugger](const std::string &n) { return debugger->rtl_client()->get_full_name(n); });
+        auto rtl_clients = debugger->rtl_clients();
+        full_names.reserve(names.size() * rtl_clients.size());
+        for (auto *r : rtl_clients) {
+            std::transform(names.begin(), names.end(), std::back_inserter(full_names),
+                           [r](const std::string &n) { return r->get_full_name(n); });
+        }
         vpi_->build_array_table(full_names);
     });
 
@@ -144,7 +152,8 @@ int main(int argc, char *argv[]) {
             return {{mapping.first, mapping.second}};
         };
 
-        debugger->rtl_client()->set_custom_hierarchy_func(mapping_func);
+        // only one instance is supported for now
+        debugger->rtl_clients()[0]->set_custom_hierarchy_func(mapping_func);
     }
 
     log::log(log::log_level::info, "Starting HGDB replay...");

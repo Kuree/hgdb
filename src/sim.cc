@@ -76,7 +76,7 @@ Debugger *initialize_hgdb_runtime_vpi(std::unique_ptr<AVPIProvider> vpi, bool st
     }
     char *debugger_ptr = reinterpret_cast<char *>(debugger);
 
-    auto *rtl = debugger->rtl_client();
+    auto *rtl = debugger->rtl_clients()[0];
     vpiHandle res;
 
     // start the debugger at the start of the simulation

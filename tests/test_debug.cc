@@ -73,7 +73,7 @@ class InMemoryPerfDebuggerTester : public InMemoryDebuggerTester {
 public:
     void SetUp() override {
         auto port = get_free_port();
-        auto mock = std::make_unique<MockVPIProvider>();
+        auto mock = std::make_shared<MockVPIProvider>();
         mock->set_argv({"+DEBUG_PORT=" + std::to_string(port)});
 
         // setting up the debug symbol table
