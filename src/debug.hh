@@ -20,7 +20,7 @@ struct DebuggerNamespace {
     std::unique_ptr<RTLSimulatorClient> rtl;
     std::unique_ptr<Monitor> monitor;
 
-    explicit DebuggerNamespace(uint32_t id) : id(id) {}
+    explicit DebuggerNamespace(uint32_t id, std::unique_ptr<RTLSimulatorClient> rtl);
 };
 
 class Debugger {
@@ -60,7 +60,7 @@ public:
 
 private:
     std::unique_ptr<SymbolTableProvider> db_;
-    std::vector<DebuggerNamespace> namespaces_;
+    std::vector<std::unique_ptr<DebuggerNamespace>> namespaces_;
     std::unique_ptr<DebugServer> server_;
     // logging
     bool log_enabled_ = default_logging;
