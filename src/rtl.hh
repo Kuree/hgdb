@@ -74,12 +74,10 @@ private:
 class RTLSimulatorClient {
 public:
     explicit RTLSimulatorClient(std::shared_ptr<AVPIProvider> vpi);
-    explicit RTLSimulatorClient(const std::vector<std::string> &instance_names);
-    RTLSimulatorClient(const std::vector<std::string> &instance_names,
-                       std::shared_ptr<AVPIProvider> vpi);
-    void initialize(const std::vector<std::string> &instance_names,
-                    std::shared_ptr<AVPIProvider> vpi);
-    void initialize_instance_mapping(const std::vector<std::string> &instance_names);
+
+    using IPMapping = std::pair<std::string, std::string>;
+    std::vector<RTLSimulatorClient::IPMapping> compute_instance_mapping(
+        const std::vector<std::string> &instance_names);
     void set_custom_hierarchy_func(const std::function<std::unordered_map<std::string, std::string>(
                                        const std::unordered_set<std::string> &)> &func);
     void initialize_vpi(std::shared_ptr<AVPIProvider> vpi);
@@ -114,7 +112,7 @@ public:
         const std::string &front_name, std::string rtl_name);
 
     // expose raw vpi client if necessary
-    AVPIProvider &vpi() { return *vpi_; }
+    std::shared_ptr<AVPIProvider> vpi() { return vpi_; }
 
     // indicate if the simulator is verilator
     [[nodiscard]] bool is_verilator() const { return is_verilator_; }
@@ -148,6 +146,7 @@ public:
     static constexpr std::array clock_names_{"clk", "clock", "clk_in", "clock_in", "CLK", "CLOCK"};
 
     // inform user about our mapping
+    void set_mapping(const std::string &top, const std::string &prefix);
     [[nodiscard]] std::unordered_map<std::string, std::string> get_top_mapping() const;
 
 private:
@@ -193,9 +192,11 @@ private:
     bool is_mock_ = false;
 
     static std::pair<std::string, std::string> get_path(const std::string &name);
-    void compute_hierarchy_name_prefix(std::unordered_set<std::string> &top_names);
+    std::vector<IPMapping> compute_hierarchy_name_prefix(
+        const std::unordered_set<std::string> &top_names);
     void set_simulator_info();
-    void compute_verilator_name_prefix(std::unordered_set<std::string> &top_names);
+    std::vector<IPMapping> compute_verilator_name_prefix(
+        const std::unordered_set<std::string> &top_names);
 
     // brute-force to deal with verilator array indexing stuff
     using StringIterator = typename std::vector<std::string>::const_iterator;

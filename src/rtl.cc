@@ -97,21 +97,7 @@ RTLSimulatorClient::RTLSimulatorClient(std::shared_ptr<AVPIProvider> vpi) {
     initialize_vpi(std::move(vpi));
 }
 
-RTLSimulatorClient::RTLSimulatorClient(const std::vector<std::string> &instance_names)
-    : RTLSimulatorClient(instance_names, nullptr) {}
-
-RTLSimulatorClient::RTLSimulatorClient(const std::vector<std::string> &instance_names,
-                                       std::shared_ptr<AVPIProvider> vpi) {
-    initialize(instance_names, std::move(vpi));
-}
-
-void RTLSimulatorClient::initialize(const std::vector<std::string> &instance_names,
-                                    std::shared_ptr<AVPIProvider> vpi) {
-    initialize_vpi(std::move(vpi));
-    initialize_instance_mapping(instance_names);
-}
-
-void RTLSimulatorClient::initialize_instance_mapping(
+std::vector<RTLSimulatorClient::IPMapping> RTLSimulatorClient::compute_instance_mapping(
     const std::vector<std::string> &instance_names) {
     std::unordered_set<std::string> top_names;
     for (auto const &name : instance_names) {
@@ -121,8 +107,12 @@ void RTLSimulatorClient::initialize_instance_mapping(
     // compute the naming map
     if (custom_hierarchy_func_) {
         hierarchy_name_prefix_map_ = (*custom_hierarchy_func_)(top_names);
+        // TODO: fix this
+        auto iter = *hierarchy_name_prefix_map_.begin();
+        return std::vector<RTLSimulatorClient::IPMapping>{iter};
     } else {
-        compute_hierarchy_name_prefix(top_names);
+        auto mapping = compute_hierarchy_name_prefix(top_names);
+        return mapping;
     }
 }
 
@@ -667,12 +657,13 @@ std::pair<std::string, std::string> RTLSimulatorClient::get_path(const std::stri
     }
 }
 
-void RTLSimulatorClient::compute_hierarchy_name_prefix(std::unordered_set<std::string> &top_names) {
+std::vector<RTLSimulatorClient::IPMapping> RTLSimulatorClient::compute_hierarchy_name_prefix(
+    const std::unordered_set<std::string> &top_names) {
     // Verilator doesn't support vpiDefName
     if (is_verilator()) {
-        compute_verilator_name_prefix(top_names);
-        return;
+        return compute_verilator_name_prefix(top_names);
     }
+    std::vector<RTLSimulatorClient::IPMapping> result;
     // we do a BFS search from the top;
     std::queue<vpiHandle> handle_queues;
     handle_queues.emplace(nullptr);
@@ -691,12 +682,13 @@ void RTLSimulatorClient::compute_hierarchy_name_prefix(std::unordered_set<std::s
                 // adding . at the end
                 hierarchy_name = fmt::format("{0}.", hierarchy_name);
                 // add it to the mapping
-                hierarchy_name_prefix_map_.emplace(def_name, hierarchy_name);
-                top_names.erase(def_name);
+                result.emplace_back(std::make_pair(def_name, hierarchy_name));
             }
             handle_queues.emplace(child_handle);
         }
     }
+
+    return result;
 }
 
 void RTLSimulatorClient::set_simulator_info() {
@@ -726,12 +718,16 @@ void RTLSimulatorClient::set_simulator_info() {
     is_mock_ = sim_info_.name == "RTLMock";
 }
 
-void RTLSimulatorClient::compute_verilator_name_prefix(std::unordered_set<std::string> &top_names) {
+std::vector<RTLSimulatorClient::IPMapping> RTLSimulatorClient::compute_verilator_name_prefix(
+    const std::unordered_set<std::string> &top_names) {
     // verilator is simply TOP.[def_name], which in our cases TOP.[inst_name]
+    // TODO: use signal name based mapping
+    std::vector<RTLSimulatorClient::IPMapping> result;
     for (auto const &def_name : top_names) {
         auto name = fmt::format("TOP.{0}.", def_name);
-        hierarchy_name_prefix_map_.emplace(def_name, name);
+        result.emplace_back(std::make_pair(def_name, name));
     }
+    return result;
 }
 
 std::vector<std::string> RTLSimulatorClient::get_clocks_from_design() {
@@ -846,6 +842,10 @@ RTLSimulatorClient::~RTLSimulatorClient() {
     for (auto const &iter : cb_handles_) {
         vpi_->vpi_release_handle(iter.second);
     }
+}
+
+void RTLSimulatorClient::set_mapping(const std::string &top, const std::string &prefix) {
+    hierarchy_name_prefix_map_.emplace(top, prefix);
 }
 
 std::unordered_map<std::string, std::string> RTLSimulatorClient::get_top_mapping() const {

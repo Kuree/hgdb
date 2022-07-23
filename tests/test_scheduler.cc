@@ -91,7 +91,7 @@ TEST_F(ScheduleTestReverse, test_reverse_continue) {  // NOLINT
     bool val1 = false, val2 = true;
     hgdb::Scheduler scheduler(rtl_.get(), db_.get(), val1, val2);
     scheduler.set_evaluation_mode(hgdb::Scheduler::EvaluationMode::ReverseBreakpointOnly);
-    auto *vpi = reinterpret_cast<ReverseMockVPIProvider *>(&rtl_->vpi());
+    auto *vpi = reinterpret_cast<ReverseMockVPIProvider *>(rtl_->vpi().get());
     vpi->set_time(10);
 
     // insert breakpoints
@@ -133,7 +133,7 @@ TEST_F(ScheduleTestNoReverse, test_stepback_no_rollback) {  // NOLINT
     // don't care about single thread mode since it will be covered by multi-threading mode
     bool val1 = false, val2 = true;
     hgdb::Scheduler scheduler(rtl_.get(), db_.get(), val1, val2);
-    auto *vpi = reinterpret_cast<MockVPIProvider *>(&rtl_->vpi());
+    auto *vpi = reinterpret_cast<MockVPIProvider *>(rtl_->vpi().get());
     vpi->set_time(10);
     vpi->set_rewind_enabled(false);
 
@@ -169,7 +169,7 @@ TEST_F(ScheduleTestReverse, test_stepback_no_rollback) {  // NOLINT
     // don't care about single thread mode since it will be covered by multi-threading mode
     bool val1 = false, val2 = true;
     hgdb::Scheduler scheduler(rtl_.get(), db_.get(), val1, val2);
-    auto *vpi = reinterpret_cast<MockVPIProvider *>(&rtl_->vpi());
+    auto *vpi = reinterpret_cast<MockVPIProvider *>(rtl_->vpi().get());
     vpi->set_time(10);
 
     scheduler.set_evaluation_mode(hgdb::Scheduler::EvaluationMode::StepOver);
