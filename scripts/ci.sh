@@ -9,7 +9,7 @@ docker pull keyiz/hgdb:test
 
 docker run -d --name ci-test --rm -it --mount type=bind,source=${ROOT},target=/hgdb keyiz/hgdb:test bash
 # build everything
-docker exec -i ci-test bash -c "cd /hgdb && mkdir -p build && cd build && cmake .. -DPERF_COUNT=ON && make -j"
+docker exec -i ci-test bash -c "cd /hgdb && mkdir -p build && cd build && cmake .. -DPERF_COUNT=ON -DCMAKE_BUILD_TYPE=Debug && make -j"
 # install tests dependencies
 docker exec -i ci-test bash -c "bash /hgdb/bindings/python/scripts/install.sh"
 docker exec -i ci-test bash -c "pip install kratos"
@@ -19,3 +19,4 @@ docker stop ci-test
 docker run -d --name ci-test --rm -it --mount type=bind,source=${ROOT},target=/hgdb keyiz/hgdb:tcl bash
 docker exec -i ci-test bash -c "pip install /hgdb/bindings/python/dist/*.whl"
 docker exec -i ci-test bash -c "cd /hgdb/ && pytest tests/bindings/test_tcl.py -v"
+docker stop ci-test
