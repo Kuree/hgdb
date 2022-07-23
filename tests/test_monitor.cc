@@ -1,25 +1,18 @@
 #include "../src/monitor.hh"
 #include "gtest/gtest.h"
+#include "test_util.hh"
 
 TEST(monitor, get_watched_values) {  // NOLINT
-    using vpiHandle = unsigned int *;
+    auto mock = std::make_shared<MockVPIProvider>();
+    hgdb::RTLSimulatorClient rtl(mock);
     int64_t value_a = 42, value_b = 43, value_c = 44;
-    // NOLINTNEXTLINE
-    auto get_value = [&value_a, &value_b, &value_c](vpiHandle handle) -> int64_t {
-        const char *base = (char *)nullptr;
-        if (handle == vpiHandle(base + 1)) return value_a;
-        if (handle == vpiHandle(base + 2)) return value_b;
-        if (handle == vpiHandle(base + 3)) return value_c;
-        return 0;
-    };
-
-    auto get_handle = [](const std::string &name) -> hgdb::Monitor::vpiHandle {
-        if (name == "a") return vpiHandle(1);
-        if (name == "b") return vpiHandle(2);
-        if (name == "c") return vpiHandle(3);
-        return nullptr;
-    };
-    hgdb::Monitor monitor(get_value, get_handle);
+    auto *a = mock->add_signal(nullptr, "a");
+    auto *b = mock->add_signal(nullptr, "b");
+    auto *c = mock->add_signal(nullptr, "c");
+    mock->set_signal_value(a, value_a);
+    mock->set_signal_value(b, value_b);
+    mock->set_signal_value(c, value_c);
+    hgdb::Monitor monitor(&rtl);
     monitor.add_monitor_variable("a", hgdb::Monitor::WatchType::breakpoint);
     monitor.add_monitor_variable("b", hgdb::Monitor::WatchType::clock_edge);
     monitor.add_monitor_variable("c", hgdb::Monitor::WatchType::changed);
@@ -43,7 +36,11 @@ TEST(monitor, get_watched_values) {  // NOLINT
 }
 
 TEST(monitor, remove_track) {  // NOLINT
-    hgdb::Monitor monitor;
+    auto mock = std::make_shared<MockVPIProvider>();
+    hgdb::RTLSimulatorClient rtl(mock);
+    auto *a = mock->add_signal(nullptr, "a");
+    auto *b = mock->add_signal(nullptr, "b");
+    hgdb::Monitor monitor(&rtl);
     // once switch to gcc-11, we will use the following syntax
     // using enum hgdb::Monitor::WatchType;
     auto const id1 = monitor.add_monitor_variable("a", hgdb::Monitor::WatchType::breakpoint);

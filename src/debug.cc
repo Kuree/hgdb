@@ -1456,16 +1456,8 @@ void Debugger::process_delayed_breakpoint(uint32_t bp_id) {
 
 void Debugger::add_namespace(std::shared_ptr<AVPIProvider> vpi) {
     auto &ns = namespaces_.emplace_back(DebuggerNamespace(namespaces_.size()));
-    auto ns_id = ns.id;
     ns.rtl = std::make_unique<RTLSimulatorClient>(std::move(vpi));
-    ns.monitor = std::make_unique<Monitor>(
-        [this, ns_id](vpiHandle handle) {
-            // monitor does not need delay since it's the entity that handles the delay
-            return this->get_signal_value(ns_id, handle, false);
-        },
-        [this, ns_id](const std::string &name) {
-            return namespaces_[ns_id].rtl->get_handle(name);
-        });
+    ns.monitor = std::make_unique<Monitor>(ns.rtl.get());
 }
 
 }  // namespace hgdb

@@ -9,14 +9,15 @@
 
 namespace hgdb {
 
+class RTLSimulatorClient;
+
 class Monitor {
 public:
     using WatchType = MonitorRequest::MonitorType;
     using vpiHandle = unsigned int*;
 
-    Monitor();
-    explicit Monitor(std::function<std::optional<int64_t>(vpiHandle)> get_value,
-                     std::function<vpiHandle(const std::string&)> get_handle);
+    Monitor() = default;
+    explicit Monitor(RTLSimulatorClient* rtl);
     uint64_t add_monitor_variable(const std::string& full_name, WatchType watch_type);
     uint64_t add_monitor_variable(const std::string& full_name, WatchType watch_type,
                                   std::shared_ptr<std::optional<int64_t>> value);
@@ -39,11 +40,7 @@ public:
     std::pair<bool, std::optional<int64_t>> var_changed(uint64_t id);
 
 private:
-    // notice that monitor itself doesn't care how to get values
-    // or how to resolve signal names
-    // as a result, it needs to take these from the constructor
-    std::function<std::optional<int64_t>(vpiHandle)> get_value;
-    std::function<vpiHandle(const std::string&)> get_handle;
+    RTLSimulatorClient* rtl_ = nullptr;
 
     class WatchVariable {
     public:

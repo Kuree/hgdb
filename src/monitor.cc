@@ -1,20 +1,16 @@
 #include "monitor.hh"
 
-namespace hgdb {
-Monitor::Monitor() {
-    // everything is 0 if not set up
-    get_value = [](vpiHandle) { return 0; };
-    get_handle = [](const std::string&) { return nullptr; };
-}
+#include "rtl.hh"
 
-Monitor::Monitor(std::function<std::optional<int64_t>(vpiHandle)> get_value,
-                 std::function<vpiHandle(const std::string&)> get_handle)
-    : get_value(std::move(get_value)), get_handle(std::move(get_handle)) {}
+namespace hgdb {
+
+Monitor::Monitor(RTLSimulatorClient* rtl) : rtl_(rtl) {}
 
 uint64_t Monitor::add_monitor_variable(const std::string& full_name, WatchType watch_type) {
     // we assume full name is checked already
     // need to search if we have the same handle already
-    auto* handle = get_handle(full_name);
+    if (!rtl_) return std::numeric_limits<uint64_t>::max();
+    auto* handle = rtl_->get_handle(full_name);
     auto watched = is_monitored(handle, watch_type);
     if (watched) {
         return *watched;
@@ -25,7 +21,8 @@ uint64_t Monitor::add_monitor_variable(const std::string& full_name, WatchType w
 
 uint64_t Monitor::add_monitor_variable(const std::string& full_name, WatchType watch_type,
                                        std::shared_ptr<std::optional<int64_t>> value) {
-    auto* handle = get_handle(full_name);
+    if (!rtl_) return std::numeric_limits<uint64_t>::max();
+    auto* handle = rtl_->get_handle(full_name);
     auto watched = is_monitored(handle, watch_type);
     if (watched) {
         return *watched;
@@ -37,7 +34,8 @@ uint64_t Monitor::add_monitor_variable(const std::string& full_name, WatchType w
 uint64_t Monitor::add_monitor_variable(const std::string& full_name, uint32_t depth,
                                        std::optional<int64_t> v) {
     // for now, no existing check?
-    auto* handle = get_handle(full_name);
+    if (!rtl_) return std::numeric_limits<uint64_t>::max();
+    auto* handle = rtl_->get_handle(full_name);
     auto w = std::make_unique<WatchVariableBuffer>(full_name, handle, depth);
     w->set_value(v);
     return add_watch_var(std::move(w));
@@ -79,7 +77,7 @@ std::shared_ptr<std::optional<int64_t>> Monitor::get_watched_value_ptr(
 
 std::vector<std::pair<uint64_t, std::optional<int64_t>>> Monitor::get_watched_values(
     WatchType type) {
-    if (watched_variables_.empty()) return {};
+    if (watched_variables_.empty() || !rtl_) return {};
     std::vector<std::pair<uint64_t, std::optional<int64_t>>> result;
     // this is the maximum size
     result.reserve(watched_variables_.size());
@@ -91,7 +89,7 @@ std::vector<std::pair<uint64_t, std::optional<int64_t>>> Monitor::get_watched_va
             case WatchType::clock_edge: {
                 std::optional<int64_t> value;
                 if (!watch_var->enable_cond || (*watch_var->enable_cond)()) {
-                    value = get_value(watch_var->handle);
+                    value = rtl_->get_value(watch_var->handle);
                 } else {
                     value = watch_var->get_value();
                 }
@@ -109,7 +107,7 @@ std::vector<std::pair<uint64_t, std::optional<int64_t>>> Monitor::get_watched_va
             }
             case WatchType::delay_clock_edge: {
                 // we assume this will be called every clock cycle
-                auto new_value = get_value(watch_var->handle);
+                auto new_value = rtl_->get_value(watch_var->handle);
                 // we use the old value
                 auto old_value = *watch_var->get_value();
                 watch_var->set_value(new_value);
@@ -133,11 +131,11 @@ uint64_t Monitor::num_watches(const std::string& name, WatchType type) const {
 }
 
 std::pair<bool, std::optional<int64_t>> Monitor::var_changed(uint64_t id) {
-    if (watched_variables_.find(id) == watched_variables_.end()) [[unlikely]] {
+    if (watched_variables_.find(id) == watched_variables_.end() || !rtl_) [[unlikely]] {
         return {false, {}};
     }
     auto& watch_var = watched_variables_.at(id);
-    auto value = get_value(watch_var->handle);
+    auto value = rtl_->get_value(watch_var->handle);
     if (value) {
         bool changed = false;
         auto const& watch_var_value = watch_var->get_value();
