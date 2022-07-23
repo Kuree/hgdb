@@ -1221,20 +1221,6 @@ std::optional<int64_t> Debugger::get_signal_value(uint32_t ns_id, vpiHandle hand
     }
 }
 
-std::optional<int64_t> Debugger::get_value(uint32_t ns_id, const std::string &expression,
-                                           uint32_t instance_id) {
-    DebugExpression expr(expression);
-    if (!expr.correct()) return std::nullopt;
-    auto res = set_expr_values(ns_id, &expr, instance_id);
-    if (!res) {
-        log_error(fmt::format("Unable to evaluate expression {0} against instance {1}", expression,
-                              instance_id));
-        return std::nullopt;
-    }
-    auto eval_result = expr.eval();
-    return eval_result;
-}
-
 bool Debugger::eval_breakpoint(DebugBreakPoint *bp) {
     const auto &bp_expr = scheduler_->breakpoint_only() ? bp->expr : bp->enable_expr;
     if (!bp_expr->correct()) return false;

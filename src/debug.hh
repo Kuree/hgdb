@@ -123,8 +123,6 @@ private:
     [[nodiscard]] static std::string get_monitor_topic(uint64_t watch_id);
     std::string get_value_str(uint32_t ns_id, const std::string &rtl_name, bool is_rtl,
                               bool use_delay = false);
-    std::optional<int64_t> get_value(uint32_t ns_id, const std::string &expression,
-                                     uint32_t instance_id);
     std::optional<std::string> resolve_var_name(uint32_t ns_id, const std::string &var_name,
                                                 const std::optional<uint64_t> &instance_id,
                                                 const std::optional<uint64_t> &breakpoint_id);
