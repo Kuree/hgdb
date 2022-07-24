@@ -328,6 +328,8 @@ DebugBreakPoint *Scheduler::add_breakpoint(const BreakPoint &bp_info, const Brea
         cond.append(" && " + bp_info.condition);
     }
 
+    // TODO: query namespace
+
     auto insert_bp = [bp_type, this, &db_bp, cond, dry_run]() -> DebugBreakPoint * {
         auto bp = std::make_unique<DebugBreakPoint>();
         bp->id = db_bp.id;

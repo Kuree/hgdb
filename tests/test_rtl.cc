@@ -69,7 +69,8 @@ protected:
         auto *raw_vpi = vpi_.get();
         std::shared_ptr<hgdb::AVPIProvider> vpi = std::move(vpi_);
         client = std::make_unique<hgdb::RTLSimulatorClient>(std::move(vpi));
-        auto mapping = client->compute_instance_mapping(std::vector<std::string>{"parent_mod"});
+        auto mapping =
+            client->compute_instance_mapping(std::vector<std::string>{"parent_mod"}, true);
         client->set_mapping(mapping[0].first, mapping[0].second);
         client->set_vpi_allocator([raw_vpi]() { return raw_vpi->get_new_handle(); });
     }

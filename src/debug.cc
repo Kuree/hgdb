@@ -58,7 +58,9 @@ void Debugger::initialize_db(std::unique_ptr<SymbolTableProvider> db) {
     // get all the instance names
     auto instances = db_->get_instance_names();
 
-    auto mapping = namespaces_[0]->rtl->compute_instance_mapping(instances);
+    auto mapping = namespaces_[0]->rtl->compute_instance_mapping(
+        instances, namespaces_[0]->rtl->vpi()->has_defname());
+
     for (auto i = 1u; i < mapping.size(); i++) {
         add_namespace(namespaces_[0]->rtl->vpi());
     }

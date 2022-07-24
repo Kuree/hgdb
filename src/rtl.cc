@@ -93,33 +93,35 @@ vpiHandle VPIProvider::vpi_put_value(vpiHandle object, p_vpi_value value_p, p_vp
     return ::vpi_put_value(object, value_p, time_p, flags);
 }
 
+bool VPIProvider::has_defname() {
+    t_vpi_vlog_info info{};
+    if (this->vpi_get_vlog_info(&info)) {
+        // verilator does not support vpiDefName
+        return std::string(info.product) != "Verilator";
+    }
+    // by default this is true
+    return true;
+}
+
 RTLSimulatorClient::RTLSimulatorClient(std::shared_ptr<AVPIProvider> vpi) {
     initialize_vpi(std::move(vpi));
 }
 
 std::vector<RTLSimulatorClient::IPMapping> RTLSimulatorClient::compute_instance_mapping(
-    const std::vector<std::string> &instance_names) {
-    std::unordered_set<std::string> top_names;
-    for (auto const &name : instance_names) {
-        auto top = get_path(name).first;
-        top_names.emplace(top);
-    }
-    // compute the naming map
-    if (custom_hierarchy_func_) {
-        hierarchy_name_prefix_map_ = (*custom_hierarchy_func_)(top_names);
-        // TODO: fix this
-        auto iter = *hierarchy_name_prefix_map_.begin();
-        return std::vector<RTLSimulatorClient::IPMapping>{iter};
-    } else {
+    const std::vector<std::string> &instance_names, bool use_definition) {
+    if (use_definition) {
+        std::unordered_set<std::string> top_names;
+        for (auto const &name : instance_names) {
+            auto top = get_path(name).first;
+            top_names.emplace(top);
+        }
         auto mapping = compute_hierarchy_name_prefix(top_names);
         return mapping;
+    } else {
+        // need to walk around the entire design hierarchy and figure out stuff
+        auto mapping = compute_hierarchy_name_prefix(instance_names);
+        return mapping;
     }
-}
-
-void RTLSimulatorClient::set_custom_hierarchy_func(
-    const std::function<std::unordered_map<std::string, std::string>(
-        const std::unordered_set<std::string> &)> &func) {
-    custom_hierarchy_func_ = func;
 }
 
 void RTLSimulatorClient::initialize_vpi(std::shared_ptr<AVPIProvider> vpi) {
@@ -659,10 +661,6 @@ std::pair<std::string, std::string> RTLSimulatorClient::get_path(const std::stri
 
 std::vector<RTLSimulatorClient::IPMapping> RTLSimulatorClient::compute_hierarchy_name_prefix(
     const std::unordered_set<std::string> &top_names) {
-    // Verilator doesn't support vpiDefName
-    if (is_verilator()) {
-        return compute_verilator_name_prefix(top_names);
-    }
     std::vector<RTLSimulatorClient::IPMapping> result;
     // we do a BFS search from the top;
     std::queue<vpiHandle> handle_queues;
@@ -683,6 +681,95 @@ std::vector<RTLSimulatorClient::IPMapping> RTLSimulatorClient::compute_hierarchy
                 hierarchy_name = fmt::format("{0}.", hierarchy_name);
                 // add it to the mapping
                 result.emplace_back(std::make_pair(def_name, hierarchy_name));
+            }
+            handle_queues.emplace(child_handle);
+        }
+    }
+
+    return result;
+}
+
+std::pair<bool, std::string> match(const std::string &full_name,
+                                   const std::vector<std::string> &tokens) {
+    // we don't consider this case
+    static const std::pair<bool, std::string> false_ = {false, ""};
+    if (tokens.empty()) return false_;
+    auto full_tokens = util::get_tokens(full_name, ".");
+    // the test bench should contain the top, as a result, the full token should be
+    // at least + 1
+    if (full_tokens.size() < (tokens.size() - 1)) return false_;
+
+    for (auto i = 0u; i < tokens.size(); i++) {
+        auto const &t_value = tokens[tokens.size() - 1 - i];
+        auto const &ref_value = full_tokens[full_tokens.size() - 1 - i];
+        if (t_value != ref_value) return false_;
+    }
+
+    // compute the prefix
+    auto size_diff = static_cast<uint32_t>(full_tokens.size() - tokens.size());
+    auto prefix =
+        fmt::format("{0}.", fmt::join(full_tokens.begin(), full_tokens.begin() + size_diff, "."));
+
+    return {true, prefix};
+}
+
+// NOLINTNEXTLINE
+std::vector<RTLSimulatorClient::IPMapping> RTLSimulatorClient::compute_hierarchy_name_prefix(
+    const std::vector<std::string> &instances) {
+    // need to find out the longest instances for each top
+    std::unordered_map<std::string, std::string> map_instance_mapping;
+    std::vector<RTLSimulatorClient::IPMapping> result;
+
+    // the first pass is to determine some interesting instance of interest
+    // the trick is to use the longest instance name
+    for (auto const &inst_name : instances) {
+        auto [top, path] = get_path(inst_name);
+        if (map_instance_mapping.find(top) == map_instance_mapping.end()) {
+            map_instance_mapping.emplace(top, path);
+        } else if (map_instance_mapping.at(top).length() < path.length()) {
+            map_instance_mapping[top] = path;
+        }
+    }
+
+    // second path to extract out the tokens
+    std::unordered_map<std::string, std::vector<std::string>> map_tokens;
+    for (auto &[top, path] : map_instance_mapping) {
+        auto tokens = util::get_tokens(path, ".");
+        map_tokens.emplace(top, tokens);
+    }
+
+    // keep track of top-level instantiation
+    std::unordered_set<std::string> empty_top;
+
+    // we walk the hierarchy
+    // we do a BFS search from the top;
+    std::queue<vpiHandle> handle_queues;
+    handle_queues.emplace(nullptr);
+    while ((!handle_queues.empty())) {
+        // scan through the design hierarchy
+        auto *mod_handle = handle_queues.front();
+        handle_queues.pop();
+        auto *handle_iter = vpi_->vpi_iterate(vpiModule, mod_handle);
+        if (!handle_iter) continue;
+        vpiHandle child_handle;
+        while ((child_handle = vpi_->vpi_scan(handle_iter)) != nullptr) {
+            std::string hierarchy_name = vpi_->vpi_get_str(vpiFullName, child_handle);
+
+            for (auto const &[top, path] : map_tokens) {
+                if (path.empty()) {
+                    if (empty_top.find(top) != empty_top.end()) continue;
+                    auto tokens = util::get_tokens(hierarchy_name, ".");
+                    if (tokens.size() > 1) {
+                        // it has to be larger than 1
+                        auto prefix = hierarchy_name + ".";
+                        empty_top.emplace(top);
+                        result.emplace_back(std::make_pair(top, prefix));
+                    }
+                }
+                auto [res, prefix] = match(hierarchy_name, path);
+                if (res) {
+                    result.emplace_back(std::make_pair(top, prefix));
+                }
             }
             handle_queues.emplace(child_handle);
         }
@@ -716,18 +803,6 @@ void RTLSimulatorClient::set_simulator_info() {
     // verilator
     is_vcs_ = sim_info_.name.find("VCS") != std::string::npos;
     is_mock_ = sim_info_.name == "RTLMock";
-}
-
-std::vector<RTLSimulatorClient::IPMapping> RTLSimulatorClient::compute_verilator_name_prefix(
-    const std::unordered_set<std::string> &top_names) {
-    // verilator is simply TOP.[def_name], which in our cases TOP.[inst_name]
-    // TODO: use signal name based mapping
-    std::vector<RTLSimulatorClient::IPMapping> result;
-    for (auto const &def_name : top_names) {
-        auto name = fmt::format("TOP.{0}.", def_name);
-        result.emplace_back(std::make_pair(def_name, name));
-    }
-    return result;
 }
 
 std::vector<std::string> RTLSimulatorClient::get_clocks_from_design() {

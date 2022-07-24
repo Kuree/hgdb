@@ -100,9 +100,6 @@ int main(int argc, char *argv[]) {
         return EXIT_FAILURE;
     }
 
-    // notice that db will lose ownership soon. use raw pointer instead
-    auto *db_ptr = db.get();
-
     auto vpi = std::make_unique<hgdb::replay::ReplayVPIProvider>(std::move(db));
     auto *vpi_ = vpi.get();
 
@@ -141,20 +138,6 @@ int main(int argc, char *argv[]) {
         }
         vpi_->build_array_table(full_names);
     });
-
-    log::log(log::log_level::info, "Calculating design hierarchy...");
-    // set the custom compute function
-    // compute the mapping if definition not available
-    if (!db_ptr->has_inst_definition()) {
-        auto mapping_func = [db_ptr](const std::unordered_set<std::string> &instance_names)
-            -> std::unordered_map<std::string, std::string> {
-            auto mapping = db_ptr->compute_instance_mapping(instance_names);
-            return {{mapping.first, mapping.second}};
-        };
-
-        // only one instance is supported for now
-        debugger->rtl_clients()[0]->set_custom_hierarchy_func(mapping_func);
-    }
 
     log::log(log::log_level::info, "Starting HGDB replay...");
     try {

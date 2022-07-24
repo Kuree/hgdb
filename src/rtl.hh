@@ -46,6 +46,9 @@ public:
 
     void set_use_lock_getting_value(bool value) { use_lock_getting_value_ = value; }
 
+    // used to indicate whether the underlying simulator supports vpiDefName
+    virtual bool has_defname() = 0;
+
 protected:
     bool use_lock_getting_value_ = true;
 };
@@ -67,6 +70,8 @@ class VPIProvider : public AVPIProvider {
     vpiHandle vpi_put_value(vpiHandle object, p_vpi_value value_p, p_vpi_time time_p,
                             PLI_INT32 flags) override;
 
+    bool has_defname() override;
+
 private:
     std::mutex vpi_lock_;
 };
@@ -77,9 +82,7 @@ public:
 
     using IPMapping = std::pair<std::string, std::string>;
     std::vector<RTLSimulatorClient::IPMapping> compute_instance_mapping(
-        const std::vector<std::string> &instance_names);
-    void set_custom_hierarchy_func(const std::function<std::unordered_map<std::string, std::string>(
-                                       const std::unordered_set<std::string> &)> &func);
+        const std::vector<std::string> &instance_names, bool use_definition);
     void initialize_vpi(std::shared_ptr<AVPIProvider> vpi);
     vpiHandle get_handle(const std::string &name);
     vpiHandle get_handle(const std::vector<std::string> &tokens);
@@ -194,9 +197,8 @@ private:
     static std::pair<std::string, std::string> get_path(const std::string &name);
     std::vector<IPMapping> compute_hierarchy_name_prefix(
         const std::unordered_set<std::string> &top_names);
+    std::vector<IPMapping> compute_hierarchy_name_prefix(const std::vector<std::string> &instances);
     void set_simulator_info();
-    std::vector<IPMapping> compute_verilator_name_prefix(
-        const std::unordered_set<std::string> &top_names);
 
     // brute-force to deal with verilator array indexing stuff
     using StringIterator = typename std::vector<std::string>::const_iterator;

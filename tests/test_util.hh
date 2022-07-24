@@ -337,6 +337,8 @@ public:
     [[nodiscard]] const std::vector<uint32_t> &vpi_ops() const { return vpi_ops_; }
     void set_rewind_enabled(bool value) { rewind_allowed_ = value; }
 
+    bool has_defname() override { return true; }
+
 protected:
     std::string str_buffer_;
     char *vpi_handle_counter_ = nullptr;
