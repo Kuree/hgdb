@@ -332,8 +332,6 @@ DebugBreakPoint *Scheduler::add_breakpoint(const BreakPoint &bp_info, const Brea
         cond.append(" && " + bp_info.condition);
     }
 
-    // TODO: query namespace
-
     auto insert_bp = [bp_type, this, &db_bp, cond,
                       dry_run](DebuggerNamespace *ns) -> DebugBreakPoint * {
         auto *rtl = ns->rtl.get();
@@ -379,10 +377,12 @@ DebugBreakPoint *Scheduler::add_breakpoint(const BreakPoint &bp_info, const Brea
     auto const &namespaces = namespaces_.get_namespaces(instance_name);
     if (!data_breakpoint) [[likely]] {
         if (inserted_breakpoints_.find(db_bp.id) == inserted_breakpoints_.end()) {
+            DebugBreakPoint *p = nullptr;
             for (auto *ns : namespaces) {
-                // Change the function to return a list of breakpoints
-                return insert_bp(ns);
+                p = insert_bp(ns);
             }
+            // Only need to return one
+            return p;
         } else {
             // update breakpoint entry
             for (auto &b : breakpoints_) {
@@ -413,18 +413,21 @@ DebugBreakPoint *Scheduler::add_breakpoint(const BreakPoint &bp_info, const Brea
                 }
             }
         }
-
-        auto *data_bp = insert_bp();
-        auto expr = DebugExpression(target_var);
-        util::validate_expr(rtl_, db_, &expr, db_bp.id, *db_bp.instance_id);
-        auto const &handles = expr.get_resolved_symbol_handles();
-        if (!expr.correct() || handles.size() != 1) {
-            log_error("Unable to validate variable in data breakpoint: " + target_var);
-            return nullptr;
+        DebugBreakPoint *data_bp = nullptr;
+        for (auto *ns : namespaces) {
+            data_bp = insert_bp(ns);
+            auto *rtl = ns->rtl.get();
+            auto expr = DebugExpression(target_var);
+            util::validate_expr(rtl, db_, &expr, db_bp.id, *db_bp.instance_id);
+            auto const &handles = expr.get_resolved_symbol_handles();
+            if (!expr.correct() || handles.size() != 1) {
+                log_error("Unable to validate variable in data breakpoint: " + target_var);
+                return nullptr;
+            }
+            data_bp->full_rtl_handle = handles.begin()->second;
+            data_bp->full_rtl_name = rtl->get_full_name(data_bp->full_rtl_handle);
+            data_bp->target_rtl_var_name = target_var;
         }
-        data_bp->full_rtl_handle = handles.begin()->second;
-        data_bp->full_rtl_name = rtl_->get_full_name(data_bp->full_rtl_handle);
-        data_bp->target_rtl_var_name = target_var;
         return data_bp;
     }
 }

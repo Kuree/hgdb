@@ -25,8 +25,6 @@ public:
         auto port = get_free_port();
         auto mock = std::make_unique<MockVPIProvider>();
         mock->set_argv({"+DEBUG_PORT=" + std::to_string(port)});
-        debugger_ = std::make_unique<Debugger>(std::move(mock));
-        friend_ = std::make_unique<DebuggerTestFriend>(debugger_.get());
 
         // setting up the debug symbol table
         const auto *db_filename = ":memory:";
@@ -34,13 +32,19 @@ public:
         db->sync_schema();
 
         // instances
+        auto *p = mock->add_module("TOP", "TOP");
+        mock->set_top(p);
         for (auto i = 0; i < num_instances; i++) {
-            store_instance(*db, i, fmt::format("inst{0}", i));
+            auto def_name = fmt::format("inst{0}", i);
+            store_instance(*db, i, def_name);
             // store breakpoint as well in the same location
             store_breakpoint(*db, i, i, filename, line);
+            mock->add_module(def_name, fmt::format("TOP.{0}_inst", def_name));
         }
 
         auto db_client = std::make_unique<hgdb::DBSymbolTableProvider>(std::move(db));
+        debugger_ = std::make_unique<Debugger>(std::move(mock));
+        friend_ = std::make_unique<DebuggerTestFriend>(debugger_.get());
         debugger_->initialize_db(std::move(db_client));
         db_ = debugger_->db();
     }
@@ -82,12 +86,14 @@ public:
         db->sync_schema();
 
         // instances
+        auto *top = mock->add_module("TOP", "TOP");
+        mock->set_top(top);
         for (auto i = 0; i < num_instances; i++) {
             auto instance_name = fmt::format("inst{0}", i);
             store_instance(*db, i, instance_name);
             // store breakpoint as well in the same location
             store_breakpoint(*db, i, i, filename, line, 0, "a==1");
-            auto *p = mock->add_module("mod", instance_name);
+            auto *p = mock->add_module(instance_name, fmt::format("TOP.{0}_inst", instance_name));
             auto *v = mock->add_signal(p, "a");
             mock->set_signal_value(v, 1);
         }

@@ -1,7 +1,8 @@
+#include "../src/db.hh"
+#include "../src/namespace.hh"
 #include "../src/scheduler.hh"
 #include "fmt/format.h"
 #include "test_util.hh"
-#include "../src/db.hh"
 
 class ReverseMockVPIProvider : public MockVPIProvider {
 public:
@@ -41,8 +42,8 @@ public:
 template <bool reverse>
 class ScheduleTestBase : public ::testing::Test {
 protected:
-    std::unique_ptr<hgdb::RTLSimulatorClient> rtl_;
     std::unique_ptr<hgdb::SymbolTableProvider> db_;
+    hgdb::DebuggerNamespaceManager namespaces_;
 
     void SetUp() override {
         vpi_ = reverse ? std::make_unique<ReverseMockVPIProvider>()
@@ -51,7 +52,7 @@ protected:
         db->sync_schema();
 
         auto constexpr instances = std::array{"top", "top.inst0", "top.inst1"};
-        auto constexpr def_name = std::array{"top", "child", "child"};
+        auto constexpr def_name = std::array{"top", "child1", "child2"};
         auto constexpr signals = std::array{"a", "b", "clk"};
         for (auto i = 0; i < instances.size(); i++) {
             auto *handle = vpi_->add_module(def_name[i], instances[i]);
@@ -75,8 +76,10 @@ protected:
             hgdb::store_breakpoint(*db, i * 10 + 1, i, "test.sv", 2);
         }
 
-        rtl_ = std::make_unique<hgdb::RTLSimulatorClient>(std::move(vpi_));
+        namespaces_.add_namespace(std::move(vpi_));
+
         db_ = std::make_unique<hgdb::DBSymbolTableProvider>(std::move(db));
+        namespaces_.compute_instance_mapping(db_.get());
     }
 
 private:
@@ -89,9 +92,9 @@ class ScheduleTestNoReverse : public ScheduleTestBase<false> {};
 TEST_F(ScheduleTestReverse, test_reverse_continue) {  // NOLINT
     // don't care about single thread mode since it will be covered by multi-threading mode
     bool val1 = false, val2 = true;
-    hgdb::Scheduler scheduler(rtl_.get(), db_.get(), val1, val2);
+    hgdb::Scheduler scheduler(namespaces_, db_.get(), val1, val2);
     scheduler.set_evaluation_mode(hgdb::Scheduler::EvaluationMode::ReverseBreakpointOnly);
-    auto *vpi = reinterpret_cast<ReverseMockVPIProvider *>(rtl_->vpi().get());
+    auto *vpi = reinterpret_cast<ReverseMockVPIProvider *>(namespaces_.default_rtl()->vpi().get());
     vpi->set_time(10);
 
     // insert breakpoints
@@ -132,8 +135,8 @@ TEST_F(ScheduleTestReverse, test_reverse_continue) {  // NOLINT
 TEST_F(ScheduleTestNoReverse, test_stepback_no_rollback) {  // NOLINT
     // don't care about single thread mode since it will be covered by multi-threading mode
     bool val1 = false, val2 = true;
-    hgdb::Scheduler scheduler(rtl_.get(), db_.get(), val1, val2);
-    auto *vpi = reinterpret_cast<MockVPIProvider *>(rtl_->vpi().get());
+    hgdb::Scheduler scheduler(namespaces_, db_.get(), val1, val2);
+    auto *vpi = reinterpret_cast<MockVPIProvider *>(namespaces_.default_rtl()->vpi().get());
     vpi->set_time(10);
     vpi->set_rewind_enabled(false);
 
@@ -146,7 +149,7 @@ TEST_F(ScheduleTestNoReverse, test_stepback_no_rollback) {  // NOLINT
         EXPECT_EQ(bps.size(), 1);
         ids.emplace(bps[0]->id);
     }
-    EXPECT_EQ(rtl_->get_simulation_time(), 10);
+    EXPECT_EQ(namespaces_.default_rtl()->get_simulation_time(), 10);
     EXPECT_EQ(ids.size(), num_forward_bps);
 
     // switch to step back mode
@@ -160,7 +163,7 @@ TEST_F(ScheduleTestNoReverse, test_stepback_no_rollback) {  // NOLINT
         EXPECT_EQ(bps.size(), 1);
         new_ids.emplace(bps[0]->id);
     }
-    EXPECT_EQ(rtl_->get_simulation_time(), 10);
+    EXPECT_EQ(namespaces_.default_rtl()->get_simulation_time(), 10);
     EXPECT_EQ(new_ids.size(), num_forward_bps - 1);
     for (auto const id : new_ids) EXPECT_NE(ids.find(id), ids.end());
 }
@@ -168,8 +171,8 @@ TEST_F(ScheduleTestNoReverse, test_stepback_no_rollback) {  // NOLINT
 TEST_F(ScheduleTestReverse, test_stepback_no_rollback) {  // NOLINT
     // don't care about single thread mode since it will be covered by multi-threading mode
     bool val1 = false, val2 = true;
-    hgdb::Scheduler scheduler(rtl_.get(), db_.get(), val1, val2);
-    auto *vpi = reinterpret_cast<MockVPIProvider *>(rtl_->vpi().get());
+    hgdb::Scheduler scheduler(namespaces_, db_.get(), val1, val2);
+    auto *vpi = reinterpret_cast<MockVPIProvider *>(namespaces_.default_rtl()->vpi().get());
     vpi->set_time(10);
 
     scheduler.set_evaluation_mode(hgdb::Scheduler::EvaluationMode::StepOver);
@@ -181,7 +184,7 @@ TEST_F(ScheduleTestReverse, test_stepback_no_rollback) {  // NOLINT
         EXPECT_EQ(bps.size(), 1);
         ids.emplace(bps[0]->id);
     }
-    EXPECT_EQ(rtl_->get_simulation_time(), 10);
+    EXPECT_EQ(namespaces_.default_rtl()->get_simulation_time(), 10);
     EXPECT_EQ(ids.size(), num_forward_bps);
 
     // switch to step back mode
@@ -195,7 +198,8 @@ TEST_F(ScheduleTestReverse, test_stepback_no_rollback) {  // NOLINT
         EXPECT_EQ(bps.size(), 1);
         new_ids.emplace(bps[0]->id);
     }
-    EXPECT_EQ(rtl_->get_simulation_time(), 10 - 2 * ((num_forward_bps - 1) / 4 + 1));
+    EXPECT_EQ(namespaces_.default_rtl()->get_simulation_time(),
+              10 - 2 * ((num_forward_bps - 1) / 4 + 1));
     EXPECT_EQ(new_ids.size(), num_forward_bps);
 
     std::set<uint32_t> diff;
@@ -206,7 +210,7 @@ TEST_F(ScheduleTestReverse, test_stepback_no_rollback) {  // NOLINT
 
 TEST_F(ScheduleTestNoReverse, test_stepvoer) {  // NOLINT
     bool val1 = false, val2 = true;
-    hgdb::Scheduler scheduler(rtl_.get(), db_.get(), val1, val2);
+    hgdb::Scheduler scheduler(namespaces_, db_.get(), val1, val2);
 
     scheduler.set_evaluation_mode(hgdb::Scheduler::EvaluationMode::StepOver);
 
@@ -226,7 +230,7 @@ TEST_F(ScheduleTestNoReverse, test_stepvoer) {  // NOLINT
 
 TEST_F(ScheduleTestNoReverse, test_continue) {  // NOLINT
     bool val1 = false, val2 = true;
-    hgdb::Scheduler scheduler(rtl_.get(), db_.get(), val1, val2);
+    hgdb::Scheduler scheduler(namespaces_, db_.get(), val1, val2);
 
     scheduler.set_evaluation_mode(hgdb::Scheduler::EvaluationMode::BreakPointOnly);
 

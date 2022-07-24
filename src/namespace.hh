@@ -13,14 +13,16 @@ struct DebuggerNamespace {
     explicit DebuggerNamespace(uint32_t id, std::unique_ptr<RTLSimulatorClient> rtl);
 };
 
+class SymbolTableProvider;
+
 class DebuggerNamespaceManager {
 public:
-    DebuggerNamespaceManager();
-    void add_namespace(std::shared_ptr<AVPIProvider> vpi);
+    DebuggerNamespaceManager() = default;
+    DebuggerNamespace *add_namespace(std::shared_ptr<AVPIProvider> vpi);
 
     DebuggerNamespace *operator[](uint64_t index) { return namespaces_[index].get(); }
     RTLSimulatorClient *default_rtl();
-    void compute_mapping();
+    void compute_instance_mapping(SymbolTableProvider *db);
     [[nodiscard]] auto empty() const { return namespaces_.empty(); }
     [[nodiscard]] auto size() const { return namespaces_.size(); }
     auto begin() const { return namespaces_.begin(); }
@@ -28,14 +30,13 @@ public:
 
     const std::vector<DebuggerNamespace *> &get_namespaces(
         const std::optional<std::string> &def_name);
-    void set_get_instance_name(std::function<std::optional<std::string>(uint32_t)> func);
 
 private:
     std::vector<std::unique_ptr<DebuggerNamespace>> namespaces_;
     std::unordered_map<std::string, std::vector<DebuggerNamespace *>> mapped_namespaces_;
     std::unordered_map<uint32_t, std::string> bp_name_name_;
 
-    std::function<std::optional<std::string>(uint32_t)> get_instance_name_;
+    void compute_mapping();
 };
 };  // namespace hgdb
 

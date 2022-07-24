@@ -1,5 +1,6 @@
 #include "namespace.hh"
 
+#include "symbol.hh"
 #include "util.hh"
 
 namespace hgdb {
@@ -9,18 +10,34 @@ DebuggerNamespace::DebuggerNamespace(uint32_t id, std::unique_ptr<RTLSimulatorCl
     monitor = std::make_unique<Monitor>(this->rtl.get());
 }
 
-DebuggerNamespaceManager::DebuggerNamespaceManager() {
-    get_instance_name_ = [](uint32_t) { return std::nullopt; };
-}
-
-void DebuggerNamespaceManager::add_namespace(std::shared_ptr<AVPIProvider> vpi) {
+DebuggerNamespace *DebuggerNamespaceManager::add_namespace(std::shared_ptr<AVPIProvider> vpi) {
     auto rtl = std::make_unique<RTLSimulatorClient>(std::move(vpi));
-    namespaces_.emplace_back(
+    auto &ns = namespaces_.emplace_back(
         std::make_unique<DebuggerNamespace>(namespaces_.size(), std::move(rtl)));
+    return ns.get();
 }
 
 RTLSimulatorClient *DebuggerNamespaceManager::default_rtl() {
     return namespaces_.empty() ? nullptr : namespaces_[0]->rtl.get();
+}
+
+void DebuggerNamespaceManager::compute_instance_mapping(SymbolTableProvider *db) {
+    // get all the instance names
+    auto instances = db->get_instance_names();
+    if (!default_rtl()) return;
+
+    auto mapping =
+        default_rtl()->compute_instance_mapping(instances, default_rtl()->vpi()->has_defname());
+
+    for (auto i = 1u; i < mapping.size(); i++) {
+        add_namespace(default_rtl()->vpi());
+    }
+
+    for (auto i = 0u; i < mapping.size(); i++) {
+        namespaces_[i]->rtl->set_mapping(mapping[i].first, mapping[i].second);
+        namespaces_[i]->def_name = mapping[i].first;
+    }
+    compute_mapping();
 }
 
 void DebuggerNamespaceManager::compute_mapping() {
@@ -39,11 +56,6 @@ const std::vector<DebuggerNamespace *> &DebuggerNamespaceManager::get_namespaces
     } else {
         return empty;
     }
-}
-
-void DebuggerNamespaceManager::set_get_instance_name(
-    std::function<std::optional<std::string>(uint32_t)> func) {
-    get_instance_name_ = std::move(func);
 }
 
 }  // namespace hgdb

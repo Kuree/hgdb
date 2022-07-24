@@ -665,7 +665,7 @@ std::vector<RTLSimulatorClient::IPMapping> RTLSimulatorClient::compute_hierarchy
     // we do a BFS search from the top;
     std::queue<vpiHandle> handle_queues;
     handle_queues.emplace(nullptr);
-    while ((!handle_queues.empty()) && !top_names.empty()) {
+    while ((!handle_queues.empty())) {
         // scan through the design hierarchy
         auto *mod_handle = handle_queues.front();
         handle_queues.pop();

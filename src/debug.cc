@@ -49,23 +49,9 @@ void Debugger::initialize_db(std::unique_ptr<SymbolTableProvider> db) {
     db_ = nullptr;
     if (!db) return;
     db_ = std::move(db);
-    // get all the instance names
-    auto instances = db_->get_instance_names();
 
-    auto mapping = namespaces_.default_rtl()->compute_instance_mapping(
-        instances, namespaces_.default_rtl()->vpi()->has_defname());
-
-    for (auto i = 1u; i < mapping.size(); i++) {
-        namespaces_.add_namespace(namespaces_.default_rtl()->vpi());
-    }
-
-    for (auto i = 0u; i < mapping.size(); i++) {
-        namespaces_[i]->rtl->set_mapping(mapping[i].first, mapping[i].second);
-        namespaces_[i]->def_name = mapping[i].first;
-    }
-    namespaces_.compute_mapping();
-    namespaces_.set_get_instance_name(
-        [this](uint32_t bp_id) { return db_->get_instance_name_from_bp(bp_id); });
+    // set up the name mapping
+    namespaces_.compute_instance_mapping(db_.get());
 
     // set up the scheduler
     scheduler_ =
