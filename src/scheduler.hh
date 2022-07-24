@@ -9,6 +9,8 @@
 
 namespace hgdb {
 
+struct DebuggerNamespaceManager;
+
 struct DebugBreakPoint {
     enum class Type { normal = 1 << 0, data = 1 << 1 };
     uint32_t id = 0;
@@ -44,8 +46,8 @@ struct DebugBreakPoint {
 
 class Scheduler {
 public:
-    Scheduler(RTLSimulatorClient *rtl, SymbolTableProvider *db, const bool &single_thread_mode,
-              const bool &log_enabled);
+    Scheduler(DebuggerNamespaceManager &namespaces, SymbolTableProvider *db,
+              const bool &single_thread_mode, const bool &log_enabled);
     enum class EvaluationMode { BreakPointOnly, StepOver, StepBack, ReverseBreakpointOnly, None };
     std::vector<DebugBreakPoint *> next_breakpoints();
     DebugBreakPoint *next_step_over_breakpoint();
@@ -80,6 +82,7 @@ public:
     [[nodiscard]] const std::vector<vpiHandle> &clock_handles() const { return clock_handles_; }
 
 private:
+    DebuggerNamespaceManager &namespaces_;
     std::optional<uint32_t> current_breakpoint_id_;
 
     EvaluationMode evaluation_mode_ = EvaluationMode::BreakPointOnly;
@@ -95,7 +98,6 @@ private:
     DebugBreakPoint next_temp_breakpoint_;
 
     // get it from the debugger. no ownership
-    RTLSimulatorClient *rtl_;
     SymbolTableProvider *db_;
 
     // some settings are directly shared from the debugger

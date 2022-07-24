@@ -2,6 +2,7 @@
 #define HGDB_DEBUG_HH
 #include "eval.hh"
 #include "monitor.hh"
+#include "namespace.hh"
 #include "proto.hh"
 #include "scheduler.hh"
 #include "server.hh"
@@ -14,14 +15,6 @@ class Options;
 }
 
 class DebuggerTestFriend;
-
-struct DebuggerNamespace {
-    uint32_t id = 0;
-    std::unique_ptr<RTLSimulatorClient> rtl;
-    std::unique_ptr<Monitor> monitor;
-
-    explicit DebuggerNamespace(uint32_t id, std::unique_ptr<RTLSimulatorClient> rtl);
-};
 
 class Debugger {
 public:
@@ -60,7 +53,7 @@ public:
 
 private:
     std::unique_ptr<SymbolTableProvider> db_;
-    std::vector<std::unique_ptr<DebuggerNamespace>> namespaces_;
+    DebuggerNamespaceManager namespaces_;
     std::unique_ptr<DebugServer> server_;
     // logging
     bool log_enabled_ = default_logging;
@@ -183,9 +176,6 @@ private:
     // update delayed values
     void update_delayed_values();
     void process_delayed_breakpoint(uint32_t bp_id);
-
-    // namespace
-    void add_namespace(std::shared_ptr<AVPIProvider> vpi);
 
     // test related
 public:

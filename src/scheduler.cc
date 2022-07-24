@@ -1,14 +1,18 @@
 #include "scheduler.hh"
 
+#include "debug.hh"
 #include "fmt/format.h"
 #include "log.hh"
 #include "util.hh"
 
 namespace hgdb {
 
-Scheduler::Scheduler(RTLSimulatorClient *rtl, SymbolTableProvider *db,
+Scheduler::Scheduler(DebuggerNamespaceManager &namespaces, SymbolTableProvider *db,
                      const bool &single_thread_mode, const bool &log_enabled)
-    : rtl_(rtl), db_(db), single_thread_mode_(single_thread_mode), log_enabled_(log_enabled) {
+    : namespaces_(namespaces),
+      db_(db),
+      single_thread_mode_(single_thread_mode),
+      log_enabled_(log_enabled) {
     // compute the look-up table
     log_info("Compute breakpoint look up table");
     bp_ordering_ = db_->execution_bp_orders();
@@ -18,10 +22,10 @@ Scheduler::Scheduler(RTLSimulatorClient *rtl, SymbolTableProvider *db,
 
     // compute clock signals
     // compute the clock signals
-    auto clk_names = util::get_clock_signals(rtl_, db_);
+    auto clk_names = util::get_clock_signals(namespaces_.default_rtl(), db_);
     clock_handles_.reserve(clk_names.size());
     for (auto const &clk_name : clk_names) {
-        auto *handle = rtl_->get_handle(clk_name);
+        auto *handle = namespaces_.default_rtl()->get_handle(clk_name);
         if (handle) clock_handles_.emplace_back(handle);
     }
 }
@@ -143,7 +147,7 @@ DebugBreakPoint *Scheduler::next_step_back_breakpoint() {
             // need to extend RTL client capability to actually reverse timestamp
             // in the future.
             auto const &handles = clock_handles_;
-            if (rtl_->reverse_last_posedge(handles)) {
+            if (namespaces_.default_rtl()->reverse_last_posedge(handles)) {
                 // we successfully reverse the time
                 next_breakpoint_id = bp_ordering_.back();
             } else {
@@ -176,7 +180,7 @@ std::vector<DebugBreakPoint *> Scheduler::next_reverse_breakpoints() {
             // we have reached the first one of the current
             // call reverse
             auto handles = clock_handles_;
-            auto res = rtl_->reverse_last_posedge(handles);
+            auto res = namespaces_.default_rtl()->reverse_last_posedge(handles);
             if (!res) {
                 // can't revert the time. use the current timestamp
                 // just return the first one
@@ -242,7 +246,7 @@ DebugBreakPoint *Scheduler::create_next_breakpoint(const std::optional<BreakPoin
     next_temp_breakpoint_.line_num = bp_info->line_num;
     next_temp_breakpoint_.column_num = bp_info->column_num;
     next_temp_breakpoint_.evaluated = true;
-    util::validate_expr(rtl_, db_, next_temp_breakpoint_.enable_expr.get(),
+    util::validate_expr(namespaces_.default_rtl(), db_, next_temp_breakpoint_.enable_expr.get(),
                         next_temp_breakpoint_.id, next_temp_breakpoint_.instance_id);
     return &next_temp_breakpoint_;
 }
@@ -330,9 +334,12 @@ DebugBreakPoint *Scheduler::add_breakpoint(const BreakPoint &bp_info, const Brea
 
     // TODO: query namespace
 
-    auto insert_bp = [bp_type, this, &db_bp, cond, dry_run]() -> DebugBreakPoint * {
+    auto insert_bp = [bp_type, this, &db_bp, cond,
+                      dry_run](DebuggerNamespace *ns) -> DebugBreakPoint * {
+        auto *rtl = ns->rtl.get();
         auto bp = std::make_unique<DebugBreakPoint>();
         bp->id = db_bp.id;
+        bp->ns_id = ns->id;
         bp->instance_id = *db_bp.instance_id;
         bp->expr = std::make_unique<DebugExpression>(cond);
         bp->enable_expr =
@@ -340,14 +347,14 @@ DebugBreakPoint *Scheduler::add_breakpoint(const BreakPoint &bp_info, const Brea
         bp->filename = db_bp.filename;
         bp->line_num = db_bp.line_num;
         bp->column_num = db_bp.column_num;
-        bp->trigger_symbols = compute_trigger_symbol(db_bp, rtl_, db_);
+        bp->trigger_symbols = compute_trigger_symbol(db_bp, rtl, db_);
         bp->type = bp_type;
-        util::validate_expr(rtl_, db_, bp->expr.get(), db_bp.id, *db_bp.instance_id);
+        util::validate_expr(rtl, db_, bp->expr.get(), db_bp.id, *db_bp.instance_id);
         if (!bp->expr->correct()) [[unlikely]] {
             log_error("Unable to validate breakpoint expression: " + cond);
             return nullptr;
         }
-        util::validate_expr(rtl_, db_, bp->enable_expr.get(), db_bp.id, *db_bp.instance_id);
+        util::validate_expr(rtl, db_, bp->enable_expr.get(), db_bp.id, *db_bp.instance_id);
         if (!bp->enable_expr->correct()) [[unlikely]] {
             log_error("Unable to validate breakpoint expression: " + cond);
             return nullptr;
@@ -368,15 +375,22 @@ DebugBreakPoint *Scheduler::add_breakpoint(const BreakPoint &bp_info, const Brea
     };
 
     std::lock_guard guard(breakpoint_lock_);
+    auto instance_name = db_->get_instance_name_from_bp(db_bp.id);
+    auto const &namespaces = namespaces_.get_namespaces(instance_name);
     if (!data_breakpoint) [[likely]] {
         if (inserted_breakpoints_.find(db_bp.id) == inserted_breakpoints_.end()) {
-            return insert_bp();
+            for (auto *ns : namespaces) {
+                // Change the function to return a list of breakpoints
+                return insert_bp(ns);
+            }
         } else {
             // update breakpoint entry
             for (auto &b : breakpoints_) {
                 if (db_bp.id == b->id) {
                     b->expr = std::make_unique<DebugExpression>(cond);
-                    util::validate_expr(rtl_, db_, b->expr.get(), db_bp.id, *db_bp.instance_id);
+                    auto *ns = namespaces_[b->ns_id];
+                    auto *rtl = ns->rtl.get();
+                    util::validate_expr(rtl, db_, b->expr.get(), db_bp.id, *db_bp.instance_id);
                     if (!b->expr->correct()) [[unlikely]] {
                         log_error("Unable to validate breakpoint expression: " + cond);
                     }
@@ -399,6 +413,7 @@ DebugBreakPoint *Scheduler::add_breakpoint(const BreakPoint &bp_info, const Brea
                 }
             }
         }
+
         auto *data_bp = insert_bp();
         auto expr = DebugExpression(target_var);
         util::validate_expr(rtl_, db_, &expr, db_bp.id, *db_bp.instance_id);

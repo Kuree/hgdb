@@ -100,11 +100,12 @@ def test_bp_location_request(start_server, find_free_port):
 
 
 def test_breakpoint_request(start_server, find_free_port):
-    s, uri = setup_server(start_server, find_free_port)
+    # s, uri = setup_server(start_server, find_free_port)
+    uri = "ws://localhost:8888"
     num_instances = 2
 
     async def test_logic():
-        client = hgdb.HGDBClient(uri, None)
+        client = hgdb.HGDBClient(uri, None, debug=True)
         await client.connect()
         resp = await client.set_breakpoint("/tmp/test.py", 1, token="bp1")
         assert resp["token"] == "bp1"
@@ -619,4 +620,4 @@ if __name__ == "__main__":
     sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
     from conftest import start_server_fn, find_free_port_fn
 
-    test_debug_array_change_value(start_server_fn, find_free_port_fn)
+    test_breakpoint_request(start_server_fn, find_free_port_fn)

@@ -19,17 +19,11 @@ constexpr auto DEBUG_BREAKPOINT_ENV = "DEBUG_BREAKPOINT{0}";
 constexpr auto DEBUG_PERF_COUNT_LOG = "DEBUG_PERF_COUNT_LOG";
 
 namespace hgdb {
-
-DebuggerNamespace::DebuggerNamespace(uint32_t id, std::unique_ptr<RTLSimulatorClient> rtl)
-    : id(id), rtl(std::move(rtl)) {
-    monitor = std::make_unique<Monitor>(this->rtl.get());
-}
-
 Debugger::Debugger() : Debugger(nullptr) {}
 
 Debugger::Debugger(std::shared_ptr<AVPIProvider> vpi) {
     // we create default namespace
-    add_namespace(std::move(vpi));
+    namespaces_.add_namespace(std::move(vpi));
     // initialize the webserver here
     server_ = std::make_unique<DebugServer>();
     log_enabled_ = get_logging();
@@ -58,19 +52,24 @@ void Debugger::initialize_db(std::unique_ptr<SymbolTableProvider> db) {
     // get all the instance names
     auto instances = db_->get_instance_names();
 
-    auto mapping = namespaces_[0]->rtl->compute_instance_mapping(
-        instances, namespaces_[0]->rtl->vpi()->has_defname());
+    auto mapping = namespaces_.default_rtl()->compute_instance_mapping(
+        instances, namespaces_.default_rtl()->vpi()->has_defname());
 
     for (auto i = 1u; i < mapping.size(); i++) {
-        add_namespace(namespaces_[0]->rtl->vpi());
-    }
-    for (auto i = 0u; i < mapping.size(); i++) {
-        namespaces_[i]->rtl->set_mapping(mapping[i].first, mapping[i].second);
+        namespaces_.add_namespace(namespaces_.default_rtl()->vpi());
     }
 
+    for (auto i = 0u; i < mapping.size(); i++) {
+        namespaces_[i]->rtl->set_mapping(mapping[i].first, mapping[i].second);
+        namespaces_[i]->def_name = mapping[i].first;
+    }
+    namespaces_.compute_mapping();
+    namespaces_.set_get_instance_name(
+        [this](uint32_t bp_id) { return db_->get_instance_name_from_bp(bp_id); });
+
     // set up the scheduler
-    scheduler_ = std::make_unique<Scheduler>(namespaces_[0]->rtl.get(), db_.get(),
-                                             single_thread_mode_, log_enabled_);
+    scheduler_ =
+        std::make_unique<Scheduler>(namespaces_, db_.get(), single_thread_mode_, log_enabled_);
 
     // callbacks
     if (on_client_connected_) {
@@ -79,7 +78,7 @@ void Debugger::initialize_db(std::unique_ptr<SymbolTableProvider> db) {
 
     // setting methods to help the symbol table understand the design
     db_->set_get_symbol_value([this](const std::string &symbol_name) {
-        return namespaces_[0]->rtl->get_value(symbol_name);
+        return namespaces_.default_rtl()->get_value(symbol_name);
     });
 
     // setup breakpoints from env
@@ -165,8 +164,8 @@ void Debugger::eval() {
 }
 
 [[maybe_unused]] bool Debugger::is_verilator() {
-    if (namespaces_.empty()) {
-        return namespaces_[0]->rtl->is_verilator();
+    if (!namespaces_.empty()) {
+        return namespaces_.default_rtl()->is_verilator();
     }
     return false;
 }
@@ -198,7 +197,7 @@ void Debugger::detach() {
     // remove all the clock related callback
     // depends on whether it's verilator or not
     // always use the first one
-    auto *rtl = namespaces_[0]->rtl.get();
+    auto *rtl = namespaces_.default_rtl();
     if (rtl->is_verilator()) {
         rtl->remove_call_back("eval_hgdb");
         log_info("Remove callback eval_hgdb");
@@ -349,7 +348,7 @@ uint16_t Debugger::get_port() {
 std::optional<std::string> Debugger::get_value_plus_arg(const std::string &arg_name,
                                                         bool check_env) {
     if (namespaces_.empty()) return std::nullopt;
-    auto const &args = namespaces_[0]->rtl->get_argv();
+    auto const &args = namespaces_.default_rtl()->get_argv();
     auto const plus_arg = fmt::format("+{0}=", arg_name);
     for (auto const &arg : args) {
         if (arg.find(plus_arg) != std::string::npos) {
@@ -363,7 +362,7 @@ std::optional<std::string> Debugger::get_value_plus_arg(const std::string &arg_n
 
 bool Debugger::get_test_plus_arg(const std::string &arg_name, bool check_env) {
     if (namespaces_.empty()) return false;
-    auto const &args = namespaces_[0]->rtl->get_argv();
+    auto const &args = namespaces_.default_rtl()->get_argv();
     // we check env the last since we allow plus args to override env values
     auto plus_arg = "+" + arg_name;
     auto r = std::any_of(args.begin(), args.end(),
@@ -395,7 +394,7 @@ void Debugger::log_info(const std::string &msg) const {
 
 bool Debugger::has_cli_flag(const std::string &flag) {
     if (namespaces_.empty()) return false;
-    auto const &argv = namespaces_[0]->rtl->get_argv();
+    auto const &argv = namespaces_.default_rtl()->get_argv();
     return std::any_of(argv.begin(), argv.end(), [&flag](const auto &v) { return v == flag; });
 }
 
@@ -630,7 +629,7 @@ void Debugger::handle_command(const CommandRequest &req, uint64_t conn_id) {
             scheduler_->set_evaluation_mode(Scheduler::EvaluationMode::None);
             // we will unlock the lock during the stop step to ensure proper shutdown
             // of the runtime
-            namespaces_[0]->rtl->finish_sim();
+            namespaces_.default_rtl()->finish_sim();
             stop();
             break;
         }
@@ -656,7 +655,7 @@ void Debugger::handle_command(const CommandRequest &req, uint64_t conn_id) {
         }
         case CommandRequest::CommandType::jump: {
             log_info(fmt::format("handle_command: jump ({0})", req.time()));
-            auto res = namespaces_[0]->rtl->rewind(req.time(), scheduler_->clock_handles());
+            auto res = namespaces_.default_rtl()->rewind(req.time(), scheduler_->clock_handles());
             if (!res) {
                 status = status_code::error;
                 error = "Underlying RTL simulator does not support rewind";
@@ -701,7 +700,7 @@ void Debugger::handle_debug_info(const DebuggerInformationRequest &req, uint64_t
         case DebuggerInformationRequest::CommandType::status: {
             // race conditions?
             std::stringstream ss;
-            auto &rtl = namespaces_[0]->rtl;
+            auto *rtl = namespaces_.default_rtl();
             ss << "Simulator: " << rtl->get_simulator_name() << " " << rtl->get_simulator_version()
                << std::endl;
             ss << "Command line arguments: ";
@@ -717,7 +716,7 @@ void Debugger::handle_debug_info(const DebuggerInformationRequest &req, uint64_t
             // this basically lists the top mapping so the client will know the
             // where the design is
             // TODO: Fix this
-            auto &rtl = namespaces_[0]->rtl;
+            auto *rtl = namespaces_.default_rtl();
             auto mapping = rtl->get_top_mapping();
             auto resp = DebuggerInformationResponse(mapping);
             req.set_token(resp);
@@ -773,7 +772,7 @@ void Debugger::handle_evaluation(const EvaluationRequest &req, uint64_t conn_id)
         auto breakpoint_id = req.is_context() ? util::stoul(scope) : std::nullopt;
         // FIXME:
         //   add namespace ID to the request
-        util::validate_expr(namespaces_[0]->rtl.get(), db_.get(), &expr, breakpoint_id,
+        util::validate_expr(namespaces_.default_rtl(), db_.get(), &expr, breakpoint_id,
                             instance_id);
         if (!expr.correct()) {
             error_reason = "Unable to resolve symbols";
@@ -1049,7 +1048,7 @@ void Debugger::send_breakpoint_hit(const std::vector<const DebugBreakPoint *> &b
     // we send it here to avoid a round trip of client asking for context and send it
     // back
     auto const *first_bp = bps.front();
-    BreakPointResponse resp(namespaces_[0]->rtl->get_simulation_time(), first_bp->filename,
+    BreakPointResponse resp(namespaces_.default_rtl()->get_simulation_time(), first_bp->filename,
                             first_bp->line_num, first_bp->column_num);
     for (auto const *bp : bps) {
         // first need to query all the values
@@ -1132,7 +1131,7 @@ void Debugger::set_vendor_initial_options() {
     // all the options already have initial values
     // this function is used to set
     if (!namespaces_.empty()) {
-        if (namespaces_[0]->rtl->is_vcs()) {
+        if (namespaces_.default_rtl()->is_vcs()) {
             // we can't ctrl-c/d out of simv once it's paused
             // need to continue to simulation if client disconnected
             detach_after_disconnect_ = true;
@@ -1247,7 +1246,7 @@ bool Debugger::eval_breakpoint(DebugBreakPoint *bp) {
             eval_result = bp_expr->eval();
         }
 
-        auto &ns = namespaces_[bp->ns_id];
+        auto *ns = namespaces_[bp->ns_id];
         auto trigger_result = should_trigger(bp);
         bool data_bp = true;
         bool enabled = eval_result && trigger_result;
@@ -1272,7 +1271,7 @@ std::vector<bool> Debugger::eval_breakpoints(const std::vector<DebugBreakPoint *
     auto constexpr minimum_batch_size = 16;
     auto const batch_min_size = processor_count * minimum_batch_size;
     const static auto commercial =
-        namespaces_[0]->rtl->is_vcs() || namespaces_[0]->rtl->is_xcelium();
+        namespaces_.default_rtl()->is_vcs() || namespaces_.default_rtl()->is_xcelium();
     if (bps.size() > batch_min_size && !commercial) {
         // multi-threading for two threads
         perf::PerfCount perf_bp_threads("eval bp threads", perf_count_);
@@ -1321,9 +1320,10 @@ void Debugger::add_cb_clocks() {
     // TODO:
     //     for now we assume all the designs share the same clock
     //     this may not be the case
-    if (!namespaces_.empty() && namespaces_[0]->rtl && !namespaces_[0]->rtl->is_verilator()) {
+    if (!namespaces_.empty() && namespaces_.default_rtl() &&
+        !namespaces_.default_rtl()->is_verilator()) {
         // only trigger eval at the posedge clk
-        auto *rtl = namespaces_[0]->rtl.get();
+        auto *rtl = namespaces_.default_rtl();
         auto clock_signals = util::get_clock_signals(rtl, db_.get());
         bool r = rtl->monitor_signals(clock_signals, eval_hgdb_on_clk, this);
         if (!r || clock_signals.empty()) log_error("Failed to register evaluation callback");
@@ -1412,7 +1412,7 @@ bool Debugger::set_expr_values(uint32_t ns_id, DebugExpression *expr, uint32_t i
 void Debugger::update_delayed_values() {
     // notice that we never delete them, which can be a future improvement
     if (delayed_variables_.empty()) return;
-    for (auto &ns : namespaces_) {
+    for (auto const &ns : namespaces_) {
         auto values =
             ns->monitor->get_watched_values(MonitorRequest::MonitorType::delay_clock_edge);
         for (auto &iter : delayed_variables_) {
@@ -1433,34 +1433,31 @@ void Debugger::process_delayed_breakpoint(uint32_t bp_id) {
     auto *bp = scheduler_->get_breakpoint(bp_id);
     if (!bp) return;
     auto context_vars = db_->get_context_delayed_variables(bp_id);
-    auto *rtl = namespaces_[0]->rtl.get();
-    auto *monitor = namespaces_[0]->monitor.get();
-    auto func = [this, bp]() { return eval_breakpoint(bp); };
+    auto const &namespaces = namespaces_.get_namespaces(bp->full_rtl_name);
+    for (auto *ns : namespaces) {
+        auto *rtl = ns->rtl.get();
+        auto *monitor = ns->monitor.get();
+        auto func = [this, bp]() { return eval_breakpoint(bp); };
 
-    for (auto const &[ctx, v] : context_vars) {
-        auto var_names = resolve_context_name(v.value, ctx.name, bp_id, rtl, db_.get());
-        for (auto const &[front_var, rtl_name] : var_names) {
-            // we really don't care about front end name
-            // get current value as initialization. this allows the breakpoint next cycle
-            // has the proper value before monitor logic kicks in
-            auto value = rtl->get_value(rtl_name);
-            auto watch_id = monitor->add_monitor_variable(rtl_name, ctx.depth, value);
-            monitor->set_monitor_variable_condition(watch_id, func);
-            DelayedVariable delayed_var;
-            delayed_var.rtl_name = rtl_name;
-            delayed_var.watch_id = watch_id;
-            auto *handle = rtl->get_handle(rtl_name);
-            if (handle) {
-                delayed_variables_.emplace(handle, delayed_var);
+        for (auto const &[ctx, v] : context_vars) {
+            auto var_names = resolve_context_name(v.value, ctx.name, bp_id, rtl, db_.get());
+            for (auto const &[front_var, rtl_name] : var_names) {
+                // we really don't care about front end name
+                // get current value as initialization. this allows the breakpoint next cycle
+                // has the proper value before monitor logic kicks in
+                auto value = rtl->get_value(rtl_name);
+                auto watch_id = monitor->add_monitor_variable(rtl_name, ctx.depth, value);
+                monitor->set_monitor_variable_condition(watch_id, func);
+                DelayedVariable delayed_var;
+                delayed_var.rtl_name = rtl_name;
+                delayed_var.watch_id = watch_id;
+                auto *handle = rtl->get_handle(rtl_name);
+                if (handle) {
+                    delayed_variables_.emplace(handle, delayed_var);
+                }
             }
         }
     }
-}
-
-void Debugger::add_namespace(std::shared_ptr<AVPIProvider> vpi) {
-    auto rtl = std::make_unique<RTLSimulatorClient>(std::move(vpi));
-    namespaces_.emplace_back(
-        std::make_unique<DebuggerNamespace>(namespaces_.size(), std::move(rtl)));
 }
 
 }  // namespace hgdb
