@@ -42,6 +42,6 @@ private:
 
     void compute_mapping();
 };
-};  // namespace hgdb
+}  // namespace hgdb
 
 #endif  // HGDB_NAMESPACE_HH

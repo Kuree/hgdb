@@ -260,7 +260,7 @@ TEST_F(RTLModuleTest, test_slice) {  // NOLINT
     EXPECT_NE(handle, nullptr);
     auto *parent_handle = client->get_handle("parent_mod.a");
 
-    for (auto v = 0u; v < 16; v++) {
+    for (auto v = 0u; v < 16u; v++) {
         mock_vpi.set_signal_value(parent_handle, v << 4);
         auto value = client->get_value(handle);
         EXPECT_TRUE(value);
@@ -274,7 +274,7 @@ TEST_F(RTLModuleTest, test_slice) {  // NOLINT
     handle = client->get_handle("parent_mod.inst1.array[0][1][2:0]");
     EXPECT_NE(handle, nullptr);
     parent_handle = client->get_handle("parent_mod.inst1.array[0][1]");
-    for (auto v = 0; v < 8; v++) {
+    for (auto v = 0u; v < 8u; v++) {
         mock_vpi.set_signal_value(parent_handle, v);
         auto value = client->get_value(handle);
         EXPECT_TRUE(value);
@@ -291,9 +291,9 @@ TEST_F(RTLModuleTest, test_set_value) {  // NOLINT
 }
 
 TEST_F(RTLModuleTest, test_get_design) {  // NOLINT
-    auto mapping = client->get_top_mapping();
-    EXPECT_EQ(mapping.size(), 1);
-    EXPECT_EQ(mapping["parent_mod"], "top.dut");
+    auto mapping = client->get_mapping();
+    EXPECT_EQ(mapping.first, "parent_mod");
+    EXPECT_EQ(mapping.second, "top.dut.");
 }
 
 TEST_F(RTLModuleTest, test_resolve_signal) {  // NOLINT

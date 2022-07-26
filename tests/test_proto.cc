@@ -457,6 +457,7 @@ TEST(proto, breakpoint_response) {  // NOLINT
                 "instance_id": 42,
                 "instance_name": "mod",
                 "breakpoint_id": 43,
+                "namespace_id": 0,
                 "local": {
                     "d": "5"
                 },
@@ -604,7 +605,7 @@ TEST(proto, evaluation_response) {  // NOLINT
 }
 
 TEST(proto, monitor_response) {  // NOLINT
-    auto res = hgdb::MonitorResponse(42, "42");
+    auto res = hgdb::MonitorResponse(42, 0, "42");
     auto s = res.str(true);
     constexpr auto expected_value = R"({
     "request": false,
@@ -612,6 +613,7 @@ TEST(proto, monitor_response) {  // NOLINT
     "status": "success",
     "payload": {
         "track_id": 42,
+        "namespace_id": 0,
         "value": "42"
     }
 })";
