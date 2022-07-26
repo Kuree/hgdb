@@ -214,12 +214,14 @@ class HGDBClient:
         resp = await self.__send_check(payload, True)
         return resp["payload"]["track_id"], resp["payload"]["namespace_id"]
 
-    async def set_value(self, name, value, instance_id=None, breakpoint_id=None, check_error=False):
+    async def set_value(self, name, value, instance_id=None, breakpoint_id=None, check_error=False, namespace_id=None):
         payload = {"request": True, "type": "set-value", "payload": {"var_name": name, "value": value}}
         if instance_id is not None:
             payload["payload"]["instance_id"] = instance_id
         if breakpoint_id is not None:
             payload["payload"]["breakpoint_id"] = breakpoint_id
+        if namespace_id is not None:
+            payload["payload"]["namespace_id"] = namespace_id
         return await self.__send_check(payload, check_error=check_error)
 
     async def remove_monitor(self, track_id, namespace_id=0):

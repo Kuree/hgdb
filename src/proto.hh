@@ -321,12 +321,14 @@ public:
     [[nodiscard]] const std::string &var_name() const { return var_name_; }
     [[nodiscard]] const std::optional<uint64_t> &instance_id() const { return instance_id_; }
     [[nodiscard]] const std::optional<uint64_t> &breakpoint_id() const { return breakpoint_id_; }
+    [[nodiscard]] const std::optional<uint64_t> &namespace_id() const { return namespace_id_; }
 
 private:
     int64_t value_ = 0;
     std::string var_name_;
     std::optional<uint64_t> instance_id_;
     std::optional<uint64_t> breakpoint_id_;
+    std::optional<uint64_t> namespace_id_;
 };
 
 class SymbolRequest : public Request {

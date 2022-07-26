@@ -924,8 +924,7 @@ void Debugger::handle_set_value(const SetValueRequest &req, uint64_t conn_id) { 
     log_info(fmt::format("handle set value {0} = {1}", req.var_name(), req.value()));
 
     if (req.status() == status_code::success) {
-        // TODO: add namespace id
-        auto const ns_id = 0;
+        auto const ns_id = req.namespace_id() ? *req.namespace_id() : namespaces_.default_id();
         auto &rtl = namespaces_[ns_id]->rtl;
         std::optional<std::string> full_name =
             resolve_var_name(ns_id, req.var_name(), req.instance_id(), req.breakpoint_id());

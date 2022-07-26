@@ -108,6 +108,7 @@ namespace hgdb {
  *     value: [required] - int64_t
  *     instance_id: [optional] - uint64_t
  *     breakpoint_id: [optional] - uint64_t
+ *     namespace_id: [optional] - uint64_T
  * # instance_id and breakpoint_id can be used to scope var_name
  *
  * Data Breakpoint Request
@@ -1009,10 +1010,7 @@ void MonitorRequest::parse_payload(const std::string &payload) {
         return;
     }
 
-    auto namespace_id = get_member<uint64_t>(document, "namespace_id", error_reason_);
-    if (namespace_id) {
-        namespace_id_ = *namespace_id;
-    }
+    namespace_id_ = get_member<uint64_t>(document, "namespace_id", error_reason_);
 
     if (action_type_ == ActionType::add) {
         auto monitor_type = get_member<std::string>(document, "monitor_type", error_reason_);
@@ -1071,6 +1069,7 @@ void SetValueRequest::parse_payload(const std::string &payload) {
     // optional values
     instance_id_ = get_member<uint64_t>(document, "instance_id", error_reason_, false);
     breakpoint_id_ = get_member<uint64_t>(document, "breakpoint_id", error_reason_, false);
+    namespace_id_ = get_member<uint64_t>(document, "namespace_id", error_reason_, false);
 }
 
 std::string to_string(SymbolRequest::request_type type) {
