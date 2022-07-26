@@ -706,7 +706,7 @@ std::pair<bool, std::string> match(const std::string &full_name,
     }
 
     // compute the prefix
-    auto size_diff = static_cast<uint32_t>(full_tokens.size() - tokens.size());
+    auto size_diff = static_cast<uint32_t>(full_tokens.size() - tokens.size()) + 1;
     auto prefix =
         fmt::format("{0}.", fmt::join(full_tokens.begin(), full_tokens.begin() + size_diff, "."));
 
@@ -726,7 +726,8 @@ std::vector<RTLSimulatorClient::IPMapping> RTLSimulatorClient::compute_hierarchy
         auto [top, path] = get_path(inst_name);
         if (map_instance_mapping.find(top) == map_instance_mapping.end()) {
             map_instance_mapping.emplace(top, path);
-        } else if (map_instance_mapping.at(top).length() < path.length()) {
+        } else if (map_instance_mapping.at(top).length() > path.length()) {
+            // we need shortest path here since that's where the top is
             map_instance_mapping[top] = path;
         }
     }
@@ -750,7 +751,14 @@ std::vector<RTLSimulatorClient::IPMapping> RTLSimulatorClient::compute_hierarchy
         auto *mod_handle = handle_queues.front();
         handle_queues.pop();
         auto *handle_iter = vpi_->vpi_iterate(vpiModule, mod_handle);
-        if (!handle_iter) continue;
+        if (!handle_iter) {
+            if (is_verilator() && !mod_handle) {
+                // verilator... why would you do this?
+                auto const &top_name = map_instance_mapping.begin()->first;
+                return {{top_name, fmt::format("TOP.{0}.", top_name)}};
+            }
+            continue;
+        }
         vpiHandle child_handle;
         while ((child_handle = vpi_->vpi_scan(handle_iter)) != nullptr) {
             std::string hierarchy_name = vpi_->vpi_get_str(vpiFullName, child_handle);
@@ -759,11 +767,19 @@ std::vector<RTLSimulatorClient::IPMapping> RTLSimulatorClient::compute_hierarchy
                 if (path.empty()) {
                     if (empty_top.find(top) != empty_top.end()) continue;
                     auto tokens = util::get_tokens(hierarchy_name, ".");
+                    // in Verilator TOP is not an instance!
                     if (tokens.size() > 1) {
                         // it has to be larger than 1
                         auto prefix = hierarchy_name + ".";
                         empty_top.emplace(top);
                         result.emplace_back(std::make_pair(top, prefix));
+                        continue;
+                    } else if (is_verilator() && tokens.size() == 1 && tokens[0] == top) {
+                        // this is verilator hack
+                        auto prefix = "TOP." + hierarchy_name + ".";
+                        empty_top.emplace(top);
+                        result.emplace_back(std::make_pair(top, prefix));
+                        continue;
                     }
                 }
                 auto [res, prefix] = match(hierarchy_name, path);
