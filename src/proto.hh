@@ -380,12 +380,14 @@ public:
     [[nodiscard]] const std::string &var_name() const { return variable_name_; }
     [[nodiscard]] const std::string &condition() const { return condition_; }
     [[nodiscard]] Action action() const { return action_; }
+    [[nodiscard]] std::optional<uint64_t> namespace_id() const { return namespace_id_; }
 
 private:
     uint64_t breakpoint_id_ = 0;
     std::string variable_name_;
     std::string condition_;
     Action action_ = Action::add;
+    std::optional<uint64_t> namespace_id_;
 };
 
 struct DebugBreakPoint;

@@ -969,8 +969,18 @@ void Debugger::handle_symbol(const SymbolRequest &, uint64_t) {
 
 // NOLINTNEXTLINE
 void Debugger::handle_data_breakpoint(const DataBreakpointRequest &req, uint64_t conn_id) {
-    // TODO: add namespace id to req
-    const auto ns_id = 0;
+    uint32_t ns_id = namespaces_.default_id();
+    if (!req.namespace_id()) {
+        // need to compute the namespace
+        auto instance_name = db_->get_instance_name_from_bp(req.breakpoint_id());
+        auto namespaces = namespaces_.get_namespaces(instance_name);
+        if (!namespaces.empty()) {
+            ns_id = namespaces[0]->id;
+        }
+    } else {
+        ns_id = *req.namespace_id();
+    }
+
     switch (req.action()) {
         case DataBreakpointRequest::Action::clear: {
             scheduler_->clear_data_breakpoints();
@@ -988,6 +998,7 @@ void Debugger::handle_data_breakpoint(const DataBreakpointRequest &req, uint64_t
                 send_message(error.str(log_enabled_), conn_id);
                 return;
             }
+
             // this is not very efficient, but good enough for now
             auto bp_ids = db_->get_assigned_breakpoints(req.var_name(), req.breakpoint_id());
             auto inst_name = db_->get_instance_name_from_bp(req.breakpoint_id());

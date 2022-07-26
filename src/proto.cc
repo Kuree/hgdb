@@ -1265,6 +1265,8 @@ void DataBreakpointRequest::parse_payload(const std::string &payload) {
         return;
     }
 
+    namespace_id_ = get_member<uint64_t>(document, "namespace_id", error_reason_);
+
     if (action == "clear") {
         action_ = Action::clear;
     } else if (action == "remove") {
