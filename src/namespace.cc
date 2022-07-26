@@ -17,8 +17,12 @@ DebuggerNamespace *DebuggerNamespaceManager::add_namespace(std::shared_ptr<AVPIP
     return ns.get();
 }
 
-RTLSimulatorClient *DebuggerNamespaceManager::default_rtl() {
+RTLSimulatorClient *DebuggerNamespaceManager::default_rtl() const {
     return namespaces_.empty() ? nullptr : namespaces_[0]->rtl.get();
+}
+
+DebuggerNamespace *DebuggerNamespaceManager::default_namespace() const {
+    return namespaces_.empty() ? nullptr : namespaces_[0].get();
 }
 
 void DebuggerNamespaceManager::compute_instance_mapping(SymbolTableProvider *db) {

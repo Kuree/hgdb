@@ -100,8 +100,7 @@ def test_bp_location_request(start_server, find_free_port):
 
 
 def test_breakpoint_request(start_server, find_free_port):
-    # s, uri = setup_server(start_server, find_free_port)
-    uri = "ws://localhost:8888"
+    s, uri = setup_server(start_server, find_free_port)
     num_instances = 2
 
     async def test_logic():
@@ -249,7 +248,7 @@ def test_evaluate(start_server, find_free_port):
         assert resp["payload"]["result"] == "42"
         resp = await client.evaluate("", "mod.a + 41")
         assert resp["payload"]["result"] == "42"
-        resp = await client.evaluate("1", "a + 41")
+        resp = await client.evaluate("1", "a + 41", is_context=False)
         assert resp["payload"]["result"] == "42"
         # as long as it's a valid expression, even if the scope is wrong it is fine
         resp = await client.evaluate("test", "1")
@@ -620,4 +619,4 @@ if __name__ == "__main__":
     sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
     from conftest import start_server_fn, find_free_port_fn
 
-    test_breakpoint_request(start_server_fn, find_free_port_fn)
+    test_evaluate(start_server_fn, find_free_port_fn)

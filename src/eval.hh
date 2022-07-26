@@ -84,6 +84,7 @@ public:
     void set_static_values(const std::unordered_map<std::string, int64_t> &static_values);
     void set_resolved_symbol_handle(const std::string &name, vpiHandle handle);
     [[nodiscard]] auto const &get_resolved_symbol_handles() const { return handles_; }
+    void clear();
 
     // no copy construction
     DebugExpression(const DebugExpression &) = delete;

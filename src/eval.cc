@@ -466,6 +466,12 @@ void DebugExpression::set_resolved_symbol_handle(const std::string& name, vpiHan
     }
 }
 
+void DebugExpression::clear() {
+    handles_.clear();
+    values_.clear();
+    correct_ = true;
+}
+
 void DebugExpression::set_value(const std::string& name, int64_t value) { values_[name] = value; }
 
 void DebugExpression::set_values(const std::unordered_map<std::string, int64_t>& values) {

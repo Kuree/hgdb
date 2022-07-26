@@ -21,7 +21,8 @@ public:
     DebuggerNamespace *add_namespace(std::shared_ptr<AVPIProvider> vpi);
 
     DebuggerNamespace *operator[](uint64_t index) { return namespaces_[index].get(); }
-    RTLSimulatorClient *default_rtl();
+    RTLSimulatorClient *default_rtl() const;
+    DebuggerNamespace *default_namespace() const;
     void compute_instance_mapping(SymbolTableProvider *db);
     [[nodiscard]] auto empty() const { return namespaces_.empty(); }
     [[nodiscard]] auto size() const { return namespaces_.size(); }

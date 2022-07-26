@@ -730,6 +730,7 @@ void Debugger::handle_path_mapping(const PathMappingRequest &req, uint64_t conn_
     }
 }
 
+// NOLINTNEXTLINE
 void Debugger::handle_evaluation(const EvaluationRequest &req, uint64_t conn_id) {
     std::string error_reason = req.error_reason();
     auto send_error = [&error_reason, this, &req, conn_id]() {
@@ -756,17 +757,49 @@ void Debugger::handle_evaluation(const EvaluationRequest &req, uint64_t conn_id)
         }
 
         auto breakpoint_id = req.is_context() ? util::stoul(scope) : std::nullopt;
-        // FIXME:
-        //   add namespace ID to the request
-        util::validate_expr(namespaces_.default_rtl(), db_.get(), &expr, breakpoint_id,
-                            instance_id);
+        DebuggerNamespace *ns = nullptr;
+        if (instance_id) {
+            auto instance_name = db_->get_instance_name(*instance_id);
+            if (instance_name) {
+                // FIXME:
+                //   add namespace ID to the request
+                auto namespaces = namespaces_.get_namespaces(*instance_name);
+                if (!namespaces.empty()) {
+                    ns = namespaces[0];
+                }
+            }
+        }
+
+        if (!ns) ns = namespaces_.default_namespace();
+
+        // if we don't have any breakpoint id and instance id provided
+        // it's free for all
+        if (instance_id || breakpoint_id) {
+            util::validate_expr(ns->rtl.get(), db_.get(), &expr, breakpoint_id, instance_id);
+        } else {
+            bool matched = false;
+            for (auto const &ns_ : namespaces_) {
+                util::validate_expr(ns_->rtl.get(), db_.get(), &expr, breakpoint_id, instance_id);
+                if (expr.correct()) {
+                    matched = true;
+                    break;
+                } else {
+                    expr.clear();
+                }
+            }
+            if (!matched) {
+                // this is an error
+                expr.set_error();
+            }
+        }
+
         if (!expr.correct()) {
             error_reason = "Unable to resolve symbols";
             send_error();
             return;
         }
 
-        auto res = set_expr_values(0, &expr, instance_id ? *instance_id : 0);
+        auto res = set_expr_values(ns ? ns->id : 0, &expr, instance_id ? *instance_id : 0);
 
         if (!res) {
             error_reason = "Unable to get symbol values";
@@ -1419,7 +1452,8 @@ void Debugger::process_delayed_breakpoint(uint32_t bp_id) {
     auto *bp = scheduler_->get_breakpoint(bp_id);
     if (!bp) return;
     auto context_vars = db_->get_context_delayed_variables(bp_id);
-    auto const &namespaces = namespaces_.get_namespaces(bp->full_rtl_name);
+    auto instance_name = db_->get_instance_name_from_bp(bp_id);
+    auto const &namespaces = namespaces_.get_namespaces(*instance_name);
     for (auto *ns : namespaces) {
         auto *rtl = ns->rtl.get();
         auto *monitor = ns->monitor.get();
