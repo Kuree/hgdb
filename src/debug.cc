@@ -922,7 +922,8 @@ void Debugger::handle_set_value(const SetValueRequest &req, uint64_t conn_id) { 
     log_info(fmt::format("handle set value {0} = {1}", req.var_name(), req.value()));
 
     if (req.status() == status_code::success) {
-        auto const ns_id = req.namespace_id() ? *req.namespace_id() : namespaces_.default_id();
+        auto const ns_id =
+            req.namespace_id() ? *req.namespace_id() : DebuggerNamespaceManager::default_id();
         auto &rtl = namespaces_[ns_id]->rtl;
         std::optional<std::string> full_name =
             resolve_var_name(ns_id, req.var_name(), req.instance_id(), req.breakpoint_id());
@@ -967,7 +968,7 @@ void Debugger::handle_symbol(const SymbolRequest &, uint64_t) {
 
 // NOLINTNEXTLINE
 void Debugger::handle_data_breakpoint(const DataBreakpointRequest &req, uint64_t conn_id) {
-    uint32_t ns_id = namespaces_.default_id();
+    uint32_t ns_id = DebuggerNamespaceManager::default_id();
     if (!req.namespace_id()) {
         // need to compute the namespace
         auto instance_name = db_->get_instance_name_from_bp(req.breakpoint_id());
@@ -1124,7 +1125,7 @@ void Debugger::send_breakpoint_hit(const std::vector<const DebugBreakPoint *> &b
         auto instance_name = db_->get_instance_name_from_bp(bp_id);
         auto instance_name_str = instance_name ? *instance_name : "";
 
-        BreakPointResponse::Scope scope(bp->instance_id, instance_name_str, bp_id);
+        BreakPointResponse::Scope scope(bp->instance_id, instance_name_str, bp_id, bp->ns_id);
         switch (bp->type) {
             case DebugBreakPoint::Type::data:
                 scope.bp_type = "data";

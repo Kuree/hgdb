@@ -465,6 +465,7 @@ std::string BreakPointResponse::str(bool pretty_print) const {
         set_member(entry, allocator, "instance_id", scope.instance_id);
         set_member(entry, allocator, "instance_name", scope.instance_name);
         set_member(entry, allocator, "breakpoint_id", scope.breakpoint_id);
+        set_member(entry, allocator, "namespace_id", scope.namespace_id);
         set_member(entry, allocator, "local", scope.local_values);
         set_member(entry, allocator, "generator", scope.generator_values);
 
@@ -516,9 +517,10 @@ bool BreakPointResponse::LocalVarNameCompare::operator()(const std::string &var1
 }
 
 BreakPointResponse::Scope::Scope(uint64_t instance_id, std::string instance_name,
-                                 uint64_t breakpoint_id)
+                                 uint64_t breakpoint_id, uint64_t namespace_id)
     : instance_id(instance_id),
       breakpoint_id(breakpoint_id),
+      namespace_id(namespace_id),
       instance_name(std::move(instance_name)) {}
 
 void BreakPointResponse::Scope::add_local_value(const std::string &name, const std::string &value) {

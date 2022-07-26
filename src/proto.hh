@@ -106,12 +106,14 @@ public:
     public:
         uint64_t instance_id;
         uint64_t breakpoint_id;
+        uint64_t namespace_id;
         std::string instance_name;
         std::string bp_type;
         std::map<std::string, std::string, LocalVarNameCompare> local_values;
         std::map<std::string, std::string> generator_values;
 
-        Scope(uint64_t instance_id, std::string instance_name, uint64_t breakpoint_id);
+        Scope(uint64_t instance_id, std::string instance_name, uint64_t breakpoint_id,
+              uint64_t namespace_id = 0u);
 
         void add_local_value(const std::string &name, const std::string &value);
         void add_generator_value(const std::string &name, const std::string &value);
