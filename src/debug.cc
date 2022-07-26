@@ -730,6 +730,44 @@ void Debugger::handle_path_mapping(const PathMappingRequest &req, uint64_t conn_
     }
 }
 
+void find_matching_namespace_validate(DebugExpression &expr, SymbolTableProvider *db,
+                                      std::optional<uint32_t> breakpoint_id,
+                                      std::optional<uint32_t> instance_id,
+                                      DebuggerNamespaceManager &namespaces_) {
+    bool matched = false;
+    for (auto const &ns_ : namespaces_) {
+        util::validate_expr(ns_->rtl.get(), db, &expr, breakpoint_id, instance_id);
+        if (expr.correct()) {
+            matched = true;
+            break;
+        } else {
+            expr.clear();
+        }
+    }
+    if (!matched) {
+        // this is an error
+        expr.set_error();
+    }
+}
+
+DebuggerNamespace *get_namespace(std::optional<uint32_t> instance_id,
+                                 std::optional<uint32_t> breakpoint_id,
+                                 DebuggerNamespaceManager &namespaces_, SymbolTableProvider *db) {
+    DebuggerNamespace *ns = nullptr;
+    if (instance_id) {
+        auto instance_name = db->get_instance_name(*instance_id);
+        if (instance_name) {
+            // FIXME:
+            //   add namespace ID to the request
+            auto namespaces = namespaces_.get_namespaces(*instance_name);
+            if (!namespaces.empty()) {
+                ns = namespaces[0];
+            }
+        }
+    }
+    return ns;
+}
+
 // NOLINTNEXTLINE
 void Debugger::handle_evaluation(const EvaluationRequest &req, uint64_t conn_id) {
     std::string error_reason = req.error_reason();
@@ -757,18 +795,7 @@ void Debugger::handle_evaluation(const EvaluationRequest &req, uint64_t conn_id)
         }
 
         auto breakpoint_id = req.is_context() ? util::stoul(scope) : std::nullopt;
-        DebuggerNamespace *ns = nullptr;
-        if (instance_id) {
-            auto instance_name = db_->get_instance_name(*instance_id);
-            if (instance_name) {
-                // FIXME:
-                //   add namespace ID to the request
-                auto namespaces = namespaces_.get_namespaces(*instance_name);
-                if (!namespaces.empty()) {
-                    ns = namespaces[0];
-                }
-            }
-        }
+        auto *ns = get_namespace(instance_id, breakpoint_id, namespaces_, db_.get());
 
         if (!ns) ns = namespaces_.default_namespace();
 
@@ -777,20 +804,8 @@ void Debugger::handle_evaluation(const EvaluationRequest &req, uint64_t conn_id)
         if (instance_id || breakpoint_id) {
             util::validate_expr(ns->rtl.get(), db_.get(), &expr, breakpoint_id, instance_id);
         } else {
-            bool matched = false;
-            for (auto const &ns_ : namespaces_) {
-                util::validate_expr(ns_->rtl.get(), db_.get(), &expr, breakpoint_id, instance_id);
-                if (expr.correct()) {
-                    matched = true;
-                    break;
-                } else {
-                    expr.clear();
-                }
-            }
-            if (!matched) {
-                // this is an error
-                expr.set_error();
-            }
+            find_matching_namespace_validate(expr, db_.get(), breakpoint_id, instance_id,
+                                             namespaces_);
         }
 
         if (!expr.correct()) {
