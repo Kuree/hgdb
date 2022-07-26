@@ -283,10 +283,10 @@ def test_watch(start_server, find_free_port):
     s, uri = setup_server(start_server, find_free_port)
 
     async def test_logic():
-        client = hgdb.HGDBClient(uri, None)
+        client = hgdb.HGDBClient(uri, None, debug=True)
         await client.connect()
-        id1 = await client.add_monitor("a", 1)
-        id2 = await client.add_monitor("b", 1, monitor_type="clock_edge")
+        id1, ns = await client.add_monitor("a", 1)
+        id2, ns = await client.add_monitor("b", 1, monitor_type="clock_edge")
         await client.set_breakpoint("/tmp/test.py", 1)
         await client.continue_()
         await client.recv_bp()  # breakpoint
@@ -299,7 +299,7 @@ def test_watch(start_server, find_free_port):
         watch3 = await client.recv()
         assert watch3["payload"]["track_id"] == id1
         # remove id2
-        await client.remove_monitor(id2)
+        await client.remove_monitor(id2, ns)
         await client.continue_()
         bp = await client.recv_bp()
         assert bp["type"] == "breakpoint"
@@ -619,4 +619,4 @@ if __name__ == "__main__":
     sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
     from conftest import start_server_fn, find_free_port_fn
 
-    test_evaluate(start_server_fn, find_free_port_fn)
+    test_watch(start_server_fn, find_free_port_fn)

@@ -856,23 +856,47 @@ void Debugger::handle_option_change(const OptionChangeRequest &req, uint64_t con
 }
 
 void Debugger::handle_monitor(const MonitorRequest &req, uint64_t conn_id) {
+    auto send_error = [this, &req, conn_id](const std::string &reason) {
+        auto resp = GenericResponse(status_code::error, req, reason);
+        send_message(resp.str(log_enabled_), conn_id);
+    };
+
     if (req.status() == status_code::success) {
         // depends on whether it is an add or remove action
-        // TODO: add namespace id
-        auto const ns_id = 0;
+        uint32_t ns_id;
+        if (req.namespace_id()) {
+            ns_id = *req.namespace_id();
+        } else {
+            std::optional<std::string> instance_name;
+            if (req.instance_id()) {
+                instance_name = db_->get_instance_name(*req.instance_id());
+            } else if (req.breakpoint_id()) {
+                instance_name = db_->get_instance_name_from_bp(*req.breakpoint_id());
+            }
+            std::vector<DebuggerNamespace *> namespaces;
+            if (instance_name) {
+                auto nss = namespaces_.get_namespaces(*instance_name);
+                namespaces = nss;
+            }
+            if (namespaces.size() != 1) {
+                send_error("Unable to determine RTL namespace");
+                return;
+            }
+            ns_id = namespaces[0]->id;
+        }
+
         auto &monitor = *namespaces_[ns_id]->monitor;
         if (req.action_type() == MonitorRequest::ActionType::add) {
             std::optional<std::string> full_name =
                 resolve_var_name(ns_id, req.var_name(), req.instance_id(), req.breakpoint_id());
             if (!full_name) {
-                auto resp =
-                    GenericResponse(status_code::error, req, "Unable to resolve " + req.var_name());
-                send_message(resp.str(log_enabled_), conn_id);
+                send_error("Unable to resolve " + req.var_name());
                 return;
             }
             auto track_id = monitor.add_monitor_variable(*full_name, req.monitor_type());
             auto resp = GenericResponse(status_code::success, req);
             resp.set_value("track_id", track_id);
+            resp.set_value("namespace_id", ns_id);
             // add topics
             auto topic = get_monitor_topic(track_id);
             this->server_->add_to_topic(topic, conn_id);
@@ -892,8 +916,7 @@ void Debugger::handle_monitor(const MonitorRequest &req, uint64_t conn_id) {
         }
 
     } else {
-        auto resp = GenericResponse(status_code::error, req, req.error_reason());
-        send_message(resp.str(log_enabled_), conn_id);
+        send_error(req.error_reason());
     }
 }
 
@@ -1135,7 +1158,7 @@ void Debugger::send_breakpoint_hit(const std::vector<const DebugBreakPoint *> &b
 
 void Debugger::send_monitor_values(MonitorRequest::MonitorType type) {
     //  optimize for no monitored value
-    for (auto &ns : namespaces_) {
+    for (const auto &ns : namespaces_) {
         auto &monitor = *ns->monitor;
         if (monitor.empty()) [[likely]]
             continue;
@@ -1143,7 +1166,7 @@ void Debugger::send_monitor_values(MonitorRequest::MonitorType type) {
         for (auto const &[id, value] : values) {
             auto topic = get_monitor_topic(id);
             auto value_str = value_to_str(value, use_hex_str_);
-            auto resp = MonitorResponse(id, value_str);
+            auto resp = MonitorResponse(id, ns->id, value_str);
             send_message(resp.str(log_enabled_));
         }
     }

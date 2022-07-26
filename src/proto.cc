@@ -97,6 +97,7 @@ namespace hgdb {
  *      instance_id: [optional] - uint64_t
  *      breakpoint_id: [optional] - uint64_t
  *      track_id: [required for remove] - uint64_t
+ *      namespace_id: [optional] - uint64_t
  * # notice that add request will get track_id in the generic response. clients are required
  * # to parse the value and use that as tracking id
  *
@@ -167,8 +168,9 @@ namespace hgdb {
  * Monitor Response
  * type: monitor
  * payload:
- *     track_id: uint64_t
- *     value: uint64_t
+ *     Array:
+ *         track_id: uint64_t
+ *         value: uint64_t
  *
  */
 
@@ -654,7 +656,7 @@ std::string EvaluationResponse::str(bool pretty_print) const {
     return to_string(document, pretty_print);
 }
 
-MonitorResponse::MonitorResponse(uint64_t track_id, std::string value)
+MonitorResponse::MonitorResponse(uint64_t track_id, uint64_t namespace_id, std::string value)
     : track_id_(track_id), value_(std::move(value)) {}
 
 std::string MonitorResponse::str(bool pretty_print) const {
@@ -666,6 +668,7 @@ std::string MonitorResponse::str(bool pretty_print) const {
 
     Value payload(kObjectType);
     set_member(payload, allocator, "track_id", track_id_);
+    set_member(payload, allocator, "namespace_id", namespace_id_);
     set_member(payload, allocator, "value", value_);
 
     set_member(document, "payload", payload);
@@ -1004,6 +1007,11 @@ void MonitorRequest::parse_payload(const std::string &payload) {
     } else {
         error_reason_ = "Unknown action type " + *action_type;
         return;
+    }
+
+    auto namespace_id = get_member<uint64_t>(document, "namespace_id", error_reason_);
+    if (namespace_id) {
+        namespace_id_ = *namespace_id;
     }
 
     if (action_type_ == ActionType::add) {

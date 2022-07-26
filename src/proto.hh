@@ -299,6 +299,7 @@ public:
     [[nodiscard]] const std::optional<uint64_t> &breakpoint_id() const { return breakpoint_id_; };
     [[nodiscard]] const std::optional<uint64_t> &instance_id() const { return instance_id_; }
     [[nodiscard]] uint64_t track_id() const { return track_id_; }
+    [[nodiscard]] std::optional<uint64_t> namespace_id() const { return namespace_id_; }
 
 private:
     ActionType action_type_ = ActionType::add;
@@ -307,6 +308,7 @@ private:
     std::optional<uint64_t> breakpoint_id_;
     std::optional<uint64_t> instance_id_;
     uint64_t track_id_ = 0;
+    std::optional<uint64_t> namespace_id_;
 };
 
 class SetValueRequest : public Request {
@@ -421,12 +423,13 @@ private:
 
 class MonitorResponse : public Response {
 public:
-    MonitorResponse(uint64_t track_id, std::string value);
+    MonitorResponse(uint64_t track_id, uint64_t namespace_id, std::string value);
     [[nodiscard]] std::string str(bool pretty_print) const override;
     [[nodiscard]] std::string type() const override { return to_string(RequestType::monitor); }
 
 private:
     uint64_t track_id_;
+    uint64_t namespace_id_;
     std::string value_;
 };
 
