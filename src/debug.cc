@@ -701,9 +701,7 @@ void Debugger::handle_debug_info(const DebuggerInformationRequest &req, uint64_t
         case DebuggerInformationRequest::CommandType::design: {
             // this basically lists the top mapping so the client will know the
             // where the design is
-            // TODO: Fix this
-            auto *rtl = namespaces_.default_rtl();
-            auto mapping = rtl->get_top_mapping();
+            auto mapping = namespaces_.get_top_mapping();
             auto resp = DebuggerInformationResponse(mapping);
             req.set_token(resp);
             send_message(resp.str(log_enabled_), conn_id);

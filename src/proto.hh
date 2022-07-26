@@ -396,7 +396,8 @@ public:
     explicit DebuggerInformationResponse(std::string status);
     explicit DebuggerInformationResponse(std::vector<const DebugBreakPoint *> bps);
     explicit DebuggerInformationResponse(std::map<std::string, std::string> options);
-    explicit DebuggerInformationResponse(std::unordered_map<std::string, std::string> design);
+    explicit DebuggerInformationResponse(
+        std::map<std::string, std::map<std::string, uint32_t>> design);
     explicit DebuggerInformationResponse(std::vector<std::string> filenames);
 
     [[nodiscard]] std::string str(bool pretty_print) const override;
@@ -410,7 +411,7 @@ private:
     std::vector<const DebugBreakPoint *> bps_;
     std::vector<std::string> filenames_;
     std::map<std::string, std::string> options_;
-    std::unordered_map<std::string, std::string> design_;
+    std::map<std::string, std::map<std::string, uint32_t>> design_;
     [[nodiscard]] std::string get_command_str() const;
 };
 

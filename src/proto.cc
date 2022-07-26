@@ -281,7 +281,15 @@ void set_member(K &json_value, A &allocator, const char *name, const T &value) {
         rapidjson::Value v_copy(value, allocator);
         json_value.AddMember(key.Move(), v_copy.Move(), allocator);
     } else if constexpr (std::is_same<T, std::map<std::string, std::string>>::value ||
-                         std::is_same<T, LocalVarCompareMap>::value) {
+                         std::is_same<T, LocalVarCompareMap>::value ||
+                         std::is_same<T, std::map<std::string, uint32_t>>::value) {
+        rapidjson::Value v(rapidjson::kObjectType);
+        for (auto const &[n, value_] : value) {
+            set_member(v, allocator, n.c_str(), value_);
+        }
+        json_value.AddMember(key.Move(), v.Move(), allocator);
+    } else if constexpr (std::is_same<
+                             T, std::map<std::string, std::map<std::string, uint32_t>>>::value) {
         rapidjson::Value v(rapidjson::kObjectType);
         for (auto const &[n, value_] : value) {
             set_member(v, allocator, n.c_str(), value_);
@@ -536,7 +544,7 @@ DebuggerInformationResponse::DebuggerInformationResponse(std::map<std::string, s
       options_(std::move(options)) {}
 
 DebuggerInformationResponse::DebuggerInformationResponse(
-    std::unordered_map<std::string, std::string> design)
+    std::map<std::string, std::map<std::string, uint32_t>> design)
     : command_type_(DebuggerInformationRequest::CommandType::design), design_(std::move(design)) {}
 
 DebuggerInformationResponse::DebuggerInformationResponse(std::vector<std::string> filenames)
@@ -596,8 +604,7 @@ std::string DebuggerInformationResponse::str(bool pretty_print) const {
         }
         case DebuggerInformationRequest::CommandType::design: {
             // make it ordered here
-            auto design = std::map<std::string, std::string>(design_.begin(), design_.end());
-            set_member(payload, allocator, "design", design);
+            set_member(payload, allocator, "design", design_);
             break;
         }
         case DebuggerInformationRequest::CommandType::filename: {
@@ -658,7 +665,7 @@ std::string EvaluationResponse::str(bool pretty_print) const {
 }
 
 MonitorResponse::MonitorResponse(uint64_t track_id, uint64_t namespace_id, std::string value)
-    : track_id_(track_id), value_(std::move(value)) {}
+    : track_id_(track_id), namespace_id_(namespace_id), value_(std::move(value)) {}
 
 std::string MonitorResponse::str(bool pretty_print) const {
     using namespace rapidjson;
@@ -1102,6 +1109,7 @@ std::string to_string(SymbolRequest::request_type type) {
     throw std::runtime_error("Invalid request type");
 }
 
+// NOLINTNEXTLINE
 void SymbolRequest::parse_payload(const std::string &payload) {
     using namespace rapidjson;
     Document document;

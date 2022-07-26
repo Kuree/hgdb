@@ -62,4 +62,17 @@ const std::vector<DebuggerNamespace *> &DebuggerNamespaceManager::get_namespaces
     }
 }
 
+std::map<std::string, std::map<std::string, uint32_t>> DebuggerNamespaceManager::get_top_mapping()
+    const {
+    std::map<std::string, std::map<std::string, uint32_t>> result;
+    for (auto const &ns : namespaces_) {
+        auto [src_name, tb_name] = ns->rtl->get_mapping();
+        auto name_from =
+            src_name.ends_with('.') ? src_name.substr(0, src_name.size() - 1) : src_name;
+        auto name_to = tb_name.ends_with('.') ? tb_name.substr(0, tb_name.size() - 1) : tb_name;
+        result[src_name][name_to] = ns->id;
+    }
+    return result;
+}
+
 }  // namespace hgdb

@@ -23,7 +23,7 @@ public:
     DebuggerNamespace *operator[](uint64_t index) { return namespaces_[index].get(); }
     RTLSimulatorClient *default_rtl() const;
     DebuggerNamespace *default_namespace() const;
-    uint64_t default_id() const { return 0; }
+    static uint64_t default_id() { return 0; }
     void compute_instance_mapping(SymbolTableProvider *db);
     [[nodiscard]] auto empty() const { return namespaces_.empty(); }
     [[nodiscard]] auto size() const { return namespaces_.size(); }
@@ -32,6 +32,8 @@ public:
 
     const std::vector<DebuggerNamespace *> &get_namespaces(
         const std::optional<std::string> &def_name);
+
+    std::map<std::string, std::map<std::string, uint32_t>> get_top_mapping() const;
 
 private:
     std::vector<std::unique_ptr<DebuggerNamespace>> namespaces_;

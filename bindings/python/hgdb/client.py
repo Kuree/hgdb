@@ -191,6 +191,10 @@ class HGDBClient:
         info = await self.get_info("filename")
         return info["payload"]["filenames"]
 
+    async def get_design(self):
+        info = await self.get_info("design")
+        return info["payload"]["design"]
+
     async def evaluate(self, scope, expression, is_context=True, check_error=True):
         payload = {"request": True, "type": "evaluation",
                    "payload": {"scope": scope, "expression": expression, "is_context": is_context}}

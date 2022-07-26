@@ -150,14 +150,12 @@ public:
 
     // inform user about our mapping
     void set_mapping(const std::string &top, const std::string &prefix);
-    [[nodiscard]] std::unordered_map<std::string, std::string> get_top_mapping() const;
+    [[nodiscard]] auto const &get_mapping() const { return hierarchy_name_prefix_map_; }
 
 private:
     std::unordered_map<std::string, vpiHandle> handle_map_;
     std::mutex handle_map_lock_;
-    // it is a map just in case there are separated tops being generated
-    // in this case, each top needs to get mapped to a different hierarchy
-    std::unordered_map<std::string, std::string> hierarchy_name_prefix_map_;
+    std::pair<std::string, std::string> hierarchy_name_prefix_map_;
     // VPI provider
     std::shared_ptr<AVPIProvider> vpi_;
     uint32_t vpi_net_target_ = vpiNet;

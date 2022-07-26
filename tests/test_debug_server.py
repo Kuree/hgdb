@@ -359,7 +359,9 @@ def test_set_value(start_server, find_free_port):
     async def test_logic():
         async with hgdb.HGDBClient(uri, None) as client:
             await client.connect()
-            await client.set_value("mod.a", 42, namespace_id=1)
+            design = await client.get_design()
+            ns_id = list(design["mod"].values())[0]
+            await client.set_value("mod.a", 42, namespace_id=ns_id)
             await client.set_breakpoint("/tmp/test.py", 1)
             await client.continue_()
             bp = await client.recv_bp()
@@ -619,4 +621,4 @@ if __name__ == "__main__":
     sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
     from conftest import start_server_fn, find_free_port_fn
 
-    test_data_breakpoint(start_server_fn, find_free_port_fn)
+    test_set_value(start_server_fn, find_free_port_fn)

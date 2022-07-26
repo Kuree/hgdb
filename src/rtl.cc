@@ -412,12 +412,12 @@ std::unordered_map<std::string, vpiHandle> RTLSimulatorClient::get_module_signal
 
 std::string RTLSimulatorClient::get_full_name(const std::string &name) const {
     auto const [top, path] = get_path(name);
-    if (hierarchy_name_prefix_map_.find(top) == hierarchy_name_prefix_map_.end()) {
+    if (hierarchy_name_prefix_map_.first != top) {
         // we haven't seen this top. it has to be an error since we require top name
         // setup in the constructor. return the original name
         return name;
     } else {
-        auto prefix = hierarchy_name_prefix_map_.at(top);
+        auto prefix = hierarchy_name_prefix_map_.second;
         if (path.empty())
             return prefix.substr(0, prefix.size() - 1);
         else
@@ -436,7 +436,7 @@ std::string RTLSimulatorClient::get_full_name(vpiHandle handle) {
 
 bool RTLSimulatorClient::is_absolute_path(const std::string &name) const {
     auto const [top, path] = get_path(name);
-    return hierarchy_name_prefix_map_.find(top) != hierarchy_name_prefix_map_.end();
+    return hierarchy_name_prefix_map_.first == top;
 }
 
 const std::vector<std::string> &RTLSimulatorClient::get_argv() const { return sim_info_.args; }
@@ -809,23 +809,21 @@ std::vector<std::string> RTLSimulatorClient::get_clocks_from_design() {
     if (!vpi_) return {};
     // this employ some naming heuristics to get the name
     std::vector<std::string> result;
-    for (auto const &iter : hierarchy_name_prefix_map_) {
-        auto const &instance_name = iter.second;
-        for (auto const &clk_name : clock_names_) {
-            auto const &signal_name = instance_name + clk_name;
-            // test to see if there is a signal name that match
-            auto *handle =
-                vpi_->vpi_handle_by_name(const_cast<char *>(signal_name.c_str()), nullptr);
-            if (handle) {
-                // make sure it's 1 bit as well
-                int width = vpi_->vpi_get(vpiSize, handle);
-                if (width == 1) {
-                    result.emplace_back(signal_name);
-                    break;
-                }
+    auto const &instance_name = hierarchy_name_prefix_map_.second;
+    for (auto const &clk_name : clock_names_) {
+        auto const &signal_name = instance_name + clk_name;
+        // test to see if there is a signal name that match
+        auto *handle = vpi_->vpi_handle_by_name(const_cast<char *>(signal_name.c_str()), nullptr);
+        if (handle) {
+            // make sure it's 1 bit as well
+            int width = vpi_->vpi_get(vpiSize, handle);
+            if (width == 1) {
+                result.emplace_back(signal_name);
+                break;
             }
         }
     }
+
     return result;
 }
 
@@ -920,18 +918,7 @@ RTLSimulatorClient::~RTLSimulatorClient() {
 }
 
 void RTLSimulatorClient::set_mapping(const std::string &top, const std::string &prefix) {
-    hierarchy_name_prefix_map_.emplace(top, prefix);
-}
-
-std::unordered_map<std::string, std::string> RTLSimulatorClient::get_top_mapping() const {
-    std::unordered_map<std::string, std::string> result;
-    for (auto const &[src_name, tb_name] : hierarchy_name_prefix_map_) {
-        auto name_from =
-            src_name.ends_with('.') ? src_name.substr(0, src_name.size() - 1) : src_name;
-        auto name_to = tb_name.ends_with('.') ? tb_name.substr(0, tb_name.size() - 1) : tb_name;
-        result.emplace(name_from, name_to);
-    }
-    return result;
+    hierarchy_name_prefix_map_ = {top, prefix};
 }
 
 std::optional<std::pair<uint32_t, uint32_t>> extract_slice(const std::string &token) {
