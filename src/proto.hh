@@ -261,11 +261,14 @@ public:
 
     [[nodiscard]] const std::string &scope() const { return scope_; }
     [[nodiscard]] const std::string &expression() const { return expression_; }
+    [[nodiscard]] std::optional<uint64_t> namespace_id() const { return namespace_id_; };
     [[nodiscard]] bool is_context() const { return is_context_; }
 
 private:
     std::string scope_;
     std::string expression_;
+    std::optional<uint64_t> namespace_id_;
+
     bool is_context_ = false;
 };
 

@@ -972,6 +972,8 @@ void EvaluationRequest::parse_payload(const std::string &payload) {
     scope_ = *scope;
     expression_ = *expression;
     is_context_ = *is_context;
+
+    namespace_id_ = get_member<uint64_t>(document, "namespace_id", error_reason_);
 }
 
 void OptionChangeRequest::parse_payload(const std::string &payload) {

@@ -317,6 +317,11 @@ void Debugger::send_message(const std::string &message, uint64_t conn_id) {
     }
 }
 
+void Debugger::send_error(const Request &req, const std::string &message, uint64_t conn_id) {
+    auto resp = GenericResponse(status_code::error, req, message);
+    send_message(resp.str(log_enabled_), conn_id);
+}
+
 uint16_t Debugger::get_port() {
     auto port_str = get_value_plus_arg("DEBUG_PORT");
     if (!port_str) return default_port_num;
@@ -750,17 +755,29 @@ void find_matching_namespace_validate(DebugExpression &expr, SymbolTableProvider
 
 DebuggerNamespace *get_namespace(std::optional<uint32_t> instance_id,
                                  std::optional<uint32_t> breakpoint_id,
+                                 std::optional<uint64_t> namespace_id,
                                  DebuggerNamespaceManager &namespaces_, SymbolTableProvider *db) {
-    DebuggerNamespace *ns = nullptr;
+    DebuggerNamespace *ns = namespaces_.default_namespace();
+    if (namespace_id) {
+        if (namespaces_.size() > *namespace_id) {
+            return namespaces_[*namespace_id];
+        }
+    }
+    std::optional<std::string> instance_name;
     if (instance_id) {
-        auto instance_name = db->get_instance_name(*instance_id);
-        if (instance_name) {
-            // FIXME:
-            //   add namespace ID to the request
-            auto namespaces = namespaces_.get_namespaces(*instance_name);
-            if (!namespaces.empty()) {
-                ns = namespaces[0];
-            }
+        instance_name = db->get_instance_name(*instance_id);
+    }
+
+    if (!instance_name && breakpoint_id) {
+        instance_name = db->get_instance_name_from_bp(*breakpoint_id);
+    }
+
+    if (instance_name) {
+        auto namespaces = namespaces_.get_namespaces(*instance_name);
+        if (namespaces.size() == 1) {
+            ns = namespaces[0];
+        } else {
+            return nullptr;
         }
     }
     return ns;
@@ -769,10 +786,6 @@ DebuggerNamespace *get_namespace(std::optional<uint32_t> instance_id,
 // NOLINTNEXTLINE
 void Debugger::handle_evaluation(const EvaluationRequest &req, uint64_t conn_id) {
     std::string error_reason = req.error_reason();
-    auto send_error = [&error_reason, this, &req, conn_id]() {
-        auto resp = GenericResponse(status_code::error, req, error_reason);
-        send_message(resp.str(log_enabled_), conn_id);
-    };
 
     if (db_ && req.status() == status_code::success) [[likely]] {
         // need to figure out if it is a valid instance name or just filename + line number
@@ -780,7 +793,7 @@ void Debugger::handle_evaluation(const EvaluationRequest &req, uint64_t conn_id)
         DebugExpression expr(req.expression());
         if (!expr.correct()) {
             error_reason = "Invalid expression";
-            send_error();
+            send_error(req, error_reason, conn_id);
             return;
         }
         std::optional<uint32_t> instance_id;
@@ -793,7 +806,8 @@ void Debugger::handle_evaluation(const EvaluationRequest &req, uint64_t conn_id)
         }
 
         auto breakpoint_id = req.is_context() ? util::stoul(scope) : std::nullopt;
-        auto *ns = get_namespace(instance_id, breakpoint_id, namespaces_, db_.get());
+        auto *ns =
+            get_namespace(instance_id, breakpoint_id, req.namespace_id(), namespaces_, db_.get());
 
         if (!ns) ns = namespaces_.default_namespace();
 
@@ -808,7 +822,7 @@ void Debugger::handle_evaluation(const EvaluationRequest &req, uint64_t conn_id)
 
         if (!expr.correct()) {
             error_reason = "Unable to resolve symbols";
-            send_error();
+            send_error(req, error_reason, conn_id);
             return;
         }
 
@@ -816,7 +830,7 @@ void Debugger::handle_evaluation(const EvaluationRequest &req, uint64_t conn_id)
 
         if (!res) {
             error_reason = "Unable to get symbol values";
-            send_error();
+            send_error(req, error_reason, conn_id);
             return;
         }
 
@@ -826,7 +840,7 @@ void Debugger::handle_evaluation(const EvaluationRequest &req, uint64_t conn_id)
         send_message(eval_resp.str(log_enabled_), conn_id);
         return;
     } else {
-        send_error();
+        send_error(req, error_reason, conn_id);
     }
 }
 
@@ -848,53 +862,28 @@ void Debugger::handle_option_change(const OptionChangeRequest &req, uint64_t con
         auto resp = GenericResponse(status_code::success, req);
         send_message(resp.str(log_enabled_), conn_id);
     } else {
-        auto resp = GenericResponse(status_code::error, req, req.error_reason());
-        send_message(resp.str(log_enabled_), conn_id);
+        send_error(req, req.error_reason(), conn_id);
     }
 }
 
 void Debugger::handle_monitor(const MonitorRequest &req, uint64_t conn_id) {
-    auto send_error = [this, &req, conn_id](const std::string &reason) {
-        auto resp = GenericResponse(status_code::error, req, reason);
-        send_message(resp.str(log_enabled_), conn_id);
-    };
-
     if (req.status() == status_code::success) {
         // depends on whether it is an add or remove action
-        uint32_t ns_id;
-        if (req.namespace_id()) {
-            ns_id = *req.namespace_id();
-        } else {
-            std::optional<std::string> instance_name;
-            if (req.instance_id()) {
-                instance_name = db_->get_instance_name(*req.instance_id());
-            } else if (req.breakpoint_id()) {
-                instance_name = db_->get_instance_name_from_bp(*req.breakpoint_id());
-            }
-            std::vector<DebuggerNamespace *> namespaces;
-            if (instance_name) {
-                auto nss = namespaces_.get_namespaces(*instance_name);
-                namespaces = nss;
-            }
-            if (namespaces.size() != 1) {
-                send_error("Unable to determine RTL namespace");
-                return;
-            }
-            ns_id = namespaces[0]->id;
-        }
+        auto *ns = get_namespace(req.instance_id(), req.breakpoint_id(), req.namespace_id(),
+                                 namespaces_, db_.get());
 
-        auto &monitor = *namespaces_[ns_id]->monitor;
+        auto &monitor = *ns->monitor;
         if (req.action_type() == MonitorRequest::ActionType::add) {
             std::optional<std::string> full_name =
-                resolve_var_name(ns_id, req.var_name(), req.instance_id(), req.breakpoint_id());
+                resolve_var_name(ns->id, req.var_name(), req.instance_id(), req.breakpoint_id());
             if (!full_name) {
-                send_error("Unable to resolve " + req.var_name());
+                send_error(req, "Unable to resolve " + req.var_name(), conn_id);
                 return;
             }
             auto track_id = monitor.add_monitor_variable(*full_name, req.monitor_type());
             auto resp = GenericResponse(status_code::success, req);
             resp.set_value("track_id", track_id);
-            resp.set_value("namespace_id", ns_id);
+            resp.set_value("namespace_id", ns->id);
             // add topics
             auto topic = get_monitor_topic(track_id);
             this->server_->add_to_topic(topic, conn_id);
@@ -914,7 +903,7 @@ void Debugger::handle_monitor(const MonitorRequest &req, uint64_t conn_id) {
         }
 
     } else {
-        send_error(req.error_reason());
+        send_error(req, req.error_reason(), conn_id);
     }
 }
 
@@ -922,15 +911,17 @@ void Debugger::handle_set_value(const SetValueRequest &req, uint64_t conn_id) { 
     log_info(fmt::format("handle set value {0} = {1}", req.var_name(), req.value()));
 
     if (req.status() == status_code::success) {
-        auto const ns_id =
-            req.namespace_id() ? *req.namespace_id() : DebuggerNamespaceManager::default_id();
-        auto &rtl = namespaces_[ns_id]->rtl;
+        auto *ns = get_namespace(req.instance_id(), req.breakpoint_id(), req.namespace_id(),
+                                 namespaces_, db_.get());
+        if (!ns) {
+            send_error(req, "Unable to determine design namespace", conn_id);
+            return;
+        }
+        auto &rtl = ns->rtl;
         std::optional<std::string> full_name =
-            resolve_var_name(ns_id, req.var_name(), req.instance_id(), req.breakpoint_id());
+            resolve_var_name(ns->id, req.var_name(), req.instance_id(), req.breakpoint_id());
         if (!full_name) {
-            auto resp =
-                GenericResponse(status_code::error, req, "Unable to resolve " + req.var_name());
-            send_message(resp.str(log_enabled_), conn_id);
+            send_error(req, "Unable to resolve " + req.var_name(), conn_id);
             return;
         }
         // need to set the value
@@ -948,15 +939,12 @@ void Debugger::handle_set_value(const SetValueRequest &req, uint64_t conn_id) { 
             send_message(resp.str(log_enabled_), conn_id);
             return;
         } else {
-            auto resp =
-                GenericResponse(status_code::error, req, "Unable to set value for " + *full_name);
-            send_message(resp.str(log_enabled_), conn_id);
+            send_error(req, req.error_reason(), conn_id);
             return;
         }
 
     } else {
-        auto resp = GenericResponse(status_code::error, req, req.error_reason());
-        send_message(resp.str(log_enabled_), conn_id);
+        send_error(req, req.error_reason(), conn_id);
     }
 }
 
@@ -968,16 +956,11 @@ void Debugger::handle_symbol(const SymbolRequest &, uint64_t) {
 
 // NOLINTNEXTLINE
 void Debugger::handle_data_breakpoint(const DataBreakpointRequest &req, uint64_t conn_id) {
-    uint32_t ns_id = DebuggerNamespaceManager::default_id();
-    if (!req.namespace_id()) {
-        // need to compute the namespace
-        auto instance_name = db_->get_instance_name_from_bp(req.breakpoint_id());
-        auto namespaces = namespaces_.get_namespaces(instance_name);
-        if (!namespaces.empty()) {
-            ns_id = namespaces[0]->id;
-        }
-    } else {
-        ns_id = *req.namespace_id();
+    auto *ns = get_namespace(std::nullopt, req.breakpoint_id(), req.namespace_id(), namespaces_,
+                             db_.get());
+    if (!ns) {
+        send_error(req, "Unable to determine design namespace", conn_id);
+        return;
     }
 
     switch (req.action()) {
@@ -993,8 +976,7 @@ void Debugger::handle_data_breakpoint(const DataBreakpointRequest &req, uint64_t
             bool dry_run = req.action() == DataBreakpointRequest::Action::info;
             auto db_bp = db_->get_breakpoint(req.breakpoint_id());
             if (!db_bp) {
-                auto error = GenericResponse(status_code::error, req, "Invalid breakpoint id");
-                send_message(error.str(log_enabled_), conn_id);
+                send_error(req, "Invalid breakpoint id", conn_id);
                 return;
             }
 
@@ -1002,21 +984,19 @@ void Debugger::handle_data_breakpoint(const DataBreakpointRequest &req, uint64_t
             auto bp_ids = db_->get_assigned_breakpoints(req.var_name(), req.breakpoint_id());
             auto inst_name = db_->get_instance_name_from_bp(req.breakpoint_id());
             if (bp_ids.empty() || !inst_name) {
-                auto err = GenericResponse(status_code::error, req, "Invalid data breakpoint");
-                send_message(err.str(log_enabled_), conn_id);
+                send_error(req, "Invalid data breakpoint", conn_id);
                 return;
             }
             std::unordered_set<std::string> var_names;
             for (auto const &iter : bp_ids) {
                 auto full_name = fmt::format("{0}.{1}", *inst_name, std::get<1>(iter));
-                var_names.emplace(namespaces_[ns_id]->rtl->get_full_name(full_name));
+                var_names.emplace(ns->rtl->get_full_name(full_name));
             }
 
             for (auto const &[id, var_name, data_condition] : bp_ids) {
                 auto bp_opt = db_->get_breakpoint(id);
                 if (!bp_opt) {
-                    auto error = GenericResponse(status_code::error, req, "Invalid breakpoint id");
-                    send_message(error.str(log_enabled_), conn_id);
+                    send_error(req, "Invalid breakpoint id", conn_id);
                     return;
                 }
                 // merge data_condition
@@ -1031,17 +1011,14 @@ void Debugger::handle_data_breakpoint(const DataBreakpointRequest &req, uint64_t
                 auto *bp =
                     scheduler_->add_data_breakpoint(var_name, bp_condition, *bp_opt, dry_run);
                 if (!bp) {
-                    auto error =
-                        GenericResponse(status_code::error, req,
-                                        "Invalid data breakpoint expression/data_condition");
-                    send_message(error.str(log_enabled_), conn_id);
+                    send_error(req, "Invalid data breakpoint expression/data_condition", conn_id);
                     return;
                 }
 
                 // they share the same variable
                 // notice that in case some breakpoints got deleted, we need to get it from the
                 // monitor itself
-                auto &monitor = namespaces_[ns_id]->monitor;
+                auto &monitor = ns->monitor;
                 auto value_ptr =
                     monitor->get_watched_value_ptr(var_names, MonitorRequest::MonitorType::data);
                 if (!value_ptr) {
@@ -1072,7 +1049,7 @@ void Debugger::handle_data_breakpoint(const DataBreakpointRequest &req, uint64_t
             auto watch_id = scheduler_->remove_data_breakpoint(req.breakpoint_id());
             // remove from monitor as well
             if (watch_id) {
-                auto &monitor = namespaces_[ns_id]->monitor;
+                auto &monitor = ns->monitor;
                 monitor->remove_monitor_variable(*watch_id);
                 log_info(fmt::format("Remove watch variable with ID {0}", *watch_id));
             }

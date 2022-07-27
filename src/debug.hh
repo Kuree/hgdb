@@ -102,6 +102,7 @@ private:
     void on_message(const std::string &message, uint64_t conn_id);
     void send_message(const std::string &message);
     void send_message(const std::string &message, uint64_t conn_id);
+    void send_error(const Request &req, const std::string &message, uint64_t conn_id);
 
     // helper functions
     uint16_t get_port();
