@@ -244,18 +244,18 @@ def test_evaluate(start_server, find_free_port):
     async def test_logic():
         client = hgdb.HGDBClient(uri, None)
         await client.connect()
-        resp = await client.evaluate("", "42")
+        resp = await client.evaluate("42")
         assert resp["payload"]["result"] == "42"
-        resp = await client.evaluate(1, "a + 41", is_context=False)
+        resp = await client.evaluate("a + 41", instance_id=1)
         assert resp["payload"]["result"] == "42"
-        resp = await client.evaluate("", "mod.a + 41")
+        resp = await client.evaluate("mod.a + 41")
         assert resp["payload"]["result"] == "42"
-        resp = await client.evaluate(1, "a + 41", is_context=False)
+        resp = await client.evaluate("a + 41", instance_id=1)
         assert resp["payload"]["result"] == "42"
         # as long as it's a valid expression, even if the scope is wrong it is fine
-        resp = await client.evaluate(1000, "1")
+        resp = await client.evaluate("1", instance_id=42)
         assert resp["payload"]["result"] == "1"
-        resp = await client.evaluate("", "test.a", check_error=False)
+        resp = await client.evaluate("test.a", check_error=False)
         assert resp["status"] == "error"
 
     asyncio.get_event_loop_policy().get_event_loop().run_until_complete(test_logic())
@@ -387,7 +387,7 @@ def test_special_value(start_server, find_free_port):
                 await client.continue_()
                 bp = await client.recv_bp()
                 assert bp["payload"]["instances"][0]["instance_id"] == 1
-            res = await client.evaluate("0", "$time + 1")
+            res = await client.evaluate("$time + 1")
             assert res["payload"]["result"] == "5"
 
     asyncio.get_event_loop_policy().get_event_loop().run_until_complete(test_logic())
