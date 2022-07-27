@@ -50,9 +50,9 @@ public:
               const bool &single_thread_mode, const bool &log_enabled);
     enum class EvaluationMode { BreakPointOnly, StepOver, StepBack, ReverseBreakpointOnly, None };
     std::vector<DebugBreakPoint *> next_breakpoints();
-    DebugBreakPoint *next_step_over_breakpoint();
+    std::vector<DebugBreakPoint *> next_step_over_breakpoints();
     std::vector<DebugBreakPoint *> next_normal_breakpoints();
-    DebugBreakPoint *next_step_back_breakpoint();
+    std::vector<DebugBreakPoint *> next_step_back_breakpoints();
     std::vector<DebugBreakPoint *> next_reverse_breakpoints();
     DebugBreakPoint *get_breakpoint(uint32_t id) const;
     void start_breakpoint_evaluation();
@@ -95,7 +95,7 @@ private:
     // need to ensure there is no concurrent modification
     std::mutex breakpoint_lock_;
     // holder for step over breakpoint, not used for normal purpose
-    DebugBreakPoint next_temp_breakpoint_;
+    std::vector<DebugBreakPoint> next_temp_breakpoints_;
 
     // get it from the debugger. no ownership
     SymbolTableProvider *db_;
@@ -107,7 +107,8 @@ private:
     // cache clock handles as well
     std::vector<vpiHandle> clock_handles_;
 
-    DebugBreakPoint *create_next_breakpoint(const std::optional<BreakPoint> &bp_info);
+    std::vector<DebugBreakPoint *> create_next_breakpoints(
+        const std::optional<BreakPoint> &bp_info);
     std::unique_ptr<DebugBreakPoint> remove_breakpoint(uint64_t bp_id, DebugBreakPoint::Type type);
 
     // log
