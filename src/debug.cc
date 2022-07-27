@@ -1086,11 +1086,14 @@ void Debugger::send_breakpoint_hit(const std::vector<const DebugBreakPoint *> &b
     for (auto const *bp : bps) {
         // first need to query all the values
         auto bp_id = bp->id;
+        auto *rtl = namespaces_[bp->ns_id]->rtl.get();
         auto generator_values = db_->get_generator_variable(bp->instance_id);
         auto context_values = db_->get_context_variables(bp_id);
         auto bp_ptr = db_->get_breakpoint(bp_id);
         auto instance_name = db_->get_instance_name_from_bp(bp_id);
         auto instance_name_str = instance_name ? *instance_name : "";
+        // we use full name to distinguish among IP instantiations
+        instance_name_str = rtl->get_full_name(instance_name_str);
 
         BreakPointResponse::Scope scope(bp->instance_id, instance_name_str, bp_id, bp->ns_id);
         switch (bp->type) {
@@ -1103,7 +1106,6 @@ void Debugger::send_breakpoint_hit(const std::vector<const DebugBreakPoint *> &b
                 break;
         }
 
-        auto *rtl = namespaces_[bp->ns_id]->rtl.get();
         using namespace std::string_literals;
         for (auto const &[gen_var, var] : generator_values) {
             // maybe need to resolve the name based on the variable

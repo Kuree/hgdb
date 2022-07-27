@@ -151,9 +151,9 @@ def test_breakpoint_hit_continue(start_server, find_free_port):
         # should receive two instances
         # they should have the same information
         assert len(bp_info1["payload"]["instances"]) == 2
-        assert bp_info1["payload"]["instances"][0]["instance_name"] == "mod"
+        assert bp_info1["payload"]["instances"][0]["instance_name"] == "top.dut"
         assert bp_info1["payload"]["instances"][0]["namespace_id"] == 1
-        assert bp_info1["payload"]["instances"][1]["instance_name"] == "mod2"
+        assert bp_info1["payload"]["instances"][1]["instance_name"] == "top.dut2"
         assert bp_info1["payload"]["instances"][1]["namespace_id"] == 0
         await client.continue_()
         bp_info2 = await client.recv_bp()
