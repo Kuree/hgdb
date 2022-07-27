@@ -195,11 +195,16 @@ class HGDBClient:
         info = await self.get_info("design")
         return info["payload"]["design"]
 
-    async def evaluate(self, scope, expression, namespace_id=None, is_context=True, check_error=True):
+    async def evaluate(self, id_, expression, namespace_id=None, is_context=True, check_error=True):
         payload = {"request": True, "type": "evaluation",
-                   "payload": {"scope": scope, "expression": expression, "is_context": is_context}}
+                   "payload": {"expression": expression, "is_context": is_context}}
         if namespace_id is not None:
             payload["payload"]["namespace_id"] = namespace_id
+        if id_:
+            if is_context:
+                payload["payload"]["breakpoint_id"] = int(id_)
+            else:
+                payload["payload"]["instance_id"] = int(id_)
         return await self.__send_check(payload, check_error=check_error)
 
     async def change_option(self, check_error=True, **kwargs):

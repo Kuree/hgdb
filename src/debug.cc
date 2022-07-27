@@ -788,35 +788,24 @@ void Debugger::handle_evaluation(const EvaluationRequest &req, uint64_t conn_id)
     std::string error_reason = req.error_reason();
 
     if (db_ && req.status() == status_code::success) [[likely]] {
-        // need to figure out if it is a valid instance name or just filename + line number
-        auto const &scope = req.scope();
         DebugExpression expr(req.expression());
         if (!expr.correct()) {
             error_reason = "Invalid expression";
             send_error(req, error_reason, conn_id);
             return;
         }
-        std::optional<uint32_t> instance_id;
-        if (!req.is_context()) {
-            if (std::all_of(scope.begin(), scope.end(), ::isdigit)) {
-                instance_id = util::stoul(scope);
-            } else {
-                instance_id = db_->get_instance_id(scope);
-            }
-        }
-
-        auto breakpoint_id = req.is_context() ? util::stoul(scope) : std::nullopt;
-        auto *ns =
-            get_namespace(instance_id, breakpoint_id, req.namespace_id(), namespaces_, db_.get());
+        auto *ns = get_namespace(req.instance_id(), req.breakpoint_id(), req.namespace_id(),
+                                 namespaces_, db_.get());
 
         if (!ns) ns = namespaces_.default_namespace();
 
         // if we don't have any breakpoint id and instance id provided
         // it's free for all
-        if (instance_id || breakpoint_id) {
-            util::validate_expr(ns->rtl.get(), db_.get(), &expr, breakpoint_id, instance_id);
+        if (req.instance_id() || req.breakpoint_id()) {
+            util::validate_expr(ns->rtl.get(), db_.get(), &expr, req.breakpoint_id(),
+                                req.instance_id());
         } else {
-            find_matching_namespace_validate(expr, db_.get(), breakpoint_id, instance_id,
+            find_matching_namespace_validate(expr, db_.get(), std::nullopt, std::nullopt,
                                              namespaces_);
         }
 
@@ -826,7 +815,8 @@ void Debugger::handle_evaluation(const EvaluationRequest &req, uint64_t conn_id)
             return;
         }
 
-        auto res = set_expr_values(ns ? ns->id : 0, &expr, instance_id ? *instance_id : 0);
+        auto res =
+            set_expr_values(ns ? ns->id : 0, &expr, req.instance_id() ? *req.instance_id() : 0);
 
         if (!res) {
             error_reason = "Unable to get symbol values";
@@ -835,7 +825,7 @@ void Debugger::handle_evaluation(const EvaluationRequest &req, uint64_t conn_id)
         }
 
         auto value = expr.eval();
-        EvaluationResponse eval_resp(scope, std::to_string(value));
+        EvaluationResponse eval_resp(std::to_string(value));
         req.set_token(eval_resp);
         send_message(eval_resp.str(log_enabled_), conn_id);
         return;

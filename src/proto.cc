@@ -79,9 +79,10 @@ namespace hgdb {
  * Evaluation Request
  * type: evaluation
  * payload:
- *     scope: [required] - string
+ *     breakpoint_id: [optional] - uint32_t
+ *     instance_id: [optional] - uint32_t
+ *     namespace_id: [optional] - uint32_t
  *     expression: [required] - string
- *     is_context: [required] - bool
  *
  * OptionChange Request
  * type: option-change
@@ -647,8 +648,7 @@ std::string DebuggerInformationResponse::get_command_str() const {
     return "";
 }
 
-EvaluationResponse::EvaluationResponse(std::string scope, std::string result)
-    : scope_(std::move(scope)), result_(std::move(result)) {}
+EvaluationResponse::EvaluationResponse(std::string result) : result_(std::move(result)) {}
 
 std::string EvaluationResponse::str(bool pretty_print) const {
     using namespace rapidjson;
@@ -658,7 +658,6 @@ std::string EvaluationResponse::str(bool pretty_print) const {
     set_status(document, status_);
 
     Value payload(kObjectType);
-    set_member(payload, allocator, "scope", scope_);
     set_member(payload, allocator, "result", result_);
 
     set_member(document, "payload", payload);
@@ -962,16 +961,15 @@ void EvaluationRequest::parse_payload(const std::string &payload) {
     document.Parse(payload.c_str());
     if (!check_json(document, status_code_, error_reason_)) return;
 
-    auto scope = get_member<std::string>(document, "scope", error_reason_);
+    breakpoint_id_ = get_member<uint32_t>(document, "breakpoint_id", error_reason_, false);
+    instance_id_ = get_member<uint32_t>(document, "instance_id", error_reason_, false);
     auto expression = get_member<std::string>(document, "expression", error_reason_);
-    auto is_context = get_member<bool>(document, "is_context", error_reason_);
-    if (!scope || !expression || !is_context) {
+    if (!expression) {
         status_code_ = status_code::error;
         return;
     }
-    scope_ = *scope;
+
     expression_ = *expression;
-    is_context_ = *is_context;
 
     namespace_id_ = get_member<uint64_t>(document, "namespace_id", error_reason_);
 }

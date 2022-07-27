@@ -259,17 +259,16 @@ public:
     void parse_payload(const std::string &payload) override;
     [[nodiscard]] RequestType type() const override { return RequestType::evaluation; }
 
-    [[nodiscard]] const std::string &scope() const { return scope_; }
+    [[nodiscard]] std::optional<uint32_t> instance_id() const { return instance_id_; }
+    [[nodiscard]] std::optional<uint32_t> breakpoint_id() const { return breakpoint_id_; }
     [[nodiscard]] const std::string &expression() const { return expression_; }
     [[nodiscard]] std::optional<uint64_t> namespace_id() const { return namespace_id_; };
-    [[nodiscard]] bool is_context() const { return is_context_; }
 
 private:
-    std::string scope_;
+    std::optional<uint32_t> instance_id_;
+    std::optional<uint32_t> breakpoint_id_;
     std::string expression_;
     std::optional<uint64_t> namespace_id_;
-
-    bool is_context_ = false;
 };
 
 class OptionChangeRequest : public Request {
@@ -422,12 +421,11 @@ private:
 
 class EvaluationResponse : public Response {
 public:
-    EvaluationResponse(std::string scope, std::string result);
+    explicit EvaluationResponse(std::string result);
     [[nodiscard]] std::string str(bool pretty_print) const override;
     [[nodiscard]] std::string type() const override { return to_string(RequestType::evaluation); }
 
 private:
-    std::string scope_;
     std::string result_;
 };
 

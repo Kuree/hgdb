@@ -246,14 +246,14 @@ def test_evaluate(start_server, find_free_port):
         await client.connect()
         resp = await client.evaluate("", "42")
         assert resp["payload"]["result"] == "42"
-        resp = await client.evaluate("mod", "a + 41", is_context=False)
+        resp = await client.evaluate(1, "a + 41", is_context=False)
         assert resp["payload"]["result"] == "42"
         resp = await client.evaluate("", "mod.a + 41")
         assert resp["payload"]["result"] == "42"
-        resp = await client.evaluate("1", "a + 41", is_context=False)
+        resp = await client.evaluate(1, "a + 41", is_context=False)
         assert resp["payload"]["result"] == "42"
         # as long as it's a valid expression, even if the scope is wrong it is fine
-        resp = await client.evaluate("test", "1")
+        resp = await client.evaluate(1000, "1")
         assert resp["payload"]["result"] == "1"
         resp = await client.evaluate("", "test.a", check_error=False)
         assert resp["status"] == "error"
@@ -362,8 +362,10 @@ def test_set_value(start_server, find_free_port):
         async with hgdb.HGDBClient(uri, None) as client:
             await client.connect()
             design = await client.get_design()
-            ns_id = list(design["mod"].values())[0]
-            await client.set_value("mod.a", 42, namespace_id=ns_id)
+            mod = design["mod"]
+            ns_id = list(design.values())[0]
+            inst_id = 1
+            await client.set_value("a", 42, instance_id=1, namespace_id=ns_id)
             await client.set_breakpoint("/tmp/test.py", 1)
             await client.continue_()
             bp = await client.recv_bp()
@@ -623,4 +625,4 @@ if __name__ == "__main__":
     sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
     from conftest import start_server_fn, find_free_port_fn
 
-    test_breakpoint_hit_continue(start_server_fn, find_free_port_fn)
+    test_set_value(start_server_fn, find_free_port_fn)

@@ -226,7 +226,8 @@ TEST(proto, request_parse_evaluation) {  // NOLINT
     "request": true,
     "type": "evaluation",
     "payload": {
-        "scope": "test.scope",
+        "instance_id": 1,
+        "breakpoint_id": 2,
         "expression": "a + 1",
         "is_context": true
     }
@@ -235,9 +236,9 @@ TEST(proto, request_parse_evaluation) {  // NOLINT
     auto r = hgdb::Request::parse_request(req);
     EXPECT_EQ(r->status(), hgdb::status_code::success);
     auto const *eval = dynamic_cast<hgdb::EvaluationRequest *>(r.get());
-    EXPECT_EQ(eval->scope(), "test.scope");
     EXPECT_EQ(eval->expression(), "a + 1");
-    EXPECT_TRUE(eval->is_context());
+    EXPECT_TRUE(eval->instance_id());
+    EXPECT_TRUE(eval->breakpoint_id());
 }
 
 TEST(proto, request_parse_option_change) {  // NOLINT
@@ -590,14 +591,13 @@ TEST(proto, debugger_info_response_status) {  // NOLINT
 }
 
 TEST(proto, evaluation_response) {  // NOLINT
-    auto res = hgdb::EvaluationResponse("test.scope", "42");
+    auto res = hgdb::EvaluationResponse("42");
     auto s = res.str(true);
     constexpr auto expected_value = R"({
     "request": false,
     "type": "evaluation",
     "status": "success",
     "payload": {
-        "scope": "test.scope",
         "result": "42"
     }
 })";
