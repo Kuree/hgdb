@@ -11,6 +11,10 @@ namespace hgdb::json {
 
 class JSONWriter {
 public:
+    JSONWriter() = default;
+    JSONWriter(const JSONWriter &) = delete;
+    JSONWriter &operator=(const JSONWriter &) = delete;
+
     JSONWriter &begin_obj() {
         s_ << '{';
         empty_.push(true);
@@ -49,6 +53,7 @@ public:
         } else {
             s_ << value;
         }
+        return *this;
     }
 
     JSONWriter &begin_array() {
@@ -62,6 +67,7 @@ public:
         empty_.pop();
         is_obj_.pop();
         s_ << ']';
+        return *this;
     }
 
     [[nodiscard]] std::string str() const { return s_.str(); }
@@ -83,12 +89,16 @@ private:
 };
 
 class Module;
+class VarStmt;
+
+template <typename C>
 class Scope {
 public:
     Scope() = default;
     template <typename T, typename... Args>
     T *create_scope(Args &&...args) {
-        static_assert(!std::is_same_v<T, Module>);
+        // make sure the scope creation is valid
+        static_assert(!std::is_same_v<T, Module> && !std::is_same_v<C, VarStmt>, "Invalid scope");
         auto ptr = std::make_unique<T>(std::forward<Args>(args)...);
         auto *res = ptr.get();
         scopes_.emplace_back(std::move(ptr));
@@ -156,7 +166,7 @@ struct Variable {
     }
 };
 
-class VarStmt : Scope {
+class VarStmt : Scope<VarStmt> {
 public:
     VarStmt(Variable var, bool is_decl) : var_(std::move(var)), is_decl_(is_decl) {}
 
@@ -173,7 +183,7 @@ private:
     bool is_decl_;
 };
 
-class Module : public Scope {
+class Module : public Scope<Module> {
 public:
     explicit Module(std::string name) : name_(std::move(name)) {}
 
@@ -217,11 +227,12 @@ public:
         w.begin_obj();
         w.key("generator").value(framework_name_).key("top").value(top_name_);
 
+        w.key("table").begin_array();
         for (auto const &m : modules_) {
             m->serialize(w);
         }
 
-        w.end_obj();
+        w.end_array().end_obj();
         return w.str();
     }
 
