@@ -19,8 +19,9 @@ function(setup_target_cwd target cwd)
 endfunction()
 
 function(add_test target)
-    add_executable(${target} ${target}.cc $<TARGET_OBJECTS:vpi_dummy>)
-    setup_target(${target})
+    get_filename_component(name ${target} NAME)
+    add_executable(${name} ${target}.cc $<TARGET_OBJECTS:vpi_dummy>)
+    setup_target(${name})
 endfunction()
 
 function(add_test_cwd target cwd)
@@ -53,3 +54,5 @@ add_test(test_scheduler)
 
 # other tests
 add_subdirectory(tools)
+
+add_test(bindings/test_cxx)
