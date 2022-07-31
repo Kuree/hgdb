@@ -3,7 +3,6 @@
 
 #include <memory>
 #include <sstream>
-#include <stack>
 #include <string_view>
 #include <vector>
 
@@ -17,24 +16,16 @@ public:
 
     JSONWriter &begin_obj() {
         s_ << '{';
-        empty_.push(true);
-        is_obj_.push(true);
         return *this;
     }
 
     JSONWriter &end_obj() {
-        s_ << '}';
-        empty_.pop();
-        is_obj_.pop();
+        remove_comma();
+        s_ << '}' << ',';
         return *this;
     }
 
     JSONWriter &key(const std::string_view name) {
-        // we don't do any error checking
-        if (is_obj_.top()) {
-            // if it's not empty
-            write_comma();
-        }
         s_ << '"' << name << "\":";
         return *this;
     }
@@ -42,9 +33,6 @@ public:
     template <typename T>
     JSONWriter &value(T value) {
         // if it's an array
-        if (!is_obj_.top()) {
-            write_comma();
-        }
         if constexpr (std::is_same_v<T, const char *> || std::is_same_v<T, std::string> ||
                       std::is_same_v<T, std::string_view>) {
             s_ << '"' << value << '"';
@@ -53,37 +41,36 @@ public:
         } else {
             s_ << value;
         }
+        s_ << ',';
         return *this;
     }
 
     JSONWriter &begin_array() {
         s_ << '[';
-        empty_.push(true);
-        is_obj_.push(false);
         return *this;
     }
 
     JSONWriter &end_array() {
-        empty_.pop();
-        is_obj_.pop();
-        s_ << ']';
+        remove_comma();
+        s_ << ']' << ',';
         return *this;
     }
 
-    [[nodiscard]] std::string str() const { return s_.str(); }
+    [[nodiscard]] std::string str() {
+        remove_comma();
+        s_ << '\n';
+        return s_.str();
+    }
 
 private:
     std::stringstream s_;
-    // keep track of number of elements in the scope
-    std::stack<bool> empty_;
-    std::stack<bool> is_obj_;
 
-    void write_comma() {
-        if (!empty_.top()) {
-            s_ << ',';
-        } else {
-            empty_.pop();
-            empty_.push(false);
+    void remove_comma() {
+        s_.seekg(-1, std::ios::end);
+        char c;
+        s_ >> c;
+        if (c == ',') {
+            s_.seekp(-1, std::ios::end);
         }
     }
 };
@@ -91,25 +78,27 @@ private:
 class Module;
 class VarStmt;
 
-template <typename C>
-class Scope {
+class ScopeBase {
+public:
+    virtual void serialize(JSONWriter &w) const = 0;
+    virtual ~ScopeBase() = default;
+};
+
+template <typename C = std::nullptr_t>
+class Scope : public ScopeBase {
 public:
     Scope() = default;
     template <typename T, typename... Args>
     T *create_scope(Args &&...args) {
-        // make sure the scope creation is valid
-        static_assert(!std::is_same_v<T, Module> && !std::is_same_v<C, VarStmt>, "Invalid scope");
         auto ptr = std::make_unique<T>(std::forward<Args>(args)...);
-        auto *res = ptr.get();
-        scopes_.emplace_back(std::move(ptr));
-        return res;
+        return add_scope(std::move(ptr));
     }
 
     [[nodiscard]] virtual std::string_view type() const {
         return scopes_.empty() ? "none" : "block";
     }
 
-    virtual void serialize(JSONWriter &w) const {
+    void serialize(JSONWriter &w) const override {
         w.begin_obj().key("type").value(type());
         if (!filename_.empty()) {
             w.key("filename").value(filename_);
@@ -134,8 +123,6 @@ public:
     [[nodiscard]] auto begin() const { return scopes_.begin(); }
     [[nodiscard]] auto end() const { return scopes_.end(); }
 
-    ~Scope() = default;
-
     std::string filename_;
     uint32_t line_num = 0;
     uint32_t column_num = 0;
@@ -144,7 +131,16 @@ protected:
     virtual void serialize_(JSONWriter &) const {}
 
 private:
-    std::vector<std::unique_ptr<Scope>> scopes_;
+    std::vector<std::unique_ptr<ScopeBase>> scopes_;
+
+    template <typename T>
+    T *add_scope(std::unique_ptr<T> ptr) {
+        // make sure the scope creation is valid
+        static_assert(!std::is_same_v<T, Module> && !std::is_same_v<C, VarStmt>, "Invalid scope");
+        auto *res = ptr.get();
+        scopes_.emplace_back(std::move(ptr));
+        return res;
+    }
 };
 
 struct Variable {
@@ -166,7 +162,7 @@ struct Variable {
     }
 };
 
-class VarStmt : Scope<VarStmt> {
+class VarStmt : public Scope<VarStmt> {
 public:
     VarStmt(Variable var, bool is_decl) : var_(std::move(var)), is_decl_(is_decl) {}
 
@@ -188,7 +184,7 @@ public:
     explicit Module(std::string name) : name_(std::move(name)) {}
 
     [[nodiscard]] std::string_view type() const override { return "module"; }
-    void add_variable(Variable &&var) { variables_.emplace_back(var); }
+    void add_variable(Variable var) { variables_.emplace_back(std::move(var)); }
     void add_instance(const std::string &name, const Module *m) {
         instances_.emplace_back(std::make_pair(name, m));
     }
