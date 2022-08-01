@@ -19,8 +19,14 @@
       }
     },
     "top": {
-      "description": "Top module name",
-      "type": "string"
+      "description": "Top module names",
+      "type": [
+        "string",
+        "array"
+      ],
+      "items": {
+        "type": "string"
+      }
     },
     "variables": {
       "description": "Variables used for references",

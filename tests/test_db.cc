@@ -641,7 +641,7 @@ TEST(json, reorder_bp) {  // NOLINT
       "instances": []
     }
   ],
-  "top": "mod"
+  "top": ["mod"]
 }
 )";
     hgdb::JSONSymbolTableProvider db;
