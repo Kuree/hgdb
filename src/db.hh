@@ -115,11 +115,11 @@ public:
 
     bool parse(const std::string &db_content);
 
-    [[nodiscard]] inline bool bad() const override { return root_ == nullptr; }
+    [[nodiscard]] inline bool bad() const override { return roots_.empty(); }
 
 private:
     // serialized data structure
-    std::shared_ptr<db::json::Instance> root_ = nullptr;
+    std::vector<std::shared_ptr<db::json::Instance>> roots_;
     std::unordered_map<std::string, std::shared_ptr<db::json::ModuleDef>> module_defs_;
     std::unordered_map<std::string, std::shared_ptr<db::json::VarDef>> var_defs_;
     uint32_t num_bps_ = 0;

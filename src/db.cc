@@ -771,24 +771,35 @@ void parse_attributes(const rapidjson::Document &document, JSONParseInfo &info) 
     }
 }
 
-std::shared_ptr<Instance> parse(rapidjson::Document &document, JSONParseInfo &info) {
+std::unordered_set<std::string> parse_tops(const rapidjson::Document &document) {
+    std::unordered_set<std::string> result;
+    auto const &tops = document["top"].GetArray();
+    for (auto const &entry : tops) {
+        result.emplace(entry.GetString());
+    }
+    return result;
+}
+
+std::vector<std::shared_ptr<Instance>> parse(rapidjson::Document &document, JSONParseInfo &info) {
     // parse vars first since we need that to resolve symbol reference during module definition
     // parsing
     parse_var_defs(document, info);
-
     auto table = document["table"].GetArray();
-    auto const *top = document["top"].GetString();
-    std::shared_ptr<Instance> result;
+    // tops is not an array
+    auto tops = parse_tops(document);
+    std::vector<std::shared_ptr<Instance>> result;
+    result.reserve(tops.size());
     for (auto &entry : table) {
         auto parsed_entry = parse_scope_entry(entry, info);
         // notice that if the entry type is not a module, we are effectively discarding it
         if (parsed_entry->type == ScopeEntryType::Module) {
             auto m = std::reinterpret_pointer_cast<ModuleDef>(parsed_entry);
-            if (m->name == top) {
+            if (tops.find(m->name) != tops.end()) {
                 // making a new instance. notice that the name is the same as module name
-                result = std::make_shared<Instance>();
-                result->name = m->name;
-                result->definition = m.get();
+                auto i = std::make_shared<Instance>();
+                i->name = m->name;
+                i->definition = m.get();
+                result.emplace_back(i);
             }
         }
     }
@@ -1074,13 +1085,13 @@ JSONSymbolTableProvider::JSONSymbolTableProvider(const std::string &filename) {
         rapidjson::Document document;
         document.ParseStream(isw);
         db::json::JSONParseInfo info(module_defs_, var_defs_, attributes_);
-        root_ = db::json::parse(document, info);
+        roots_ = db::json::parse(document, info);
     }
     parse_db();
 }
 
 JSONSymbolTableProvider::JSONSymbolTableProvider(std::unique_ptr<JSONSymbolTableProvider> db) {
-    root_ = db->root_;
+    roots_ = db->roots_;
     module_defs_ = db->module_defs_;
     // ownership transfer complete
     db.reset();
@@ -1224,29 +1235,36 @@ private:
 std::vector<BreakPoint> JSONSymbolTableProvider::get_breakpoints(const std::string &filename,
                                                                  uint32_t line_num,
                                                                  uint32_t col_num) {
-    if (root_) [[likely]] {
+    std::vector<BreakPoint> result;
+    for (auto const &root : roots_) {
         BreakPointVisitor v(filename, line_num, col_num);
-        v.visit(*root_);
-        return std::move(v.results);
-    } else {
-        return {};
+        v.visit(*root);
+        result.reserve(result.size() + v.results.size());
+        for (auto &bp : v.results) {
+            result.emplace_back(std::move(bp));
+        }
     }
+    return result;
 }
 
 std::vector<BreakPoint> JSONSymbolTableProvider::get_breakpoints(const std::string &filename) {
-    if (root_) [[likely]] {
+    std::vector<BreakPoint> result;
+    for (auto const &root : roots_) {
         BreakPointVisitor v(filename, 0, 0);
-        v.visit(*root_);
-        return std::move(v.results);
-    } else {
-        return {};
+        v.visit(*root);
+        result.reserve(result.size() + v.results.size());
+        for (auto &bp : v.results) {
+            result.emplace_back(std::move(bp));
+        }
     }
+    return result;
 }
 
 std::optional<BreakPoint> JSONSymbolTableProvider::get_breakpoint(uint32_t breakpoint_id) {
-    if (root_) [[likely]] {
+    std::vector<BreakPoint> result;
+    for (auto const &root : roots_) {
         BreakPointVisitor v(breakpoint_id);
-        v.visit(*root_);
+        v.visit(*root);
         if (!v.results.empty()) [[likely]] {
             return std::move(v.results[0]);
         }
@@ -1271,9 +1289,9 @@ private:
 };
 
 std::optional<std::string> JSONSymbolTableProvider::get_instance_name(uint32_t id) {
-    if (root_) {
+    for (auto const &root : roots_) {
         InstanceFromInstIDVisitor v(id);
-        v.visit(*root_);
+        v.visit(*root);
         if (v.result) {
             std::string name;
             auto const *p = v.result;
@@ -1312,23 +1330,32 @@ private:
     uint32_t bp_id_;
 };
 
-std::optional<uint64_t> JSONSymbolTableProvider::get_instance_id(uint64_t breakpoint_id) {
-    if (root_) {
+const db::json::Instance *get_instance(
+    uint64_t breakpoint_id, const std::vector<std::shared_ptr<db::json::Instance>> &roots) {
+    for (auto const &root : roots) {
         InstanceByBpIDVisitor v(breakpoint_id);
-        v.visit(*root_);
+        v.visit(*root);
         if (v.result) {
-            return v.result->id;
+            return v.result;
         }
     }
+    return nullptr;
+}
 
-    return std::nullopt;
+std::optional<uint64_t> JSONSymbolTableProvider::get_instance_id(uint64_t breakpoint_id) {
+    auto const *instance = get_instance(breakpoint_id, roots_);
+    if (instance) {
+        return instance->id;
+    } else {
+        return std::nullopt;
+    }
 }
 
 std::optional<uint64_t> JSONSymbolTableProvider::get_instance_id(const std::string &instance_name) {
-    if (root_) {
-        auto instances = util::get_tokens(instance_name, ".");
-        if (instances[0] == root_->name) {
-            auto const *p = root_.get();
+    auto instances = util::get_tokens(instance_name, ".");
+    for (auto const &root : roots_) {
+        if (instances[0] == root->name) {
+            auto const *p = root.get();
             for (auto i = 1u; i < instances.size(); i++) {
                 auto const &name = instances[i];
                 bool found = false;
@@ -1385,11 +1412,17 @@ std::vector<SymbolTableProvider::ContextVariableInfo> convert_to_db_result(
 
 std::vector<SymbolTableProvider::ContextVariableInfo>
 JSONSymbolTableProvider::get_context_variables(uint32_t breakpoint_id) {  // NOLINT
-    if (!root_) return {};
-    BreakPointVisitor v(breakpoint_id);
-    v.visit(*root_);
-    if (v.raw_results.empty()) return {};
-    auto const *entry = v.raw_results[0];
+    if (bad()) return {};
+    const db::json::ScopeEntry *entry = nullptr;
+    for (auto const &root : roots_) {
+        BreakPointVisitor v(breakpoint_id);
+        v.visit(*root);
+        if (!v.raw_results.empty()) {
+            entry = v.raw_results[0];
+            break;
+        }
+    }
+    if (!entry) return {};
     std::vector<std::pair<std::string, const db::json::VarDef *>> vars;
     std::vector<std::unique_ptr<db::json::VarDef>> temp_vars;
 
@@ -1453,11 +1486,17 @@ JSONSymbolTableProvider::get_context_variables(uint32_t breakpoint_id) {  // NOL
 
 std::vector<JSONSymbolTableProvider::ContextVariableInfo>
 JSONSymbolTableProvider::get_context_delayed_variables(uint32_t breakpoint_id) {  // NOLINT
-    if (!root_) return {};
-    BreakPointVisitor v(breakpoint_id);
-    v.visit(*root_);
-    if (v.raw_results.empty()) return {};
-    auto const *entry = v.raw_results[0];
+    if (bad()) return {};
+    const db::json::ScopeEntry *entry = nullptr;
+    for (auto const &root : roots_) {
+        BreakPointVisitor v(breakpoint_id);
+        v.visit(*root);
+        if (!v.raw_results.empty()) {
+            entry = v.raw_results[0];
+            break;
+        }
+    }
+    if (!entry) return {};
     std::vector<std::pair<std::string, const db::json::VarDef *>> vars;
 
     auto process_node = [&vars](const db::json::ScopeEntry *pre) {
@@ -1501,11 +1540,19 @@ JSONSymbolTableProvider::get_context_delayed_variables(uint32_t breakpoint_id) {
 
 std::vector<SymbolTableProvider::GeneratorVariableInfo>
 JSONSymbolTableProvider::get_generator_variable(uint32_t instance_id) {
-    if (!root_) return {};
-    InstanceFromInstIDVisitor v(instance_id);
-    v.visit(*root_);
-    if (!v.result || !v.result->definition) return {};
-    auto const *def = v.result->definition;
+    if (bad()) return {};
+    const db::json::Instance *instance = nullptr;
+    for (auto const &root : roots_) {
+        InstanceFromInstIDVisitor v(instance_id);
+        v.visit(*root);
+        if (!v.result || !v.result->definition) {
+            instance = v.result;
+            break;
+        }
+    }
+    if (!instance) return {};
+
+    auto const *def = instance->definition;
 
     auto const &vars = def->vars;
 
@@ -1556,13 +1603,14 @@ private:
 };
 
 std::vector<std::string> JSONSymbolTableProvider::get_instance_names() {
-    if (root_) {
+    std::vector<std::string> result;
+    for (auto const &root : roots_) {
         InstanceNameVisitor v;
-        v.visit(*root_);
-        auto res = std::vector<std::string>(v.names.begin(), v.names.end());
-        return res;
+        v.visit(*root);
+        result.reserve(result.size() + v.names.size());
+        result.insert(result.end(), v.names.begin(), v.names.end());
     }
-    return {};
+    return result;
 }
 
 class FilenameVisitor : public db::json::DBVisitor<false, true, false> {
@@ -1575,13 +1623,14 @@ public:
 };
 
 std::vector<std::string> JSONSymbolTableProvider::get_filenames() {
-    if (root_) {
+    std::vector<std::string> result;
+    for (auto const &root : roots_) {
         FilenameVisitor v;
-        v.visit(*root_->definition);
-        auto res = std::vector<std::string>(v.names.begin(), v.names.end());
-        return res;
+        v.visit(*root);
+        result.reserve(result.size() + v.names.size());
+        result.insert(result.end(), v.names.begin(), v.names.end());
     }
-    return {};
+    return result;
 }
 
 std::vector<std::string> JSONSymbolTableProvider::get_annotation_values(const std::string &name) {
@@ -1702,14 +1751,20 @@ std::string merge_condition(const std::string &cond1, const std::string &cond2) 
 std::vector<std::tuple<uint32_t, std::string, std::string>>
 JSONSymbolTableProvider::get_assigned_breakpoints(const std::string &var_name,
                                                   uint32_t breakpoint_id) {
-    if (!root_) return {};
-    // need to search the entire scope to see where the value is assigned
-    // any variable that has the same source name will be used
-    // for now we don't support variable shadowing
-    BreakPointVisitor v(breakpoint_id);
-    v.visit(*root_);
-    if (v.raw_results.empty()) return {};
-    auto const *scope_entry = v.raw_results[0];
+    const db::json::ScopeEntry *scope_entry = nullptr;
+    for (auto const &root : roots_) {
+        // need to search the entire scope to see where the value is assigned
+        // any variable that has the same source name will be used
+        // for now we don't support variable shadowing
+        BreakPointVisitor v(breakpoint_id);
+        v.visit(*root);
+        if (!v.raw_results.empty()) {
+            scope_entry = v.raw_results[0];
+            break;
+        }
+    }
+    if (!scope_entry) return {};
+
     // need to find the top non-module scope
     auto const *parent = scope_entry;
     while (parent && parent->type != db::json::ScopeEntryType::Module) {
@@ -1721,10 +1776,8 @@ JSONSymbolTableProvider::get_assigned_breakpoints(const std::string &var_name,
     }
     auto const &mod_def = *(reinterpret_cast<const db::json::ModuleDef *>(parent));
 
-    InstanceByBpIDVisitor iv(breakpoint_id);
-    iv.visit(*root_);
-    if (!iv.result) return {};
-    auto const *instance = iv.result;
+    auto const *instance = get_instance(breakpoint_id, roots_);
+    if (!instance) return {};
 
     // the format is id, var_name (rtl), data_condition
     // look through every assignment
@@ -1798,17 +1851,17 @@ bool JSONSymbolTableProvider::parse(const std::string &db_content) {
         rapidjson::Document document;
         document.ParseStream(isw);
         db::json::JSONParseInfo info(module_defs_, var_defs_, attributes_);
-        root_ = db::json::parse(document, info);
+        roots_ = db::json::parse(document, info);
 
         parse_db();
 
         if (!info.error_reason.empty()) {
             // we have an error
             log::log(log::log_level::error, info.error_reason);
-            root_ = nullptr;
+            roots_.clear();
         }
     }
-    return root_ != nullptr;
+    return !roots_.empty();
 }
 
 void resolve_module_instances(db::json::ModuleDef &def, db::json::ModuleDefDict &defs,
@@ -1833,27 +1886,29 @@ void resolve_module_instances(db::json::ModuleDef &def, db::json::ModuleDefDict 
 }
 
 void JSONSymbolTableProvider::parse_db() {
-    if (root_ && root_->definition) {
+    uint32_t inst_id = 0;
+    for (auto const &root : roots_) {
+        if (!root->definition) {
+            roots_.clear();
+            return;
+        }
         // resolve the module names
         bool has_error = false;
-        resolve_module_instances(*(const_cast<db::json::ModuleDef *>(root_->definition)),
+        resolve_module_instances(*(const_cast<db::json::ModuleDef *>(root->definition)),
                                  module_defs_, has_error);
         if (has_error) {
             log::log(log::log_level::error, "Unable to resolve all referenced instances");
-            root_ = nullptr;
+            roots_.clear();
             return;
         }
         // build up the instance tree
-        uint32_t inst_id = 0;
-        db::json::build_instance_tree(*root_, inst_id);
+        db::json::build_instance_tree(*root, inst_id);
         // sort the entries. need it done before assigning IDs
         db::json::reorder_block_entry(module_defs_);
         // build the breakpoints table
-        build_bp_ids(*root_, num_bps_);
+        build_bp_ids(*root, num_bps_);
         // index the file names
         db::json::collect_filename_blocks(module_defs_);
-    } else {
-        root_ = nullptr;
     }
 }
 
