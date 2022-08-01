@@ -773,10 +773,16 @@ void parse_attributes(const rapidjson::Document &document, JSONParseInfo &info) 
 
 std::unordered_set<std::string> parse_tops(const rapidjson::Document &document) {
     std::unordered_set<std::string> result;
-    auto const &tops = document["top"].GetArray();
-    for (auto const &entry : tops) {
-        result.emplace(entry.GetString());
+    auto const &document_top = document["top"];
+    if (document_top.IsArray()) {
+        auto const &tops = document_top.GetArray();
+        for (auto const &entry : tops) {
+            result.emplace(entry.GetString());
+        }
+    } else {
+        result.emplace(document_top.GetString());
     }
+
     return result;
 }
 
@@ -1545,7 +1551,7 @@ JSONSymbolTableProvider::get_generator_variable(uint32_t instance_id) {
     for (auto const &root : roots_) {
         InstanceFromInstIDVisitor v(instance_id);
         v.visit(*root);
-        if (!v.result || !v.result->definition) {
+        if (v.result && v.result->definition) {
             instance = v.result;
             break;
         }
@@ -1626,7 +1632,7 @@ std::vector<std::string> JSONSymbolTableProvider::get_filenames() {
     std::vector<std::string> result;
     for (auto const &root : roots_) {
         FilenameVisitor v;
-        v.visit(*root);
+        v.visit(*root->definition);
         result.reserve(result.size() + v.names.size());
         result.insert(result.end(), v.names.begin(), v.names.end());
     }
