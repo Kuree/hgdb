@@ -13,7 +13,7 @@ void check_valid(hgdb::json::SymbolTable &table) {
 TEST(json, module) {
     using namespace hgdb::json;
     constexpr auto top_name = "mod";
-    SymbolTable table("test", top_name);
+    SymbolTable table("test");
     table.add_module(top_name);
     check_valid(table);
 }
@@ -21,7 +21,7 @@ TEST(json, module) {
 TEST(json, nested_scope) {
     using namespace hgdb::json;
     constexpr auto top_name = "mod";
-    SymbolTable table("test", top_name);
+    SymbolTable table("test");
     auto *mod = table.add_module(top_name);
     auto *scope = mod->create_scope<Scope<>>();
     scope->filename = "test.sv";
@@ -41,7 +41,7 @@ TEST(json, nested_scope) {
 TEST(json, instance) {
     using namespace hgdb::json;
     constexpr auto top_name = "mod";
-    SymbolTable table("test", top_name);
+    SymbolTable table("test");
     auto *mod1 = table.add_module(top_name);
     auto *mod2 = table.add_module("mod2");
     mod1->add_instance("inst1", mod2);
@@ -64,7 +64,7 @@ TEST(json, instance) {
 TEST(json, compression) {
     using namespace hgdb::json;
     constexpr auto top_name = "mod";
-    SymbolTable table("test", top_name);
+    SymbolTable table("test");
     auto *mod1 = table.add_module(top_name);
     auto *scope1 = mod1->create_scope<Scope<>>();
     auto constexpr filename = __FILE__;

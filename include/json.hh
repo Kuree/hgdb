@@ -4,6 +4,7 @@
 #include <functional>
 #include <memory>
 #include <optional>
+#include <set>
 #include <sstream>
 #include <string>
 #include <string_view>
@@ -232,12 +233,14 @@ private:
 
 class Module : public Scope<Module> {
 public:
-    explicit Module(std::string name) : name_(std::move(name)) {}
+    Module(std::string name, std::function<void(const std::string &)> remove_func)
+        : name_(std::move(name)), remove_inst_(std::move(remove_func)) {}
 
     [[nodiscard]] std::string_view type() const override { return "module"; }
     void add_variable(Variable var) { variables_.emplace_back(std::move(var)); }
     void add_instance(const std::string &name, const Module *m) {
         instances_.emplace_back(std::make_pair(name, m));
+        remove_inst_(m->name_);
     }
 
     friend class SymbolTable;
@@ -265,6 +268,8 @@ private:
     std::string name_;
     std::vector<std::variant<Variable, uint64_t>> variables_;
     std::vector<std::pair<std::string, const Module *>> instances_;
+
+    std::function<void(const std::string &)> remove_inst_;
 };
 
 class SymbolTable {
@@ -351,7 +356,7 @@ private:
             if (filename.empty()) return;
             if (!scope->parent) return;
             // top level scope need to have filename
-            if (dynamic_cast<Module*>(scope->parent)) return;
+            if (dynamic_cast<Module *>(scope->parent)) return;
             auto const &ref = scope->parent->get_filename();
             if (ref == filename) {
                 // the parent already has this filename, don't need to store it
@@ -361,16 +366,29 @@ private:
     };
 
 public:
-    SymbolTable(std::string framework_name, std::string top_name)
-        : framework_name_(std::move(framework_name)), top_name_(std::move(top_name)) {}
+    explicit SymbolTable(std::string framework_name) : framework_name_(std::move(framework_name)) {}
+
     Module *add_module(const std::string &name) {
-        return modules_.emplace_back(std::make_unique<Module>(name)).get();
+        // no error check
+        top_names_.emplace(name);
+        return modules_
+            .emplace_back(std::make_unique<Module>(
+                name, [this](const std::string &name) { remove_module_top(name); }))
+            .get();
     }
 
     [[nodiscard]] std::string output() const {
         JSONWriter w;
         w.begin_obj();
-        w.key("generator").value(framework_name_).key("top").value(top_name_);
+        w.key("generator").value(framework_name_);
+
+        if (top_names_.size() == 1) {
+            w.key("top").value(*top_names_.begin());
+        } else {
+            w.key("top").begin_array();
+            for (auto const &n : top_names_) w.value(n);
+            w.end_array();
+        }
 
         w.key("table").begin_array();
         for (auto const &m : modules_) {
@@ -401,10 +419,12 @@ public:
 
 private:
     std::string framework_name_;
-    std::string top_name_;
+    std::set<std::string> top_names_;
     std::vector<std::unique_ptr<Module>> modules_;
 
     std::vector<Variable> variables_;
+
+    // automatically keep track of top module names;
 
     void compress_var() {
         // first pass collect all the variables
@@ -435,6 +455,12 @@ private:
         FilenameClear f;
         for (auto &m : modules_) {
             f.visit(m.get());
+        }
+    }
+
+    void remove_module_top(const std::string &name) {
+        if (top_names_.find(name) != top_names_.end()) {
+            top_names_.erase(name);
         }
     }
 };
