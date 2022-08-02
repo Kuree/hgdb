@@ -28,6 +28,10 @@
         "type": "string"
       }
     },
+    "reorder": {
+      "description": "Whether to reorder scopes based on line number",
+      "type": "boolean"
+    },
     "variables": {
       "description": "Variables used for references",
       "type": "array",

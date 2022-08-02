@@ -126,6 +126,8 @@ private:
     // may change this to per module/instance in the future (backward-compatible)
     std::vector<std::pair<std::string, std::string>> attributes_;
 
+    bool reordering_ = true;
+
     void parse_db();
 };
 

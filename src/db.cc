@@ -1839,6 +1839,13 @@ bool JSONSymbolTableProvider::valid_json(std::istream &stream) {
     return validator.validate(json_schema, document_adapter, nullptr);
 }
 
+bool reordering(const rapidjson::Document &document) {
+    if (document.HasMember("reorder")) {
+        return document["reorder"].GetBool();
+    }
+    return true;
+}
+
 bool JSONSymbolTableProvider::parse(const std::string &db_content) {
     {
         std::stringstream ss;
@@ -1858,6 +1865,7 @@ bool JSONSymbolTableProvider::parse(const std::string &db_content) {
         document.ParseStream(isw);
         db::json::JSONParseInfo info(module_defs_, var_defs_, attributes_);
         roots_ = db::json::parse(document, info);
+        reordering_ = reordering(document);
 
         parse_db();
 
@@ -1909,8 +1917,12 @@ void JSONSymbolTableProvider::parse_db() {
         }
         // build up the instance tree
         db::json::build_instance_tree(*root, inst_id);
-        // sort the entries. need it done before assigning IDs
-        db::json::reorder_block_entry(module_defs_);
+        // depends on whether the generator wants reordering
+        if (reordering_) {
+            // sort the entries. need it done before assigning IDs
+            db::json::reorder_block_entry(module_defs_);
+        }
+
         // build the breakpoints table
         build_bp_ids(*root, num_bps_);
         // index the file names

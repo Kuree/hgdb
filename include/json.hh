@@ -434,6 +434,11 @@ public:
             w.end_array();
         }
 
+        // attributes
+        if (!reorder_) {
+            w.key("reorder").value(false);
+        }
+
         w.end_obj();
         return w.str();
     }
@@ -484,12 +489,18 @@ public:
         compress_filename();
     }
 
+    // setting attributes
+    void disable_reorder() { reorder_ = false; }
+
 private:
     std::string framework_name_;
     std::set<std::string> top_names_;
     std::vector<std::unique_ptr<Module>> modules_;
 
     std::vector<Variable> variables_;
+
+    // some other attributes
+    bool reorder_ = true;
 
     // automatically keep track of top module names;
 
