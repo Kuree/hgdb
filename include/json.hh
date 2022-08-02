@@ -133,8 +133,8 @@ public:
         if (!filename.empty()) {
             w.key("filename").value(filename);
         }
-        if (line_num != 0) {
-            w.key("line").value(line_num);
+        if (line_num) {
+            w.key("line").value(*line_num);
             if (column_num != 0) {
                 w.key("column").value(column_num);
             }
@@ -177,7 +177,7 @@ public:
     }
 
     std::string filename;
-    uint32_t line_num = 0;
+    std::optional<uint32_t> line_num;
     uint32_t column_num = 0;
     std::string condition;
 

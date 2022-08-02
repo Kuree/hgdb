@@ -34,7 +34,7 @@ TEST(json, nested_scope) {
     // test out query as well
     hgdb::JSONSymbolTableProvider db;
     db.parse(str);
-    auto bps = db.get_breakpoints(scope->filename, s->line_num);
+    auto bps = db.get_breakpoints(scope->filename, *s->line_num);
     EXPECT_EQ(bps.size(), 1);
 }
 
