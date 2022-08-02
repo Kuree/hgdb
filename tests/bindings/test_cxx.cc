@@ -99,3 +99,46 @@ TEST(json, compression) {
     EXPECT_EQ(vars.size(), 1);
     EXPECT_EQ(vars[0].first.name, var.name);
 }
+
+TEST(json, walk) {
+    using namespace hgdb::json;
+    constexpr auto top_name = "mod";
+    {
+        SymbolTable table("test");
+        auto *mod1 = table.add_module(top_name);
+        auto *scope1 = mod1->create_scope<Scope<>>();
+        Variable v{.name = "a", .value = "b", .rtl = true};
+        scope1->create_scope<VarStmt>(v, 1, false);
+        auto *scope2 = scope1->create_scope<Scope<>>();
+        scope2->create_scope<Scope<>>();
+        VarStmt target(v, 1, false);
+        auto res = SymbolTable::has_same_var(scope2, target);
+        EXPECT_TRUE(res);
+    }
+
+    {
+        SymbolTable table("test");
+        auto *mod1 = table.add_module(top_name);
+        auto *scope1 = mod1->create_scope<Scope<>>();
+        Variable v{.name = "a", .value = "b", .rtl = true};
+        auto *scope2 = scope1->create_scope<Scope<>>();
+        scope2->create_scope<VarStmt>(v, 1, false);
+        scope2->create_scope<Scope<>>();
+        VarStmt target(v, 1, false);
+        auto res = SymbolTable::has_same_var(scope2, target);
+        EXPECT_TRUE(res);
+    }
+
+    {
+        SymbolTable table("test");
+        auto *mod1 = table.add_module(top_name);
+        auto *scope1 = mod1->create_scope<Scope<>>();
+        Variable v{.name = "a", .value = "b", .rtl = true};
+        scope1->create_scope<VarStmt>(v, 1, true);
+        auto *scope2 = scope1->create_scope<Scope<>>();
+        scope2->create_scope<Scope<>>();
+        VarStmt target(v, 1, false);
+        auto res = SymbolTable::has_same_var(scope2, target);
+        EXPECT_FALSE(res);
+    }
+}

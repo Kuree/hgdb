@@ -91,10 +91,25 @@ class ScopeBase {
 public:
     virtual void serialize(JSONWriter &w) const = 0;
     virtual ~ScopeBase() = default;
+    [[nodiscard]] virtual std::string_view type() const = 0;
+
+    [[nodiscard]] auto begin() const { return scopes_.begin(); }
+    [[nodiscard]] auto end() const { return scopes_.end(); }
+    [[nodiscard]] auto rbegin() const { return scopes_.rbegin(); }
+    [[nodiscard]] auto rend() const { return scopes_.rend(); }
+    [[nodiscard]] auto &operator[](uint64_t index) const { return *scopes_[index]; }
 
     ScopeBase *parent = nullptr;
 
     [[nodiscard]] virtual const std::string &get_filename() const = 0;
+
+    friend class SymbolTable;
+    template <typename C>
+    friend class Scope;
+
+protected:
+    std::vector<std::unique_ptr<ScopeBase>> scopes_;
+    uint64_t index_ = 0;
 };
 
 template <typename C = std::nullptr_t>
@@ -109,7 +124,7 @@ public:
         return add_scope(std::move(ptr));
     }
 
-    [[nodiscard]] virtual std::string_view type() const {
+    [[nodiscard]] std::string_view type() const override {
         return scopes_.empty() ? "none" : "block";
     }
 
@@ -123,6 +138,9 @@ public:
             if (column_num != 0) {
                 w.key("column").value(column_num);
             }
+        }
+        if (!condition.empty()) {
+            w.key("condition").value(condition);
         }
 
         bool has_scope = !scopes_.empty();
@@ -143,9 +161,6 @@ public:
         w.end_obj();
     }
 
-    [[nodiscard]] auto begin() const { return scopes_.begin(); }
-    [[nodiscard]] auto end() const { return scopes_.end(); }
-
     [[nodiscard]] const std::string &get_filename() const override {
         if (!filename.empty()) {
             return filename;
@@ -154,22 +169,32 @@ public:
         return filename;
     }
 
+    template <typename T>
+    [[nodiscard]] bool operator==(const Scope<T> &scope) const {
+        // notice that we do not compare the inner scopes
+        return filename == scope.filename && line_num == scope.line_num &&
+               column_num == scope.column_num && condition == scope.condition;
+    }
+
     std::string filename;
     uint32_t line_num = 0;
     uint32_t column_num = 0;
+    std::string condition;
+
+    friend class SymbolTable;
 
 protected:
     virtual void serialize_(JSONWriter &) const {}
 
 private:
-    std::vector<std::unique_ptr<ScopeBase>> scopes_;
-
     template <typename T>
     T *add_scope(std::unique_ptr<T> ptr) {
         // make sure the scope creation is valid
         static_assert(!std::is_same_v<T, Module> && !std::is_same_v<C, VarStmt>, "Invalid scope");
         auto *res = ptr.get();
         res->parent = this;
+        // notice that the symbol table is write only. once it's put in, there is no modification
+        res->index_ = scopes_.size();
         scopes_.emplace_back(std::move(ptr));
         return res;
     }
@@ -213,6 +238,10 @@ public:
         : Scope<VarStmt>(line), var_(std::move(var)), is_decl_(is_decl) {}
 
     [[nodiscard]] std::string_view type() const override { return is_decl_ ? "decl" : "assign"; }
+
+    [[nodiscard]] bool operator==(const VarStmt &stmt) const {
+        return Scope<VarStmt>::operator==(stmt) && var_ == stmt.var_;
+    }
 
     friend class SymbolTable;
 
@@ -407,6 +436,44 @@ public:
 
         w.end_obj();
         return w.str();
+    }
+
+    template <bool include_current>
+    static void walk_up(ScopeBase *scope, const std::function<bool(ScopeBase *)> &terminate) {
+        auto *parent = scope->parent;
+        if (!parent) return;
+        if constexpr (include_current) {
+            // NOLINTNEXTLINE
+            for (auto child = scope->rbegin(); child != scope->rend(); child++) {
+                auto res = terminate(child->get());
+                if (res) return;
+            }
+        }
+
+        for (auto i = scope->index_; i > 0; i--) {
+            auto &s = parent->operator[](i - 1);
+            auto res = terminate(&s);
+            if (res) return;
+        }
+        walk_up<false>(parent, terminate);
+    }
+
+    static bool has_same_var(ScopeBase *scope, VarStmt &stmt) {
+        bool match = false;
+        auto stmt_type = stmt.type();
+        auto match_func = [&match, &stmt, stmt_type](ScopeBase *s) {
+            if (s->type() == stmt_type) {
+                auto const &ref = *reinterpret_cast<VarStmt *>(s);
+                if (stmt == ref) {
+                    match = true;
+                    return true;
+                }
+            }
+            return false;
+        };
+        walk_up<true>(scope, match_func);
+
+        return match;
     }
 
     // reduce the storage
