@@ -58,6 +58,12 @@ TEST(expr, expr_parse) {  // NOLINT
     EXPECT_EQ(expr->op, hgdb::expr::Operator::LE);
 }
 
+TEST(expr, expr_const) {
+    auto const *expr1 = "in1 == 1'ha";
+    hgdb::DebugExpression debug_expr1(expr1);
+    EXPECT_TRUE(debug_expr1.correct());
+}
+
 TEST(expr, expr_eval) {  // NOLINT
     hgdb::ExpressionType result;
 

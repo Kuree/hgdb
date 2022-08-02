@@ -26,8 +26,10 @@ using tao::pegtl::sor;
 using tao::pegtl::space;
 using tao::pegtl::star;
 using tao::pegtl::two;
+using tao::pegtl::xdigit;
 
 struct integer : plus<digit> {};
+struct hex_integer : seq<plus<digit>, one<'\''>, one<'h'>, plus<xdigit>> {};
 struct variable_head1 : plus<sor<alpha, one<'_'>, one<'$'>>> {};
 struct variable_head2 : seq<variable_head1, star<sor<variable_head1, digit>>> {};
 struct numeric_slice : seq<plus<digit, opt<one<':'>, plus<digit>>>> {};
@@ -74,7 +76,7 @@ struct close_bracket : seq<star<space>, one<')'>> {};
 struct expression;
 struct unary_expression;
 struct bracketed : seq<open_bracket, expression, close_bracket> {};
-struct value : pad<sor<integer, variable, bracketed>, space> {};
+struct value : pad<sor<hex_integer, integer, variable, bracketed>, space> {};
 struct unary_expression0 : sor<seq<unary_op, value>, seq<unary_op, unary_expression>> {};
 struct unary_expression : sor<value, pad<unary_expression0, space>> {};
 struct multiplicative_expression0 : seq<multiplicative_op, unary_expression> {};
@@ -220,6 +222,22 @@ struct action<integer> {
     [[maybe_unused]] static void apply(const ActionInput& in, ParserState& state) {
         auto* expr = state.add_expression(expr::Operator::None);
         std::stringstream ss(in.string());
+        ExpressionType v;
+        ss >> v;
+        expr->set_value(v);
+        state.push(expr);
+    }
+};
+
+template <>
+struct action<hex_integer> {
+    template <typename ActionInput>
+    [[maybe_unused]] static void apply(const ActionInput& in, ParserState& state) {
+        auto* expr = state.add_expression(expr::Operator::None);
+        std::string value = in.string();
+        auto pos = value.find_first_of('\'');
+        std::stringstream ss;
+        ss << std::hex << value.substr(pos + 2);
         ExpressionType v;
         ss >> v;
         expr->set_value(v);
