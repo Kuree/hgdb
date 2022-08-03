@@ -240,7 +240,14 @@ public:
     [[nodiscard]] std::string_view type() const override { return is_decl_ ? "decl" : "assign"; }
 
     [[nodiscard]] bool operator==(const VarStmt &stmt) const {
-        return Scope<VarStmt>::operator==(stmt) && var_ == stmt.var_;
+        auto self_uninitialized = filename.empty() && (!line_num || (*line_num == 0));
+        auto stmt_uninitialized =
+            stmt.filename.empty() && (!stmt.line_num || (*stmt.line_num == 0));
+        if (self_uninitialized || stmt_uninitialized) {
+            return var_ == stmt.var_;
+        } else {
+            return Scope<VarStmt>::operator==(stmt) && var_ == stmt.var_;
+        }
     }
 
     friend class SymbolTable;
@@ -465,9 +472,8 @@ public:
 
     static bool has_same_var(ScopeBase *scope, VarStmt &stmt) {
         bool match = false;
-        auto stmt_type = stmt.type();
-        auto match_func = [&match, &stmt, stmt_type](ScopeBase *s) {
-            if (s->type() == stmt_type) {
+        auto match_func = [&match, &stmt](ScopeBase *s) {
+            if (s->type() == "decl" || s->type() == "assign") {
                 auto const &ref = *reinterpret_cast<VarStmt *>(s);
                 if (stmt == ref) {
                     match = true;

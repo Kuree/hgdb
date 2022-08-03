@@ -137,7 +137,7 @@ TEST(json, walk) {
         scope1->create_scope<VarStmt>(v, 1, true);
         auto *scope2 = scope1->create_scope<Scope<>>();
         scope2->create_scope<Scope<>>();
-        VarStmt target(v, 1, false);
+        VarStmt target(v, 2, false);
         auto res = SymbolTable::has_same_var(scope2, target);
         EXPECT_FALSE(res);
     }
