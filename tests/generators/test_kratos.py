@@ -222,10 +222,10 @@ def test_kratos_data_breakpoint(find_free_port, simulator):
                 bp = await client.recv()
                 assert bp["payload"]["line_num"] == py_line_num
                 # addr should be 3 and array[3] hasn't been set yet
-                assert bp["payload"]["instances"][0]["generator"]["addr"] == "3"
-                assert bp["payload"]["instances"][0]["generator"]["array.3"] == "0"
+                assert bp["payload"]["instances"][0]["local"]["addr"] == "3"
+                assert bp["payload"]["instances"][0]["local"]["array.3"] == "0"
                 # two has been set
-                assert bp["payload"]["instances"][0]["generator"]["array.2"] == "3"
+                assert bp["payload"]["instances"][0]["local"]["array.2"] == "3"
 
                 # go to the end
                 await client.continue_()
