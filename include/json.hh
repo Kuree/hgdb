@@ -42,7 +42,7 @@ public:
         // if it's an array
         if constexpr (std::is_same_v<T, const char *> || std::is_same_v<T, std::string> ||
                       std::is_same_v<T, std::string_view>) {
-            s_ << '"' << value << '"';
+            s_ << '"' << escape(value) << '"';
         } else if constexpr (std::is_same_v<T, bool>) {
             s_ << (value ? "true" : "false");
         } else {
@@ -79,6 +79,19 @@ private:
         if (c == ',') {
             s_.seekp(-1, std::ios::end);
         }
+    }
+
+    static std::string escape(std::string_view value) {
+        std::stringstream ss;
+        for (auto c : value) {
+            if (c == '\\') {
+                ss << '\\' << '\\';
+            } else {
+                ss << c;
+            }
+        }
+
+        return ss.str();
     }
 };
 
