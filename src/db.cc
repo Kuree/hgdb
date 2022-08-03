@@ -1071,6 +1071,13 @@ void build_bp_ids(Instance &inst, uint32_t &id) {
 
 }  // namespace db::json
 
+bool reordering(const rapidjson::Document &document) {
+    if (document.HasMember("reorder")) {
+        return document["reorder"].GetBool();
+    }
+    return true;
+}
+
 JSONSymbolTableProvider::JSONSymbolTableProvider(const std::string &filename) {
     {
         auto stream = std::ifstream(filename);
@@ -1092,6 +1099,8 @@ JSONSymbolTableProvider::JSONSymbolTableProvider(const std::string &filename) {
         document.ParseStream(isw);
         db::json::JSONParseInfo info(module_defs_, var_defs_, attributes_);
         roots_ = db::json::parse(document, info);
+
+        reordering_ = reordering(document);
     }
     parse_db();
 }
@@ -1837,13 +1846,6 @@ bool JSONSymbolTableProvider::valid_json(std::istream &stream) {
     valijson::Validator validator;
     valijson::adapters::RapidJsonAdapter document_adapter(document);
     return validator.validate(json_schema, document_adapter, nullptr);
-}
-
-bool reordering(const rapidjson::Document &document) {
-    if (document.HasMember("reorder")) {
-        return document["reorder"].GetBool();
-    }
-    return true;
 }
 
 bool JSONSymbolTableProvider::parse(const std::string &db_content) {
