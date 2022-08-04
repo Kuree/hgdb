@@ -21,4 +21,5 @@ PLI_INT32 vpi_release_handle(vpiHandle) { return 0; }
 PLI_INT32 vpi_control(PLI_INT32, ...) { return 0; }
 vpiHandle vpi_put_value(vpiHandle, p_vpi_value, p_vpi_time, PLI_INT32) { return nullptr; }
 vpiHandle vpi_register_systf(p_vpi_systf_data) { return nullptr; }
+vpiHandle vpi_handle(int, vpiHandle) { return nullptr; };
 }

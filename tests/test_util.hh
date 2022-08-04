@@ -235,6 +235,11 @@ public:
         return nullptr;
     }
 
+    vpiHandle vpi_handle(int type, vpiHandle scope) override {
+        // noop
+        return nullptr;
+    }
+
     bool vpi_rewind(rewind_data *reverse_data) override {
         if (rewind_allowed_) {
             time_ = reverse_data->time;

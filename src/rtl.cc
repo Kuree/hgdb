@@ -98,6 +98,11 @@ vpiHandle VPIProvider::vpi_register_systf(p_vpi_systf_data data) {
     return ::vpi_register_systf(data);
 }
 
+vpiHandle VPIProvider::vpi_handle(int type, vpiHandle scope) {
+    std::lock_guard guard(vpi_lock_);
+    return ::vpi_handle(type, scope);
+}
+
 bool VPIProvider::has_defname() {
     t_vpi_vlog_info info{};
     if (this->vpi_get_vlog_info(&info)) {
@@ -256,29 +261,32 @@ int64_t get_slice(int64_t value, const std::tuple<vpiHandle, uint32_t, uint32_t>
     return static_cast<int64_t>(v);
 }
 
-std::optional<int64_t> RTLSimulatorClient::get_value(vpiHandle handle) {
+std::optional<int64_t> RTLSimulatorClient::get_value(vpiHandle handle, bool is_signal) {
     if (!handle) [[unlikely]] {
         return std::nullopt;
     }
-    // get value size. Verilator will freak out if the width is larger than 64
-    // notice this is mostly cached result
-    if (is_verilator()) {
-        auto width = get_vpi_size(handle);
-        if (width > 64) [[unlikely]] {
-            auto *name = vpi_->vpi_get_str(vpiName, handle);
-            log::log(log::log_level::info,
-                     fmt::format("{0} is too large to display as an integer", name));
-            return {};
+
+    bool is_slice_handle = false;
+
+    if (is_signal) {
+        // get value size. Verilator will freak out if the width is larger than 64
+        // notice this is mostly cached result
+        if (is_verilator()) {
+            auto width = get_vpi_size(handle);
+            if (width > 64) [[unlikely]] {
+                auto *name = vpi_->vpi_get_str(vpiName, handle);
+                log::log(log::log_level::info,
+                         fmt::format("{0} is too large to display as an integer", name));
+                return {};
+            }
         }
+
+        // if we have mock vpi handle, use it
+        // optimize for unlikely
+        is_slice_handle = mock_slice_handles_.find(handle) != mock_slice_handles_.end();
+        if (is_slice_handle) [[unlikely]]
+            handle = std::get<0>(mock_slice_handles_.at(handle));
     }
-
-    vpiHandle request_handle = handle;
-
-    // if we have mock vpi handle, use it
-    // optimize for unlikely
-    bool is_slice_handle = mock_slice_handles_.find(handle) != mock_slice_handles_.end();
-    if (is_slice_handle) [[unlikely]]
-        handle = std::get<0>(mock_slice_handles_.at(handle));
 
     s_vpi_value v;
     v.format = vpiIntVal;
@@ -286,7 +294,7 @@ std::optional<int64_t> RTLSimulatorClient::get_value(vpiHandle handle) {
     int64_t result = v.value.integer;
 
     if (is_slice_handle) [[unlikely]] {
-        result = get_slice(result, mock_slice_handles_.at(request_handle));
+        result = get_slice(result, mock_slice_handles_.at(handle));
     }
 
     return result;
@@ -338,7 +346,7 @@ std::string get_slice(const std::string &value,
     return s;
 }
 
-std::optional<std::string> RTLSimulatorClient::get_str_value(vpiHandle handle) {
+std::optional<std::string> RTLSimulatorClient::get_str_value(vpiHandle handle, bool is_signal) {
     if (!handle) [[unlikely]] {
         return std::nullopt;
     }
@@ -347,22 +355,29 @@ std::optional<std::string> RTLSimulatorClient::get_str_value(vpiHandle handle) {
         return std::nullopt;
     }
 
-    vpiHandle request_handle = handle;
+    if (is_signal) {
+        vpiHandle request_handle = handle;
 
-    bool is_slice = mock_slice_handles_.find(handle) != mock_slice_handles_.end();
-    handle = is_slice ? std::get<0>(mock_slice_handles_.at(handle)) : handle;
+        bool is_slice = mock_slice_handles_.find(handle) != mock_slice_handles_.end();
+        handle = is_slice ? std::get<0>(mock_slice_handles_.at(handle)) : handle;
 
-    s_vpi_value v;
-    v.format = is_slice ? vpiBinStrVal : vpiHexStrVal;
-    vpi_->vpi_get_value(handle, &v);
-    std::string result = v.value.str;
-    if (is_slice) [[unlikely]] {
-        result = get_slice(result, mock_slice_handles_.at(request_handle));
+        s_vpi_value v;
+        v.format = is_slice ? vpiBinStrVal : vpiHexStrVal;
+        vpi_->vpi_get_value(handle, &v);
+        std::string result = v.value.str;
+        if (is_slice) [[unlikely]] {
+            result = get_slice(result, mock_slice_handles_.at(request_handle));
+        }
+        // we only add 0x to any signal that has more than 1bit
+        auto width = get_vpi_size(request_handle);
+        if (width > 1) result = fmt::format("0x{0}", result);
+        return result;
+    } else {
+        s_vpi_value v;
+        v.format = vpiStringVal;
+        vpi_->vpi_get_value(handle, &v);
+        return std::string(v.value.str);
     }
-    // we only add 0x to any signal that has more than 1bit
-    auto width = get_vpi_size(request_handle);
-    if (width > 1) result = fmt::format("0x{0}", result);
-    return result;
 }
 
 bool RTLSimulatorClient::set_value(vpiHandle handle, int64_t value) {
@@ -952,6 +967,39 @@ RTLSimulatorClient::~RTLSimulatorClient() {
 
 void RTLSimulatorClient::set_mapping(const std::string &top, const std::string &prefix) {
     hierarchy_name_prefix_map_ = {top, prefix};
+}
+
+std::optional<RTLSimulatorClient::AssertInfo> RTLSimulatorClient::get_assert_info() {
+    auto *tf_handle = vpi_->vpi_handle(vpiSysTaskCall, nullptr);
+    if (!tf_handle) return std::nullopt;
+    auto *arg_iterator = vpi_->vpi_iterate(vpiArgument, tf_handle);
+    if (!arg_iterator) return std::nullopt;
+    vpiHandle it;
+    RTLSimulatorClient::AssertInfo res;
+    while ((it = vpi_->vpi_scan(arg_iterator))) {
+        auto type = vpi_->vpi_get(vpiType, it);
+        if (type == vpiModule) {
+            // this is the module
+            res.full_name = vpi_get_str(vpiFullName, it);
+        } else if (type == vpiConstant) {
+            auto const_type = vpi_->vpi_get(vpiConstType, it);
+            if (const_type == vpiStringConst) {
+                auto s = get_str_value(it, false);
+                res.filename = *s;
+            } else if (const_type != vpiRealConst && const_type != vpiTimeConst) {
+                auto i = get_value(it, false);
+                if (res.line == 0)
+                    res.line = *i;
+                else
+                    res.column = *i;
+            }
+        }
+    }
+    // error check
+    if (res.full_name.empty() || res.filename.empty() || res.line == 0) {
+        return std::nullopt;
+    }
+    return res;
 }
 
 std::optional<std::pair<uint32_t, uint32_t>> extract_slice(const std::string &token) {

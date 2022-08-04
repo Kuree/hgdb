@@ -29,6 +29,7 @@ public:
     vpiHandle vpi_handle_by_index(vpiHandle object, PLI_INT32 index) override;
     vpiHandle vpi_put_value(vpiHandle, p_vpi_value, p_vpi_time, PLI_INT32) override;
     vpiHandle vpi_register_systf(p_vpi_systf_data data) override;
+    vpiHandle vpi_handle(int type, vpiHandle scope) override;
     bool vpi_rewind(rewind_data *rewind_data) override;
     bool has_defname() override { return db_->has_inst_definition(); }
 

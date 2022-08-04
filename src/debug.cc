@@ -166,7 +166,20 @@ std::vector<RTLSimulatorClient *> Debugger::rtl_clients() const {
 }
 
 void Debugger::handle_assert() {
-    // TODO
+    auto assert_info = namespaces_.default_rtl()->get_assert_info();
+    if (!assert_info) {
+        log_error("Incorrect usage of hgdb assertion");
+        return;
+    }
+    auto breakpoints =
+        db_->get_breakpoints(assert_info->filename, assert_info->line, assert_info->column);
+    if (breakpoints.empty()) {
+        log_error("Unable to find corresponding breakpoint for assertion");
+        return;
+    }
+    // should be only one
+    auto const &bp = breakpoints[0];
+    // need to look up namespace
 }
 
 void Debugger::set_option(const std::string &name, bool value) {

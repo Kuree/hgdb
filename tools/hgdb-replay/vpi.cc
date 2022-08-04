@@ -381,7 +381,12 @@ vpiHandle ReplayVPIProvider::vpi_put_value(vpiHandle, p_vpi_value, p_vpi_time, P
     return invalid_value;
 }
 
-vpiHandle ReplayVPIProvider::vpi_register_systf(p_vpi_systf_data data) {
+vpiHandle ReplayVPIProvider::vpi_register_systf(p_vpi_systf_data) {
+    // noop
+    return nullptr;
+}
+
+vpiHandle ReplayVPIProvider::vpi_handle(int, vpiHandle) {
     // noop
     return nullptr;
 }

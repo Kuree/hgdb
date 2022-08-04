@@ -33,7 +33,9 @@ public:
     virtual PLI_INT32 vpi_control(PLI_INT32 operation, ...) = 0;
     virtual vpiHandle vpi_put_value(vpiHandle object, p_vpi_value value_p, p_vpi_time time_p,
                                     PLI_INT32 flags) = 0;
+    // these two below are used to implement assertions
     virtual vpiHandle vpi_register_systf(p_vpi_systf_data data) = 0;
+    virtual vpiHandle vpi_handle(int type, vpiHandle scope) = 0;
     virtual ~AVPIProvider() = default;
 
     // extended vpi controls, not present in the spec
@@ -71,6 +73,7 @@ class VPIProvider : public AVPIProvider {
     vpiHandle vpi_put_value(vpiHandle object, p_vpi_value value_p, p_vpi_time time_p,
                             PLI_INT32 flags) override;
     vpiHandle vpi_register_systf(p_vpi_systf_data data) override;
+    vpiHandle vpi_handle(int type, vpiHandle scope) override;
 
     bool has_defname() override;
 
@@ -90,10 +93,10 @@ public:
     vpiHandle get_handle(const std::vector<std::string> &tokens);
     bool is_valid_signal(const std::string &name);
     std::optional<int64_t> get_value(const std::string &name);
-    std::optional<int64_t> get_value(vpiHandle handle);
+    std::optional<int64_t> get_value(vpiHandle handle, bool signal = true);
     std::optional<uint32_t> get_signal_width(vpiHandle handle);
     std::optional<std::string> get_str_value(const std::string &name);
-    std::optional<std::string> get_str_value(vpiHandle handle);
+    std::optional<std::string> get_str_value(vpiHandle handle, bool is_signal = true);
     bool set_value(vpiHandle handle, int64_t value);
     bool set_value(const std::string &name, int64_t value);
     using ModuleSignals = std::unordered_map<std::string, vpiHandle>;
@@ -154,6 +157,15 @@ public:
     // inform user about our mapping
     void set_mapping(const std::string &top, const std::string &prefix);
     [[nodiscard]] auto const &get_mapping() const { return hierarchy_name_prefix_map_; }
+
+    struct AssertInfo {
+        std::string full_name;
+        std::string filename;
+        uint32_t line = 0;
+        uint32_t column = 0;
+    };
+
+    std::optional<RTLSimulatorClient::AssertInfo> get_assert_info();
 
 private:
     std::unordered_map<std::string, vpiHandle> handle_map_;
