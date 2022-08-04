@@ -12,7 +12,7 @@ namespace hgdb {
 struct DebuggerNamespaceManager;
 
 struct DebugBreakPoint {
-    enum class Type { normal = 1 << 0, data = 1 << 1 };
+    enum class Type { normal = 1 << 0, data = 1 << 1, exception = 1 << 2 };
     uint32_t id = 0;
     uint32_t instance_id = 0;
     std::unique_ptr<DebugExpression> expr;
@@ -66,6 +66,8 @@ public:
                                     DebugBreakPoint::Type bp_type = DebugBreakPoint::Type::normal,
                                     bool data_breakpoint = false,
                                     const std::string &target_var = "", bool dry_run = false);
+    void add_assertion(const BreakPoint &bp_info);
+
     void reorder_breakpoints();
     void remove_breakpoint(const BreakPoint &bp, DebugBreakPoint::Type type);
     std::vector<const DebugBreakPoint *> get_current_breakpoints();
@@ -96,6 +98,8 @@ private:
     std::mutex breakpoint_lock_;
     // holder for step over breakpoint, not used for normal purpose
     std::vector<DebugBreakPoint> next_temp_breakpoints_;
+    // we put assertions here since we have lots of reusable code here
+    std::vector<DebugBreakPoint> assertions_;
 
     // get it from the debugger. no ownership
     SymbolTableProvider *db_;

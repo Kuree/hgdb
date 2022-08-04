@@ -326,6 +326,15 @@ std::unordered_map<std::string, vpiHandle> compute_trigger_symbol(const BreakPoi
     return result;
 }
 
+void set_debug_breakpoint_info(DebugBreakPoint *bp, const BreakPoint &bp_info, uint64_t ns_id) {
+    bp->id = bp_info.id;
+    bp->ns_id = ns_id;
+    bp->instance_id = *bp_info.instance_id;
+    bp->filename = bp_info.filename;
+    bp->line_num = bp_info.line_num;
+    bp->column_num = bp_info.column_num;
+}
+
 // NOLINTNEXTLINE
 DebugBreakPoint *Scheduler::add_breakpoint(const BreakPoint &bp_info, const BreakPoint &db_bp,
                                            DebugBreakPoint::Type bp_type, bool data_breakpoint,
@@ -341,15 +350,10 @@ DebugBreakPoint *Scheduler::add_breakpoint(const BreakPoint &bp_info, const Brea
                       dry_run](DebuggerNamespace *ns) -> DebugBreakPoint * {
         auto *rtl = ns->rtl.get();
         auto bp = std::make_unique<DebugBreakPoint>();
-        bp->id = db_bp.id;
-        bp->ns_id = ns->id;
-        bp->instance_id = *db_bp.instance_id;
+        set_debug_breakpoint_info(bp.get(), db_bp, ns->id);
         bp->expr = std::make_unique<DebugExpression>(cond);
         bp->enable_expr =
             std::make_unique<DebugExpression>(db_bp.condition.empty() ? "1" : db_bp.condition);
-        bp->filename = db_bp.filename;
-        bp->line_num = db_bp.line_num;
-        bp->column_num = db_bp.column_num;
         bp->trigger_symbols = compute_trigger_symbol(db_bp, rtl, db_);
         bp->type = bp_type;
         util::validate_expr(rtl, db_, bp->expr.get(), db_bp.id, *db_bp.instance_id);
@@ -434,6 +438,24 @@ DebugBreakPoint *Scheduler::add_breakpoint(const BreakPoint &bp_info, const Brea
             data_bp->target_rtl_var_name = target_var;
         }
         return data_bp;
+    }
+}
+
+void Scheduler::add_assertion(const hgdb::BreakPoint &bp_info) {
+    auto instance_name = db_->get_instance_name_from_bp(bp_info.id);
+    auto const &namespaces = namespaces_.get_namespaces(instance_name);
+    for (auto const &ns : namespaces) {
+        DebugBreakPoint bp;
+        auto *rtl = ns->rtl.get();
+        set_debug_breakpoint_info(&bp, bp_info, ns->id);
+        bp.expr = std::make_unique<DebugExpression>(bp_info.condition);
+        bp.type = DebugBreakPoint::Type::exception;
+        util::validate_expr(rtl, db_, bp.expr.get(), bp_info.id, *bp_info.instance_id);
+        if (!bp.expr->correct()) [[unlikely]] {
+            log_error("Unable to validate breakpoint expression: " + bp_info.condition);
+            return;
+        }
+        assertions_.emplace_back(std::move(bp));
     }
 }
 

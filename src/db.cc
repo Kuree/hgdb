@@ -350,6 +350,11 @@ DBSymbolTableProvider::get_assigned_breakpoints(const std::string &var_name,  //
     return result;
 }
 
+std::vector<BreakPoint> DBSymbolTableProvider::get_assertions() {
+    // we plan to phase out SQlite based implementation
+    return {};
+}
+
 DBSymbolTableProvider::~DBSymbolTableProvider() { close(); }
 
 std::vector<uint32_t> DBSymbolTableProvider::execution_bp_orders() {
@@ -1809,6 +1814,11 @@ JSONSymbolTableProvider::get_assigned_breakpoints(const std::string &var_name,
     }
 
     return result;
+}
+
+std::vector<BreakPoint> JSONSymbolTableProvider::get_assertions() {
+    // TODO
+    return {};
 }
 
 std::vector<uint32_t> JSONSymbolTableProvider::execution_bp_orders() {

@@ -1107,6 +1107,8 @@ std::string to_string(SymbolRequest::request_type type) {
             return "get_assigned_breakpoints";
         case SymbolRequest::request_type::get_filenames:
             return "get_filenames";
+        case SymbolRequest::request_type::get_assertions:
+            return "get_assertions";
     }
     throw std::runtime_error("Invalid request type");
 }
@@ -1146,6 +1148,8 @@ void SymbolRequest::parse_payload(const std::string &payload) {
         req_type_ = request_type::get_assigned_breakpoints;
     } else if (*type_str == "get_filenames") {
         req_type_ = request_type::get_filenames;
+    } else if (*type_str == "get_assertions") {
+        req_type_ = request_type::get_assertions;
     } else {
         error_reason_ = "Unknown request type " + *type_str;
         return;
@@ -1193,6 +1197,7 @@ void SymbolRequest::parse_payload(const std::string &payload) {
         case request_type::get_all_array_names:
         case request_type::get_filenames:
         case request_type::get_execution_bp_orders:
+        case request_type::get_assertions:
             // nothing
             break;
         case request_type::get_annotation_values: {
@@ -1249,6 +1254,7 @@ std::string SymbolRequest::str() const {
         case request_type::get_all_array_names:
         case request_type::get_filenames:
         case request_type::get_execution_bp_orders:
+        case request_type::get_assertions:
             // nothing
             break;
         case request_type::get_annotation_values:
@@ -1402,6 +1408,7 @@ void SymbolResponse::parse(const std::string &str) {
 
     // we ignore type since it's a single thread model
     switch (type_) {
+        case SymbolRequest::request_type::get_assertions:
         case SymbolRequest::request_type::get_breakpoint: {
             if (!result.IsObject()) return;
             auto bp = parse_breakpoint(result);
@@ -1521,6 +1528,7 @@ std::string SymbolResponse::str(bool pretty_print) const {
             set_member(result, allocator, *bp_result);
             break;
         }
+        case SymbolRequest::request_type::get_assertions:
         case SymbolRequest::request_type::get_breakpoints: {
             result = Value(kArrayType);
             set_member(result, allocator, bp_results);

@@ -452,6 +452,13 @@ public:
         return resp.var_result;
     }
 
+    std::vector<BreakPoint> get_assertions() override {
+        SymbolRequest req(SymbolRequest::request_type::get_assertions);
+
+        auto resp = get_resp(req);
+        return std::move(resp.bp_results);
+    }
+
     [[nodiscard]] bool bad() const override { return network_ == nullptr; }
 
     ~NetworkSymbolTableProvider() override = default;

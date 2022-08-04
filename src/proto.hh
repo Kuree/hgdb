@@ -349,7 +349,8 @@ public:
         get_all_array_names,
         get_filenames,
         get_execution_bp_orders,
-        get_assigned_breakpoints
+        get_assigned_breakpoints,
+        get_assertions
     };
 
     explicit SymbolRequest(request_type req_type) : req_type_(req_type) {}

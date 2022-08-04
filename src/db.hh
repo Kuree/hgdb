@@ -41,6 +41,7 @@ public:
     std::vector<std::string> get_all_array_names() override;
     [[nodiscard]] std::vector<std::tuple<uint32_t, std::string, std::string>>
     get_assigned_breakpoints(const std::string &var_name, uint32_t breakpoint_id) override;
+    [[nodiscard]] std::vector<BreakPoint> get_assertions() override;
 
     ~DBSymbolTableProvider() override;
 
@@ -108,6 +109,7 @@ public:
     std::vector<std::string> get_all_array_names() override;
     [[nodiscard]] std::vector<std::tuple<uint32_t, std::string, std::string>>
     get_assigned_breakpoints(const std::string &var_name, uint32_t breakpoint_id) override;
+    [[nodiscard]] std::vector<BreakPoint> get_assertions() override;
 
     [[nodiscard]] std::vector<uint32_t> execution_bp_orders() override;
 

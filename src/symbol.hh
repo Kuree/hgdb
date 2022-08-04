@@ -39,6 +39,7 @@ public:
         const std::string &name) = 0;
     std::unordered_map<std::string, int64_t> get_context_static_values(uint32_t breakpoint_id);
     virtual std::vector<std::string> get_all_array_names() = 0;
+    virtual std::vector<BreakPoint> get_assertions() = 0;
 
     virtual ~SymbolTableProvider() = default;
 
