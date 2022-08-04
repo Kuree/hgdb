@@ -381,6 +381,11 @@ vpiHandle ReplayVPIProvider::vpi_put_value(vpiHandle, p_vpi_value, p_vpi_time, P
     return invalid_value;
 }
 
+vpiHandle ReplayVPIProvider::vpi_register_systf(p_vpi_systf_data data) {
+    // noop
+    return nullptr;
+}
+
 bool ReplayVPIProvider::vpi_rewind(rewind_data *rewind_data) {
     if (on_rewound_) {
         return (*on_rewound_)(rewind_data);

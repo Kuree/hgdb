@@ -34,6 +34,22 @@ void initialize_hgdb_runtime() { hgdb::initialize_hgdb_runtime_vpi(nullptr); }
     hgdb::initialize_hgdb_runtime_vpi(nullptr, true);
 }
 
+int handle_assert(char *user_data) {
+    auto *debugger = reinterpret_cast<hgdb::Debugger *>(user_data);
+    debugger->handle_assert();
+    return 0;
+}
+
+void register_tf(hgdb::RTLSimulatorClient *rtl, hgdb::Debugger *debugger) {
+    // notice that verilator does not support system task
+    if (rtl->is_verilator()) return;
+    auto constexpr assert_name = "$hgdb_assert";
+    auto *res = rtl->register_tf(assert_name, &handle_assert, debugger);
+    if (!res) {
+        std::cerr << "ERROR: failed to register system function " << assert_name << std::endl;
+    }
+}
+
 // register the VPI call
 extern "C" {
 // these are system level calls. register it to the simulator
@@ -63,6 +79,10 @@ Debugger *initialize_hgdb_runtime_vpi(std::unique_ptr<AVPIProvider> vpi, bool st
         // we will use that as an indication of VCS compilation stage
         if (!start_server && !vpi_get_vlog_info(&info) && !vpi) {
             // we are inside VCS command
+            // still need to register the TF, using the system VPI since it's VCS
+            RTLSimulatorClient rtl(std::make_shared<hgdb::VPIProvider>());
+            // no need to create debugger
+            register_tf(&rtl, nullptr);
             return nullptr;
         }
     }
@@ -78,6 +98,9 @@ Debugger *initialize_hgdb_runtime_vpi(std::unique_ptr<AVPIProvider> vpi, bool st
 
     auto *rtl = debugger->rtl_clients()[0];
     vpiHandle res;
+
+    // register system tf
+    register_tf(rtl, debugger);
 
     // start the debugger at the start of the simulation
     // if start_server is set to true, start immediately

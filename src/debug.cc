@@ -165,6 +165,10 @@ std::vector<RTLSimulatorClient *> Debugger::rtl_clients() const {
     return result;
 }
 
+void Debugger::handle_assert() {
+    // TODO
+}
+
 void Debugger::set_option(const std::string &name, bool value) {
     auto options = get_options();
     options.set_option(name, value);

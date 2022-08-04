@@ -93,6 +93,11 @@ vpiHandle VPIProvider::vpi_put_value(vpiHandle object, p_vpi_value value_p, p_vp
     return ::vpi_put_value(object, value_p, time_p, flags);
 }
 
+vpiHandle VPIProvider::vpi_register_systf(p_vpi_systf_data data) {
+    std::lock_guard guard(vpi_lock_);
+    return ::vpi_register_systf(data);
+}
+
 bool VPIProvider::has_defname() {
     t_vpi_vlog_info info{};
     if (this->vpi_get_vlog_info(&info)) {
@@ -493,6 +498,18 @@ void RTLSimulatorClient::remove_call_back(const std::string &cb_name) {
         auto *handle = cb_handles_.at(cb_name);
         remove_call_back(handle);
     }
+}
+
+vpiHandle RTLSimulatorClient::register_tf(const std::string &name, int (*tf_func)(char *),
+                                          void *user_data) {
+    s_vpi_systf_data tf_data;
+    tf_data.type = vpiSysTask;
+    tf_data.sysfunctype = vpiSysTask;
+    tf_data.tfname = const_cast<char *>(name.c_str());
+    tf_data.calltf = tf_func;
+    tf_data.compiletf = nullptr;
+    tf_data.sizetf = nullptr;
+    return vpi_->vpi_register_systf(&tf_data);
 }
 
 void RTLSimulatorClient::remove_call_back(vpiHandle cb_handle) {

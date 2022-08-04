@@ -33,6 +33,7 @@ public:
     virtual PLI_INT32 vpi_control(PLI_INT32 operation, ...) = 0;
     virtual vpiHandle vpi_put_value(vpiHandle object, p_vpi_value value_p, p_vpi_time time_p,
                                     PLI_INT32 flags) = 0;
+    virtual vpiHandle vpi_register_systf(p_vpi_systf_data data) = 0;
     virtual ~AVPIProvider() = default;
 
     // extended vpi controls, not present in the spec
@@ -69,6 +70,7 @@ class VPIProvider : public AVPIProvider {
     PLI_INT32 vpi_control(PLI_INT32 operation, ...) override;
     vpiHandle vpi_put_value(vpiHandle object, p_vpi_value value_p, p_vpi_time time_p,
                             PLI_INT32 flags) override;
+    vpiHandle vpi_register_systf(p_vpi_systf_data data) override;
 
     bool has_defname() override;
 
@@ -107,6 +109,7 @@ public:
     vpiHandle add_call_back(const std::string &cb_name, int cb_type, int(cb_func)(p_cb_data),
                             vpiHandle obj = nullptr, void *user_data = nullptr);
     void remove_call_back(const std::string &cb_name);
+    vpiHandle register_tf(const std::string &name, int(tf_func)(char *), void *user_data = nullptr);
     enum class finish_value { nothing = 0, time_location = 1, all = 2 };
     void finish_sim(finish_value value = finish_value::nothing);
     void stop_sim(finish_value value = finish_value::nothing);

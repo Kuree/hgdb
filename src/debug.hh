@@ -43,6 +43,9 @@ public:
     [[nodiscard]] SymbolTableProvider *db() const { return db_.get(); }
     [[nodiscard]] Scheduler *scheduler() const { return scheduler_.get(); }
 
+    // system tf
+    void handle_assert();
+
     // directly set options from function API instead of through ws
     void set_option(const std::string &name, bool value);
 

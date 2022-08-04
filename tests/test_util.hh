@@ -230,6 +230,11 @@ public:
         return nullptr;
     }
 
+    vpiHandle vpi_register_systf(p_vpi_systf_data) override {
+        // noop
+        return nullptr;
+    }
+
     bool vpi_rewind(rewind_data *reverse_data) override {
         if (rewind_allowed_) {
             time_ = reverse_data->time;
