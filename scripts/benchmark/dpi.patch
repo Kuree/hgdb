@@ -1,0 +1,12 @@
+diff --git a/vsim/Makefrag b/vsim/Makefrag
+index 278384769..75c272395 100644
+--- a/vsim/Makefrag
++++ b/vsim/Makefrag
+@@ -48,6 +48,7 @@ VCS_OPTS = -notice -line +lint=all,noVCDE,noONGS,noUI -error=PCWM-L -timescale=1
+ 	-CC "-Wl,-rpath,$(RISCV)/lib" \
+ 	$(RISCV)/lib/libfesvr.a \
+ 	-sverilog \
++	/hgdb_debug_dpi.c \
+ 	+incdir+$(generated_dir) \
+ 	+define+CLOCK_PERIOD=1.0 $(sim_vsrcs) $(sim_csrcs) \
+ 	+define+PRINTF_COND=$(TB).printf_cond \
