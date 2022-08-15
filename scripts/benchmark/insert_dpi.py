@@ -10,7 +10,8 @@ def rewrite_rtl(input_file):
     while i < len(lines):
         line = lines[i]
         i += 1
-        if "assign " not in line:
+        # transform only if there is a line command
+        if "assign " not in line or "@" not in line:
             # Chisel use default net type for input/output ports (bad!)
             # convert them to proper logic
             if "input " in line:
