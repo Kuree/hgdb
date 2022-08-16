@@ -280,6 +280,17 @@ std::unique_ptr<DebugBreakPoint> Scheduler::remove_breakpoint(uint64_t bp_id,
     return nullptr;
 }
 
+void Scheduler::remove_assert_breakpoints() {
+    auto ids =
+        std::unordered_set<uint32_t>(inserted_breakpoints_.begin(), inserted_breakpoints_.end());
+    for (auto bp_id : ids) {
+        auto *bp = get_breakpoint(bp_id);
+        if (bp && bp->has_type_flag(DebugBreakPoint::Type::assert)) {
+            remove_breakpoint(bp_id, DebugBreakPoint::Type::assert);
+        }
+    }
+}
+
 void clear_breakpoints(std::vector<std::unique_ptr<DebugBreakPoint>> &breakpoints) {
     for (auto &bp : breakpoints) {
         bp->evaluated = false;
@@ -287,6 +298,9 @@ void clear_breakpoints(std::vector<std::unique_ptr<DebugBreakPoint>> &breakpoint
 }
 
 void Scheduler::start_breakpoint_evaluation() {
+    // remove assertions first
+    remove_assert_breakpoints();
+    // unset all the breakpoints
     clear_breakpoints(breakpoints_);
     current_breakpoint_id_ = std::nullopt;
 }
@@ -328,8 +342,9 @@ std::unordered_map<std::string, vpiHandle> compute_trigger_symbol(const BreakPoi
 
 // NOLINTNEXTLINE
 DebugBreakPoint *Scheduler::add_breakpoint(const BreakPoint &bp_info, const BreakPoint &db_bp,
-                                           DebugBreakPoint::Type bp_type, bool data_breakpoint,
-                                           const std::string &target_var, bool dry_run) {
+                                           DebugBreakPoint::Type bp_type,
+                                           const std::string &target_var, bool dry_run,
+                                           DebuggerNamespace *target_ns) {
     // add them to the eval vector
     std::string cond = "1";
     if (!db_bp.condition.empty()) cond = db_bp.condition;
@@ -380,61 +395,71 @@ DebugBreakPoint *Scheduler::add_breakpoint(const BreakPoint &bp_info, const Brea
     std::lock_guard guard(breakpoint_lock_);
     auto instance_name = db_->get_instance_name_from_bp(db_bp.id);
     auto const &namespaces = namespaces_.get_namespaces(instance_name);
-    if (!data_breakpoint) [[likely]] {
-        if (inserted_breakpoints_.find(db_bp.id) == inserted_breakpoints_.end()) {
-            DebugBreakPoint *p = nullptr;
-            for (auto *ns : namespaces) {
-                p = insert_bp(ns);
-            }
-            // Only need to return one
-            return p;
-        } else {
-            // update breakpoint entry
-            for (auto &b : breakpoints_) {
-                if (db_bp.id == b->id) {
-                    b->expr = std::make_unique<DebugExpression>(cond);
-                    auto *ns = namespaces_[b->ns_id];
-                    auto *rtl = ns->rtl.get();
-                    util::validate_expr(rtl, db_, b->expr.get(), db_bp.id, *db_bp.instance_id);
-                    if (!b->expr->correct()) [[unlikely]] {
-                        log_error("Unable to validate breakpoint expression: " + cond);
+
+    switch (bp_type) {
+        case DebugBreakPoint::Type::normal: {
+            if (inserted_breakpoints_.find(db_bp.id) == inserted_breakpoints_.end()) {
+                DebugBreakPoint *p = nullptr;
+                for (auto *ns : namespaces) {
+                    p = insert_bp(ns);
+                }
+                // Only need to return one
+                return p;
+            } else {
+                // update breakpoint entry
+                for (auto &b : breakpoints_) {
+                    if (db_bp.id == b->id) {
+                        b->expr = std::make_unique<DebugExpression>(cond);
+                        auto *ns = namespaces_[b->ns_id];
+                        auto *rtl = ns->rtl.get();
+                        util::validate_expr(rtl, db_, b->expr.get(), db_bp.id, *db_bp.instance_id);
+                        if (!b->expr->correct()) [[unlikely]] {
+                            log_error("Unable to validate breakpoint expression: " + cond);
+                        }
+                        // need to update the bp type flag
+                        b->type = static_cast<DebugBreakPoint::Type>(static_cast<int>(b->type) |
+                                                                     static_cast<int>(bp_type));
+                        return b.get();
                     }
-                    // need to update the bp type flag
-                    b->type = static_cast<DebugBreakPoint::Type>(static_cast<int>(b->type) |
-                                                                 static_cast<int>(bp_type));
-                    return b.get();
                 }
-            }
-            return nullptr;
-        }
-    } else {
-        // we skip insertion if everything matches
-        for (auto const &b : breakpoints_) {
-            if (b->id == db_bp.id && b->has_type_flag(DebugBreakPoint::Type::data)) {
-                // check if it's data breakpoint as well
-                if (b->target_rtl_var_name == target_var && b->expr->expression() == cond) {
-                    // no need to insert
-                    return b.get();
-                }
-            }
-        }
-        DebugBreakPoint *data_bp = nullptr;
-        for (auto *ns : namespaces) {
-            data_bp = insert_bp(ns);
-            auto *rtl = ns->rtl.get();
-            auto expr = DebugExpression(target_var);
-            util::validate_expr(rtl, db_, &expr, db_bp.id, *db_bp.instance_id);
-            auto const &handles = expr.get_resolved_symbol_handles();
-            if (!expr.correct() || handles.size() != 1) {
-                log_error("Unable to validate variable in data breakpoint: " + target_var);
                 return nullptr;
             }
-            data_bp->full_rtl_handle = handles.begin()->second;
-            data_bp->full_rtl_name = rtl->get_full_name(data_bp->full_rtl_handle);
-            data_bp->target_rtl_var_name = target_var;
         }
-        return data_bp;
+        case DebugBreakPoint::Type::data: {
+            // we skip insertion if everything matches
+            for (auto const &b : breakpoints_) {
+                if (b->id == db_bp.id && b->has_type_flag(DebugBreakPoint::Type::data)) {
+                    // check if it's data breakpoint as well
+                    if (b->target_rtl_var_name == target_var && b->expr->expression() == cond) {
+                        // no need to insert
+                        return b.get();
+                    }
+                }
+            }
+            DebugBreakPoint *data_bp = nullptr;
+            for (auto *ns : namespaces) {
+                data_bp = insert_bp(ns);
+                auto *rtl = ns->rtl.get();
+                auto expr = DebugExpression(target_var);
+                util::validate_expr(rtl, db_, &expr, db_bp.id, *db_bp.instance_id);
+                auto const &handles = expr.get_resolved_symbol_handles();
+                if (!expr.correct() || handles.size() != 1) {
+                    log_error("Unable to validate variable in data breakpoint: " + target_var);
+                    return nullptr;
+                }
+                data_bp->full_rtl_handle = handles.begin()->second;
+                data_bp->full_rtl_name = rtl->get_full_name(data_bp->full_rtl_handle);
+                data_bp->target_rtl_var_name = target_var;
+            }
+            return data_bp;
+        }
+        case DebugBreakPoint::Type::assert: {
+            if (!target_ns) return nullptr;
+            auto *res = insert_bp(target_ns);
+            return res;
+        }
     }
+    return nullptr;
 }
 
 DebugBreakPoint *Scheduler::add_data_breakpoint(const std::string &full_name,
@@ -444,9 +469,13 @@ DebugBreakPoint *Scheduler::add_data_breakpoint(const std::string &full_name,
     BreakPoint bp;
     bp.condition = expression;
     // we allow duplicated breakpoints to be inserted here
-    auto *data_bp =
-        add_breakpoint(bp, db_bp, DebugBreakPoint::Type::data, true, full_name, dry_run);
+    auto *data_bp = add_breakpoint(bp, db_bp, DebugBreakPoint::Type::data, full_name, dry_run);
     return data_bp;
+}
+
+DebugBreakPoint *Scheduler::add_assert_breakpoint(hgdb::DebuggerNamespace *ns,
+                                                  const hgdb::BreakPoint &db_bp) {
+    return add_breakpoint(db_bp, db_bp, DebugBreakPoint::Type::assert, "", false, ns);
 }
 
 void Scheduler::clear_data_breakpoints() {

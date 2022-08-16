@@ -35,6 +35,8 @@ public:
 
     std::map<std::string, std::map<std::string, uint32_t>> get_top_mapping() const;
 
+    [[nodiscard]] DebuggerNamespace *look_up(const std::string &full_name) const;
+
 private:
     std::vector<std::unique_ptr<DebuggerNamespace>> namespaces_;
     std::unordered_map<std::string, std::vector<DebuggerNamespace *>> mapped_namespaces_;

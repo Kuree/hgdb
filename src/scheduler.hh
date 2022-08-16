@@ -10,9 +10,10 @@
 namespace hgdb {
 
 struct DebuggerNamespaceManager;
+struct DebuggerNamespace;
 
 struct DebugBreakPoint {
-    enum class Type { normal = 1 << 0, data = 1 << 1 };
+    enum class Type { normal = 1 << 0, data = 1 << 1, assert = 1 << 2 };
     uint32_t id = 0;
     uint32_t instance_id = 0;
     std::unique_ptr<DebugExpression> expr;
@@ -64,14 +65,15 @@ public:
     // handle breakpoints
     DebugBreakPoint *add_breakpoint(const BreakPoint &bp_info, const BreakPoint &db_bp,
                                     DebugBreakPoint::Type bp_type = DebugBreakPoint::Type::normal,
-                                    bool data_breakpoint = false,
-                                    const std::string &target_var = "", bool dry_run = false);
+                                    const std::string &target_var = "", bool dry_run = false,
+                                    DebuggerNamespace *target_ns = nullptr);
     void reorder_breakpoints();
     void remove_breakpoint(const BreakPoint &bp, DebugBreakPoint::Type type);
     std::vector<const DebugBreakPoint *> get_current_breakpoints();
     DebugBreakPoint *add_data_breakpoint(const std::string &full_name,
                                          const std::string &expression, const BreakPoint &db_bp,
                                          bool dry_run);
+    DebugBreakPoint *add_assert_breakpoint(DebuggerNamespace *ns, const BreakPoint &db_bp);
     void clear_data_breakpoints();
     // also return associated monitor id, if any
     std::optional<uint64_t> remove_data_breakpoint(uint64_t bp_id);
@@ -110,6 +112,7 @@ private:
     std::vector<DebugBreakPoint *> create_next_breakpoints(
         const std::optional<BreakPoint> &bp_info);
     std::unique_ptr<DebugBreakPoint> remove_breakpoint(uint64_t bp_id, DebugBreakPoint::Type type);
+    void remove_assert_breakpoints();
 
     // log
     static void log_error(const std::string &msg);

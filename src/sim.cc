@@ -3,6 +3,8 @@
 #include "debug.hh"
 #include "log.hh"
 
+constexpr auto HGDB_ASSERT_FAIL = "$hgdb_assert_fail";
+
 PLI_INT32 initialize_hgdb_debugger(p_cb_data cb_data) {
     auto *raw_debugger = cb_data->user_data;
     auto *debugger = reinterpret_cast<hgdb::Debugger *>(raw_debugger);
@@ -43,10 +45,9 @@ int handle_assert(char *user_data) {
 void register_tf(hgdb::RTLSimulatorClient *rtl, hgdb::Debugger *debugger) {
     // notice that verilator does not support system task
     if (rtl->is_verilator()) return;
-    auto constexpr assert_name = "$hgdb_assert";
-    auto *res = rtl->register_tf(assert_name, &handle_assert, debugger);
+    auto *res = rtl->register_tf(HGDB_ASSERT_FAIL, &handle_assert, debugger);
     if (!res) {
-        std::cerr << "ERROR: failed to register system function " << assert_name << std::endl;
+        std::cerr << "ERROR: failed to register system function " << HGDB_ASSERT_FAIL << std::endl;
     }
 }
 

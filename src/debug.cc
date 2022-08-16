@@ -171,6 +171,11 @@ void Debugger::handle_assert() {
         log_error("Incorrect usage of hgdb assertion");
         return;
     }
+    auto *ns = namespaces_.look_up(assert_info->full_name);
+    if (!ns || !assert_info) {
+        log_error("Invalid assertion call site");
+        return;
+    }
     auto breakpoints =
         db_->get_breakpoints(assert_info->filename, assert_info->line, assert_info->column);
     if (breakpoints.empty()) {
@@ -179,7 +184,8 @@ void Debugger::handle_assert() {
     }
     // should be only one
     auto const &bp = breakpoints[0];
-    // need to look up namespace
+    // need to insert it into the scheduler
+    scheduler_->add_assert_breakpoint(ns, bp);
 }
 
 void Debugger::set_option(const std::string &name, bool value) {

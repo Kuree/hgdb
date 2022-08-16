@@ -70,9 +70,20 @@ std::map<std::string, std::map<std::string, uint32_t>> DebuggerNamespaceManager:
         auto name_from =
             src_name.ends_with('.') ? src_name.substr(0, src_name.size() - 1) : src_name;
         auto name_to = tb_name.ends_with('.') ? tb_name.substr(0, tb_name.size() - 1) : tb_name;
-        result[src_name][name_to] = ns->id;
+        result[name_from][name_to] = ns->id;
     }
     return result;
+}
+
+DebuggerNamespace *DebuggerNamespaceManager::look_up(const std::string &full_name) const {
+    // linearly look through each namespace to see which one match
+    for (auto const &ns : namespaces_) {
+        auto [front, rtl_name] = ns->rtl->get_mapping();
+        if (full_name.starts_with(rtl_name)) {
+            return ns.get();
+        }
+    }
+    return nullptr;
 }
 
 }  // namespace hgdb
