@@ -267,6 +267,7 @@ std::optional<int64_t> RTLSimulatorClient::get_value(vpiHandle handle, bool is_s
     }
 
     bool is_slice_handle = false;
+    auto *target_handle = handle;
 
     if (is_signal) {
         // get value size. Verilator will freak out if the width is larger than 64
@@ -294,7 +295,7 @@ std::optional<int64_t> RTLSimulatorClient::get_value(vpiHandle handle, bool is_s
     int64_t result = v.value.integer;
 
     if (is_slice_handle) [[unlikely]] {
-        result = get_slice(result, mock_slice_handles_.at(handle));
+        result = get_slice(result, mock_slice_handles_.at(target_handle));
     }
 
     return result;
