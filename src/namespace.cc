@@ -79,7 +79,7 @@ DebuggerNamespace *DebuggerNamespaceManager::look_up(const std::string &full_nam
     // linearly look through each namespace to see which one match
     for (auto const &ns : namespaces_) {
         auto [front, rtl_name] = ns->rtl->get_mapping();
-        if (full_name.starts_with(rtl_name)) {
+        if (full_name == rtl_name.substr(0, rtl_name.size() - 1)) {
             return ns.get();
         }
     }

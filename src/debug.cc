@@ -172,7 +172,7 @@ void Debugger::handle_assert() {
         return;
     }
     auto *ns = namespaces_.look_up(assert_info->full_name);
-    if (!ns || !assert_info) {
+    if (!ns) {
         log_error("Invalid assertion call site");
         return;
     }
@@ -183,7 +183,8 @@ void Debugger::handle_assert() {
         return;
     }
     // should be only one
-    auto const &bp = breakpoints[0];
+    auto &bp = breakpoints[0];
+    bp.condition.clear();
     // need to insert it into the scheduler
     scheduler_->add_assert_breakpoint(ns, bp);
 }

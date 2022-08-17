@@ -107,8 +107,8 @@ std::vector<DebugBreakPoint *> Scheduler::next_normal_breakpoints() {
     // this can be turned off by client's request (changed via option-change request)
     // notice that we only allow one data breakpoint being triggered for now
     // also notice that since data breakpoint can be mixed with the normal breakpoint, we only
-    // disable scanning if it's data breakpoint only
-    if (!single_thread_mode_ && result[0]->type != DebugBreakPoint::Type::data) {
+    // disable scanning if it's not nonrmal breakpoint
+    if (!single_thread_mode_ && result[0]->type == DebugBreakPoint::Type::normal) {
         scan_breakpoints(index, true, result);
     }
 
@@ -285,7 +285,7 @@ void Scheduler::remove_assert_breakpoints() {
         std::unordered_set<uint32_t>(inserted_breakpoints_.begin(), inserted_breakpoints_.end());
     for (auto bp_id : ids) {
         auto *bp = get_breakpoint(bp_id);
-        if (bp && bp->has_type_flag(DebugBreakPoint::Type::assert)) {
+        if (bp && bp->has_type_flag(DebugBreakPoint::Type::assert) && bp->evaluated) {
             remove_breakpoint(bp_id, DebugBreakPoint::Type::assert);
         }
     }

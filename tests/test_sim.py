@@ -126,8 +126,47 @@ def test_complex_construct(find_free_port, simulator):
             asyncio.get_event_loop_policy().get_event_loop().run_until_complete(test_logic())
 
 
+def assert_db(db_filename):
+    db = DebugSymbolTable(db_filename)
+    db.store_instance(0, "child")
+    for i, name in enumerate(["id"]):
+        db.store_variable(i, name)
+        db.store_generator_variable(name, 0, i)
+    # condition does not matter
+    db.store_breakpoint(0, 0, "test.py", 1, condition="xxx")
+
+
+@pytest.mark.parametrize("simulator", [XceliumTester, VCSTester])
+def test_assert(find_free_port, simulator):
+    if not simulator.available():
+        pytest.skip("{0} not available".format(simulator.__name__))
+    with tempfile.TemporaryDirectory() as temp:
+        db_filename = os.path.abspath(os.path.join(temp, "debug.db"))
+        assert_db(db_filename)
+        mod_filename = os.path.join(vector_dir, "test_assert.sv")
+        with simulator(mod_filename, cwd=temp, top_name="top") as tester:
+            port = find_free_port()
+            tester.run(blocking=False, DEBUG_PORT=port, DEBUG_LOG=True)
+            uri = get_uri(port)
+
+            async def test_logic():
+                client = HGDBClient(uri, db_filename)
+                await client.connect()
+                await client.continue_()
+                # should receive a breakpoint
+                bp = await client.recv()
+                instances = bp["payload"]["instances"]
+                assert len(instances) == 1
+                assert instances[0]["generator"]["id"] == "2"
+                await client.continue_()
+                bp = await client.recv()
+                assert bp is None
+
+            asyncio.get_event_loop_policy().get_event_loop().run_until_complete(test_logic())
+
+
 if __name__ == "__main__":
     sys.path.append(get_root())
     from conftest import find_free_port_fn
 
-    test_complex_construct(find_free_port_fn, VCSTester)
+    test_assert(find_free_port_fn, XceliumTester)

@@ -525,6 +525,7 @@ vpiHandle RTLSimulatorClient::register_tf(const std::string &name, int (*tf_func
     tf_data.calltf = tf_func;
     tf_data.compiletf = nullptr;
     tf_data.sizetf = nullptr;
+    tf_data.user_data = reinterpret_cast<char *>(user_data);
     return vpi_->vpi_register_systf(&tf_data);
 }
 
@@ -665,6 +666,10 @@ std::vector<std::pair<std::string, std::string>> RTLSimulatorClient::resolve_rtl
             } else {
                 array_iteration(vpiRange, res);
             }
+            break;
+        }
+        case vpiParameter: {
+            // nothing
             break;
         }
         default: {
@@ -971,7 +976,7 @@ void RTLSimulatorClient::set_mapping(const std::string &top, const std::string &
 }
 
 std::optional<RTLSimulatorClient::AssertInfo> RTLSimulatorClient::get_assert_info() {
-    auto *tf_handle = vpi_->vpi_handle(vpiSysTaskCall, nullptr);
+    auto *tf_handle = vpi_->vpi_handle(vpiSysTfCall, nullptr);
     if (!tf_handle) return std::nullopt;
     auto *arg_iterator = vpi_->vpi_iterate(vpiArgument, tf_handle);
     if (!arg_iterator) return std::nullopt;
