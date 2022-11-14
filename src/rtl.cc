@@ -499,7 +499,10 @@ vpiHandle RTLSimulatorClient::add_call_back(const std::string &cb_name, int cb_t
         // need to free the old one to avoid memory leak
         if (cb_handles_.find(cb_name) != cb_handles_.end()) {
             auto *old_handle = cb_handles_.at(cb_name);
-            vpi_->vpi_release_handle(old_handle);
+            // iverilog doesn't have release handle
+            if (!is_iverilog_) {
+                vpi_->vpi_release_handle(old_handle);
+            }
             cb_handles_.erase(cb_name);
         }
         cb_handles_.emplace(cb_name, handle);
@@ -857,6 +860,7 @@ void RTLSimulatorClient::set_simulator_info() {
     // verilator
     is_vcs_ = sim_info_.name.find("VCS") != std::string::npos;
     is_mock_ = sim_info_.name == "RTLMock";
+    is_iverilog_ = sim_info_.name == "Icarus Verilog";
 }
 
 std::vector<std::string> RTLSimulatorClient::get_clocks_from_design() {
@@ -967,7 +971,9 @@ uint32_t RTLSimulatorClient::get_vpi_size(vpiHandle handle) {
 RTLSimulatorClient::~RTLSimulatorClient() {
     // free callback handles
     for (auto const &iter : cb_handles_) {
-        vpi_->vpi_release_handle(iter.second);
+        if (!is_iverilog_) {
+            vpi_->vpi_release_handle(iter.second);
+        }
     }
 }
 

@@ -205,6 +205,7 @@ private:
     bool is_verilator_ = false;
     bool is_xcelium_ = false;
     bool is_vcs_ = false;
+    bool is_iverilog_ = false;
     bool is_mock_ = false;
 
     static std::pair<std::string, std::string> get_path(const std::string &name);
