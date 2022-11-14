@@ -4,6 +4,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.2] - 2022-11-14
+
+### Added
+- Add performance counting
+- Add namespace/process support
+- Add C++ JSON DB wrapper
+
+### Changed
+- Changed some debugger runtime RPC protocol interface
+- Optimize for expression evaluation in @ clock edge
+- Adjust some benchmark code
+
+
 ## [0.1.1] - 2022-06-08
 ### Added
 - Add documentation website hgdb.dev
