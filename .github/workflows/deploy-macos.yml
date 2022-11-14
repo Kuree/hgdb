@@ -27,7 +27,7 @@ jobs:
     - name: Build Python wheel 🎡
       shell: bash
       run: |
-        pip3 install wheel
+        pip3 install wheel==0.37.0
         cd bindings/python
         python3 setup.py bdist_wheel
     - name: Upload artifact 🛖
