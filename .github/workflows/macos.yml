@@ -34,7 +34,7 @@ jobs:
         if: startsWith(github.ref, 'refs/tags')
         shell: bash
         run: |
-          pip3 install wheel wheeltools
+          pip3 install wheel==0.37.0 wheeltools
           python3 setup.py bdist_wheel
           mkdir -p wheelhouse
           python3 scripts/fix_wheel.py dist/*.whl -w wheelhouse
