@@ -12,27 +12,18 @@ def rewrite_rtl(input_file):
         i += 1
         # transform only if there is a line command
         if "assign " not in line or "@" not in line:
-            # Chisel use default net type for input/output ports (bad!)
-            # convert them to proper logic
-            if "input " in line:
-                line = line.replace("input ", "input logic ")
-            elif "output " in line:
-                line = line.replace("output ", "output logic ")
-            elif "wire " in line:
-                line = line.replace("wire ", "logic ")
             result.append(line)
             continue
-        raw_assignment = line.replace("assign ", "")
         result.append("always_comb begin\n")
         # compute leading space to make it looks nicer
-        num_space = len(raw_assignment) - len(raw_assignment.lstrip())
-        result.append(" " * num_space + "HGDB_DEBUG_DPI(0, 0);\n")
-        result.append(raw_assignment)
+        num_space = len(line) - len(line.lstrip())
+        result.append(" " * num_space + "HGDB_DEBUG_DPI(0, {0});\n".format(i))
+        result.append("end\n")
+        result.append(line)
         while ';' not in line:
             line = lines[i]
             i += 1
             result.append(line)
-        result.append("end\n")
     return result
 
 
