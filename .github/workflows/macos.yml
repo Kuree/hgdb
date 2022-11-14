@@ -24,8 +24,8 @@ jobs:
           make -j2
           make test
         env:
-          CC: gcc-10
-          CXX: g++-10
+          CC: gcc-11
+          CXX: g++-11
       - name: Upload debug build
         uses: actions/upload-artifact@v2
         with:
