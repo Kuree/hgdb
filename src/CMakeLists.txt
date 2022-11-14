@@ -18,7 +18,7 @@ target_include_directories(hgdb PUBLIC
         ../extern/valijson/include
         ${CMAKE_CURRENT_BINARY_DIR})
 
-target_link_libraries(hgdb fmt sqlite3 Threads::Threads ${STATIC_GCC_FLAG} ${STATIC_CXX_FLAG} taocpp::pegtl)
+target_link_libraries(hgdb fmt sqlite3 Threads::Threads ${STATIC_GCC_FLAG} ${STATIC_CXX_FLAG})
 
 # turn on as many warning flags as possible
 target_compile_options(hgdb PRIVATE -Wall -Werror -Wpedantic ${EXTRA_FLAGS})

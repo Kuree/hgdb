@@ -17,7 +17,6 @@ jobs:
       - name: Run tests ⚙️
         shell: bash
         run: |
-          pip3 install cmake
           mkdir build
           cd build
           cmake ..
