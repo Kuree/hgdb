@@ -11,11 +11,30 @@ try:
     from wheel.install import WheelFile
 except ImportError:  # As of Wheel 0.32.0
     from wheel.wheelfile import WheelFile
-from wheel.pkginfo import read_pkg_info, write_pkg_info
 from wheeltools.tools import unique_by_index
 from wheeltools.wheeltools import InWheelCtx
 
+# based on https://github.com/pypa/wheel/issues/433#issuecomment-1003267146
+from email.generator import Generator
+from email.message import Message
+from email.parser import Parser
+from os import PathLike
+from typing import Union
+
+
 logger = logging.getLogger(splitext(basename(__file__))[0])
+
+
+def read_pkg_info(path: Union[bytes, str, PathLike]) -> Message:
+    """Read a PKG-INFO or METADATA file."""
+    with open(path, encoding="utf-8") as headers:
+        return Parser().parse(headers)
+
+
+def write_pkg_info(path: Union[bytes, str, PathLike], message: Message) -> None:
+    """Write to a PKG-INFO or METADATA file."""
+    with open(path, "w", encoding="utf-8") as out:
+        Generator(out, mangle_from_=False, maxheaderlen=0).flatten(message)
 
 
 def _get_wheelinfo_name(wheelfile):
