@@ -41,7 +41,7 @@ compliant simulator.
 - Kratos, native support.
 - LegUp (HLS), experimental support, via [hgdb-legup](https://github.com/Kuree/hgdb-legup).
 - Xilinx Vitis, via [hgdb-vitis](https://github.com/Kuree/hgdb-vitis)
-- Hand-written Verilog/SystemVerilog, via hgdb-rtl (work in progress).
+- Hand-written Verilog/SystemVerilog, via [hgdb-rtl](https://github.com/Kuree/hgdb-rtl).
 
 ## Supported debuggers
 

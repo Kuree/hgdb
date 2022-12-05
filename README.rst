@@ -41,7 +41,7 @@ generator frameworks. The list below will be growing!
 - Kratos, native support.
 - LegUp (HLS), experimental support, via `hgdb-legup`_.
 - Xilinx Vitis (HLS), via `hgdb-vitis`_.
-- Hand-written Verilog/SystemVerilog, via hgdb-rtl (work in progress).
+- Hand-written Verilog/SystemVerilog, via `hgdb-rtl`_.
 
 Usage
 -----
@@ -258,6 +258,7 @@ You can check the pre-print version at `arxiv`_ (DAC '22).
 .. _hgdb-firrtl: https://github.com/Kuree/hgdb-firrtl
 .. _hgdb-legup: https://github.com/Kuree/hgdb-legup
 .. _hgdb-vitis: https://github.com/Kuree/hgdb-vitis
+.. _hgdb-rtl: https://github.com/Kuree/hgdb-rtl
 .. |HGDB Logo| image:: https://github.com/Kuree/files/raw/master/images/hgdb-logo-header.svg
 .. _here: https://github.com/Kuree/hgdb-debugger
 .. _document: https://hgdb.dev/internal/
