@@ -1,0 +1,14 @@
+#!/usr/bin/env python
+
+import os
+import pkgutil
+import subprocess
+import sys
+import tempfile
+
+# find the lib
+libpath = pkgutil.get_loader("libhgdb").path
+with tempfile.TemporaryDirectory() as temp:
+    vpi_name = os.path.join(temp, "libhgdb.vpi")
+    os.symlink(libpath, vpi_name)
+    exit(subprocess.call(["vvp"] + ["-M" + temp, "-mlibhgdb"] + sys.argv[1:]))

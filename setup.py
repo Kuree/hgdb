@@ -6,7 +6,6 @@ import multiprocessing
 from setuptools import setup, Extension
 from setuptools.command.build_ext import build_ext
 
-
 # Notice:
 # Much of the content is copied from
 # https://github.com/pybind/cmake_example/blob/master/setup.py
@@ -24,6 +23,7 @@ PLAT_TO_CMAKE = {
 
 binary_target_names = ["hgdb-replay-bin", "hgdb-rewrite-vcd", "hgdb-db"]
 binary_names = ["hgdb-replay", "hgdb-rewrite-vcd", "hgdb-db"]
+
 
 # A CMakeExtension needs a sourcedir instead of a file list.
 # The name must be the _single_ output extension from the CMake build.
@@ -108,6 +108,10 @@ with open(os.path.join(root_dir, "README.rst")) as f:
 with open(os.path.join(root_dir, "VERSION")) as f:
     version = f.read().strip()
 
+eda_names = ["hgdb-vcs", "hgdb-xrun", "hgdb-vsim", "hgdb-verilator", "hgdb-vvp"]
+scripts = [os.path.join("scripts", "tools", name) for name in binary_names] + [os.path.join("scripts", "eda", name) for
+                                                                               name in eda_names]
+
 setup(
     name='libhgdb',
     version=version,
@@ -117,7 +121,7 @@ setup(
     long_description_content_type='text/x-rst',
     url="https://github.com/Kuree/hgdb",
     python_requires=">=3.6",
-    scripts=[os.path.join("scripts", "tools", name) for name in binary_names],
+    scripts=scripts,
     ext_modules=[CMakeExtension("libhgdb")],
     cmdclass={"build_ext": CMakeBuild},
 )
