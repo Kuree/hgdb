@@ -1,0 +1,521 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+      
+      
+      <link rel="icon" href="../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.4.2, mkdocs-material-8.5.10">
+    
+    
+      
+        <title>Simulator - Hardware Generator Debugger</title>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/stylesheets/main.975780f9.min.css">
+      
+        
+        <link rel="stylesheet" href="../assets/stylesheets/palette.2505c338.min.css">
+        
+      
+      
+
+    
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce((e,_)=>(e<<5)-e+_.charCodeAt(0),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+    
+  </head>
+  
+  
+    
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="None" data-md-color-accent="None">
+  
+    
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#how-to-set-up-simulators-with-hgdb" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+<header class="md-header" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href=".." title="Hardware Generator Debugger" class="md-header__button md-logo" aria-label="Hardware Generator Debugger" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54Z"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3V6m0 5h18v2H3v-2m0 5h18v2H3v-2Z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Hardware Generator Debugger
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Simulator
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+    
+    
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href=".." title="Hardware Generator Debugger" class="md-nav__button md-logo" aria-label="Hardware Generator Debugger" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54Z"/></svg>
+
+    </a>
+    Hardware Generator Debugger
+  </label>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+      
+
+  
+  
+  
+    <li class="md-nav__item">
+      <a href=".." class="md-nav__link">
+        Overview
+      </a>
+    </li>
+  
+
+    
+      
+      
+      
+
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../usage/" class="md-nav__link">
+        Install and Usage
+      </a>
+    </li>
+  
+
+    
+      
+      
+      
+
+  
+  
+    
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" data-md-toggle="toc" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          Simulator
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        Simulator
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#cadence-xceliumtm" class="md-nav__link">
+    Cadence® Xcelium™
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#synopsys-vcs" class="md-nav__link">
+    Synopsys VCS®
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#mentor-questa" class="md-nav__link">
+    Mentor Questa®
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#verilator" class="md-nav__link">
+    Verilator
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#icarus-verilog" class="md-nav__link">
+    Icarus Verilog
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#using-wrapper-tools" class="md-nav__link">
+    Using wrapper tools
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+    
+      
+      
+      
+
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../debugger/" class="md-nav__link">
+        Debugger
+      </a>
+    </li>
+  
+
+    
+      
+      
+      
+
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../internal/" class="md-nav__link">
+        How it works
+      </a>
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#cadence-xceliumtm" class="md-nav__link">
+    Cadence® Xcelium™
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#synopsys-vcs" class="md-nav__link">
+    Synopsys VCS®
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#mentor-questa" class="md-nav__link">
+    Mentor Questa®
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#verilator" class="md-nav__link">
+    Verilator
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#icarus-verilog" class="md-nav__link">
+    Icarus Verilog
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#using-wrapper-tools" class="md-nav__link">
+    Using wrapper tools
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+<h1 id="how-to-set-up-simulators-with-hgdb">How to set up simulators with hgdb</h1>
+<p>This documentation details the command line options you need to load hgdb runtime into your simulator of choice.
+For most cases, you need to make sure that the simulator can find <code>libhgdb.so</code>. The easiest way is to add the
+directory containing the library into <code>LD_LIBRARY_PATH</code>, if you are using windows.</p>
+<h2 id="cadence-xceliumtm">Cadence® Xcelium™</h2>
+<div class="highlight"><pre><span></span><code>xrun <span class="o">[</span>commands<span class="o">]</span> -access +r -loadvpi libhgdb.so:initialize_hgdb_runtime
+</code></pre></div>
+<p>Notice if you want to set values when you debug, you need to use <code>-access +rw</code> to allow write access.</p>
+<h2 id="synopsys-vcs">Synopsys VCS®</h2>
+<div class="highlight"><pre><span></span><code>vcs <span class="o">[</span>commands<span class="o">]</span> -debug_acc+all -load libhgdb.so
+</code></pre></div>
+<p>Notice that <code>-debug_acc+all</code> slows down the simulation significantly. For most cases, <code>-debug_access+class</code> is
+sufficient, which gives you minimal simulation overhead.</p>
+<h2 id="mentor-questa">Mentor Questa®</h2>
+<p><div class="highlight"><pre><span></span><code>vsim <span class="o">[</span>flags<span class="o">]</span> -pli libghdb.so
+</code></pre></div>
+Questa is fairly simple since all you need is point to the library.</p>
+<h2 id="verilator">Verilator</h2>
+<p>Verilator is a little tedious since it is not specification-compliant and thus not event-driven.</p>
+<p>First, we need to generate the verilated files with extra VPI flags</p>
+<div class="highlight"><pre><span></span><code>Verilator <span class="o">[</span>flags<span class="o">]</span> --vpi <span class="si">${</span><span class="nv">path_to_libhgdb</span><span class="p">.so</span><span class="si">}</span>
+</code></pre></div>
+<p>In addition, most signals should be labeled as public, otherwise breakpoints and frame
+inspection will not work. An easy way is to use <code>--public-flat-rw</code>
+flag when invoking <code>verilator</code>. In addition to the flags, we need add following code to the test bench:</p>
+<ul>
+<li>Forward declare the runtime call:
+    <div class="highlight"><pre><span></span><code><span class="k">namespace</span><span class="w"> </span><span class="nn">hgdb</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">initialize_hgdb_runtime_cxx</span><span class="p">();</span><span class="w"></span>
+<span class="p">}</span><span class="w"></span>
+</code></pre></div></li>
+<li>
+<p>At the beginning of the test bench code:
+    <div class="highlight"><pre><span></span><code><span class="n">hgdb</span><span class="o">::</span><span class="n">initialize_hgdb_runtime_cxx</span><span class="p">();</span><span class="w"></span>
+</code></pre></div>
+    Also make sure <code>argc</code> and <code>argv</code> are properly passed to verilator:</p>
+<p><div class="highlight"><pre><span></span><code><span class="n">Verilated</span><span class="o">::</span><span class="n">commandArgs</span><span class="p">(</span><span class="n">argc</span><span class="p">,</span><span class="w"> </span><span class="n">argv</span><span class="p">);</span><span class="w"></span>
+</code></pre></div>
+- At each posedge of the clock, we need to call specific callback:
+<div class="highlight"><pre><span></span><code><span class="w">  </span><span class="n">VerilatedVpi</span><span class="o">::</span><span class="n">callCbs</span><span class="p">(</span><span class="n">cbNextSimTime</span><span class="p">);</span><span class="w"></span>
+</code></pre></div></p>
+</li>
+</ul>
+<p>You can check out this <a href="https://github.com/Kuree/hgdb/blob/master/tests/generators/vectors/test_circt_tb.cc">test bench</a>
+for more details.</p>
+<h2 id="icarus-verilog">Icarus Verilog</h2>
+<p>Icarus Verilog only takes shared library with <code>.vpi</code> extension. As a result,
+it is a good idea to simply symbolic link <code>libhgdb.so</code> to <code>libhgdb.vpi</code> in the
+current working directory. When you run the compiled circuit with <code>vvp</code>, add the following command:</p>
+<div class="highlight"><pre><span></span><code>vvp -M. -mlibhgdb <span class="o">[</span>commands<span class="o">]</span>
+</code></pre></div>
+<h2 id="using-wrapper-tools">Using wrapper tools</h2>
+<p>If you have installed hgdb via <code>pip</code>, you can directly use the wrapper
+script to invoke popular simulators. For instance, you can use <code>hgdb-vcs</code>
+in lieu of <code>vcs</code> and reuse the exact command line arguments. The wrapper
+scripts insert proper flags to enable hgdb. Here is a list of tools:</p>
+<ul>
+<li><code>hgdb-vcs</code></li>
+<li><code>hgdb-xrun</code></li>
+<li><code>hgdb-vsim</code></li>
+<li><code>hgdb-verilator</code></li>
+<li><code>hgdb-vvp</code></li>
+</ul>
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+        </div>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+    
+    <nav class="md-footer__inner md-grid" aria-label="Footer" >
+      
+        
+        <a href="../usage/" class="md-footer__link md-footer__link--prev" aria-label="Previous: Install and Usage" rel="prev">
+          <div class="md-footer__button md-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11h12Z"/></svg>
+          </div>
+          <div class="md-footer__title">
+            <div class="md-ellipsis">
+              <span class="md-footer__direction">
+                Previous
+              </span>
+              Install and Usage
+            </div>
+          </div>
+        </a>
+      
+      
+        
+        <a href="../debugger/" class="md-footer__link md-footer__link--next" aria-label="Next: Debugger" rel="next">
+          <div class="md-footer__title">
+            <div class="md-ellipsis">
+              <span class="md-footer__direction">
+                Next
+              </span>
+              Debugger
+            </div>
+          </div>
+          <div class="md-footer__button md-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M4 11v2h12l-5.5 5.5 1.42 1.42L19.84 12l-7.92-7.92L10.5 5.5 16 11H4Z"/></svg>
+          </div>
+        </a>
+      
+    </nav>
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    <script id="__config" type="application/json">{"base": "..", "features": [], "search": "../assets/javascripts/workers/search.16e2a7d4.min.js", "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.config.lang": "en", "search.config.pipeline": "trimmer, stopWordFilter", "search.config.separator": "[\\s\\-]+", "search.placeholder": "Search", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version.title": "Select version"}}</script>
+    
+    
+      <script src="../assets/javascripts/bundle.5a2dcb6a.min.js"></script>
+      
+    
+    
+  </body>
+</html>

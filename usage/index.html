@@ -1,0 +1,533 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+      
+      
+      <link rel="icon" href="../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.4.2, mkdocs-material-8.5.10">
+    
+    
+      
+        <title>Install and Usage - Hardware Generator Debugger</title>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/stylesheets/main.975780f9.min.css">
+      
+        
+        <link rel="stylesheet" href="../assets/stylesheets/palette.2505c338.min.css">
+        
+      
+      
+
+    
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce((e,_)=>(e<<5)-e+_.charCodeAt(0),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+    
+  </head>
+  
+  
+    
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="None" data-md-color-accent="None">
+  
+    
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#how-to-install-and-use-hgdb" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+<header class="md-header" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href=".." title="Hardware Generator Debugger" class="md-header__button md-logo" aria-label="Hardware Generator Debugger" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54Z"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3V6m0 5h18v2H3v-2m0 5h18v2H3v-2Z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Hardware Generator Debugger
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Install and Usage
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+    
+    
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href=".." title="Hardware Generator Debugger" class="md-nav__button md-logo" aria-label="Hardware Generator Debugger" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54Z"/></svg>
+
+    </a>
+    Hardware Generator Debugger
+  </label>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+      
+
+  
+  
+  
+    <li class="md-nav__item">
+      <a href=".." class="md-nav__link">
+        Overview
+      </a>
+    </li>
+  
+
+    
+      
+      
+      
+
+  
+  
+    
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" data-md-toggle="toc" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          Install and Usage
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        Install and Usage
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#install-via-pip" class="md-nav__link">
+    Install via pip
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#compile-from-source" class="md-nav__link">
+    Compile from source
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#runtime-library-settings" class="md-nav__link">
+    Runtime library settings
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#usage" class="md-nav__link">
+    Usage
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#replay-tool" class="md-nav__link">
+    Replay tool
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#vcd-rewrite" class="md-nav__link">
+    VCD Rewrite
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#db-query-tool" class="md-nav__link">
+    DB query tool
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+    
+      
+      
+      
+
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../simulator/" class="md-nav__link">
+        Simulator
+      </a>
+    </li>
+  
+
+    
+      
+      
+      
+
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../debugger/" class="md-nav__link">
+        Debugger
+      </a>
+    </li>
+  
+
+    
+      
+      
+      
+
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../internal/" class="md-nav__link">
+        How it works
+      </a>
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#install-via-pip" class="md-nav__link">
+    Install via pip
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#compile-from-source" class="md-nav__link">
+    Compile from source
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#runtime-library-settings" class="md-nav__link">
+    Runtime library settings
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#usage" class="md-nav__link">
+    Usage
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#replay-tool" class="md-nav__link">
+    Replay tool
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#vcd-rewrite" class="md-nav__link">
+    VCD Rewrite
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#db-query-tool" class="md-nav__link">
+    DB query tool
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+<h1 id="how-to-install-and-use-hgdb">How to install and use hgdb</h1>
+<h2 id="install-via-pip">Install via pip</h2>
+<p>The easiest way to get started is to install the compiled shared object
+via <code>pip</code>. To do so, simply type</p>
+<div class="highlight"><pre><span></span><code>pip install libhgdb
+</code></pre></div>
+<p>You can find the download shared library using the following one-liner</p>
+<div class="highlight"><pre><span></span><code>python -c <span class="s2">&quot;import pkgutil; print(pkgutil.get_loader(&#39;libhgdb&#39;).path)&quot;</span>
+</code></pre></div>
+<p>You can copy it ot symbolic link to places you want to use.</p>
+<h2 id="compile-from-source">Compile from source</h2>
+<p>To compile it from source, you need a C++20 compatible compiler, such as
+<code>gcc-10</code> or <code>clang-10</code>. Make sure that git submodules are properly cloned.</p>
+<p><div class="highlight"><pre><span></span><code>git clone --recurse-submodules -j8 https://github.com/Kuree/hgdb
+<span class="nb">cd</span> hgdb
+mkdir build <span class="o">&amp;&amp;</span> <span class="nb">cd</span> build <span class="o">&amp;&amp;</span> cmake ..
+make hgdb -j
+</code></pre></div>
+You should see the compiled shared library in <code>build/src/</code></p>
+<h2 id="runtime-library-settings">Runtime library settings</h2>
+<p>You can change the runtime settings using plus-args when invoking the simulator. Here is
+a short list of options you can change:</p>
+<ul>
+<li><code>+DEBUG_PORT=num</code>, where <code>num</code> is the port number. By default, this is <code>8888</code></li>
+<li><code>+DEBUG_LOG=1</code>, enable the debugging log. Useful when debugging the behavior of the
+  runtime</li>
+</ul>
+<p>There are several predefined environment variables one can use to debug the runtime. It
+is not recommended for production usage:</p>
+<ul>
+<li><code>DEBUG_DISABLE_BLOCKING</code>: when present, will disable the initial blocking. As a result,
+  the simulator will start execution without user's explicit "start" or "continue"
+  command.</li>
+<li><code>DEBUG_BREAKPOINT#=filename:line_num@[condition]</code>: where <code>#</code> counts from 0. The runtime will
+  query the predefined breakpoints starting from 0 and stops if corresponding environment
+  variable name not found. `condition`` is optional.</li>
+<li><code>DEBUG_PERF_COUNT</code>: when present, the system will collect performance information. Only valid
+  when the library is build with <code>-DPERF_COUNT=ON</code> when invoking <code>cmake</code>.</li>
+<li><code>DEBUG_PERF_COUNT_LOG</code>: when set, the system will dump the performance data into the set value
+  instead of cout;</li>
+</ul>
+<h2 id="usage">Usage</h2>
+<p>To use hgdb, see <a href="../simulator/">simulators</a> and <a href="../debugger/">debuggers</a>.
+By design, hgdb only offers an API for other tools to interact with.</p>
+<h2 id="replay-tool">Replay tool</h2>
+<p><code>hgdb-replay</code> is a tool that allows you to replay captured trace files. By default, it only supports VCD-based traces
+files. However, if you have <code>VCS</code> in your environment, the build system will automatically detect and compile it with
+<code>FSDB</code> support.</p>
+<p>During replay, users can use reverse debugging to rewind time using the supported debuggers. Use <code>-h</code> to see the
+available options.</p>
+<h2 id="vcd-rewrite">VCD Rewrite</h2>
+<p><code>hgdb-vcd-rewrite</code> is a tool that rewrites the trace files given a symbol table. It is used to refactor the waveforms
+using source-level symbols. Due to the limitation of VCD format, structural signals are grouped as a module instance.
+Use <code>-h</code> to see the available options.</p>
+<h2 id="db-query-tool">DB query tool</h2>
+<p><code>hgdb-db</code> is a tool to query the symbol table. It aims to provide an easy way to debug different kinds of symbol
+table in a human-readable form. It uses menu-based system to navigate.</p>
+<p>To see available options, simple do</p>
+<div class="highlight"><pre><span></span><code>hgdb-db symbol-table-file-name.db
+</code></pre></div>
+<p>Then type <code>help</code> in the prompt.</p>
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+        </div>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+    
+    <nav class="md-footer__inner md-grid" aria-label="Footer" >
+      
+        
+        <a href=".." class="md-footer__link md-footer__link--prev" aria-label="Previous: Overview" rel="prev">
+          <div class="md-footer__button md-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11h12Z"/></svg>
+          </div>
+          <div class="md-footer__title">
+            <div class="md-ellipsis">
+              <span class="md-footer__direction">
+                Previous
+              </span>
+              Overview
+            </div>
+          </div>
+        </a>
+      
+      
+        
+        <a href="../simulator/" class="md-footer__link md-footer__link--next" aria-label="Next: Simulator" rel="next">
+          <div class="md-footer__title">
+            <div class="md-ellipsis">
+              <span class="md-footer__direction">
+                Next
+              </span>
+              Simulator
+            </div>
+          </div>
+          <div class="md-footer__button md-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M4 11v2h12l-5.5 5.5 1.42 1.42L19.84 12l-7.92-7.92L10.5 5.5 16 11H4Z"/></svg>
+          </div>
+        </a>
+      
+    </nav>
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    <script id="__config" type="application/json">{"base": "..", "features": [], "search": "../assets/javascripts/workers/search.16e2a7d4.min.js", "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.config.lang": "en", "search.config.pipeline": "trimmer, stopWordFilter", "search.config.separator": "[\\s\\-]+", "search.placeholder": "Search", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version.title": "Select version"}}</script>
+    
+    
+      <script src="../assets/javascripts/bundle.5a2dcb6a.min.js"></script>
+      
+    
+    
+  </body>
+</html>
