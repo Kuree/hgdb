@@ -78,8 +78,19 @@ You should see the compiled shared library in ``build/src/``
 
 How to use it with simulators
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+If you have installed hgdb via ``pip``, you can directly use the wrapper
+script to invoke popular simulators. For instance, you can use ``hgdb-vcs``
+in lieu of ``vcs`` and reuse the exact command line arguments. The wrapper
+scripts insert proper flags to enable hgdb. Here is a list of tools:
 
-You need to provide specific flags to the simulator in order to load the
+- ``hgdb-vcs``
+- ``hgdb-xrun``
+- ``hgdb-vsim``
+- ``hgdb-verilator``
+- ``hgdb-vvp``
+
+If you want more freedom or you compile hgdb from source,
+you need to provide specific flags to the simulator in order to load the
 runtime. Notice that in most cases you need to make sure that the
 simulator can find ``libhgdb.so``. The easiest way is to invoke commands
 with ``LD_LIBRARY_PATH=${hgdb_lib_path}$``, where ``${hgdb_lib_path}``

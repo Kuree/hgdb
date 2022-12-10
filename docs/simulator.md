@@ -72,3 +72,15 @@ current working directory. When you run the compiled circuit with `vvp`, add the
 ```bash
 vvp -M. -mlibhgdb [commands]
 ```
+
+## Using wrapper tools
+If you have installed hgdb via `pip`, you can directly use the wrapper
+script to invoke popular simulators. For instance, you can use `hgdb-vcs`
+in lieu of `vcs` and reuse the exact command line arguments. The wrapper
+scripts insert proper flags to enable hgdb. Here is a list of tools:
+
+- `hgdb-vcs`
+- `hgdb-xrun`
+- `hgdb-vsim`
+- `hgdb-verilator`
+- `hgdb-vvp`
