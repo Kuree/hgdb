@@ -24,9 +24,6 @@ jobs:
     - name: Build Python hgdb 🎡
       shell: bash
       run: bash bindings/python/scripts/deploy.sh
-    - name: Copy wheels to the same place 📋
-      shell: bash
-      run: sudo cp bindings/python/wheelhouse/* wheelhouse/
     - name: Upload artifact 🛖
       uses: actions/upload-artifact@v2
       with:
@@ -36,6 +33,13 @@ jobs:
       uses: pypa/gh-action-pypi-publish@release/v1
       with:
         user: keyi
-        password: ${{ secrets.PYPI_API_TOKEN }}
+        password: ${{ secrets.PYPI_API_LIBHGDB_TOKEN }}
         skip_existing: true
         packages_dir: wheelhouse/
+    - name: Publish distribution 📦 to PyPI
+      uses: pypa/gh-action-pypi-publish@release/v1
+      with:
+        user: keyi
+        password: ${{ secrets.PYPI_API_TOKEN }}
+        skip_existing: true
+        packages_dir: bindings/python/wheelhouse/*
