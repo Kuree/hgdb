@@ -8,6 +8,7 @@
 #include <string>
 #include <unordered_set>
 #include <istream>
+#include <cstdint>
 
 namespace hgdb::vcd {
 
