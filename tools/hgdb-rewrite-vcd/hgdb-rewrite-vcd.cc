@@ -35,7 +35,7 @@ std::unique_ptr<argparse::ArgumentParser> get_args(int argc, char **argv) {
         return program;
     } catch (const std::runtime_error &err) {
         std::cerr << err.what() << std::endl;
-        std::cerr << program;
+        std::cerr << *program;
         return nullptr;
     }
 }

@@ -1,12 +1,12 @@
 #ifndef HGDB_UTIL_HH
 #define HGDB_UTIL_HH
 
+#include <cstdint>
 #include <map>
 #include <optional>
 #include <sstream>
 #include <string>
 #include <vector>
-#include <cstdint>
 
 namespace hgdb::util {
 

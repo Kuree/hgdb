@@ -1,14 +1,14 @@
 #ifndef HGDB_TOOLS_VCD_HH
 #define HGDB_TOOLS_VCD_HH
 
+#include <cstdint>
 #include <fstream>
 #include <functional>
+#include <istream>
 #include <optional>
 #include <stack>
 #include <string>
 #include <unordered_set>
-#include <istream>
-#include <cstdint>
 
 namespace hgdb::vcd {
 
@@ -17,12 +17,12 @@ struct VCSStreamInfo {
     uint64_t end_pos;
 };
 
-struct VCDScopeDef: public VCSStreamInfo {
+struct VCDScopeDef : public VCSStreamInfo {
     std::string name;
     std::string type;
 };
 
-struct VCDVarDef: public VCSStreamInfo {
+struct VCDVarDef : public VCSStreamInfo {
     std::string identifier;
     std::string type;
     uint32_t width;
@@ -30,14 +30,14 @@ struct VCDVarDef: public VCSStreamInfo {
     std::string slice;
 };
 
-struct VCDValue: public VCSStreamInfo {
+struct VCDValue : public VCSStreamInfo {
     uint64_t time;
     std::string identifier;
     std::string value;
     bool is_event;
 };
 
-struct VCDMetaInfo: public VCSStreamInfo {
+struct VCDMetaInfo : public VCSStreamInfo {
     enum class MetaType { date, version, timescale, comment };
     MetaType type;
     std::string value;
@@ -46,7 +46,7 @@ struct VCDMetaInfo: public VCSStreamInfo {
 class VCDParser {
 public:
     explicit VCDParser(const std::string &filename);
-    explicit VCDParser(std::istream &stream): stream_(&stream) {}
+    explicit VCDParser(std::istream &stream) : stream_(&stream) {}
     bool parse();
 
     // set callback
@@ -76,7 +76,7 @@ private:
     std::optional<std::function<void(const VCDValue &)>> on_value_change_;
     std::optional<std::function<void(const VCDVarDef &)>> on_var_def_;
     std::optional<std::function<void(uint64_t)>> on_time_change_;
-    std::optional<std::function<void(const std::string&)>> on_dump_var_action_;
+    std::optional<std::function<void(const std::string &)>> on_dump_var_action_;
     // parse stage notifier
     std::optional<std::function<void()>> on_definition_finished_;
 
@@ -93,7 +93,6 @@ protected:
     bool parse_vcd_values();
 
     bool check_end(const std::string &token);
-
 };
 
 }  // namespace hgdb::vcd
