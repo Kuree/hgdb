@@ -88,7 +88,7 @@ class CMakeBuild(build_ext):
 
 
 current_directory = os.path.abspath(os.path.dirname(__file__))
-with open(os.path.join(current_directory, 'README.rst')) as f:
+with open(os.path.join(current_directory, 'README.md')) as f:
     long_description = f.read()
 root = os.path.dirname(os.path.dirname(current_directory))
 with open(os.path.join(root, "VERSION")) as f:
@@ -100,7 +100,7 @@ setup(
     author='Keyi Zhang',
     author_email='keyi@cs.stanford.edu',
     long_description=long_description,
-    long_description_content_type='text/x-rst',
+    long_description_content_type='text/markdown',
     packages=['hgdb'],
     url="https://github.com/Kuree/hgdb",
     scripts=["scripts/toml2hgdb"],
