@@ -36,17 +36,9 @@ jobs:
         name: Python Wheel
         path: bindings/python/dist/
     - name: Publish distribution 📦 to PyPI
-      shell: bash
-      env:
-        PYPI_PASSWORD: ${{ secrets.PYPI_PASSWORD }}
-      run: |
-        echo [distutils]                                  > ~/.pypirc
-        echo index-servers =                             >> ~/.pypirc
-        echo "  pypi"                                    >> ~/.pypirc
-        echo                                             >> ~/.pypirc
-        echo [pypi]                                      >> ~/.pypirc
-        echo repository=https://upload.pypi.org/legacy/  >> ~/.pypirc
-        echo username=keyi                               >> ~/.pypirc
-        echo password=$PYPI_PASSWORD                     >> ~/.pypirc
-        pip install twine
-        twine upload --skip-existing bindings/python/dist/*.whl
+      uses: pypa/gh-action-pypi-publish@release/v1
+      with:
+        user: keyi
+        password: ${{ secrets.PYPI_API_TOKEN }}
+        skip_existing: true
+        packages_dir: bindings/python/wheelhouse/

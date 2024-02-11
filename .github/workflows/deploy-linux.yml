@@ -36,6 +36,6 @@ jobs:
       uses: pypa/gh-action-pypi-publish@release/v1
       with:
         user: keyi
-        password: ${{ secrets.PYPI_PASSWORD }}
+        password: ${{ secrets.PYPI_API_TOKEN }}
         skip_existing: true
         packages_dir: wheelhouse/
