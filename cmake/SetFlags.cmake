@@ -15,6 +15,12 @@ check_cxx_source_compiles(
         "int main() { if (1) [[likely]] {}}"
         SUPPORT_LIKELY
 )
+check_cxx_source_compiles(
+        "#include <memory>
+        std::unique_ptr<int> foo() { return std::move(std::make_unique<int>(0)); }
+        int main() { return *foo(); }"
+        NO_MOVE_COPY_OPT
+)
 unset(CMAKE_REQUIRED_FLAGS)
 if (NOT SUPPORT_LIKELY)
     if (CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
@@ -22,4 +28,7 @@ if (NOT SUPPORT_LIKELY)
     else ()
         set(EXTRA_FLAGS "-Wno-attributes")
     endif ()
+endif ()
+if (NOT NO_MOVE_COPY_OPT)
+    set(EXTRA_FLAGS  ${EXTRA_FLAGS} "-Wno-pessimizing-move")
 endif ()
