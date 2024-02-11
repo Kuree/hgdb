@@ -13,7 +13,7 @@
 #define STRINGIFY(X) STRINGIFY2(X)
 #define VERSION_STR STRINGIFY(VERSION_NUMBER)
 
-std::optional<argparse::ArgumentParser> get_args(int argc, char **argv) {
+std::unique_ptr<argparse::ArgumentParser> get_args(int argc, char **argv) {
     std::string program_name;
     if (std::getenv("HGDB_PYTHON_PACKAGE")) {
         auto path = std::filesystem::path(program_name);
@@ -21,22 +21,22 @@ std::optional<argparse::ArgumentParser> get_args(int argc, char **argv) {
     } else {
         program_name = argv[0];
     }
-    argparse::ArgumentParser program(program_name, VERSION_STR);
+    auto program = std::make_unique<argparse::ArgumentParser>(program_name, VERSION_STR);
 
     // make the program name look nicer
     argv[0] = const_cast<char *>(program_name.c_str());
 
-    program.add_argument("-i", "--input-vcd").help("Input VCD file").required();
-    program.add_argument("-d", "--debug-db").help("Debug symbol table").required();
-    program.add_argument("-o", "--output-vcd").help("Output VCD file").required();
+    program->add_argument("-i", "--input-vcd").help("Input VCD file").required();
+    program->add_argument("-d", "--debug-db").help("Debug symbol table").required();
+    program->add_argument("-o", "--output-vcd").help("Output VCD file").required();
 
     try {
-        program.parse_args(argc, argv);
+        program->parse_args(argc, argv);
         return program;
     } catch (const std::runtime_error &err) {
         std::cerr << err.what() << std::endl;
         std::cerr << program;
-        return std::nullopt;
+        return nullptr;
     }
 }
 

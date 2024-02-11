@@ -14,8 +14,8 @@
 #define STRINGIFY(X) STRINGIFY2(X)
 #define VERSION_STR STRINGIFY(VERSION_NUMBER)
 
-std::optional<argparse::ArgumentParser> get_args(int argc, char **argv) {
-    if (argc == 0) return std::nullopt;
+std::unique_ptr<argparse::ArgumentParser> get_args(int argc, char **argv) {
+    if (argc == 0) return nullptr;
     std::string program_name;
     if (std::getenv("HGDB_PYTHON_PACKAGE")) {
         auto path = std::filesystem::path(program_name);
@@ -23,31 +23,31 @@ std::optional<argparse::ArgumentParser> get_args(int argc, char **argv) {
     } else {
         program_name = argv[0];
     }
-    argparse::ArgumentParser program(program_name, VERSION_STR);
+    auto program = std::make_unique<argparse::ArgumentParser>(program_name, VERSION_STR);
     // make the program name look nicer
     argv[0] = const_cast<char *>(program_name.c_str());
 
-    program.add_argument("filename").help("Waveform file in either VCD or FSDB format").required();
+    program->add_argument("filename").help("Waveform file in either VCD or FSDB format").required();
     // optional argument for vcd
-    program.add_argument("--db").implicit_value(true).default_value(false);
+    program->add_argument("--db").implicit_value(true).default_value(false);
     // we can specify the port as well instead of changing it in the env by hand
-    program.add_argument("--port", "-p")
+    program->add_argument("--port", "-p")
         .help("Debug port")
         .default_value<uint16_t>(0)
         .scan<'d', uint16_t>();
-    program.add_argument("--debug").implicit_value(true).default_value(false);
-    program.add_argument("--start-time", "-s")
+    program->add_argument("--debug").implicit_value(true).default_value(false);
+    program->add_argument("--start-time", "-s")
         .default_value<uint64_t>(0)
         .help("When to start the replay")
         .scan<'d', uint64_t>();
 
     try {
-        program.parse_args(argc, argv);
+        program->parse_args(argc, argv);
         return program;
     } catch (const std::runtime_error &err) {
         std::cerr << err.what() << std::endl;
         std::cerr << program;
-        return std::nullopt;
+        return nullptr;
     }
 }
 
