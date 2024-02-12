@@ -100,6 +100,9 @@ TEST_F(RTLModuleTest, get_full_name) {  // NOLINT
     EXPECT_EQ(name, "top.dut.inst1.a");
     name = client->get_full_name("parent_mod.inst2.b");
     EXPECT_EQ(name, "top.dut.inst2.b");
+    // root is outside our control
+    name = client->get_full_name("$root.test");
+    EXPECT_EQ(name, "test");
 
     constexpr auto random_name = "42.43";
     name = client->get_full_name(random_name);
