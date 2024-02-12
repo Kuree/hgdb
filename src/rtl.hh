@@ -153,6 +153,7 @@ public:
 
     // used for compute potential clock signals if user doesn't provide proper annotation
     static constexpr std::array clock_names_{"clk", "clock", "clk_in", "clock_in", "CLK", "CLOCK"};
+    static constexpr std::string_view root_name = "$root.";
 
     // inform user about our mapping
     void set_mapping(const std::string &top, const std::string &prefix);

@@ -432,7 +432,6 @@ std::unordered_map<std::string, vpiHandle> RTLSimulatorClient::get_module_signal
 }
 
 std::string RTLSimulatorClient::get_full_name(const std::string &name) const {
-    constexpr static std::string_view root_name = "$root.";
     if (name.starts_with(root_name)) {
         // this is absolute reference.
         // remove the root
@@ -875,7 +874,7 @@ std::vector<std::string> RTLSimulatorClient::get_clocks_from_design() {
     std::vector<std::string> result;
     auto const &instance_name = hierarchy_name_prefix_map_.second;
 
-    auto isValidSignal = [&](std::string_view signal_name) -> bool {
+    auto is_valid_signal = [&](std::string_view signal_name) -> bool {
         // test to see if there is a signal name that match
         auto *handle = vpi_->vpi_handle_by_name(const_cast<char *>(signal_name.data()), nullptr);
         if (handle) {
@@ -890,7 +889,7 @@ std::vector<std::string> RTLSimulatorClient::get_clocks_from_design() {
 
     for (auto const &clk_name : clock_names_) {
         auto const &signal_name = instance_name + clk_name;
-        if (isValidSignal(signal_name)) {
+        if (is_valid_signal(signal_name)) {
             result.emplace_back(signal_name);
             break;
         }
@@ -905,9 +904,9 @@ std::vector<std::string> RTLSimulatorClient::get_clocks_from_design() {
                 tokens.begin(), tokens.begin() + static_cast<uint32_t>(tokens.size()) - 1u, ".");
             for (auto const &clk_name : clock_names_) {
                 auto signal_name = new_instance_name + "." + clk_name;
-                if (isValidSignal(signal_name)) {
+                if (is_valid_signal(signal_name)) {
                     // need to use root signal since we are using signals outside the design db
-                    auto root_signal_name = "$root." + signal_name;
+                    auto root_signal_name = std::string(root_name) + signal_name;
                     result.emplace_back(root_signal_name);
                     break;
                 }
